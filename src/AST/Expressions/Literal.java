@@ -21,5 +21,5 @@ public class Literal extends Expression {
     public boolean isLiteral() { return true; }
 
     @Override
-    public AST whosThatNode(PokeVisitor v) { return v.itsConstant(this); }
+    public AST whosThatNode(PokeVisitor v) { return v.itsLiteral(this); }
 }

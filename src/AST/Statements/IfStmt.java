@@ -2,6 +2,7 @@ package AST.Statements;
 
 import AST.*;
 import AST.Expressions.*;
+import AST.Vector;
 import Token.*;
 import Utilities.PokeVisitor;
 

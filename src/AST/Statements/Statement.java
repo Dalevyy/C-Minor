@@ -11,7 +11,12 @@ public abstract class Statement extends AST {
     public boolean isAssignStmt() { return false; }
     public boolean isExprStmt() { return false; }
     public boolean isBlockStmt() { return false; }
+
     public boolean isStopStmt() { return false; }
+    public StopStmt asStopStmt() {
+        throw new IllegalStateException("Error! Can not convert to Stop");
+    }
+
     public boolean isReturnStmt() { return false; }
     public boolean isIfStmt() { return false; }
     public boolean isWhileStmt() { return false; }

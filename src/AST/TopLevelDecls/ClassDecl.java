@@ -7,7 +7,7 @@ import Token.*;
 import Utilities.PokeVisitor;
 
 // TODO: Symbol Tables for NameChecking
-public class ClassDecl extends TopLevelDecl {
+public class ClassDecl extends TopLevelDecl implements ID {
 
     Modifier mod;
     Name name;
@@ -38,6 +38,9 @@ public class ClassDecl extends TopLevelDecl {
     public Vector<Type> getTypeParams() { return typeParams; }
     public ClassType getSuperClass() { return superClass; }
     public ClassBody getClassBody() { return body; }
+
+    public void setID(String s) { this.name.setName(s); }
+    public String getID() { return this.name.toString(); }
 
     @Override
     public String toString() { return name.toString(); }

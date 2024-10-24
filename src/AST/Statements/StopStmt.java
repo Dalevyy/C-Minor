@@ -11,6 +11,8 @@ public class StopStmt extends Statement {
 
     public boolean isStopStmt() { return true; }
 
+    public StopStmt asStopStmt() { return this; }
+
     @Override
     public AST whosThatNode(PokeVisitor v) { return v.itsStopStmt(this); }
 }

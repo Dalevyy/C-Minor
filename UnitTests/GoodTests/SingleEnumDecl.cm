@@ -1,0 +1,9 @@
+// Single Enum declaration
+
+def weekDays type = {Mon, Tues, Wed, Thurs, Fri, Sat, Sun}
+
+def main => Void {
+    stop
+}
+
+

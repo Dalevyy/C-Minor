@@ -16,17 +16,25 @@ public class MainDecl extends TopLevelDecl {
         super(t);
         this.args = a;
         this.retType = rt;
-        this.body = body;
+        this.body = b;
 
         addChild(this.args);
         addChild(this.retType);
         addChild(this.body);
         setParent();
+        setDebugInfo();
     }
 
     public Vector<ParamDecl> getArgs() { return args; }
     public Type getReturnType() { return retType; }
     public BlockStmt getMainBody() { return body; }
+
+
+    public void setDebugInfo() {
+        this.location.end = this.body.location.end;
+        //this.text +=
+    }
+
 
     @Override
     public String toString() { return "Main"; }

@@ -31,6 +31,7 @@ public abstract class AST {
 
     public AST(Token t) {
         this.text = t.getText();
+        this.location = new Location();
         this.location.start = t.getLocation().start;
         this.location.end = t.getLocation().end;
     }
@@ -42,21 +43,16 @@ public abstract class AST {
         }
     }
 
-    public void setDebugInfo(Token t) {
-        text = t.getText();
-        location.start = t.getLocation().start;
-        location.end = t.getLocation().end;
-    }
+//    public void setDebugInfo(Token t) {
+//        text = t.getText();
+//        location.start = t.getLocation().start;
+//        location.end = t.getLocation().end;
+//    }
 
-    public void addChildDebugInfo() {
-        for(AST n : children) {
-            if(n != null) {
-                text += n.text;
-                location.end = n.location.end;
-            }
-        }
-    }
+    public void appendText(String s) { this.text += s; }
+    public String getText() { return this.text; }
 
+    // add Vector children here instead
     public void setParent() {
         for(AST n : children)
             n.parent = this;
@@ -66,6 +62,7 @@ public abstract class AST {
         if(node != null)
             children.add(node);
     }
+
 
     /*
     ----------------------------------------------------------------------

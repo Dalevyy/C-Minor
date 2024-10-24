@@ -17,7 +17,6 @@ import AST.Types.DiscreteType.*;
 import Lexer.*;
 import Token.*;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class Parser {
@@ -25,24 +24,25 @@ public class Parser {
     private final int k;              // k = # of lookaheads
     private int lookPos;
     private final Token[] lookaheads;
+    private boolean ioFlag;
 
     public Parser(Lexer input) {
         this.input = input;
         this.k = 3;
         this.lookPos = 0;
         this.lookaheads = new Token[k];
+        this.ioFlag = false;
         for(int i = 0; i < k; i++)
             consume();
     }
 
     private void consume() {
-        if(lookaheads[lookPos] != null)
-            System.out.println((lookaheads[lookPos]).toString());
-            lookaheads[lookPos] = this.input.nextToken();
-            lookPos = (lookPos + 1) % k;
+        lookaheads[lookPos] = this.input.nextToken();
+        lookPos = (lookPos + 1) % k;
     }
 
     private void match(TokenType expectedTok) {
+        System.out.println(currentLA(0).toString());
         if(nextLA(expectedTok)) consume();
         else throw new IllegalArgumentException("\nWarning! Expected " + expectedTok +
                                                 ", but got " + currentLA(0).getTokenType());
@@ -163,7 +163,7 @@ public class Parser {
         Token t = currentLA();
 
         Vector<EnumDecl> enums = new Vector<EnumDecl>();
-        while(nextLA(TokenType.DEF) && nextLA(TokenType.ID,1))
+        while(nextLA(TokenType.DEF) && nextLA(TokenType.ID,1) && !(nextLA(TokenType.LT,2)||nextLA(TokenType.LPAREN,2)))
             enums.append(enumType());
 
         Vector<GlobalDecl> globals = new Vector<GlobalDecl>();
@@ -236,15 +236,16 @@ public class Parser {
 
     // 10. global_variable ::= 'def' ( 'const' | 'global' ) variable_decl
     private Vector<GlobalDecl> globalVariable() {
-        Token t = currentLA();
+        Token startTok = currentLA();
         match(TokenType.DEF);
         if(nextLA(TokenType.CONST)) match(TokenType.CONST);
         else match(TokenType.GLOBAL);
-        ArrayList<AST> vals = variableDecl();
+        ArrayList<AST> varDecls = variableDecl();
+        Vector<Var> vars = (Vector<Var>) varDecls.get(0);
+        Type varType = (Type) varDecls.get(1);
         Vector<GlobalDecl> globals = new Vector<GlobalDecl>();
-        for(int i = 0; i < vals.get(0).children.size(); i++) {
-            globals.append(new GlobalDecl(t, (Var)vals.get(0).children.get(i), (Type)vals.get(1)));
-        }
+        for(int i = 0; i < vars.size(); i++)
+            globals.append(new GlobalDecl(startTok,vars.get(i).asVar(), varType));
         return globals;
     }
 
@@ -259,16 +260,17 @@ public class Parser {
             v.append(variableDeclInit());
         }
         Type t = type();
-        ArrayList<AST> ret = new ArrayList<AST>();
-        ret.add(v);
-        ret.add(t);
-        return ret;
+        ArrayList<AST> retValues = new ArrayList<AST>();
+        retValues.add(v);
+        retValues.add(t);
+        return retValues;
     }
 
     // 13. variable_decl_init ::= ID ( '=' ( expression | 'uninit' ) )?
     private Var variableDeclInit() {
         Token t = currentLA();
-        Name n = new Name(currentLA());
+        Name n = new Name(t);
+
         match(TokenType.ID);
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
@@ -277,6 +279,7 @@ public class Parser {
             else e = expression();
             return new Var(t,n,e);
         }
+
         return new Var(t,n);
     }
 
@@ -433,10 +436,11 @@ public class Parser {
 
         Vector<Type> types = null;
         if(nextLA(TokenType.LT)) types = typeParams();
-        if(nextLA(TokenType.INHERITS)) superClass();
-
+        ClassType ct = null;
+        if(nextLA(TokenType.INHERITS)) ct = superClass();
         ClassBody body = classBody();
-        return new ClassDecl(t,m,n,body);
+
+        return new ClassDecl(t,m,n,types,ct,body);
     }
 
     // 19. type_params ::= '<' type ( ',' type )* '>'
@@ -453,12 +457,18 @@ public class Parser {
         return types;
     }
 
-    // TODO: LATER
     // 20. super_class ::= 'inherits' ID type_params?
-    private void superClass() {
+    private ClassType superClass() {
         match(TokenType.INHERITS);
+
+        Token startTok = currentLA();
+        Name superName = new Name(startTok);
         match(TokenType.ID);
-        if(nextLA(TokenType.LT)) typeParams();
+
+        Vector<Type> vectorOfTypes = null;
+        if(nextLA(TokenType.LT)) vectorOfTypes = typeParams();
+
+        return new ClassType(startTok,superName,vectorOfTypes);
     }
 
     // 21. class_body ::= '{' data_decl* method_decl* '}'
@@ -486,25 +496,28 @@ public class Parser {
 
     // 22. data_decl ::= ( 'property' | 'protected' | 'public' ) variable_decl
     private Vector<DataDecl> dataDecl() {
-        Token t = currentLA();
+        Token startTok = currentLA();
+
         Modifier m = null;
         if(nextLA(TokenType.PROPERTY)) {
             match(TokenType.PROPERTY);
-            m = new Modifier(t,Mods.PROPERTY);
+            m = new Modifier(startTok,Mods.PROPERTY);
         }
         else if(nextLA(TokenType.PROTECTED)) {
             match(TokenType.PROTECTED);
-            m = new Modifier(t,Mods.PROTECTED);
+            m = new Modifier(startTok,Mods.PROTECTED);
         }
         else {
             match(TokenType.PUBLIC);
-            m = new Modifier(t,Mods.PUBLIC);
+            m = new Modifier(startTok,Mods.PUBLIC);
         }
 
-        ArrayList<AST> vars = variableDecl();
+        ArrayList<AST> vals = variableDecl();
         Vector<DataDecl> dataDecls = new Vector<DataDecl>();
-        for(int i = 0; i < vars.get(0).children.size(); i++)
-            dataDecls.append(new DataDecl(t,m,(Var)vars.get(0).children.get(i),(Type)vars.get(1)));
+        Vector<Var> vars = (Vector<Var>) vals.get(0);
+        Type myType = (Type) vals.get(1);
+        for(int i = 0; i < vars.size(); i++)
+            dataDecls.append(new DataDecl(startTok,m,vars.get(i).asVar(),myType));
         return dataDecls;
     }
 
@@ -586,21 +599,23 @@ public class Parser {
 
     // 28. formal_params : param_modifier Name type ( ',' param_modifier Name type)*
     private Vector<ParamDecl> formalParams() {
+        Token paramTok = currentLA();
         Vector<ParamDecl> pd = new Vector<ParamDecl>();
         Modifier m = paramModifier();
         Name n = new Name(currentLA());
         match(TokenType.ID);
         Type ty = type();
 
-        pd.append(new ParamDecl(m,n,ty));
+        pd.append(new ParamDecl(paramTok,m,n,ty));
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
+            paramTok = currentLA();
             m = paramModifier();
             n = new Name(currentLA());
             match(TokenType.ID);
             ty = type();
-            pd.append(new ParamDecl(m,n,ty));
+            pd.append(new ParamDecl(paramTok,m,n,ty));
         }
         return pd;
     }
@@ -857,13 +872,16 @@ public class Parser {
 
     // 43. declaration ::= 'def' 'local'? variable_decl
     private Vector<LocalDecl> declaration() {
+        Token startTok = currentLA();
         match(TokenType.DEF);
         if(nextLA(TokenType.LOCAL)) match(TokenType.LOCAL);
-        ArrayList<AST> ret = variableDecl();
-        //Vector<Var> v = ret.get(2);
-        Vector<LocalDecl> myList = new Vector<LocalDecl>();
-        //for(Var v : )
-        return new Vector<LocalDecl>();
+        ArrayList<AST> varDecls = variableDecl();
+        Vector<Var> vars = (Vector<Var>) varDecls.get(0);
+        Type varType = (Type) varDecls.get(1);
+        Vector<LocalDecl> locals = new Vector<LocalDecl>();
+        for(int i = 0; i < vars.size(); i++)
+            locals.append(new LocalDecl(startTok,vars.get(i).asVar(), varType));
+        return locals;
     }
 
     /*
@@ -958,7 +976,7 @@ public class Parser {
         BlockStmt b = blockStatement();
 
         Vector<IfStmt> elifStmts = new Vector<IfStmt>();
-        while(nextLA(TokenType.ELSE) && nextLA(TokenType.IF))
+        while(nextLA(TokenType.ELSE) && nextLA(TokenType.IF,1))
             elifStmts.append(elseIfStatement());
 
         BlockStmt elseB = null;
@@ -1055,13 +1073,14 @@ public class Parser {
             match(TokenType.INC);
             constant();
         }
-        return new Label(t,e);
+        return new Label(t,(Literal)e);
     }
 
     // 55. input_statement ::= 'cin' ( '>>' expression )+
     private InStmt inputStatement() {
         Token t = currentLA();
         match(TokenType.CIN);
+        ioFlag = true;
         Vector<Expression> e = new Vector<Expression>();
         if(nextLA(TokenType.SRIGHT)) {
             while(nextLA(TokenType.SRIGHT)) {
@@ -1069,6 +1088,7 @@ public class Parser {
                 e.append(expression());
             }
         }
+        ioFlag = false;
         return new InStmt(t,e);
     }
 
@@ -1076,6 +1096,7 @@ public class Parser {
     private OutStmt outputStatement() {
         Token t = currentLA();
         match(TokenType.COUT);
+        ioFlag = true;
         Vector<Expression> e = new Vector<Expression>();
         if(nextLA(TokenType.SLEFT)) {
             while(nextLA(TokenType.SLEFT)) {
@@ -1083,6 +1104,7 @@ public class Parser {
                 e.append(expression());
             }
         }
+        ioFlag = false;
         return new OutStmt(t,e);
     }
 
@@ -1106,6 +1128,10 @@ public class Parser {
             match(TokenType.ID);
             return new NameExpr(t,n);
         }
+        else if(nextLA(TokenType.CIN))
+            return inputStatement();
+        else if(nextLA(TokenType.COUT))
+            return outputStatement();
         return constant();
     }
 
@@ -1266,7 +1292,7 @@ public class Parser {
         Token startTok = currentLA();
         Expression left = additiveExpression();
 
-        if(nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) {
+        if(!ioFlag && (nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT))) {
             BinaryExpr mainBE = null, be = null;
             while (nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) {
                 BinaryOp bo = null;
@@ -1513,7 +1539,7 @@ public class Parser {
             vars.append(objectField());
         }
         match(TokenType.RPAREN,t);
-        return new NewExpr(t,n,vars);
+        return new NewExpr(t,new ClassType(t,n),vars);
     }
 
     // 76. object_field ::= ID '=' expression

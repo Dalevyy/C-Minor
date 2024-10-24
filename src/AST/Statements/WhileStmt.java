@@ -2,6 +2,7 @@ package AST.Statements;
 
 import AST.*;
 import AST.Expressions.*;
+import Token.*;
 import Utilities.PokeVisitor;
 
 public class WhileStmt extends Statement {
@@ -10,16 +11,17 @@ public class WhileStmt extends Statement {
     Expression nextExpr;
     BlockStmt whileBlock;
 
-    public WhileStmt(Expression cond, BlockStmt whileBlock) { this(cond,null,whileBlock); }
+    public WhileStmt(Token t, Expression cond, BlockStmt whileBlock) { this(t,cond,null,whileBlock); }
 
-    public WhileStmt(Expression cond, Expression nextExpr, BlockStmt whileBlock) {
+    public WhileStmt(Token t, Expression cond, Expression nextExpr, BlockStmt whileBlock) {
+        super(t);
         this.cond = cond;
         this.nextExpr = nextExpr;
         this.whileBlock = whileBlock;
 
-        addChild(cond);
-        addChild(nextExpr);
-        addChild(whileBlock);
+        addChild(this.cond);
+        addChild(this.nextExpr);
+        addChild(this.whileBlock);
         setParent();
     }
 

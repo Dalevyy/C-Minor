@@ -8,23 +8,23 @@ import Utilities.PokeVisitor;
 public class DataDecl extends AST {
 
     private Modifier mod;
-    private Vector<Var> vars;
+    private Var var;
     private Type type;
 
-    public DataDecl(Token t, Modifier m, Vector<Var> v, Type type) {
+    public DataDecl(Token t, Modifier m, Var v, Type type) {
         super(t);
         this.mod = m;
-        this.vars = v;
+        this.var = v;
         this.type = type;
 
         addChild(this.mod);
-        addChild(this.vars);
+        addChild(this.var);
         addChild(this.type);
         setParent();
     }
 
     public Modifier getModifier() { return mod; }
-    public Vector<Var> getVars() { return vars; }
+    public Var getVars() { return var; }
     public Type getType() { return type; }
 
     @Override

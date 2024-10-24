@@ -1,6 +1,7 @@
 package AST.ClassBody;
 
 import AST.*;
+import AST.Vector;
 import Token.*;
 import Utilities.PokeVisitor;
 

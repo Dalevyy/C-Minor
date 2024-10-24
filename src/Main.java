@@ -1,19 +1,22 @@
 
 import java.io.*;
-import Lexer.Lexer;
-import Parser.Parser;
+import AST.*;
+import Parser.*;
+import Lexer.*;
+import Utilities.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
         if(args.length != 1)
             throw new IllegalArgumentException("Error! Program to compile not found");
 
-        // TODO: File-merge is not working correctly ?
         String input = readProgram(args[0]);
 
         var lexer = new Lexer(input);
         var parser = new Parser(lexer);
-        parser.compilation();
+
+        AST root = parser.compilation();
+        root.visitChildren(new Printer());
 
         System.out.println("\nParsing is complete...");
     }

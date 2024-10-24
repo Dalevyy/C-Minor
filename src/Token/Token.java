@@ -10,11 +10,14 @@ public class Token {
         this.type = type;
         this.text = text;
         this.location = location;
-        System.out.println(this.toString());
     }
 
     public TokenType getTokenType() { return type; }
     public String getText() { return text; }
+    public Location getLocation() { return location; }
+
+    public void appendText(String txt) { this.text += txt; }
+    public void newEndLocation(Location end) { this.location.end = end.end; }
     
     @Override
     public String toString() {

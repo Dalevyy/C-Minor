@@ -1,23 +1,27 @@
 package AST.Expressions;
 
 import AST.*;
+import AST.Operators.*;
+import Token.*;
 import Utilities.PokeVisitor;
 
 public class UnaryExpr extends Expression {
 
-    public enum PreOp { NOT, TILDE }
-    Expression expr;
-    PreOp op;
+    private Expression expr;
+    private UnaryOp op;
 
-    public UnaryExpr(Expression expr, PreOp op) {
+    public UnaryExpr(Token t, Expression expr, UnaryOp op) {
+        super(t);
         this.expr = expr;
         this.op = op;
-        //TODO: ADD OP as child
+
         addChild(this.expr);
+        addChild(this.op);
+        setParent();
     }
 
     public Expression getExpr() { return expr; }
-    public PreOp getOp() { return op; }
+    public UnaryOp getUnaryOp() { return op; }
 
     @Override
     public AST whosThatNode(PokeVisitor v) { return v.itsUnaryExpr(this); }

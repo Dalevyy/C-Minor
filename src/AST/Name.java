@@ -3,7 +3,17 @@ package AST;
 import Token.*;
 import Utilities.PokeVisitor;
 
-// Leaf Node
+/*
+ +-----------------------------------------------------------+
+ +                           Name                            +
+ +-----------------------------------------------------------+
+
+A Name has 1 component:
+    1. A String representation of the Name
+
+Parent Node: Compilation
+This is also a leaf node.
+*/
 public class Name extends AST {
 
     // A name only contains an identifier

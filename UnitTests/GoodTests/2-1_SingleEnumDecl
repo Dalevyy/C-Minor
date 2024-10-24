@@ -1,9 +1,0 @@
-// Single Enum declaration
-
-Enum weekDays {Mon, Tues, Wed, Thurs, Fri, Sat, Sun}
-
-def main {
-
-}
-
-

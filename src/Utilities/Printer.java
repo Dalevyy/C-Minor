@@ -8,19 +8,23 @@ import AST.Statements.*;
 import AST.TopLevelDecls.*;
 import AST.Types.*;
 
-public class PrintAST extends PokeVisitor {
+public class Printer extends PokeVisitor {
 
     private int spaces;
 
-    public PrintAST() {
+    public Printer() {
         System.out.println("\n");
         spaces = 0;
     }
 
     private String printSpaces() {
         StringBuilder s = new StringBuilder();
-        for(int i = 0; i < spaces; i++)
+        for(int i = 0; i < spaces; i++) {
             s.append(" ");
+            if(i%2==1)
+                s.append("|");
+        }
+        s.append("  +--");
         return s.toString();
     }
 
@@ -38,9 +42,9 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsBinaryExpr(BinaryExpr be) {
         System.out.println(printSpaces() + "BinaryExpr" + debugInfo(be));
-        spaces += 4;
+        spaces += 2;
         super.itsBinaryExpr(be);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
@@ -52,25 +56,25 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsBlockStmt(BlockStmt bs) {
         System.out.println(printSpaces() + "BlockStmt" + debugInfo(bs));
-        spaces += 4;
+        spaces += 2;
         super.itsBlockStmt(bs);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsCaseStmt(CaseStmt cs) {
         System.out.println(printSpaces() + "CaseStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsCaseStmt(cs);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsCastExpr(CastExpr ce) {
         System.out.println(printSpaces() + "CastExpr" + debugInfo(ce));
-        spaces += 4;
+        spaces += 2;
         super.itsCastExpr(ce);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
@@ -82,17 +86,17 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsChoiceStmt(ChoiceStmt cs) {
         System.out.println(printSpaces() + "ChoiceStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsChoiceStmt(cs);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsClassDecl(ClassDecl cd) {
         System.out.println(printSpaces() + "ClassDecl");
-        spaces += 4;
+        spaces += 2;
         super.itsClassDecl(cd);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
@@ -104,17 +108,17 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsCompilation(Compilation c) {
         System.out.println("Compilation" + debugLines(c));
-        spaces += 4;
+        spaces += 2;
         super.itsCompilation(c);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsDataDecl(DataDecl fd) {
         System.out.println(printSpaces() + "FieldDecl");
-        spaces += 4;
+        spaces += 2;
         super.itsDataDecl(fd);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
@@ -125,81 +129,81 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsDoStmt(DoStmt ds) {
         System.out.println(printSpaces() + "DoStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsDoStmt(ds);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsEnumDecl(EnumDecl ed) {
         System.out.println(printSpaces() + "EnumDecl" + debugInfo(ed));
-        spaces += 4;
+        spaces += 2;
         super.itsEnumDecl(ed);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsExprStmt(ExprStmt es) {
-        System.out.println(printSpaces() + "ExprStmt");
-        spaces += 4;
+        //System.out.println(printSpaces() + "| ExprStmt");
+       // spaces += 2;
         super.itsExprStmt(es);
-        spaces -= 4;
+       // spaces -= 2;
         return null;
     }
 
     public AST itsFieldExpr(FieldExpr fe) {
         System.out.println(printSpaces() + "FieldExpr");
-        spaces += 4;
+        spaces += 2;
         super.itsFieldExpr(fe);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsForStmt(ForStmt fs) {
         System.out.println(printSpaces() + "ForStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsForStmt(fs);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsFuncDecl(FuncDecl fd) {
         System.out.println(printSpaces() + "FuncDecl");
-        spaces += 4;
+        spaces += 2;
         super.itsFuncDecl(fd);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsGlobalDecl(GlobalDecl gd) {
         System.out.println(printSpaces() + "GlobalDecl");
-        spaces += 4;
+        spaces += 2;
         super.itsGlobalDecl(gd);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsIfStmt(IfStmt is) {
         System.out.println(printSpaces() + "IfStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsIfStmt(is);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsInStmt(InStmt ins) {
         System.out.println(printSpaces() + "InStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsInStmt(ins);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsInvocation(Invocation i) {
         System.out.println(printSpaces() + "Invocation");
-        spaces += 4;
+        spaces += 2;
         super.itsInvocation(i);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
@@ -220,15 +224,17 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsLocalDecl(LocalDecl ld) {
         System.out.println(printSpaces() + "LocalDecl");
-        spaces += 4;
+        spaces += 2;
         super.itsLocalDecl(ld);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsMainDecl(MainDecl md) {
         System.out.println(printSpaces() + "Main" + debugInfo(md));
+        spaces += 2;
         super.itsMainDecl(md);
+        spaces -= 2;
         return null;
     }
 
@@ -239,41 +245,41 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsNameExpr(NameExpr ne) {
         System.out.println(printSpaces() + "NameExpr" + debugInfo(ne));
-        spaces += 4;
+        spaces += 2;
         super.itsNameExpr(ne);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsNewExpr(NewExpr nwe) {
         System.out.println(printSpaces() + "NewExpr");
-        spaces += 4;
+        spaces += 2;
         super.itsNewExpr(nwe);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsOutStmt(OutStmt os) {
-        System.out.println(printSpaces() + "OutStmt");
-        spaces += 4;
+        System.out.println(printSpaces() + "OutStmt" + debugInfo(os));
+        spaces += 2;
         super.itsOutStmt(os);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsParamDecl(ParamDecl pd) {
         System.out.println(printSpaces() + "ParamDecl");
-        spaces += 4;
+        spaces += 2;
         super.itsParamDecl(pd);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsReturnStmt(ReturnStmt rs) {
         System.out.println(printSpaces() + "ReturnStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsReturnStmt(rs);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
@@ -289,35 +295,31 @@ public class PrintAST extends PokeVisitor {
 
     public AST itsUnaryExpr(UnaryExpr ue) {
         System.out.println(printSpaces() + "UnaryExpr");
-        spaces += 4;
+        spaces += 2;
         super.itsUnaryExpr(ue);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsVar(Var v) {
         System.out.println(printSpaces() + "Var");
-        spaces += 4;
+        spaces += 2;
         super.itsVar(v);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 
     public AST itsVector(Vector s) {
-        if(s.children.size() != 0) {
-//            System.out.println(printSpaces() + "Vector");
-//            spaces += 4;
+        if(s.children.size() != 0)
             super.itsVector(s);
-            //   spaces -= 4;
-        }
         return null;
     }
 
     public AST itsWhileStmt(WhileStmt ws) {
         System.out.println(printSpaces() + "WhileStmt");
-        spaces += 4;
+        spaces += 2;
         super.itsWhileStmt(ws);
-        spaces -= 4;
+        spaces -= 2;
         return null;
     }
 }

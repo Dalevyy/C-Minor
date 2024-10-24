@@ -1,0 +1,27 @@
+
+def FizzBuzz() => Void {
+    def i = 1 Int
+    while(i <= 100) {
+        def fizzybuzzy = false Bool
+
+        if(i%3 == 0) {
+            cout << 'fizz'
+            set fizzybuzzy = true
+        }
+
+        if(i%5 == 0) {
+            cout << 'buzz'
+            set fizzybuzzy = true
+        }
+
+        if(not fizzybuzzy) {
+            cout << i
+        }
+        set i += 1
+    }
+}
+
+def main => Void {
+   FizzBuzz()
+   stop
+}
