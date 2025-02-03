@@ -24,12 +24,10 @@ public class BinaryExpr extends Expression {
 
     public Expression LHS() { return LHS; }
     public Expression RHS() { return RHS; }
-    public BinaryOp BinaryOp() { return op; }
+    public BinaryOp binaryOp() { return op; }
 
     public boolean isBinaryExpr() { return true; }
     public BinaryExpr asBinaryExpr() { return this; }
-
-    public void evaluate() {}
 
     @Override
     public void visit(Visitor v) { v.visitBinaryExpr(this); }

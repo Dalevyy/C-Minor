@@ -29,8 +29,6 @@ public class FieldExpr extends Expression {
     public boolean isFieldExpr() { return true; }
     public FieldExpr asFieldExpr() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public String toString() { return name.toString(); }
 

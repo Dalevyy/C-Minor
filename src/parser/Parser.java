@@ -1407,19 +1407,10 @@ public class Parser {
         match(TokenType.SRIGHT);
         Vector<Expression> inputExprs = new Vector<Expression>(expression());
 
-        while(nextLA(TokenType.SRIGHT)) {
-            match(TokenType.SRIGHT);
-            Expression e = expression();
-            inputExprs.append(e);
-            t.newEndLocation(e.getLocation().end);
-
-        }
-
         t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
         return new InStmt(t,inputExprs);
     }
 
-    // Endl can be a ID instead of a keyword, parse it out in second pass 
     // 52. output_statement ::= 'cout' ( '<<' expression )+
     private OutStmt outputStatement() {
         Token t = currentLA();
@@ -1427,16 +1418,6 @@ public class Parser {
         match(TokenType.COUT);
         match(TokenType.SLEFT);
         Vector<Expression> outputExprs = new Vector<Expression>(expression());
-
-        while(nextLA(TokenType.SLEFT)) {
-            match(TokenType.SLEFT);
-            Expression e = expression();
-            outputExprs.append(e);
-            t.newEndLocation(e.getLocation().end);
-        }
-
-        if(nextLA(TokenType.ENDL))
-            match(TokenType.ENDL);
 
         t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
         return new OutStmt(t,outputExprs);
@@ -1474,6 +1455,10 @@ public class Parser {
         else if(nextLA(TokenType.CONTINUE)) {
             match(TokenType.CONTINUE);
             return new ContinueStmt(t);
+        }
+        else if(nextLA(TokenType.ENDL)) {
+            match(TokenType.ENDL);
+            return new Endl(t);
         }
         return constant();
     }

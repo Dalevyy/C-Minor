@@ -17,11 +17,10 @@ public class InStmt extends Expression {
     }
 
     public Vector<Expression> inExprs() { return exprs; }
+    public void setInExprs(Vector<Expression> exprs) { this.exprs = exprs; }
 
     public boolean isInStmt() { return true; }
     public InStmt asInStmt() { return this; }
-
-    public void evaluate() {}
 
     @Override
     public void visit(Visitor v) { v.visitInStmt(this); }

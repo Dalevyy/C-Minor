@@ -25,8 +25,6 @@ public class UnaryExpr extends Expression {
     public boolean isUnaryExpr() { return true; }
     public UnaryExpr asUnaryExpr() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public void visit(Visitor v) { v.visitUnaryExpr(this); }
 }

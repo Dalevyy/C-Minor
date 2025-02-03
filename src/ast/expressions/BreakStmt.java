@@ -7,9 +7,6 @@ public class BreakStmt extends Expression {
 
     public BreakStmt(Token t) { super(t); }
 
-    @Override
-    public void evaluate() { }
-
     public boolean isBreakStmt() { return true; }
     public BreakStmt asBreakStmt() { return this; }
 

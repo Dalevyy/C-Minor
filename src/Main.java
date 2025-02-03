@@ -3,6 +3,7 @@ import java.io.*;
 import ast.*;
 import errors.*;
 import interpreter.*;
+import micropasses.OutputInputRewrite;
 import parser.*;
 import lexer.*;
 import name_checker.*;
@@ -33,6 +34,7 @@ public class Main {
         Lexer lexer = new Lexer(program);
         Parser parser = new Parser(lexer,printTokens);
         AST root = parser.compilation();
+        root.visit(new OutputInputRewrite());
 
         if(printParseTree)
             root.visit(new Printer());

@@ -28,7 +28,6 @@ public class Literal extends Expression {
     public boolean isLiteral() { return true; }
     public Literal asLiteral() { return this; }
 
-    public void evaluate() { System.out.println(text); }
     @Override
     public void visit(Visitor v) { v.visitLiteral(this); }
 }

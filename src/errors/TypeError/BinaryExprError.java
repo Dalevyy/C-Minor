@@ -11,7 +11,7 @@ public class BinaryExprError extends DefaultError {
     public static void BinaryOpsNonMatchingError(BinaryExpr be, Type left, Type right) {
         TypeError.header(be);
 
-        String op = be.BinaryOp().toString();
+        String op = be.binaryOp().toString();
         System.out.println(PrettyPrint.RED + be.getStartPosition() + ": LHS has type \'" + left.typeName() + "\' and RHS has type \'" + right.typeName() + "\'.");
         System.out.println("Both types need to be the same for binary operator \'" + op + "\'." + PrettyPrint.RESET);
         System.exit(1);
@@ -20,7 +20,7 @@ public class BinaryExprError extends DefaultError {
     public static void BinaryOpInvalidTypeError(BinaryExpr be, Type t, boolean side) {
         TypeError.header(be);
 
-        String op = be.BinaryOp().toString();
+        String op = be.binaryOp().toString();
         System.out.print(PrettyPrint.RED + be.getStartPosition());
 
         String currOp = null;
@@ -63,7 +63,7 @@ public class BinaryExprError extends DefaultError {
     public static void BinaryOpInvalidOpError(BinaryExpr be) {
         TypeError.header(be);
 
-        String op = be.BinaryOp().toString();
+        String op = be.binaryOp().toString();
         System.out.println(PrettyPrint.RED + be.getStartPosition() + ": \'" + op);
         switch(op) {
             case "+": {

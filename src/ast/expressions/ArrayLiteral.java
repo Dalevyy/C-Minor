@@ -25,8 +25,6 @@ public class ArrayLiteral extends Expression {
     public boolean isArrayLiteral() { return true; }
     public ArrayLiteral asArrayLiteral() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public void visit(Visitor v) { v.visitArrayLiteral(this); }
 }

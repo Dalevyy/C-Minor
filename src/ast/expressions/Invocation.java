@@ -34,8 +34,6 @@ public class Invocation extends Expression {
     public boolean isInvocation() { return true; }
     public Invocation asInvocation() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public String toString() { return name.toString(); }
 

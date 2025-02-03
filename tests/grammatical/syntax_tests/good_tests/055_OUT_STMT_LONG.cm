@@ -1,0 +1,15 @@
+
+def main() => Void {
+    cout << 'Hello there' << ' building out ' << 'a long print' << ' expression ' << endl
+    cout << 'this is a new' << ' line to test ' << 'if this is indeed' << ' working ' << endl
+
+    cout << 'this is an '
+         << ' annoying version '
+         << ' of an output statement '
+         << ' to see if it works'
+         << endl
+
+    cout << a + b
+
+    cout << 'hello there' << a+b << endl
+}
