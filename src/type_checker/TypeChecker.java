@@ -126,7 +126,7 @@ public class TypeChecker extends Visitor {
         // Then, we get the type of the RHS
         be.RHS().visit(this);
         Type rType = be.RHS().type;
-        String binOp = be.BinaryOp().toString();
+        String binOp = be.binaryOp().toString();
 
         // TODO: Operator overloads. Just check if it's been defined or not :)
         // ERROR CHECK #1: If an object is in a unary expression, we check

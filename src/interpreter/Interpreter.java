@@ -8,7 +8,6 @@ import ast.top_level_decls.*;
 import utilities.*;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -107,7 +106,7 @@ public class Interpreter extends Visitor {
         be.RHS().visit(this);
         Expression RHS = currExpr;
 
-        String binOp = be.BinaryOp().toString();
+        String binOp = be.binaryOp().toString();
 
         currExpr = be;
 
@@ -302,6 +301,8 @@ public class Interpreter extends Visitor {
         } while ((boolean) currExpr.getValue(stack));
     }
 
+    public void visitEndl(Endl e) { currExpr.setValue("\n"); }
+
     public void visitEnumDecl(EnumDecl ed) {
         ArrayList<Object> arr = new ArrayList<Object>();
         for(int i = 0; i < ed.enumVars().size(); i++) {
@@ -458,7 +459,7 @@ public class Interpreter extends Visitor {
     public void visitOutStmt(OutStmt os) {
         for(int i = 0; i < os.outExprs().size(); i++) {
             os.outExprs().get(i).visit(this);
-            System.out.println(currExpr.getValue(stack));
+            System.out.print(currExpr.getValue(stack));
         }
     }
 

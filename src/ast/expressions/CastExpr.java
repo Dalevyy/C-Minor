@@ -26,8 +26,6 @@ public class CastExpr extends Expression {
     public boolean isCastExpr() { return true; }
     public CastExpr asCastExpr() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public void visit(Visitor v) { v.visitCastExpr(this); }
 }

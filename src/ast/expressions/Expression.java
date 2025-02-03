@@ -16,8 +16,6 @@ public abstract class Expression extends AST {
     public boolean isExpression() { return true; }
     public Expression asExpression() { return this; }
 
-    public abstract void evaluate();
-
     public void setValue(Object val) { value = val; }
 
     public Object getValue(SymbolTable ss) {
@@ -66,6 +64,13 @@ public abstract class Expression extends AST {
     public boolean isContinueStmt() { return false; }
     public ContinueStmt asContinueStmt() {
         System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ContinueStmt.\n");
+        System.exit(1);
+        return null;
+    }
+
+    public boolean isEndl() { return false; }
+    public Endl asEndl() {
+        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an Endl.\n");
         System.exit(1);
         return null;
     }

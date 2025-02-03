@@ -4,6 +4,7 @@ import java.io.*;
 import ast.AST;
 import lexer.Lexer;
 import micropasses.GenerateConstructor;
+import micropasses.OutputInputRewrite;
 import modifier_checker.ModifierChecker;
 import name_checker.NameChecker;
 import parser.Parser;
@@ -33,6 +34,7 @@ public class VM {
 
             AST root = parser.compilation();
 
+            root.visit(new OutputInputRewrite());
             root.visitChildren(new NameChecker());
 
             root.visit(new GenerateConstructor());
@@ -41,6 +43,7 @@ public class VM {
             //root.visitChildren(new ModifierChecker());
 
             root.asCompilation().mainDecl().visit(new Interpreter());
+            System.out.println();
         }
     }
 }

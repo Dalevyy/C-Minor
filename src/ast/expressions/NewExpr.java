@@ -26,8 +26,6 @@ public class NewExpr extends Expression {
     public boolean isNewExpr() { return true; }
     public NewExpr asNewExpr() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public void visit(Visitor v) { v.visitNewExpr(this); }
 }

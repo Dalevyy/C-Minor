@@ -11,7 +11,7 @@ import ast.types.*;
 import token.*;
 import utilities.*;
 
-// TOTAL NODES : 45 Nodes
+// TOTAL NODES : 46 Nodes
 public abstract class AST {
 
     /*

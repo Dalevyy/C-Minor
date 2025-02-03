@@ -21,8 +21,6 @@ public class ListLiteral extends Literal {
     public boolean isListLiteral() { return true; }
     public ListLiteral asListLiteral() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public void visit(Visitor v) { v.visitListLiteral(this); }
 }

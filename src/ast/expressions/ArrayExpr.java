@@ -24,8 +24,6 @@ public class ArrayExpr extends Expression {
     public boolean isArrayExpr() { return true; }
     public ArrayExpr asArrayExpr() { return this; }
 
-    public void evaluate() {}
-
     @Override
     public void visit(Visitor v) { v.visitArrayExpr(this); }
 }
