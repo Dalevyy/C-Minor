@@ -1,7 +1,0 @@
-// Multiple Enum declarations
-
-Enum animals {cat, dog, monkey, panda}
-Enum myValue { ten }
-Enum names {alice, bob, charlie, delta, eugene, francis}
-
-def main { }

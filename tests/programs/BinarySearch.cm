@@ -1,0 +1,33 @@
+
+def global SIZE = 10 Int
+
+def BinarySearch(in num Int) => Bool {
+    def lst = Array[SIZE](1,2,3,4,5,6,7,8,9,10) Array[Int]
+    def l = 0, r = SIZE-1 Int
+    def mid = l + (r-l)/2 Int
+
+    while(l <= r) {
+        if(num > lst[mid]) {
+            set l = mid+1
+        }
+        else if num < lst[mid] {
+            set r = mid
+        }
+        else {
+            return True
+        }
+    }
+
+    return False
+}
+
+def main() => Void {
+    def local numToFind = uninit Int
+
+    cout << 'Please enter a number:'
+    cin >> numToFind
+
+    BinarySearch(numToFind)
+
+    stop
+}

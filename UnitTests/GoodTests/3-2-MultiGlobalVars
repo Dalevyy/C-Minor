@@ -1,9 +1,0 @@
-
-global def name:String = 'John Doe'
-global def name2:String = 'Paul Smith'
-global def myNum:Int = 354
-global def flag:Bool = true
-global def myLetter:Char = 'C'
-global def myReal:Real = 123.456789
-
-def main {}

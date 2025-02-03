@@ -1,4 +1,0 @@
-
-global def hello:String = ''
-
-def main {}
