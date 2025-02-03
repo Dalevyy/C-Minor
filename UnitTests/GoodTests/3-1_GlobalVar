@@ -1,4 +1,0 @@
-
-global def hello:String = uninit
-
-def main {}

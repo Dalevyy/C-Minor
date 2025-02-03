@@ -1,0 +1,17 @@
+
+def main() => Void {
+    def local a = 5 Int
+    def local b = 6 Int 
+
+    {
+        def local b = 6 Int 
+        def local c = 8 Int 
+        {
+            def local a = 2 Int 
+            set b += 3
+            set c -= 1
+        }
+        set a += 1 
+    }
+    set b *= 3
+}

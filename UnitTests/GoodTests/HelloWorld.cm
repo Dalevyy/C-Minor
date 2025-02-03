@@ -1,8 +1,0 @@
-// Hello World Program
-
-def main => Void {
-    cout << 'Hello World\n!'
-
-    cout << 'hello' << 5555 << 'world'
-    stop
-}

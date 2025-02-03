@@ -1,0 +1,5 @@
+
+def main() => Void {
+    cout << 'Hello World!' << endl
+    stop 
+}

@@ -1,9 +1,0 @@
-
-def fact(in n:int) => int {
-    if n == 0 { return 1 }
-    else { return n * fact(n-1) }
-}
-
-def main {
-    fact(5)
-}
