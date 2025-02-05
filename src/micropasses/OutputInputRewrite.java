@@ -39,9 +39,12 @@ public class OutputInputRewrite extends Visitor {
 
     public void visitOutStmt(OutStmt os) {
         insideIO = true;
-        exprs = new Vector<Expression>();
-        os.removeChild(0);
+        exprs = new Vector<>();
 
+        if(!os.outExprs().get(0).isBinaryExpr())
+            return;
+
+        os.removeChild(0);
         os.outExprs().visit(this);
 
         os.setOutExprs(exprs);
@@ -51,7 +54,7 @@ public class OutputInputRewrite extends Visitor {
 
     public void visitInStmt(InStmt in) {
         insideIO = true;
-        exprs = new Vector<Expression>();
+        exprs = new Vector<>();
         in.removeChild(0);
 
         in.inExprs().visit(this);
