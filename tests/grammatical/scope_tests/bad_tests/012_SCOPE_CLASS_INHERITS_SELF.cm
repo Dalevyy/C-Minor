@@ -1,0 +1,4 @@
+
+class Person inherits Person { }
+
+def main() => Void {}

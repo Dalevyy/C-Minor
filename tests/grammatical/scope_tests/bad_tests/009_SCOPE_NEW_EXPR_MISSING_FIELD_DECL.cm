@@ -1,0 +1,8 @@
+
+class Person {
+    protected firstName String
+}
+
+def main() => Void {
+    def person1 = new Person(firstName='Ben',lastName='Franklin') Person
+}
