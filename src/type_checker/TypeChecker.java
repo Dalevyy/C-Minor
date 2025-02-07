@@ -9,13 +9,18 @@ import ast.top_level_decls.*;
 import ast.types.*;
 import ast.types.DiscreteType.*;
 import ast.types.ScalarType.*;
-import errors.TypeError.*;
+import errors.type_error.*;
+import messages.Message;
+import messages.errors.ErrorType;
+import messages.errors.TypeError;
+import token.Token;
 import utilities.*;
 
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
     private AST currentContext;
+    private Message msg;
 
     public TypeChecker() {
         currentScope = null;
@@ -35,7 +40,7 @@ public class TypeChecker extends Visitor {
                 represents an array.
         */
         if(!ae.arrayTarget().type.isArrayType())
-            TypeError.GenericTypeError(ae);
+            TypeErrorOLD.GenericTypeError(ae);
 
         ArrayType aType = ae.arrayTarget().type.asArrayType();
 
@@ -53,36 +58,50 @@ public class TypeChecker extends Visitor {
         */
         ae.arrayIndex().visit(this);
         if(!ae.arrayIndex().type.isInt())
-            TypeError.GenericTypeError(ae);
+            TypeErrorOLD.GenericTypeError(ae);
     }
 
     /*
         For an assignment statement, we can only assign expressions that are the SAME
         type as the variable we are trying to assign to.
     */
+        /*
+    ________________________Assignment Statements___________________________
+    If we want to assign a new value to a variable, we need to make sure the
+    value's type matches the type of the variable. There's nothing else we
+    need to do, and all assignment operators can be handled in the same way
+    ________________________________________________________________________
+    */
     public void visitAssignStmt(AssignStmt as) {
 
-        // First, get the type of the LHS
         as.LHS().visit(this);
         Type lType = as.LHS().type;
 
-        // Then, get the type of the RHS
         as.RHS().visit(this);
         Type rType = as.RHS().type;
 
         String aOp = as.assignOp().toString();
 
-        switch(aOp) {
-            case "+=":
-                if(lType.isString() || rType.isString()) {
-                    if(!(lType.isString() && rType.isString()))
-                        TypeError.GenericTypeError(as);
-                    break;
-                }
-            default:
-                if(!Type.assignmentCompatible(lType,rType))
-                    TypeError.GenericTypeError(as);
+        if(!Type.assignmentCompatible(lType,rType)) {
+            msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_TYPE_DOES_NOT_MATCH);
+            msg.printMsg();
         }
+
+        switch(aOp) {
+            case "+=": {
+                if(lType.isBool() || lType.isChar())
+                    ;
+            }
+            case "-=":
+            case "*=":
+            case "/=":
+            case "%=":
+            case "**=": {
+                if(lType.isBool() || lType.isChar() || lType.isString())
+                    ;
+            }
+        }
+
     }
 
     /*
@@ -133,7 +152,7 @@ public class TypeChecker extends Visitor {
         // if the unary operator was overloaded in the class the object represents
 //        if(lType.isClassType() && rType.isClassType()) {
 //            if(!Type.typeEqual(lType,rType))
-//                TypeError.GenericTypeError(be);
+//                TypeErrorOLD.GenericTypeError(be);
 //
 //            ClassDecl cd = currentScope.getVarName(lType.typeName()).getID().asTopLevelDecl().asClassDecl();
 //
@@ -144,7 +163,7 @@ public class TypeChecker extends Visitor {
 //            }
 //            if(!(binOp.equals("instanceof") || binOp.equals("!instanceof") || binOp.equals("as?")))
 //            else if(!currentScope.isNameUsedAnywhere(binOp))
-//                TypeError.GenericTypeError(be);
+//                TypeErrorOLD.GenericTypeError(be);
 //            else {
 //                be.type = lType;
 //                return;
@@ -221,7 +240,7 @@ public class TypeChecker extends Visitor {
             case "!instanceof":
             case "as?": {
                 if(!lType.isClassType() || !rType.isClassType())
-                    TypeError.GenericTypeError(be);
+                    TypeErrorOLD.GenericTypeError(be);
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
             }
@@ -272,7 +291,7 @@ public class TypeChecker extends Visitor {
         else if(cType.isClassType() && targetType.isClassType())
             ;
         else
-            TypeError.GenericTypeError(ce);
+            TypeErrorOLD.GenericTypeError(ce);
 
         ce.type = targetType;
     }
@@ -290,7 +309,7 @@ public class TypeChecker extends Visitor {
         Type eType = cs.choiceExpr().type;
 
         if(!(eType.isInt() || eType.isChar() || eType.isString()))
-            TypeError.GenericTypeError(cs);
+            TypeErrorOLD.GenericTypeError(cs);
 
         for(int i = 0; i < cs.caseStmts().size(); i++) {
             CaseStmt currCase = cs.caseStmts().get(i);
@@ -298,12 +317,12 @@ public class TypeChecker extends Visitor {
             Type labelType = currCase.choiceLabel().leftLabel().type;
 
             if(!(labelType.isInt() || labelType.isChar() || labelType.isString()))
-                TypeError.GenericTypeError(cs);
+                TypeErrorOLD.GenericTypeError(cs);
 
             if(currCase.choiceLabel().rightLabel() != null) {
                 labelType = currCase.choiceLabel().rightLabel().type;
                 if(!(labelType.isInt() || labelType.isChar() || labelType.isString()))
-                    TypeError.GenericTypeError(cs);
+                    TypeErrorOLD.GenericTypeError(cs);
             }
             currCase.caseBlock().visit(this);
         }
@@ -325,7 +344,7 @@ public class TypeChecker extends Visitor {
         Type condType = ds.condition().type;
 
         if(!condType.isBool())
-            TypeError.GenericTypeError(ds);
+            TypeErrorOLD.GenericTypeError(ds);
 
         currentScope = ds.symbolTable;
         ds.doBlock().visit(this);
@@ -349,7 +368,7 @@ public class TypeChecker extends Visitor {
                 e.visit(this);
 
                 if(!Type.assignmentCompatible(eType,e.type))
-                    TypeError.GenericTypeError(ed);
+                    TypeErrorOLD.GenericTypeError(ed);
             }
         }
     }
@@ -364,7 +383,7 @@ public class TypeChecker extends Visitor {
             fd.var().init().visit(this);
             Type initType = fd.var().init().type;
             if(!Type.assignmentCompatible(initType,fd.type()))
-                TypeError.GenericTypeError(fd);
+                TypeErrorOLD.GenericTypeError(fd);
         }
         fd.var().setType(fd.type());
     }
@@ -376,14 +395,14 @@ public class TypeChecker extends Visitor {
         // Error Check #1: We want to make sure the target is indeed
         // an object, so make sure it's assigned a class type
         if(!targetType.isClassType())
-            TypeError.GenericTypeError(fe);
+            TypeErrorOLD.GenericTypeError(fe);
 
         ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
         FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).declName().asFieldDecl();
 //
 //        //Error Check #2
 //        if(!Type.assignmentCompatible(fType,fd.type()))
-//            TypeError.GenericTypeError(fe);
+//            TypeErrorOLD.GenericTypeError(fe);
 //
          fe.type = fd.type();
     }
@@ -394,7 +413,7 @@ public class TypeChecker extends Visitor {
         fs.condition().visit(this);
         Type condType = fs.condition().type;
         if(!condType.isBool())
-            TypeError.GenericTypeError(fs);
+            TypeErrorOLD.GenericTypeError(fs);
 
         if(fs.forBlock() != null)
             fs.forBlock().visit(this);
@@ -408,14 +427,48 @@ public class TypeChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    /*
+    ________________________Global Declarations___________________________
+    Global declarations are handled in the exact same way that local
+    declarations are.
+
+    We are checking if the global variable's declared type matches the type
+    of the initial value it is assigned to. Additionally, we will provide
+    default values if the user assigns the global to 'uninit'.
+    _______________________________________________________________________
+    */
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.var().init() != null) {
-            gd.var().init().visit(this);
-            Type initType = gd.var().init().type;
-            if(!Type.assignmentCompatible(gd.type(),initType))
-                TypeError.GenericTypeError(gd);
+        Var globalVar = gd.var();
+
+        if(globalVar.init() == null) {
+            Literal defaultValue = null;
+            if (gd.type().isInt()) {
+                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", gd.location), ConstantKind.INT);
+            }
+            else if(gd.type().isChar()) {
+                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", gd.location), ConstantKind.CHAR);
+            }
+            else if(gd.type().isBool()) {
+                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", gd.location), ConstantKind.BOOL);
+            }
+            else if(gd.type().isReal()) {
+                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", gd.location), ConstantKind.REAL);
+            }
+            else if(gd.type().isString()) {
+                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", gd.location), ConstantKind.STR);
+            }
+            globalVar.setInit(defaultValue);
         }
-        gd.var().setType(gd.type());
+        globalVar.init().visit(this);
+
+        // Error Check #1: Check if the global variable's declared type
+        //                 matches the type of the initial value
+        if(!Type.assignmentCompatible(gd.type(),globalVar.init().type)) {
+            msg = new TypeError(gd.toString(),gd, gd.type(), globalVar.init().type, ErrorType.GLOBAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR);
+            msg.printMsg();
+        }
+
+        globalVar.setType(gd.type());
     }
 
     public void visitIfStmt(IfStmt is) {
@@ -446,7 +499,7 @@ public class TypeChecker extends Visitor {
 
             // Error #1
             if(fd.params().size() != in.arguments().size())
-                TypeError.GenericTypeError(in);
+                TypeErrorOLD.GenericTypeError(in);
 
             in.arguments().visit(this);
 
@@ -454,7 +507,7 @@ public class TypeChecker extends Visitor {
                 Type paramType = fd.params().get(i).getType();
                 Type argType = in.arguments().get(i).type;
                 if(!paramType.typeName().equals(argType.typeName()))
-                    TypeError.GenericTypeError(in);
+                    TypeErrorOLD.GenericTypeError(in);
             }
 
             in.type = fd.returnType();
@@ -468,7 +521,7 @@ public class TypeChecker extends Visitor {
 
             // Error #1
             if(in.arguments() != null && md.params().size() != in.arguments().size())
-                TypeError.GenericTypeError(in);
+                TypeErrorOLD.GenericTypeError(in);
 
             if(in.arguments() != null && in.arguments().size() > 0)
                 in.arguments().visit(this);
@@ -477,7 +530,7 @@ public class TypeChecker extends Visitor {
                 Type paramType = md.params().get(i).getType();
                 Type argType = in.arguments().get(i).type;
                 if(!paramType.typeName().equals(argType.typeName()))
-                    TypeError.GenericTypeError(in);
+                    TypeErrorOLD.GenericTypeError(in);
             }
             in.targetType = tt;
             in.type = md.returnType();
@@ -485,44 +538,66 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        When we are visiting a literal expression, we set the type
-        to correspond with the ConstantKind field which was set when
-        we parsed the literal.
+        ________________________Literals_________________________
+        We set the type based on the type of literal that
+        was parsed. This only includes Scalar and Discrete
+        types. All other literals (Arrays, Lists, and Objects)
+        will be handled in separate AST visits.
+        _________________________________________________________
     */
     public void visitLiteral(Literal li) {
-        if(li.getConstantKind() == ConstantKind.BOOL)
-            li.type = new DiscreteType(Discretes.BOOL);
-        else if(li.getConstantKind() == ConstantKind.INT)
-            li.type = new DiscreteType(Discretes.INT);
-        else if(li.getConstantKind() == ConstantKind.CHAR)
-            li.type = new DiscreteType(Discretes.CHAR);
-        else if(li.getConstantKind() == ConstantKind.STR)
-            li.type = new ScalarType(Scalars.STR);
-        else if(li.getConstantKind() == ConstantKind.REAL)
-            li.type = new ScalarType(Scalars.REAL);
-
+        if(li.getConstantKind() == ConstantKind.BOOL) { li.type = new DiscreteType(Discretes.BOOL); }
+        else if(li.getConstantKind() == ConstantKind.INT) { li.type = new DiscreteType(Discretes.INT); }
+        else if(li.getConstantKind() == ConstantKind.CHAR) { li.type = new DiscreteType(Discretes.CHAR); }
+        else if(li.getConstantKind() == ConstantKind.STR) { li.type = new ScalarType(Scalars.STR); }
+        else if(li.getConstantKind() == ConstantKind.REAL) { li.type = new ScalarType(Scalars.REAL); }
     }
 
     /*
-        For a local declaration, we check to make sure the type of
-        the initialization expression matches the explicit type
-        given to the local. This will be done with an assignment
-        compatibility test since if we instantiate objects, we can
-        store a child class object directly into a parent class object.
+        _________________________Local Declarations___________________________
+        We need to ensure that if a user initializes a local variable
+        to a value, the value needs to match the type of the declaration.
 
-        If a user wrote the 'uninit' keyword in place of an initialization
-        expression, then we can simply set the variable's type to be the
-        explicit type of the local without needing additional type checking.
+        Remember, C Minor does NOT support type coercion. This means the
+        value MUST be the same type as the declaration. The only way around
+        this is through a valid cast expression.
+
+        Also, if the user initially assigns a local variable to store `uninit`,
+        we will automatically set the default value based on the type.
+        ______________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
-        if(ld.var().init() != null) {
-            ld.var().init().visit(this);
-            Type initType = ld.var().init().type;
-            if(!Type.assignmentCompatible(initType,ld.type()))
-                TypeError.GenericTypeError(ld);
+        Var localVar = ld.var();
+
+        if(localVar.init() == null) {
+            Literal defaultValue = null;
+            if (ld.type().isInt()) {
+                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", ld.location), ConstantKind.INT);
+            }
+            else if(ld.type().isChar()) {
+                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", ld.location), ConstantKind.CHAR);
+            }
+            else if(ld.type().isBool()) {
+                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", ld.location), ConstantKind.BOOL);
+            }
+            else if(ld.type().isReal()) {
+                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", ld.location), ConstantKind.REAL);
+            }
+            else if(ld.type().isString()) {
+                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", ld.location), ConstantKind.STR);
+            }
+            localVar.setInit(defaultValue);
+        }
+        localVar.init().visit(this);
+
+        // Error Check #1: Check if the local variable's declared type
+        //                 matches the type of the initial value
+        if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
+            msg = new TypeError(ld.toString(),ld, ld.type(), localVar.init().type, ErrorType.LOCAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR);
+            msg.printMsg();
         }
 
-        ld.var().setType(ld.type());
+        localVar.setType(ld.type());
     }
 
     /*
@@ -569,7 +644,7 @@ public class TypeChecker extends Visitor {
             else if(tDecl.isClassDecl())
                 ne.type = new ClassType(tDecl.asClassDecl().name());
             else
-                TypeError.GenericTypeError(ne);
+                TypeErrorOLD.GenericTypeError(ne);
         }
     }
 
@@ -599,7 +674,7 @@ public class TypeChecker extends Visitor {
             Type declType = cd.symbolTable.findName(argName).declName().asFieldDecl().type();
 
             if(!Type.assignmentCompatible(eType,declType))
-                TypeError.GenericTypeError(ne);
+                TypeErrorOLD.GenericTypeError(ne);
         }
         ne.type = ne.classType();
     }
@@ -675,7 +750,7 @@ public class TypeChecker extends Visitor {
         if(eType.isClassType()) {
             ClassDecl cd = currentScope.getVarName(eType.typeName()).declName().asTopLevelDecl().asClassDecl();
             if(!cd.symbolTable.hasMethod(uOp))
-                TypeError.GenericTypeError(ue);
+                TypeErrorOLD.GenericTypeError(ue);
             ue.type = eType;
             return;
         }
@@ -687,13 +762,13 @@ public class TypeChecker extends Visitor {
                 else if(eType.isReal())
                     ue.type = new ScalarType(Scalars.REAL);
                 else
-                    TypeError.GenericTypeError(ue);
+                    TypeErrorOLD.GenericTypeError(ue);
                 break;
             case "not":
                 if(eType.isBool())
                     ue.type = new DiscreteType(Discretes.BOOL);
                 else
-                    TypeError.GenericTypeError(ue);
+                    TypeErrorOLD.GenericTypeError(ue);
                 break;
         }
     }
