@@ -1,0 +1,4 @@
+
+def global a = 3 Char
+
+def main() => Void {}

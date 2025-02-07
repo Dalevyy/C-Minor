@@ -1,0 +1,8 @@
+
+def global a = 5 Int
+def global b = 'c' Char
+def global c = True Bool
+def global d = 3.14 Real
+def global e = 'hello there' String
+
+def main() => Void { }

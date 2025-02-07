@@ -1,0 +1,5 @@
+
+
+def global a = 7 Real
+
+def main() => Void {}
