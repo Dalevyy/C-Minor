@@ -15,6 +15,7 @@ public abstract class Message {
     protected void printMsgLine() { this.location.printLine(); }
     protected String printStartLocation() { return location.getStartPosition(); }
 
+    public AST getAST() { return this.location; }
     public abstract void printMsg();
     public abstract void setMsg();
 

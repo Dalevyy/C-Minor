@@ -1,0 +1,7 @@
+
+def global a = 5 Int
+def global b = 3.14 Real
+
+def main() => Void {
+    a << b
+}

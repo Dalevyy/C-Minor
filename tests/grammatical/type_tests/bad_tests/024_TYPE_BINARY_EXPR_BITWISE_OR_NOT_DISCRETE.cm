@@ -1,0 +1,7 @@
+
+def global a = 'hey' String
+def global b = 'hi' String
+
+def main() => Void {
+    a | b
+}

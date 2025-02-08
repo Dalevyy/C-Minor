@@ -1,0 +1,7 @@
+
+def global a = 3 Int
+def global b = 'hey' String
+
+def main() => Void {
+    a or b
+}

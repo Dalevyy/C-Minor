@@ -61,16 +61,16 @@ public class TypeChecker extends Visitor {
             TypeErrorOLD.GenericTypeError(ae);
     }
 
+
     /*
-        For an assignment statement, we can only assign expressions that are the SAME
-        type as the variable we are trying to assign to.
-    */
-        /*
-    ________________________Assignment Statements___________________________
-    If we want to assign a new value to a variable, we need to make sure the
-    value's type matches the type of the variable. There's nothing else we
-    need to do, and all assignment operators can be handled in the same way
-    ________________________________________________________________________
+        _________________________Assignment Statements__________________________
+        If we want to assign a new value to a variable, we need to make sure the
+        value's type matches the type of the variable.
+
+        C Minor also supports compound assignment operations such as +=, -=, *=,
+        etc. which means we have to do an additional check to make sure the two
+        values can perform a legal binary operation.
+        ________________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
 
@@ -82,6 +82,7 @@ public class TypeChecker extends Visitor {
 
         String aOp = as.assignOp().toString();
 
+        // Error Check #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
             msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_TYPE_DOES_NOT_MATCH);
             msg.printMsg();
@@ -89,52 +90,65 @@ public class TypeChecker extends Visitor {
 
         switch(aOp) {
             case "+=": {
-                if(lType.isBool() || lType.isChar())
-                    ;
+                // Error Check #2: For a '+=' operation, the only allowed types are Int, Real, String, and Object
+                if(lType.isBool() || lType.isChar()) {
+                    msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_INVALID_TYPES_USED);
+                    msg.printMsg();
+                }
+                break;
             }
             case "-=":
             case "*=":
             case "/=":
             case "%=":
             case "**=": {
-                if(lType.isBool() || lType.isChar() || lType.isString())
-                    ;
+                // Error Check #3: For all other assignment operators, the types Int, Real, and Object have to be used
+                if(lType.isBool() || lType.isChar() || lType.isString()) {
+                    msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_INVALID_TYPES_USED);
+                    msg.printMsg();
+                }
+                break;
             }
         }
-
     }
 
+
     /*
+        ___________________________Binary Expressions___________________________
+        Since C Minor does not support type coercion, we are going to be strict
+        about which types are allowed for each possible binary operator.
 
-        For a BinaryExpr, these are all the possible binary operators we can
-        use. Each binary operator has to type check if its operands correspond
-        to the allowed types for each operator before setting the type of the BinaryExpr.
+        There are currently 24 binary operators in C Minor. The following is a
+        list of each operator
 
-        Binary Operators:
-            1) ==, !=
-                - Operand Type: Both operands need to be the same type
-                - BinaryExpr Type: Bool
-            2) >, >=, <, <=, <>, <=>
-                - Operand Type: Numeric (Int, Real, Char)
-                - BinaryExpr Type: Bool
-            3) +, -, *, /, %, **
-                - Operand Type: Numeric (Int, Real, Char) or String (ONLY for +)
-                - BinaryExpr Type: Type of both operands
-            4) <<, >>
+            1. '=='  '!='
+                - Operand Type: Both operands have to be the SAME type
+                - Binary Expression Type: Bool
+
+            2. '>'  '>='  '<'  '<='  '<>'  '<=>'
+                - Operand Type: Numeric -> Int, Real, Char
+                - Binary Expression Type: Bool
+
+            3. '+'  '-'  '*'  '/'  '%'  '**'
+                - Operand Type: Numeric -> Int, Real, Char or String (+)
+                - Binary Expression Type: Type of both operands
+
+            4. '<<'  '>>'
                 - Operand Type: Int
-                - BinaryExpr Type: Int
-            5) &, |
+                - Binary Expression Type: Int
+
+            5. '&'   '|'  '^'
                 - Operand Type: Discrete
-                - BinaryExpr Type: Bool
-            6) ^
-                - Operand Type: Discrete
-                - BinaryExpr Type: Int
-            7) instanceof, !instanceof, as?
-                - Operand Type: Class
-                - BinaryExpr Type: Bool
-            8) and, or
+                - Binary Expression Type: Bool or Int (^)
+
+            6. 'and'  'or'
                 - Operand Type: Bool
-                - BinaryExpr Type: Bool
+                - Binary Expression Type: Bool
+
+            7. 'instanceof'  '!instanceof'  'as?'
+                - Operand Type: Class
+                - Binary Expression Type: Bool
+        ________________________________________________________________________
     */
     public void visitBinaryExpr(BinaryExpr be) {
 
@@ -147,34 +161,14 @@ public class TypeChecker extends Visitor {
         Type rType = be.RHS().type;
         String binOp = be.binaryOp().toString();
 
-        // TODO: Operator overloads. Just check if it's been defined or not :)
-        // ERROR CHECK #1: If an object is in a unary expression, we check
-        // if the unary operator was overloaded in the class the object represents
-//        if(lType.isClassType() && rType.isClassType()) {
-//            if(!Type.typeEqual(lType,rType))
-//                TypeErrorOLD.GenericTypeError(be);
-//
-//            ClassDecl cd = currentScope.getVarName(lType.typeName()).getID().asTopLevelDecl().asClassDecl();
-//
-//            if(!cd.symbolTable.hasMethod(binOp)) {
-//                if(binOp.equals("instanceof") || binOp.equals("!instanceof") || binOp.equals("as?"))
-//
-//
-//            }
-//            if(!(binOp.equals("instanceof") || binOp.equals("!instanceof") || binOp.equals("as?")))
-//            else if(!currentScope.isNameUsedAnywhere(binOp))
-//                TypeErrorOLD.GenericTypeError(be);
-//            else {
-//                be.type = lType;
-//                return;
-//            }
-//        }
-
         switch(binOp) {
             case "==":
             case "!=": {
-                if(!Type.assignmentCompatible(lType,rType))
-                    BinaryExprError.BinaryOpsNonMatchingError(be,lType,rType);
+                // Error Check #1: Both LHS/RHS have to be the same type.
+                if(!Type.assignmentCompatible(lType,rType)) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
+                    msg.printMsg();
+                }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
             }
@@ -184,74 +178,92 @@ public class TypeChecker extends Visitor {
             case "<=":
             case "<>":
             case "<=>": {
-                if(!lType.isNumeric())
-                    BinaryExprError.BinaryOpInvalidTypeError(be,lType,true);
-                else if(!rType.isNumeric())
-                    BinaryExprError.BinaryOpInvalidTypeError(be,rType,false);
-                else if(!Type.assignmentCompatible(lType,rType))
-                    BinaryExprError.BinaryOpsNonMatchingError(be,lType,rType);
+                // Error Check #1: Make sure both types are the same
+                if(!Type.assignmentCompatible(lType,rType)) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
+                    msg.printMsg();
+                }
+                // Error Check #2: Make sure the operands are numeric types
+                if(!lType.isNumeric()) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_NUMERIC);
+                    msg.printMsg();
+                }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
             }
-            case "+":
+            case "+": {
+                if(lType.isString() && rType.isString()) {
+                    be.type = lType;
+                    break;
+                }
+            }
             case "-":
             case "*":
             case "/":
             case "%":
             case "**": {
-                if(lType.isString() || rType.isString()) {
-                    if(!lType.isString() || !rType.isString())
-                        BinaryExprError.BinaryOpsNonMatchingError(be,lType,rType);
-                    if(!binOp.equals("+"))
-                        BinaryExprError.BinaryOpInvalidOpError(be);
+                // Error Check #1: Make sure both types are the same
+                if(!Type.assignmentCompatible(lType,rType)) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
+                    msg.printMsg();
                 }
-                else if(!Type.assignmentCompatible(lType,rType))
-                    BinaryExprError.BinaryOpsNonMatchingError(be,lType,rType);
+                // Error Check #2: Make sure the operands are numeric types
+                if(!lType.isNumeric()) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_NUMERIC);
+                    msg.printMsg();
+                }
+
                 be.type = lType;
                 break;
             }
             case "<<":
             case ">>": {
-                if(!lType.isInt())
-                    BinaryExprError.BinaryOpInvalidTypeError(be,rType,true);
-                else if(!rType.isInt())
-                    BinaryExprError.BinaryOpInvalidTypeError(be,rType,false);
-                else
-                    be.type = new DiscreteType(Discretes.INT);
+                // Error Check #1: Both LHS and RHS have to be an INT for shift operations
+                if(!lType.isInt() || !rType.isInt()) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_SLEFT_SRIGHT_NOT_INT);
+                    msg.printMsg();
+                }
+
+                be.type = new DiscreteType(Discretes.INT);
                 break;
             }
             case "&":
-            case "|": {
-                if(!lType.isDiscreteType() || !rType.isDiscreteType())
-                    BinaryExprError.BinaryOpInvalidOpError(be);
-                else if(!lType.typeName().equals(rType.typeName()))
-                    BinaryExprError.BinaryOpsNonMatchingError(be,lType,rType);
+            case "|":
+            case "^": {
+                // Error Check #1: Make sure both types are the same
+                if(!Type.assignmentCompatible(lType,rType)) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
+                    msg.printMsg();
+                }
+
+                // Error Check #2: Make sure both types are discrete
+                if(!lType.isDiscreteType() || !rType.isDiscreteType()) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_BITWISE_NOT_DISCRETE);
+                    msg.printMsg();
+                }
+
+                if(binOp.equals("^")) { be.type = new DiscreteType(Discretes.INT); }
+                else { be.type = new DiscreteType(Discretes.BOOL); }
                 break;
             }
-            case "^": {
-                if(lType.isDiscreteType() && rType.isDiscreteType())
-                    BinaryExprError.BinaryOpInvalidOpError(be);
-                else if(!Type.assignmentCompatible(lType,rType))
-                    BinaryExprError.BinaryOpsNonMatchingError(be,lType,rType);
-                be.type = new DiscreteType(Discretes.INT);
+            case "and":
+            case "or": {
+                if(!lType.isBool() || !rType.isBool()) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_LOGICAL_NOT_BOOL);
+                    msg.printMsg();
+                }
+
+                be.type = new DiscreteType(Discretes.BOOL);
                 break;
             }
             case "instanceof":
             case "!instanceof":
             case "as?": {
-                if(!lType.isClassType() || !rType.isClassType())
-                    TypeErrorOLD.GenericTypeError(be);
+                if(!lType.isClassType() && !rType.isClassType()) {
+                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_OBJ_OPS_MISSING_OBJ);
+                    msg.printMsg();
+                }
                 be.type = new DiscreteType(Discretes.BOOL);
-                break;
-            }
-            case "and":
-            case "or": {
-                if(!lType.isBool())
-                    BinaryExprError.BinaryOpInvalidTypeError(be,rType,true);
-                else if(!rType.isBool())
-                    BinaryExprError.BinaryOpInvalidTypeError(be,rType,false);
-                else
-                    be.type = new DiscreteType(Discretes.BOOL);
                 break;
             }
         }
@@ -774,25 +786,25 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        When we visit a WhileStmt, we only perform one type check.
-            1. The condition expression of a while loop must
-               evaluate to be a Boolean type.
+        ___________________________While Statements_____________________________
+        Similarly to the other loop constructs, we only need to check whether or
+        not the while's loop condition evaluates to a boolean. All other type
+        checks related to the while loop will be handled by other visits.
+        ________________________________________________________________________
     */
     public void visitWhileStmt(WhileStmt ws) {
 
         ws.condition().visit(this);
-        Type condType = ws.condition().type;
 
-        /*
-          ERROR CHECK #1:
-              The condition expression for a while loop must evaluate to Bool.
-        */
-        if(!condType.isBool())
-            StmtError.whileConditionError(ws);
+        // ERROR CHECK #1: While's condition must be a Boolean
+        if(!ws.condition().type.isBool()) {
+            msg = new TypeError("",ws,ws.condition().type,null,ErrorType.WHILE_CONDITION_NOT_BOOLEAN);
+            msg.printMsg();
+        }
 
         currentScope = ws.symbolTable;
         ws.whileBlock().visit(this);
+
         currentScope = currentScope.closeScope();
     }
-
 }
