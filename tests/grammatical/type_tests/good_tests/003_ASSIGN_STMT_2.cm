@@ -1,0 +1,18 @@
+
+def global a = 'hi' String
+def global b = ' there' String
+def global c = 2 Int
+def global d = True Bool
+
+
+def main() => Void {
+    def local e = 3.14 Real
+
+    set a += b
+    set b += ' my string'
+    set c /= 53
+    set d = False
+
+    set e **= 3.21
+    stop
+}

@@ -1,0 +1,6 @@
+
+def global a = 5 Int
+
+def main() => Void {
+    set a += 3.14
+}
