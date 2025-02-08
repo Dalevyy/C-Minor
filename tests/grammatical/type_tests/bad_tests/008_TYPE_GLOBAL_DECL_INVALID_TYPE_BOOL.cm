@@ -1,0 +1,5 @@
+
+
+def global a = 'hi' Bool
+
+def main() => Void {}

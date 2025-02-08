@@ -1,0 +1,16 @@
+
+def global a = 5 Int
+def global b = 6 Int
+def global c = 'hi' String
+def global d = 'hey' String
+
+def main() => Void {
+    a == b
+    a != b
+
+    c == d
+    c != d
+
+    a == a
+    d != d
+}

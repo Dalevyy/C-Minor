@@ -1,0 +1,6 @@
+
+def global a = 'my string' String
+
+def main() => Void {
+    set a *= ' is short.'
+}

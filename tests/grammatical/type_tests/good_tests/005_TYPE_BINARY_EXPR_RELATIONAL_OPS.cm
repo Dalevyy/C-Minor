@@ -1,0 +1,10 @@
+
+def global a = 3 Int
+def global b = 5 Int
+
+def main() => Void {
+    a < b
+    a > b
+    a <= b
+    a >= b
+}

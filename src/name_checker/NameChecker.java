@@ -6,6 +6,8 @@ import ast.expressions.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
 import errors.*;
+import messages.*;
+import messages.errors.ScopeError;
 import utilities.*;
 
 import java.util.HashSet;
@@ -13,46 +15,10 @@ import java.util.HashSet;
 public class NameChecker extends Visitor {
 
     private SymbolTable currentScope;
+    private Message msg;
 
-    public NameChecker() { this.currentScope = new SymbolTable(); }
-
-    public AST retrieveName(String name) {
-        AST prevDecl = currentScope.findName(name).declName();
-
-        if(prevDecl.isFieldDecl())
-            return prevDecl.asFieldDecl();
-        else if(prevDecl.isTopLevelDecl()) {
-            if(prevDecl.asTopLevelDecl().isGlobalDecl())
-                return prevDecl.asTopLevelDecl().asGlobalDecl();
-            else if(prevDecl.asTopLevelDecl().isEnumDecl())
-                return prevDecl.asTopLevelDecl().asEnumDecl();
-            else
-                return prevDecl.asTopLevelDecl().asClassDecl();
-        }
-        else if(prevDecl.isStatement()) {
-            if (prevDecl.asStatement().isLocalDecl())
-                return prevDecl.asStatement().asLocalDecl();
-        }
-        else
-            return prevDecl.asParamDecl();
-
-        return null;
-    }
-
-    public void printScopeError(String varName, AST currDecl) {
-        System.out.println(PrettyPrint.YELLOW + "Scoping Error Detected!\n" + PrettyPrint.RESET);
-
-        currDecl.printLine();
-        AST prevDecl = retrieveName(varName);
-
-        System.out.println(PrettyPrint.RED + currDecl.getStartPosition() + ": Scoping Error! \'"
-                + currDecl.toString() + "\' has already been declared on line " + prevDecl.startLine() +
-                ".\n" + PrettyPrint.RESET);
-
-        prevDecl.printLine();
-        System.out.println(PrettyPrint.RED + "Redeclaration of \'" + currDecl.toString() + "\' in the " +
-                "same scope is not allowed.");
-        System.exit(1);
+    public NameChecker() {
+        this.currentScope = new SymbolTable();
     }
 
     public void visitBlockStmt(BlockStmt bs) {
@@ -68,8 +34,7 @@ public class NameChecker extends Visitor {
         cs.choiceLabel().visit(this);
         currentScope = currentScope.openNewScope();
 
-        cs.caseBlock().decls().visit(this);
-        cs.caseBlock().stmts().visit(this);
+        cs.caseBlock().visit(this);
 
         cs.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
@@ -81,11 +46,7 @@ public class NameChecker extends Visitor {
         cs.choiceExpr().visit(this);
         cs.caseStmts().visit(this);
 
-        BlockStmt otherBlock = cs.choiceBlock();
-        currentScope = currentScope.openNewScope();
-
-        cs.choiceBlock().decls().visit(this);
-        cs.choiceBlock().stmts().visit(this);
+        cs.choiceBlock().visit(this);
 
         cs.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
@@ -99,11 +60,19 @@ public class NameChecker extends Visitor {
     public void visitClassDecl(ClassDecl cd) {
         String className = cd.name().toString();
 
-        if(currentScope.isNameUsedAnywhere(className))
-            printScopeError(className,cd);
+        if(currentScope.isNameUsedAnywhere(className)) {
+            msg = new ScopeError(className,cd,currentScope,ScopeError.errorType.REDECL);
+            msg.printMsg();
+        }
 
-        if(cd.superClass() != null)
+        if(cd.superClass() != null) {
+            String baseClass = cd.superClass().getName().toString();
+            if(className.equals(baseClass)) {
+                msg = new ScopeError(className,cd,currentScope,ScopeError.errorType.INHERIT_SELF);
+                msg.printMsg();
+            }
             className += "_" + cd.superClass().getName().toString();
+        }
 
         currentScope.addName(className,cd);
 
@@ -114,6 +83,16 @@ public class NameChecker extends Visitor {
 
         cd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
+    }
+
+    public void visitCompilation(Compilation c) {
+        super.visitCompilation(c);
+
+//        if(msgs.size() > 0) {
+//            for(Message m : msgs)
+//                m.printMsg();
+//            System.exit(1);
+//        }
     }
 
     /*
@@ -145,8 +124,10 @@ public class NameChecker extends Visitor {
     public void visitEnumDecl(EnumDecl ed) {
         String enumName = ed.name().toString();
 
-        if(currentScope.isNameUsedAnywhere(enumName))
-            printScopeError(enumName,ed);
+        if(currentScope.hasName(enumName)) {
+            msg = new ScopeError(enumName,ed,currentScope,ScopeError.errorType.REDECL);
+            msg.printMsg();
+        }
 
         currentScope.addName(enumName,ed);
 
@@ -164,14 +145,12 @@ public class NameChecker extends Visitor {
     public void visitFieldDecl(FieldDecl fd) {
         String fieldName = fd.var().name().toString();
 
-        if(currentScope.hasName(fieldName))
-            printScopeError(fieldName,fd);
+        if(currentScope.hasName(fieldName)) {
+            msg = new ScopeError(fieldName,fd,currentScope, ScopeError.errorType.REDECL);
+            msg.printMsg();
+        }
 
         currentScope.addName(fieldName, fd);
-    }
-
-    public void visitFieldExpr(FieldExpr fe) {
-
     }
 
     /*
@@ -202,24 +181,20 @@ public class NameChecker extends Visitor {
         String funcSignature = "";
         if(fd.params() != null)
             funcSignature = fd.toString() + "(" + fd.paramSignature() + ")" + fd.returnType().typeSignature();
+        else
+            funcSignature = fd.toString() + "()" + fd.returnType().typeSignature();
 
-        if(currentScope.hasMethodSomewhere(funcSignature))
-            ScopeError.RedeclError(fd);
-
-        if(fd.returnType().isClassType()) {
-            if(!currentScope.hasName(fd.returnType().typeName()))
-                ScopeError.LocalDeclError(fd);
+        if(currentScope.hasNameSomewhere(funcSignature)) {
+            msg = new ScopeError(funcSignature,fd,currentScope,ScopeError.errorType.REDECL);
+            msg.printMsg();
         }
 
         SymbolTable newScope = currentScope.openNewScope();
         currentScope.addName(fd.toString(), fd);
-        currentScope.addMethod(funcSignature, newScope);
-
         currentScope = newScope;
 
         // Check if the parameter names are valid
-        if(fd.params() != null)
-            fd.params().visit(this);
+        if(fd.params() != null) { fd.params().visit(this); }
 
         // Check the body of the function now
         fd.funcBlock().decls().visit(this);
@@ -236,20 +211,20 @@ public class NameChecker extends Visitor {
     public void visitGlobalDecl(GlobalDecl gd) {
         String globalName = gd.toString();
 
-        if(currentScope.isNameUsedAnywhere(globalName))
-            printScopeError(globalName,gd);
+        // Error Check #1: Check if the name is already declared in the current scope
+        if(currentScope.hasName(globalName)) {
+            msg = new ScopeError(globalName, gd, currentScope, ScopeError.errorType.REDECL);
+            msg.printMsg();
+        }
 
+        // Error Check #2: Check if the
         if(gd.var().init() != null) {
             if(gd.var().init().equals(globalName)) {
-                System.out.println(PrettyPrint.YELLOW + "Scoping Error Detected!\n" + PrettyPrint.RESET);
-
-                gd.printLine();
-                System.out.println(PrettyPrint.RED + gd.getStartPosition() + ": Scoping Error! Global variable \'"
-                        + globalName + "\' can not be initialized to itself." + PrettyPrint.RESET);
-                System.exit(1);
+                msg = new ScopeError(globalName, gd, currentScope, ScopeError.errorType.SELF_ASSIGN);
+                msg.printMsg();
             }
-        }
             gd.var().init().visit(this);
+        }
 
         currentScope.addName(gd.toString(), gd);
     }
@@ -300,8 +275,10 @@ public class NameChecker extends Visitor {
                 either the current file or an import.
         */
         if(in.target() == null) {
-            if(!currentScope.hasNameSomewhere(name))
-                ScopeError.LocalDeclError(in);
+            if(!currentScope.hasNameSomewhere(name)) {
+                msg = new ScopeError(name,in,currentScope,ScopeError.errorType.NO_DECL);
+                msg.printMsg();
+            }
         }
 
         // Regardless if we have a method or function, we will
@@ -322,19 +299,16 @@ public class NameChecker extends Visitor {
     public void visitLocalDecl(LocalDecl ld) {
         String localName = ld.toString();
 
-        if(currentScope.isNameUsedAnywhere(localName)) {
-            if(currentScope.hasName(localName))
-                printScopeError(localName,ld);
+        // Error Check #1: Check if the name has already been declared in the current scope
+        if(currentScope.hasName(localName)) {
+            msg = new ScopeError(localName, ld, currentScope, ScopeError.errorType.REDECL);
+            msg.printMsg();
         }
 
         if(ld.var().init() != null) {
             if(ld.var().init().toString().equals(localName)) {
-                System.out.println(PrettyPrint.YELLOW + "Scoping Error Detected!\n" + PrettyPrint.RESET);
-
-                ld.printLine();
-                System.out.println(PrettyPrint.RED + ld.getStartPosition() + ": Scoping Error! Local variable \'"
-                        + localName + "\' can not be initialized to itself." + PrettyPrint.RESET);
-                System.exit(1);
+                msg = new ScopeError(localName, ld, currentScope, ScopeError.errorType.SELF_ASSIGN);
+                msg.printMsg();
             }
             ld.var().init().visit(this);
         }
@@ -348,11 +322,6 @@ public class NameChecker extends Visitor {
         a global variable to be redeclared locally.
     */
     public void visitMainDecl(MainDecl md) {
-//        if(md.returnType().isClassType()) {                           Check in type checker?
-//            if(!currentScope.hasName(md.returnType().typeName()))
-//                ScopeError.LocalDeclError(md);
-//        }
-
         if(md.args() != null)
             md.args().visit(this);
 
@@ -365,23 +334,17 @@ public class NameChecker extends Visitor {
     // MethodDecl: Opens a new scope
     public void visitMethodDecl(MethodDecl md) {
         String methodSignature = md.toString() + "(" + md.paramSignature() + ")" + md.returnType().typeSignature();
-        if(currentScope.hasMethod(methodSignature))
-            ScopeError.LocalDeclError(md);
-
-        if(md.returnType().isClassType()) {
-            if(!currentScope.hasName(md.returnType().typeName()))
-                ScopeError.LocalDeclError(md);
+        if(currentScope.hasName(methodSignature)) {
+            msg = new ScopeError(methodSignature,md,currentScope,ScopeError.errorType.REDECL);
+            msg.printMsg();
         }
 
         SymbolTable newScope = currentScope.openNewScope();
         currentScope.addName(md.toString(),md);
-        currentScope.addMethod(methodSignature,newScope);
         currentScope = newScope;
 
-        if(md.params() != null)
-            md.params().visit(this);
+        if(md.params() != null) { md.params().visit(this); }
 
-        BlockStmt methodBlock = md.methodBlock();
         md.methodBlock().decls().visit(this);
         md.methodBlock().stmts().visit(this);
 
@@ -398,12 +361,8 @@ public class NameChecker extends Visitor {
     public void visitNameExpr(NameExpr ne) {
         String name = ne.toString();
         if(!currentScope.isNameUsedAnywhere(name)) {
-            System.out.println(PrettyPrint.YELLOW + "Scoping Error Detected!\n" + PrettyPrint.RESET);
-
-            ne.printLine();
-            System.out.println(PrettyPrint.RED + ne.getStartPosition() + ": Scoping Error! \'"
-                    + name + "\' has not yet been declared in the current scope.\n" + PrettyPrint.RESET);
-            System.exit(1);
+            msg = new ScopeError(name,ne,currentScope, ScopeError.errorType.NO_DECL);
+            msg.printMsg();
         }
     }
 
@@ -425,12 +384,8 @@ public class NameChecker extends Visitor {
         String lookupName = ne.classType().toString();
         NameNode cd = currentScope.findName(lookupName);
         if(cd == null) {
-            System.out.println(PrettyPrint.YELLOW + "Scoping Error Detected!\n" + PrettyPrint.RESET);
-
-            ne.printLine();
-            System.out.println(PrettyPrint.RED + ne.getStartPosition() + ": Scoping Error! Class \'"
-                    + lookupName + "\' does not exist and can not be instantiated.\n" + PrettyPrint.RESET);
-            System.exit(1);
+            msg = new ScopeError(lookupName,ne,currentScope, ScopeError.errorType.NO_CLASS_DECL);
+            msg.printMsg();
         }
 
         SymbolTable classST = cd.declName().asTopLevelDecl().asClassDecl().symbolTable;
@@ -438,16 +393,20 @@ public class NameChecker extends Visitor {
         Vector<Var> newArgs = ne.args();
         HashSet<String> seen = new HashSet<String>();
         for(int i = 0; i < newArgs.size(); i++) {
-            String fieldName = newArgs.get(i).name().toString();
+            Var v = newArgs.get(i);
+            String fieldName = v.name().toString();
             // Error Check #2: Check if the field name was not defined in the class
-            if(!classST.hasName(fieldName))
-                ScopeError.LocalDeclError(ne);
+            if(!classST.hasName(fieldName)) {
+                msg = new ScopeError(fieldName,v,currentScope, ScopeError.errorType.MISSING_FIELD);
+                msg.printMsg();
+            }
             // Error Check #3: Check if the field name was already given a default value earlier
-            else if(seen.contains(fieldName))
-                ScopeError.LocalDeclError(ne);
-            else
-                seen.add(fieldName);
+            else if(seen.contains(fieldName)) {
+                msg = new ScopeError(fieldName,v,currentScope, ScopeError.errorType.FIELD_VAL_GIVEN);
+                msg.printMsg();
+            }
 
+            seen.add(fieldName);
             newArgs.get(i).init().visit(this);
         }
     }
@@ -461,8 +420,10 @@ public class NameChecker extends Visitor {
     public void visitParamDecl(ParamDecl pd) {
         String paramName = pd.toString();
 
-        if(currentScope.isNameUsedAnywhere(paramName))
-            printScopeError(paramName,pd);
+        if(currentScope.isNameUsedAnywhere(paramName)) {
+            msg = new ScopeError(paramName, pd, currentScope, ScopeError.errorType.REDECL);
+            msg.printMsg();
+        }
 
         currentScope.addName(paramName,pd);
     }

@@ -1,0 +1,6 @@
+def global a = 5 Int
+def global b = 'hi' String
+
+def main() => Void {
+    a < b
+}

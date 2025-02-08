@@ -1,0 +1,7 @@
+
+def main() => Void {
+    def local a = 'John' String
+    def local b = 'Adams' String
+
+    a + b
+}

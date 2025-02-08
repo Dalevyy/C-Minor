@@ -1,0 +1,8 @@
+
+def global a = True Bool
+def global b = False Bool
+
+def main() => Void {
+    a and b
+    a or b
+}
