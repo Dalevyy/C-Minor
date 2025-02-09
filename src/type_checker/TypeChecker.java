@@ -112,7 +112,6 @@ public class TypeChecker extends Visitor {
         }
     }
 
-
     /*
         ___________________________Binary Expressions___________________________
         Since C Minor does not support type coercion, we are going to be strict
@@ -152,13 +151,12 @@ public class TypeChecker extends Visitor {
     */
     public void visitBinaryExpr(BinaryExpr be) {
 
-        // First, we get the type of the LHS
         be.LHS().visit(this);
         Type lType = be.LHS().type;
 
-        // Then, we get the type of the RHS
         be.RHS().visit(this);
         Type rType = be.RHS().type;
+
         String binOp = be.binaryOp().toString();
 
         switch(binOp) {
@@ -248,6 +246,7 @@ public class TypeChecker extends Visitor {
             }
             case "and":
             case "or": {
+                // Error Check #1: Make sure both types are Bool
                 if(!lType.isBool() || !rType.isBool()) {
                     msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_LOGICAL_NOT_BOOL);
                     msg.printMsg();
@@ -270,42 +269,51 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        In a C Minor program, we do not employ any form of
-        type coercion. It is expected the user will explicitly
-        type cast all values they want to use when working with
-        expressions containing multiple types.
+        _________________________ Cast Expressions  _______________________________
+        In C Minor, we have 4 valid cast expressions a programmer can use:
 
-        List of Valid Type Casts:
-            1) Char <=> Int
-            2) Int <=> Real
-            3) Char => String
-            4) Parent Object <= Child Object
+            1. Char <--> Int
+            2. Int  <--> Real
+            3. Char  --> String
+            4. Parent Class Object <-- Child Class Object (Runtime check)
+
+        For mixed type expressions, this means the programmer must perform explicit
+        type casts or else the compiler will generate a typing error.
+       ____________________________________________________________________________
     */
     public void visitCastExpr(CastExpr ce) {
         ce.castExpr().visit(this);
-        Type cType = ce.castExpr().type;
-        Type targetType = ce.castType();
+        Type exprType = ce.castExpr().type;
+        Type typeToCastInto = ce.castType();
 
-        if(cType.isInt()) {
-            if (!(targetType.isChar() || targetType.isReal()))
-                CastError.InvalidIntCastError(ce);
+        if(exprType.isInt()) {
+            // Error Check #1: An Int can only be typecasted into a Char and a Real
+            if(!typeToCastInto.isChar() && !typeToCastInto.isReal()) {
+                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_INT_CAST);
+                msg.printMsg();
+            }
         }
-        else if(cType.isChar()) {
-            if(!(targetType.isInt() || targetType.isString()))
-                CastError.InvalidIntCastError(ce);
+        else if(exprType.isChar()) {
+            // Error Check #2: A Char can only be type casted into an Int and a String
+            if(!typeToCastInto.isInt() && !typeToCastInto.isString()) {
+                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CHAR_CAST);
+                msg.printMsg();
+            }
         }
-        else if(cType.isReal()) {
-            if(!targetType.isInt())
-                CastError.InvalidIntCastError(ce);
+        else if(exprType.isReal()) {
+            // Error Check #3: A Real can only be type casted into an Int
+            if(!typeToCastInto.isInt()) {
+                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_REAL_CAST);
+                msg.printMsg();
+            }
         }
-        else if(cType.isEnum() || targetType.isEnum())
-            CastError.InvalidIntCastError(ce);
-        else if(cType.isClassType() && targetType.isClassType())
-            ;
-        else
-            TypeErrorOLD.GenericTypeError(ce);
+        else {
+            // By default, all other cast expressions will be considered invalid
+            msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CAST);
+            msg.printMsg();
+        }
 
-        ce.type = targetType;
+        ce.type = typeToCastInto;
     }
 
     public void visitCaseStmt(CaseStmt cs) {
