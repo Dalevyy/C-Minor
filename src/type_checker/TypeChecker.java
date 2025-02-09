@@ -147,6 +147,9 @@ public class TypeChecker extends Visitor {
             7. 'instanceof'  '!instanceof'  'as?'
                 - Operand Type: Class
                 - Binary Expression Type: Bool
+
+        Additionally, most of the binary operators can be overloaded by classes,
+        so we will check if the overloaded method was defined here as well.
         ________________________________________________________________________
     */
     public void visitBinaryExpr(BinaryExpr be) {
@@ -359,16 +362,26 @@ public class TypeChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    /*
+        ___________________________ Do Statements ________________________________
+        With all looping constructs, we only need to check if the type of the loop
+        condition evaluates to be a Bool. That's all we DO here. ;)
+        __________________________________________________________________________
+    */
     public void visitDoStmt(DoStmt ds) {
-        ds.condition().visit(this);
-        Type condType = ds.condition().type;
-
-        if(!condType.isBool())
-            TypeErrorOLD.GenericTypeError(ds);
-
         currentScope = ds.symbolTable;
         ds.doBlock().visit(this);
         currentScope = currentScope.closeScope();
+
+        ds.condition().visit(this);
+
+        // Error Check #1: Make sure Do's condition evaluates to Bool
+        if(!ds.condition().type.isBool()) {
+            msg = new TypeError("",ds,ds.condition().type,null,ErrorType.LOOP_CONDITION_NOT_BOOLEAN);
+            msg.printMsg();
+        }
+
+        if(ds.nextExpr() != null) { ds.nextExpr().visit(this); }
     }
 
     /*
@@ -427,16 +440,25 @@ public class TypeChecker extends Visitor {
          fe.type = fd.type();
     }
 
+    /*
+        ___________________________ For Statements ________________________________
+        Just like with do statements, we only check if the for loop's condition
+        evaluates to be a Bool. There's nothing else FOR us to type check here. ;)
+        ___________________________________________________________________________
+    */
     public void visitForStmt(ForStmt fs) {
         currentScope = fs.symbolTable;
 
         fs.condition().visit(this);
-        Type condType = fs.condition().type;
-        if(!condType.isBool())
+        if(!fs.condition().type.isBool()) {
+            msg = new TypeError("",fs,fs.condition().type,null,ErrorType.LOOP_CONDITION_NOT_BOOLEAN);
+            msg.printMsg();
+        }
             TypeErrorOLD.GenericTypeError(fs);
 
-        if(fs.forBlock() != null)
-            fs.forBlock().visit(this);
+        if(fs.nextExpr() != null) { fs.nextExpr().visit(this); }
+        if(fs.forBlock() != null) { fs.forBlock().visit(this); }
+
         currentScope = currentScope.closeScope();
     }
 
@@ -491,23 +513,33 @@ public class TypeChecker extends Visitor {
         globalVar.setType(gd.type());
     }
 
+
+    /*
+    _____________________________  If Statements ______________________________
+    Similarly to the loop constructs, we only have to check if an if statement's
+    condition evaluates into a Bool. IF this is a true, then we are good to go
+    visit other nodes. :)
+    ___________________________________________________________________________
+    */
     public void visitIfStmt(IfStmt is) {
         is.condition().visit(this);
-        Type condType = is.condition().type;
 
-        if(!condType.isBool())
-            StmtError.ifConditionError(is);
+        if(!is.condition().type.isBool()) {
+            msg = new TypeError("",is,is.condition().type,null,ErrorType.IF_CONDITION_NOT_BOOLEAN);
+            msg.printMsg();
+        }
 
         currentScope = is.symbolTableIfBlock;
-        if(is.ifBlock() != null)
-            is.ifBlock().visit(this);
+        if(is.ifBlock() != null) { is.ifBlock().visit(this); }
         currentScope = currentScope.closeScope();
 
-        if(is.elifStmts().size() > 0)
-            is.elifStmts().visit(this);
+        if(is.elifStmts().size() > 0) { is.elifStmts().visit(this); }
 
-        if(is.elseBlock() != null)
+        if(is.elseBlock() != null) {
+            currentScope = is.symbolTableElseBlock;
             is.elseBlock().visit(this);
+            currentScope = currentScope.closeScope();
+        }
     }
 
     public void visitInvocation(Invocation in) {
@@ -645,26 +677,22 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        For a NameExpr, all we have to do is find its declaration
-        and set its type equal to its declaration type.
+        ____________________________ Name Expressions  ____________________________
+        All we need to do is find the declaration associated with the name and set
+        it equal to the type given to the declaration.
+        ___________________________________________________________________________
     */
     public void visitNameExpr(NameExpr ne) {
         NameNode decl = currentScope.findName(ne.toString());
 
-        if(decl.declName().isStatement())
-            ne.type = decl.declName().asStatement().asLocalDecl().type();
-        else if(decl.declName().isParamDecl())
-            ne.type = decl.declName().asParamDecl().getType();
+        if(decl.declName().isStatement()) { ne.type = decl.declName().asStatement().asLocalDecl().type(); }
+        else if(decl.declName().isParamDecl()) { ne.type = decl.declName().asParamDecl().getType(); }
         else if(decl.declName().isTopLevelDecl()) {
             TopLevelDecl tDecl = decl.declName().asTopLevelDecl();
-            if(tDecl.isGlobalDecl())
-                ne.type = tDecl.asGlobalDecl().type();
-            else if(tDecl.isEnumDecl())
-                ne.type = tDecl.asEnumDecl().type();
-            else if(tDecl.isClassDecl())
-                ne.type = new ClassType(tDecl.asClassDecl().name());
-            else
-                TypeErrorOLD.GenericTypeError(ne);
+
+            if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
+            else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
+            else if(tDecl.isClassDecl()) { ne.type = new ClassType(tDecl.asClassDecl().name()); }
         }
     }
 
@@ -808,11 +836,13 @@ public class TypeChecker extends Visitor {
 
         ws.condition().visit(this);
 
-        // ERROR CHECK #1: While's condition must be a Boolean
+        // Error Check #1: While's condition must be a Boolean
         if(!ws.condition().type.isBool()) {
-            msg = new TypeError("",ws,ws.condition().type,null,ErrorType.WHILE_CONDITION_NOT_BOOLEAN);
+            msg = new TypeError("",ws,ws.condition().type,null,ErrorType.LOOP_CONDITION_NOT_BOOLEAN);
             msg.printMsg();
         }
+
+        if(ws.nextExpr() != null) { ws.nextExpr().visit(this); }
 
         currentScope = ws.symbolTable;
         ws.whileBlock().visit(this);
