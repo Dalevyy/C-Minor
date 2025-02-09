@@ -118,7 +118,7 @@ public class TypeChecker extends Visitor {
         about which types are allowed for each possible binary operator.
 
         There are currently 24 binary operators in C Minor. The following is a
-        list of each operator
+        list of each operator:
 
             1. '=='  '!='
                 - Operand Type: Both operands have to be the SAME type
@@ -279,7 +279,7 @@ public class TypeChecker extends Visitor {
 
         For mixed type expressions, this means the programmer must perform explicit
         type casts or else the compiler will generate a typing error.
-       ____________________________________________________________________________
+        ___________________________________________________________________________
     */
     public void visitCastExpr(CastExpr ce) {
         ce.castExpr().visit(this);
@@ -743,21 +743,21 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        In C Minor, there are only two unary operators, so type
-        checking is straightforward.
+        __________________________ Unary Expressions  _____________________________
+        We only have 2 unary operators in C Minor, so there isn't much to check.
+        Here is each operator:
 
-        Unary Operators:
-            1) ~
+            1. '~'
                 - Operand Type: Int or Real
-                - UnaryExpr Type: Type of operand (Int or Real)
-            2) not
-                - Operand Type: Bool
-                - UnaryExpr Type: Bool
+                - Unary Expression Type: Type of both operands
 
-        A user is also allowed to overload both of these operators.
-        This means if the expression the unary operator operates on
-        is a class type, we need to make sure the user overloaded the
-        operator somewhere in the class definition.
+            2. 'not'
+                - Operand Type: Bool
+                - Unary Expression Type: Bool
+
+        Both unary operators may also be overloaded, so we also will check if the
+        overload was defined by the user.
+        ___________________________________________________________________________
     */
     public void visitUnaryExpr(UnaryExpr ue) {
 
@@ -765,30 +765,34 @@ public class TypeChecker extends Visitor {
         Type eType = ue.expr().type;
         String uOp = ue.unaryOp().toString();
 
-        // ERROR CHECK #1: If an object is in a unary expression, we check
-        // if the unary operator was overloaded in the class the object represents
+        // TODO: OPERATOR OVERLOAD CHECK HERE
         if(eType.isClassType()) {
-            ClassDecl cd = currentScope.getVarName(eType.typeName()).declName().asTopLevelDecl().asClassDecl();
-            if(!cd.symbolTable.hasMethod(uOp))
-                TypeErrorOLD.GenericTypeError(ue);
+            ClassDecl cd = currentScope.findName(eType.typeName()).declName().asTopLevelDecl().asClassDecl();
+            if(!cd.symbolTable.hasName(uOp)) {
+                // TODO: Error Message HERE
+                ;
+            }
             ue.type = eType;
             return;
         }
 
         switch(uOp) {
             case "~":
-                if(eType.isInt())
-                    ue.type = new DiscreteType(Discretes.INT);
-                else if(eType.isReal())
-                    ue.type = new ScalarType(Scalars.REAL);
-                else
-                    TypeErrorOLD.GenericTypeError(ue);
+                // Error Check #2: Make sure we are negating an Int or Real
+                if(eType.isInt()) { ue.type = new DiscreteType(Discretes.INT); }
+                else if(eType.isReal()) { ue.type = new ScalarType(Scalars.REAL); }
+                else {
+                    msg = new TypeError(ue.toString(), ue, eType, eType, ErrorType.UNARY_EXPR_INVALID_NEGATION);
+                    msg.printMsg();
+                }
                 break;
             case "not":
-                if(eType.isBool())
-                    ue.type = new DiscreteType(Discretes.BOOL);
-                else
-                    TypeErrorOLD.GenericTypeError(ue);
+                // Error Check #3: Make sure 'not' is performed on a Bool
+                if(eType.isBool()) { ue.type = new DiscreteType(Discretes.BOOL); }
+                else {
+                    msg = new TypeError(ue.toString(), ue, eType, eType, ErrorType.UNARY_EXPR_INVALID_NOT);
+                    msg.printMsg();
+                }
                 break;
         }
     }
