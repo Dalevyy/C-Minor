@@ -1,0 +1,4 @@
+
+def main() => Void {
+    String(3.14)
+}
