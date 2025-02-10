@@ -22,28 +22,40 @@ public class VM {
             System.out.print(">>> ");
             input = reader.readLine();
 
-            if(input.equals("#quit"))
-                return;
-            else if(input.isEmpty())
-                continue;
+            if(input.equals("#quit")) { System.exit(1); }
+            else if(input.isEmpty()) { continue; }
+            else {
+                int tabs = 0;
+                program.append(input);
+                tabs += input.length() - input.replace("{","").length();
+                tabs -= input.length() - input.replace("}", "").length();
+                while(tabs > 0) {
+                    System.out.print("... ");
+                    input = reader.readLine();
+                    tabs += input.length() - input.replace("{","").length();
+                    tabs -= input.length() - input.replace("}", "").length();
+                    program.append(input).append("\n");
+                }
+            }
 
-            // #include need to be changed to make this work
-        
-            var lexer = new Lexer(input);
-            var parser = new Parser(lexer,false);
+            try {
+                var lexer = new Lexer(program.toString());
+                var parser = new Parser(lexer,false,true);
 
-            AST root = parser.compilation();
+                AST root = parser.compilation();
 
-            root.visit(new OutputInputRewrite());
-            root.visitChildren(new NameChecker());
+                root.visit(new OutputInputRewrite());
+                root.visitChildren(new NameChecker(true));
 
-            root.visit(new GenerateConstructor());
-            root.visitChildren(new TypeChecker());
+                root.visitChildren(new TypeChecker());
+                root.visit(new GenerateConstructor());
 
-            //root.visitChildren(new ModifierChecker());
+                //root.visitChildren(new ModifierChecker());
 
-            root.asCompilation().mainDecl().visit(new Interpreter());
-            System.out.println();
+                root.asCompilation().mainDecl().visit(new Interpreter());
+                System.out.println();
+            }
+            catch(Exception e) { /* Do nothing */ }
         }
     }
 }
