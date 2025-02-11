@@ -1,0 +1,12 @@
+
+class top {
+    public var1 Int
+    public var2 Int
+}
+
+class small inherits top {
+    public var2 Int
+    public var4 Int
+}
+
+def main() => Void { }
