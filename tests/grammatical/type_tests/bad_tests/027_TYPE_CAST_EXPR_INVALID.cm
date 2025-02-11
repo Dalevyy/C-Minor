@@ -1,0 +1,6 @@
+
+def main() => Void {
+    def local a = True Bool
+
+    Int(a)
+}

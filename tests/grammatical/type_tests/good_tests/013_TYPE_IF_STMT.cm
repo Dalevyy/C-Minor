@@ -1,0 +1,14 @@
+
+def main() => Void {
+
+    if(5 < 7) {
+        if(3 < 2) {}
+        else if(3 < 1) {}
+        else if(3 < 0) {}
+        else {}
+    }
+    else {
+        if(True == False) { }
+        else {}
+    }
+}

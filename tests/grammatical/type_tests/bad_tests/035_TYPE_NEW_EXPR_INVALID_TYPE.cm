@@ -1,0 +1,10 @@
+
+class myClass {
+    public a Int
+    public b Real
+    public c String
+}
+
+def main() => Void {
+    def myObj = new myClass(a=~100.32432, b=3.14,c='hi') myClass
+}
