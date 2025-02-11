@@ -1,0 +1,11 @@
+
+class Obj {
+    public var1 Int
+    public var2 Int
+}
+
+def main() => Void {
+    def myObj = new Obj() Obj
+
+    myObj.var1
+}

@@ -5,8 +5,8 @@ import ast.class_body.*;
 import ast.expressions.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
-import errors.*;
 import messages.*;
+import messages.errors.ErrorType;
 import messages.errors.ScopeError;
 import utilities.*;
 
@@ -19,6 +19,11 @@ public class NameChecker extends Visitor {
 
     public NameChecker() {
         this.currentScope = new SymbolTable();
+    }
+
+    public NameChecker(boolean interpretMode) {
+        this();
+        this.msg.setMode(interpretMode);
     }
 
     public void visitBlockStmt(BlockStmt bs) {
@@ -61,15 +66,18 @@ public class NameChecker extends Visitor {
         String className = cd.name().toString();
 
         if(currentScope.isNameUsedAnywhere(className)) {
-            msg = new ScopeError(className,cd,currentScope,ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(className,cd,currentScope, ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
+        String baseClass = null;
         if(cd.superClass() != null) {
-            String baseClass = cd.superClass().getName().toString();
+            baseClass = cd.superClass().getName().toString();
             if(className.equals(baseClass)) {
-                msg = new ScopeError(className,cd,currentScope,ScopeError.errorType.INHERIT_SELF);
-                msg.printMsg();
+                msg = new ScopeError(className,cd,currentScope,ErrorType.INHERIT_SELF);
+                try { msg.printMsg(); }
+                catch(Exception e) { throw e; }
             }
             className += "_" + cd.superClass().getName().toString();
         }
@@ -78,8 +86,23 @@ public class NameChecker extends Visitor {
 
         currentScope = currentScope.openNewScope();
 
-        cd.clalssBlock().fieldDecls().visit(this);
-        cd.clalssBlock().methodDecls().visit(this);
+        cd.classBlock().fieldDecls().visit(this);
+
+        if(baseClass != null) {
+            ClassDecl baseDecl = currentScope.findName(baseClass).declName().asTopLevelDecl().asClassDecl();
+            for(String name : baseDecl.symbolTable.getVarNames().keySet()) {
+                if(baseDecl.symbolTable.getVarNames().get(name).declName().isFieldDecl()) {
+                    if(currentScope.hasName(name)) {
+                        msg = new ScopeError(name,cd,currentScope,ErrorType.FIELD_NAME_USED_ALREADY);
+                        try { msg.printMsg(); }
+                        catch(Exception e) { throw e; }
+                    }
+                    currentScope.addName(name,baseDecl.symbolTable.getVarNames().get(name));
+                }
+            }
+        }
+
+        cd.classBlock().methodDecls().visit(this);
 
         cd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
@@ -125,8 +148,9 @@ public class NameChecker extends Visitor {
         String enumName = ed.name().toString();
 
         if(currentScope.hasName(enumName)) {
-            msg = new ScopeError(enumName,ed,currentScope,ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(enumName,ed,currentScope,ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         currentScope.addName(enumName,ed);
@@ -146,12 +170,23 @@ public class NameChecker extends Visitor {
         String fieldName = fd.var().name().toString();
 
         if(currentScope.hasName(fieldName)) {
-            msg = new ScopeError(fieldName,fd,currentScope, ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(fieldName,fd,currentScope,ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         currentScope.addName(fieldName, fd);
     }
+
+    /*
+    ___________________________ Field Expressions ___________________________
+    During name checking, we will check whether the name of the object was
+    declared if we want to access a field. We can not name check fields yet
+    because we will need the type of the object, so this has to be checked
+    during type checking instead.
+    _________________________________________________________________________
+    */
+    public void visitFieldExpr(FieldExpr fe) { fe.fieldTarget().visit(this); }
 
     /*
     ------------------- ForStmt OPENS a scope -------------------
@@ -185,8 +220,9 @@ public class NameChecker extends Visitor {
             funcSignature = fd.toString() + "()" + fd.returnType().typeSignature();
 
         if(currentScope.hasNameSomewhere(funcSignature)) {
-            msg = new ScopeError(funcSignature,fd,currentScope,ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(funcSignature,fd,currentScope,ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         SymbolTable newScope = currentScope.openNewScope();
@@ -213,15 +249,17 @@ public class NameChecker extends Visitor {
 
         // Error Check #1: Check if the name is already declared in the current scope
         if(currentScope.hasName(globalName)) {
-            msg = new ScopeError(globalName, gd, currentScope, ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(globalName, gd, currentScope, ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         // Error Check #2: Check if the
         if(gd.var().init() != null) {
             if(gd.var().init().equals(globalName)) {
-                msg = new ScopeError(globalName, gd, currentScope, ScopeError.errorType.SELF_ASSIGN);
-                msg.printMsg();
+                msg = new ScopeError(globalName, gd, currentScope, ErrorType.SELF_ASSIGN);
+                try { msg.printMsg(); }
+                catch(Exception e) { throw e; }
             }
             gd.var().init().visit(this);
         }
@@ -276,8 +314,9 @@ public class NameChecker extends Visitor {
         */
         if(in.target() == null) {
             if(!currentScope.hasNameSomewhere(name)) {
-                msg = new ScopeError(name,in,currentScope,ScopeError.errorType.NO_DECL);
-                msg.printMsg();
+                msg = new ScopeError(name,in,currentScope,ErrorType.NO_DECL);
+                try { msg.printMsg(); }
+                catch(Exception e) { throw e; }
             }
         }
 
@@ -301,14 +340,16 @@ public class NameChecker extends Visitor {
 
         // Error Check #1: Check if the name has already been declared in the current scope
         if(currentScope.hasName(localName)) {
-            msg = new ScopeError(localName, ld, currentScope, ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(localName, ld, currentScope, ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         if(ld.var().init() != null) {
             if(ld.var().init().toString().equals(localName)) {
-                msg = new ScopeError(localName, ld, currentScope, ScopeError.errorType.SELF_ASSIGN);
-                msg.printMsg();
+                msg = new ScopeError(localName, ld, currentScope, ErrorType.SELF_ASSIGN);
+                try { msg.printMsg(); }
+                catch(Exception e) { throw e; }
             }
             ld.var().init().visit(this);
         }
@@ -331,12 +372,17 @@ public class NameChecker extends Visitor {
         currentScope.closeScope();
     }
 
-    // MethodDecl: Opens a new scope
+    /*
+    ________________________ Method Declarations ________________________
+    Create a scope.
+    _________________________________________________________________________
+    */
     public void visitMethodDecl(MethodDecl md) {
         String methodSignature = md.toString() + "(" + md.paramSignature() + ")" + md.returnType().typeSignature();
         if(currentScope.hasName(methodSignature)) {
-            msg = new ScopeError(methodSignature,md,currentScope,ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(methodSignature,md,currentScope,ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         SymbolTable newScope = currentScope.openNewScope();
@@ -353,39 +399,45 @@ public class NameChecker extends Visitor {
     }
 
     /*
-        Any time we encounter a NameExpr, we check to make sure the
-        name is found somewhere in the scope hierarchy. If the name
-        couldn't be found, then it was not declared, so we will output
-        an error message to the user.
+    ___________________________ Name Expressions ___________________________
+    Any time we encounter a NameExpr, we check to make sure the name is
+    found somewhere in the scope hierarchy. If the name couldn't be found,
+    then it was not declared, so we will output an error message to the user.
+    ________________________________________________________________________
     */
     public void visitNameExpr(NameExpr ne) {
         String name = ne.toString();
         if(!currentScope.isNameUsedAnywhere(name)) {
-            msg = new ScopeError(name,ne,currentScope, ScopeError.errorType.NO_DECL);
-            msg.printMsg();
+            msg = new ScopeError(name,ne,currentScope, ErrorType.NO_DECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
     }
 
     /*
-        When we are instantiating an object using the "new"
-        keyword, we have to check two things.
+    ____________________________ New Expressions ____________________________
+    When we are instantiating an object using the "new" keyword, there are
+    2 name checks we must perform.
 
-            1. We need to first see if the class has been defined somewhere
-               in the scope hierarchy. This could mean either the class
-               is declared within the main program or in any imports
-               that the user included.
-            2. To assign default values to class fields, a user must explicitly
-               write what value will be stored into each field. This means we
-               have to check if the user wrote the appropriate field name, and
-               they only assigned a value to each field once.
+         1. We need to first see if the class has been defined somewhere
+            in the scope hierarchy. This could mean either the class
+            is declared within the main program or in any imports
+            that the user included.
+
+         2. To assign default values to class fields, a user must explicitly
+            write what value will be stored into each field. This means we
+            have to check if the user wrote the appropriate field name, and
+            they only assigned a value to each field once.
+    _________________________________________________________________________
     */
     public void visitNewExpr(NewExpr ne) {
         // Error Check #1: Check if the class has been defined in the scope hierarchy
         String lookupName = ne.classType().toString();
         NameNode cd = currentScope.findName(lookupName);
         if(cd == null) {
-            msg = new ScopeError(lookupName,ne,currentScope, ScopeError.errorType.NO_CLASS_DECL);
-            msg.printMsg();
+            msg = new ScopeError(lookupName,ne,currentScope, ErrorType.NO_CLASS_DECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         SymbolTable classST = cd.declName().asTopLevelDecl().asClassDecl().symbolTable;
@@ -397,13 +449,15 @@ public class NameChecker extends Visitor {
             String fieldName = v.name().toString();
             // Error Check #2: Check if the field name was not defined in the class
             if(!classST.hasName(fieldName)) {
-                msg = new ScopeError(fieldName,v,currentScope, ScopeError.errorType.MISSING_FIELD);
-                msg.printMsg();
+                msg = new ScopeError(fieldName,v,currentScope, ErrorType.MISSING_FIELD);
+                try { msg.printMsg(); }
+                catch(Exception e) { throw e; }
             }
             // Error Check #3: Check if the field name was already given a default value earlier
             else if(seen.contains(fieldName)) {
-                msg = new ScopeError(fieldName,v,currentScope, ScopeError.errorType.FIELD_VAL_GIVEN);
-                msg.printMsg();
+                msg = new ScopeError(fieldName,v,currentScope, ErrorType.FIELD_VAL_GIVEN);
+                try { msg.printMsg(); }
+                catch(Exception e) { throw e; }
             }
 
             seen.add(fieldName);
@@ -412,26 +466,31 @@ public class NameChecker extends Visitor {
     }
 
     /*
-        A ParamDecl will be put in the scope of the current function/method we are in.
-        We are going to be strict with the scope checking for the parameter name because
-        we do not want it to be the same name as any enumerations/classes/globals we have
-        already declared since they will not be able to be used within the function.
+    ________________________ Parameter Declarations ________________________
+    A parameter will be added to the symbol table associated with a function
+    or method. Parameter names can not shadow the names of enumerations,
+    classes, or global names since we want to allow users to access these
+    constructs inside a function or method.
+    ________________________________________________________________________
     */
     public void visitParamDecl(ParamDecl pd) {
         String paramName = pd.toString();
 
+        // Error Check #1: Make sure the parameter name hasn't been used
+        // in any constructs that were declared before the function/method
         if(currentScope.isNameUsedAnywhere(paramName)) {
-            msg = new ScopeError(paramName, pd, currentScope, ScopeError.errorType.REDECL);
-            msg.printMsg();
+            msg = new ScopeError(paramName, pd, currentScope, ErrorType.REDECL);
+            try { msg.printMsg(); }
+            catch(Exception e) { throw e; }
         }
 
         currentScope.addName(paramName,pd);
     }
 
     /*
-    ------------------- WhileStmt OPENS a scope -------------------
-
-        A WhileStmt will store 1 symbol table.
+    ___________________________While Statements_____________________________
+    While loops will contain one symbol table for their block statement.
+    ________________________________________________________________________
     */
     public void visitWhileStmt(WhileStmt ws) {
         ws.condition().visit(this);
@@ -439,6 +498,8 @@ public class NameChecker extends Visitor {
         if(ws.nextExpr() != null)
             ws.nextExpr().visit(this);
 
+        // Open a new scope when we visit the whileBlock and once
+        // we return, we save the scope inside the WhileStmt node
         ws.whileBlock().visit(this);
 
         ws.symbolTable = currentScope;
