@@ -1,0 +1,11 @@
+
+class myClass {
+
+    public method print(in a Int) => Void {}
+}
+
+def main() => Void {
+    def myObj = new myClass() myClass
+
+    myObj.print(3)
+}
