@@ -1,0 +1,6 @@
+
+def func() => Void {
+    func()
+}
+
+def main() => Void {}
