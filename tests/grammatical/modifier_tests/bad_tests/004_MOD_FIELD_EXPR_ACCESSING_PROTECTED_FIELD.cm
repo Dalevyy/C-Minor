@@ -1,0 +1,10 @@
+
+class MyClass {
+    protected myField Int
+}
+
+def main() => Void {
+    def local obj = new MyClass() MyClass
+
+    obj.myField
+}

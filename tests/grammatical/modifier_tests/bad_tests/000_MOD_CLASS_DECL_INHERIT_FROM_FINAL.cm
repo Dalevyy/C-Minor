@@ -1,0 +1,6 @@
+
+final class base {}
+
+class sub inherits base {}
+
+def main() => Void {}
