@@ -1,0 +1,15 @@
+
+class myClass {
+    public myField Int
+}
+
+class mySubClass inherits myClass {
+    public mySubField Int
+}
+
+def main() => Void {
+    def a = new mySubClass(myField=4,mySubField=8) mySubClass
+
+    a.myField
+    a.mySubField
+}

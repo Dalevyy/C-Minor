@@ -1,0 +1,10 @@
+
+class myClass {
+    public myField Int
+}
+
+def main() => Void {
+    def a = new myClass(myField=5) myClass
+
+    cout << a.myField
+}

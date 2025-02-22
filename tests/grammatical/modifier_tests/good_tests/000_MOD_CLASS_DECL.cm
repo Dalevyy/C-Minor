@@ -1,0 +1,11 @@
+
+class myClass {
+    protected myField Int
+    protected myField2 Real
+
+    public method myMethod() => Void { }
+}
+
+def main() => Void {
+    def obj = new myClass(myField=5,myField2=3.14) myClass
+}

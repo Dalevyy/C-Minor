@@ -1,0 +1,9 @@
+
+class Test {
+    public method myMethod(in a Int) => Void {
+        if(a == 0) { return }
+        else { myMethod(a-1) }
+    }
+}
+
+def main() => Void { }

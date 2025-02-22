@@ -1,0 +1,9 @@
+
+def myFunc(in a Int) => Void {
+    if(a == 0) { return }
+    else { myFunc(a-1) }
+}
+
+def main() => Void {
+    myFunc(5)
+}
