@@ -1,17 +1,38 @@
 package messages.errors;
 
-import ast.AST;
 import messages.Message;
 import utilities.PrettyPrint;
 
-public class Error extends Message {
+public abstract class Error extends Message {
 
     protected ErrorType error;
 
-    public Error(AST node) { super(node); }
+    public abstract String header();
+    public abstract String buildSuggestion();
 
-    protected String printStartLocation() { return super.printStartLocation(); }
+    public String createMessage() {
+        StringBuilder sb = new StringBuilder();
 
-    public void printMsg() { super.printMsgLine(); }
-    public void setMsg() { msg = "An unspecified error has occurred! Please try again."; }
+        sb.append(this.header());
+        sb.append(this.location().line());
+        sb.append(this.buildError());
+        // sb.append(this.buildSuggestion());
+        System.out.println(sb.toString());
+
+        if(!interpretMode) { System.exit(1); }
+        else { throw new RuntimeException(); }
+        return sb.toString();
+    }
+
+    private String buildError() {
+        String errorMsg = PrettyPrint.RED + this.error.getMessage() + PrettyPrint.RESET;
+        for(int i = 0; i < this.args.length; i++) {
+            String arg = "<arg" + i + ">";
+            errorMsg = errorMsg.replace(arg,this.args[i].toString());
+        }
+        return errorMsg;
+    }
+
+    public void setErrorType(ErrorType et) { this.error = et; }
+    public ErrorType errorType() { return this.error; }
 }
