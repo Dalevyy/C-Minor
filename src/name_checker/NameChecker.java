@@ -30,6 +30,14 @@ public class NameChecker extends Visitor {
         this.generateScopeError = new ScopeErrorFactory();
     }
 
+    /*
+    _________________________ Block Statements _________________________
+    Any time we visit a block statement, we will open a new scope and
+    visit the declarations and statements associated with the block
+    statement. Once we are finished, then we will close the scope in
+    whichever NameNode we called this visit on BlockStmt from.
+    ____________________________________________________________________
+    */
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openNewScope();
 
@@ -37,7 +45,12 @@ public class NameChecker extends Visitor {
         bs.stmts().visit(this);
     }
 
-    // CaseStmt: Opens a new scope
+    /*
+    ______________________ Case Statements ______________________
+    A case statement will open a new scope associated with its
+    block. There will be no additional error checks done here.
+    _____________________________________________________________
+    */
     public void visitCaseStmt(CaseStmt cs) {
 
         cs.choiceLabel().visit(this);
@@ -49,7 +62,13 @@ public class NameChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
-    // ChoiceStmt: Opens a new scope
+    /*
+    ____________________ Choice Statements ____________________
+    Like a case statement, a choice statement will open a new
+    scope for its block, and there are no additional checks
+    needed here.
+    ___________________________________________________________
+    */
     public void visitChoiceStmt(ChoiceStmt cs) {
 
         cs.choiceExpr().visit(this);
@@ -62,28 +81,41 @@ public class NameChecker extends Visitor {
     }
 
     /*
-        When a user defines a class, we want to make sure the
-        name binded to the class is not already used by some
-        other construct in the current file or an import.
+    _________________________ Class Declarations _________________________
+    A class will open a new scope, and we will check to make sure the
+    class name we are using hasn't been used elsewhere in the program.
+
+    Most of the name checking done here relates to inheritance. We first
+    need to make sure the class doesn't inherit itself. Then, we are going
+    to be adding every field from the base class into the inherited class
+    which means we are not going to allow the redeclaration of field names.
+    _____________________________________________________________________
     */
     public void visitClassDecl(ClassDecl cd) {
         String className = cd.name().toString();
 
+        // ERROR CHECK #1: Make sure class name has not been used already
         if(currentScope.isNameUsedAnywhere(className)) {
-//            msg = new ScopeError(className,cd,currentScope, ErrorType.REDECL);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(cd)
+                    .addErrorType(ErrorType.SCOPE_ERROR_316)
+                    .addArgs(className)
+                    .error());
         }
 
         String baseClass = null;
         if(cd.superClass() != null) {
             baseClass = cd.superClass().getName().toString();
+
+            // ERROR CHECK #2: Make sure the class isn't inheriting itself
             if(className.equals(baseClass)) {
-//                msg = new ScopeError(className,cd,currentScope,ErrorType.INHERIT_SELF);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(cd)
+                        .addErrorType(ErrorType.SCOPE_ERROR_317)
+                        .addArgs(className)
+                        .error());
             }
-            // className += "_" + cd.superClass().getName().toString();
+            className += "/" + cd.superClass().getName().toString();
         }
 
         currentScope.addName(className,cd);
@@ -96,10 +128,14 @@ public class NameChecker extends Visitor {
             ClassDecl baseDecl = currentScope.findName(baseClass).declName().asTopLevelDecl().asClassDecl();
             for(String name : baseDecl.symbolTable.getVarNames().keySet()) {
                 if(baseDecl.symbolTable.getVarNames().get(name).declName().isFieldDecl()) {
+
+                    // ERROR CHECK #3: Make sure the inherited fields have different names
                     if(currentScope.hasName(name)) {
-//                        msg = new ScopeError(name,cd,currentScope,ErrorType.FIELD_NAME_USED_ALREADY);
-//                        try { msg.printMsg(); }
-//                        catch(Exception e) { throw e; }
+                        errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                                .addLocation(cd)
+                                .addErrorType(ErrorType.SCOPE_ERROR_318)
+                                .addArgs(name)
+                                .error());
                     }
                     currentScope.addName(name,baseDecl.symbolTable.getVarNames().get(name));
                 }
@@ -115,17 +151,17 @@ public class NameChecker extends Visitor {
     public void visitCompilation(Compilation c) {
         super.visitCompilation(c);
 
-//        if(msgs.size() > 0) {
-//            for(Message m : msgs)
-//                m.printMsg();
-//            System.exit(1);
-//        }
+        if(errors.size() > 0) {
+            for(String s : errors) { System.out.println(s); }
+            System.exit(1);
+        }
     }
 
     /*
-    ------------------- DoStmt OPENS a scope -------------------
-
-        A DoStmt will store 1 symbol table.
+    _________________________ Do Statements _________________________
+    A Do statement will store one symbol table for its body, and it
+    will visit its components to do any additional scope checking.
+    _________________________________________________________________
     */
     public void visitDoStmt(DoStmt ds) {
 
@@ -182,36 +218,43 @@ public class NameChecker extends Visitor {
     }
 
     /*
-    Inside a class, it is fine if we have a field declaration's
-    name be binded to some other construct outside the class
-    since we will treat the class as its own namespace. :)
+    _________________________ Field Declarations _________________________
+    For field declarations, we want to make sure each field has a unique
+    name and none of the names are reused. There are no other checks
+    needed here.
+    ______________________________________________________________________
     */
     public void visitFieldDecl(FieldDecl fd) {
         String fieldName = fd.var().name().toString();
 
+        // ERROR CHECK #1: Make sure the name hasn't been used already
         if(currentScope.hasName(fieldName)) {
-//            msg = new ScopeError(fieldName,fd,currentScope,ErrorType.REDECL);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(fd)
+                    .addErrorType(ErrorType.SCOPE_ERROR_315)
+                    .addArgs(fd.toString())
+                    .error());
         }
-
         currentScope.addName(fieldName, fd);
     }
 
     /*
-    ___________________________ Field Expressions ___________________________
+    _________________________ Field Expressions _________________________
     During name checking, we will check whether the name of the object was
     declared if we want to access a field. We can not name check fields yet
     because we will need the type of the object, so this has to be checked
     during type checking instead.
-    _________________________________________________________________________
+    _____________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) { fe.fieldTarget().visit(this); }
 
     /*
-    ------------------- ForStmt OPENS a scope -------------------
-
-        A ForStmt will store 1 symbol table.
+    _________________________ For Statements _________________________
+    A for statement only needs to store a single symbol table for its
+    body. No scope checking is done in this visit, so we will just
+    visit the various components of the for statement to handle any
+    potential error checks for us.
+    __________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
         currentScope = currentScope.openNewScope();
@@ -243,16 +286,26 @@ public class NameChecker extends Visitor {
     _____________________________________________________________________
     */
     public void visitFuncDecl(FuncDecl fd) {
+        // ERROR CHECK #1: Make sure the function name is not being used already
+        if(currentScope.hasName(fd.toString())) {
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(fd)
+                    .addErrorType(ErrorType.SCOPE_ERROR_311)
+                    .addArgs(fd.toString())
+                    .error());
+        }
+
         String funcSignature = fd.toString() + "/";
         if(fd.params() != null) { funcSignature += fd.paramSignature(); }
-        System.out.println(funcSignature);
 
-        // ERROR CHECK #1: Make sure the function signature does NOT already exist
+        // ERROR CHECK #2: Make sure the function signature does NOT already exist
         //                 somewhere in the scope hierarchy
         if(currentScope.hasNameSomewhere(funcSignature)) {
-//            msg = new ScopeError(funcSignature,fd,currentScope,ErrorType.REDECL);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(fd)
+                    .addErrorType(ErrorType.SCOPE_ERROR_312)
+                    .addArgs(fd.toString())
+                    .error());
         }
 
         SymbolTable newScope = currentScope.openNewScope();
@@ -306,19 +359,11 @@ public class NameChecker extends Visitor {
     }
 
     /*
-    ------------------- IfSmt OPENS a scope -------------------
-
-        An IfStmt will store 2 separate symbol tables:
-            1. The symbol table for the IF branch
-            2. The symbol table for the ELSE branch (OPTIONAL)
-    */
-
-    /*
-    ___________________________ If Statements _____________________________
-    While loops will contain one symbol table for their block statement. We
-    will open a scope when we visit the block statement associated with a
-    while statement and then save the scope into the while statement node.
-    ________________________________________________________________________
+    ___________________________ If Statements ___________________________
+    For an If statement, we are going to be storing two separate symbol
+    tables. One symbol table will be stored for the body of the if branch
+    while the second symbol table is for the else branch (if it exists).
+    _____________________________________________________________________
     */
     public void visitIfStmt(IfStmt is) {
 
@@ -338,41 +383,9 @@ public class NameChecker extends Visitor {
         }
     }
 
-
-    /*
-    __________________________ Invocations __________________________
-    Right now, we are only going to be name checking function
-    invocations. Method invocations are not possible right now since
-    we need to know the type of the target expression to determine
-    what class a method is contained in, but we don't have enough information to perform this check yet.
-
-    We could check for simple method invocations (and by extension,
-    simple field expressions) if we really wanted to, but it's better
-    to wait until type checking to do these tasks. :)
-    _________________________________________________________________
-    */
-    public void visitInvocation(Invocation in) {
-        String name = in.toString();
-
-        /*
-            ERROR CHECK #1:
-                If we have a function invocation, we want to check
-                whether the function has already been defined in
-                either the current file or an import.
-        */
-        if(in.target() == null) {
-            if(!currentScope.hasNameSomewhere(name)) {
-//                msg = new ScopeError(name,in,currentScope,ErrorType.CLASS_DECLARATION_IS_MISSING);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
-            }
-        }
-
-        // Regardless if we have a method or function, we will
-        // perform a name check on any arguments that represent names
-        if(in.arguments() != null)
-            in.arguments().visit(this);
-    }
+    // Note: No visitInvocation will be done here since we are storing
+    // signatures. This means we need to know the correct argument types
+    // first which is only possible after name checking.
 
     /*
     _________________________ Local Declarations _________________________
@@ -415,15 +428,18 @@ public class NameChecker extends Visitor {
     }
 
     /*
-        Since we want C Minor to mimic the scoping rules of C++, we will
-        have to create a new scope when we visit 'main' since C++ allows
-        a global variable to be redeclared locally.
+    _______________________ Main Declaration _______________________
+    When we visit a main function, it's scope will be in the same
+    scope as the global scope. This means users can not redefine
+    global scope values unless they are in smaller scopes.
+    ________________________________________________________________
     */
     public void visitMainDecl(MainDecl md) {
         if(md.args() != null)
             md.args().visit(this);
 
-        md.mainBody().visit(this);
+        md.mainBody().decls().visit(this);
+        md.mainBody().stmts().visit(this);
 
         md.symbolTable = currentScope;
         currentScope.closeScope();
@@ -431,15 +447,29 @@ public class NameChecker extends Visitor {
 
     /*
     ________________________ Method Declarations ________________________
-    Create a scope.
-    _________________________________________________________________________
+    Method declarations work the same way as function declarations. We
+    will open a new scope when visiting a method, and we will store methods
+    by their function signatures since we can overload methods in C Minor.
+    _____________________________________________________________________
     */
     public void visitMethodDecl(MethodDecl md) {
+        // ERROR CHECK #1: Make sure the method name has not been used yet
+        if(currentScope.hasName(md.toString())) {
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(md)
+                    .addErrorType(ErrorType.SCOPE_ERROR_313)
+                    .addArgs(md.toString())
+                    .error());
+        }
+
         String methodSignature = md.toString() + "(" + md.paramSignature() + ")" + md.returnType().typeSignature();
+        // ERROR CHECK #2: Make sure method signature is unique to support overloading
         if(currentScope.hasName(methodSignature)) {
-//            msg = new ScopeError(methodSignature,md,currentScope,ErrorType.REDECL);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(md)
+                    .addErrorType(ErrorType.SCOPE_ERROR_314)
+                    .addArgs(md.toString())
+                    .error());
         }
 
         SymbolTable newScope = currentScope.openNewScope();
@@ -493,8 +523,13 @@ public class NameChecker extends Visitor {
         // ERROR CHECK #1) Check if the class has been defined in the scope hierarchy
         String lookupName = ne.classType().toString();
         NameNode cd = currentScope.findName(lookupName);
-        if(cd == null)
-        {} // msg = new ScopeError(ne,currentScope, ErrorType.CLASS_DECLARATION_IS_MISSING);
+        if(cd == null) {
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(ne)
+                    .addErrorType(ErrorType.SCOPE_ERROR_308)
+                    .addArgs(lookupName)
+                    .error());
+        }
 
         SymbolTable classST = cd.declName().asTopLevelDecl().asClassDecl().symbolTable;
 
@@ -505,17 +540,20 @@ public class NameChecker extends Visitor {
             String fieldName = v.name().toString();
             // ERROR CHECK #2) Check if the field name was not defined in the class
             if(!classST.hasName(fieldName)) {
-//                msg = new ScopeError(fieldName,v,currentScope, ErrorType.MISSING_FIELD);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(ne)
+                        .addErrorType(ErrorType.SCOPE_ERROR_309)
+                        .addArgs(fieldName,lookupName)
+                        .error());
             }
             // ERROR CHECK #3) Check if the field name was already given a default value earlier
             else if(seen.contains(fieldName)) {
-//                msg = new ScopeError(fieldName,v,currentScope, ErrorType.FIELD_VAL_GIVEN);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(ne)
+                        .addErrorType(ErrorType.SCOPE_ERROR_310)
+                        .addArgs(fieldName)
+                        .error());
             }
-
             seen.add(fieldName);
             newArgs.get(i).init().visit(this);
         }
