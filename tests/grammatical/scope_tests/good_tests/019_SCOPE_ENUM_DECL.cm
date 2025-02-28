@@ -1,0 +1,6 @@
+
+def MONTHS type = {JAN,FEB,MAR,APR,MAY,JUN}
+
+def main() => Void {
+    def local myMonth = JUN MONTHS 
+}

@@ -1,0 +1,10 @@
+
+def main() => Void {
+
+    for def a = 0, c = 5 Int do a < c {
+        set c += a
+        cout << 'Does this work?'
+    }
+
+    stop
+}

@@ -1,0 +1,27 @@
+
+final class Person {
+    property firstName = uninit String
+    property lastName = uninit String
+    property age = 32 Int
+    property height = uninit Int
+
+    public method printNames() => Void {
+        cout << firstName
+        cout << 32
+        cout << lastName
+    }
+}
+
+
+def main() => Void {
+    def p1 = new Person(firstName='ben',lastName='monica') Person
+
+    p1.printNames()
+
+    if(5 < 6) {
+        def p1 = new Person() Person
+        p1.firstName
+    }
+    p1.firstName
+    stop
+}

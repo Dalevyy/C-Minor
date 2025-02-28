@@ -1,0 +1,33 @@
+
+def main() => Void {
+    def local a = uninit Int
+    def local b = uninit Int
+
+    a
+    (a)
+    123
+    not a
+    ~a
+    Int(a)
+    Char(a)
+    Bool(a)
+    a + b
+    a - b
+    a * b
+    a / b
+    a % b
+    a ** b
+    a << b
+    a >> b
+    a < b
+    a > b
+    a <= b
+    a >= b
+    a == b
+    a != b
+    a & b
+    a ^ b
+    a | b
+    a and b
+    a or b
+}

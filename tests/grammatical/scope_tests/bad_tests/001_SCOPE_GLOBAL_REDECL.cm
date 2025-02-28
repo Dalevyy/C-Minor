@@ -1,0 +1,7 @@
+
+def global msg = 'Hello There' String 
+def global msg = 'Hi There' String
+
+def main() => Void {
+    cout << msg 
+} 

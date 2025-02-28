@@ -1,0 +1,16 @@
+
+def main() => Void {
+    def local a = 5 Int
+    
+    choice a {
+        on 1 {
+            cout << '1'
+        }
+        on 2 {
+            cout << '2'
+        }
+        other {
+            cout << 'None'
+        }
+    }
+}

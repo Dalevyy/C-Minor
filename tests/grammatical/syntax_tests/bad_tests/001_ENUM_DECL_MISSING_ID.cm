@@ -1,0 +1,6 @@
+
+def type = { MON, TUES, WED }
+
+def main() => Void {
+
+}

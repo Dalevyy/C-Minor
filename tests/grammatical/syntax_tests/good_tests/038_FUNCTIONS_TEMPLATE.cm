@@ -1,0 +1,12 @@
+
+def pure myFunction<discr myType>() => Void {
+
+} 
+
+def pure myFunction2<scalar myType2, class myType3>() => Void {
+
+} 
+
+def main() => Void {
+
+}

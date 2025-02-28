@@ -1,0 +1,4 @@
+
+def global a = a Int 
+
+def main() => Void {}

@@ -1,0 +1,5 @@
+
+def main() => Void {
+    def local a = a Int
+    stop
+}

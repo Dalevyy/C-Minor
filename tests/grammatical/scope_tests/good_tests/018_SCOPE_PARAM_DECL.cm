@@ -1,0 +1,8 @@
+
+def global a = 5 Int 
+
+def pure myFunc(out a Int) => Void {
+
+}
+
+def main() => Void {}

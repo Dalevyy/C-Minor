@@ -1,0 +1,6 @@
+
+def main() => Void {
+    for def x = 5 Int do x <= 10 {
+        set x += 5
+    }
+}

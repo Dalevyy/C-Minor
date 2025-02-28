@@ -1,0 +1,13 @@
+
+def main() => Void {
+    def local e = 2, f = 6 Int 
+
+    e << f
+    e >> f
+
+    e & f
+    e ^ f
+    e | f
+
+    (e & f ^ f)
+}
