@@ -1,22 +1,33 @@
 package messages;
 
 import ast.AST;
-import java.util.ArrayList;
 
 public abstract class Message {
 
-    private ArrayList<Message> allMsgs;
+    protected String fileName;
+    protected AST location;
+    protected String msg;
+    protected Object[] args;
+    protected Object[] suggests;
 
-    protected String msg;     // Stores the message we will print to user
-    protected AST location;   // Stores which node in the AST the message is printed for
+    protected boolean interpretMode;
 
-    public Message(AST location) { this.location = location; }
+    public abstract String createMessage();
 
-    protected void printMsgLine() { this.location.printLine(); }
-    protected String printStartLocation() { return location.getStartPosition(); }
+    public void setFileName(String fn) { this.fileName = fn; }
+    public String fileName() { return this.fileName; }
 
-    public AST getAST() { return this.location; }
-    public abstract void printMsg();
-    public abstract void setMsg();
+    public void setLocation(AST n) { this.location = n; }
+    public AST location() { return this.location; }
 
+    public void setMsg(String msg) { this.msg = msg; }
+    public String msg() { return this.msg; }
+
+    public void setArgs(Object[] args) { this.args = args; }
+    public Object[] args() { return this.args; }
+
+    public void setSuggests(Object[] args) { this.suggests = args; }
+    public Object[] suggests() { return this.suggests; }
+
+    public void setInterpretMode(boolean mode) { this.interpretMode = mode; }
 }
