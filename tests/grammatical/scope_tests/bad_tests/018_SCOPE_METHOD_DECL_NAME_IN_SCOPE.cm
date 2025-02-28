@@ -1,0 +1,8 @@
+
+class MyClass {
+    public myVal Int
+
+    public method myVal() => Void {}
+}
+
+def main() => Void {}
