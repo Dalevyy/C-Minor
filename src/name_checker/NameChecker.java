@@ -22,12 +22,14 @@ public class NameChecker extends Visitor {
     public NameChecker() {
         this.currentScope = new SymbolTable();
         this.generateScopeError = new ScopeErrorFactory();
+        this.errors = new ArrayList<String>();
     }
 
     public NameChecker(SymbolTable st) {
         this.currentScope = st;
         this.interpretMode = true;
         this.generateScopeError = new ScopeErrorFactory();
+        this.errors = new ArrayList<String>();
     }
 
     /*
