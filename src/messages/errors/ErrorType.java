@@ -12,7 +12,7 @@ import java.util.Properties;
 
 public enum ErrorType {
 
-    //       SCOPE ERRORS
+    /*      SCOPE ERRORS     */
 
     SCOPE_ERROR_300,
     SCOPE_ERROR_301,
@@ -33,7 +33,29 @@ public enum ErrorType {
     SCOPE_ERROR_316,
     SCOPE_ERROR_317,
     SCOPE_ERROR_318,
-    
+
+    /*      TYPE ERRORS     */
+    TYPE_ERROR_400,
+    TYPE_ERROR_401,
+    TYPE_ERROR_402,
+    TYPE_ERROR_403,
+    TYPE_ERROR_404,
+    TYPE_ERROR_405,
+    TYPE_ERROR_406,
+    TYPE_ERROR_407,
+    TYPE_ERROR_408,
+    TYPE_ERROR_409,
+    TYPE_ERROR_410,
+    TYPE_ERROR_411,
+    TYPE_ERROR_412,
+    TYPE_ERROR_413,
+    TYPE_ERROR_414,
+    TYPE_ERROR_415,
+    TYPE_ERROR_416,
+    TYPE_ERROR_417,
+    TYPE_ERROR_418,
+    TYPE_ERROR_419,
+    TYPE_ERROR_420,
 
     // Type Checking Errors
     LOCAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR,
@@ -82,7 +104,20 @@ public enum ErrorType {
     RECURSIVE_METHOD_CALL_NOT_ALLOWED,
 
     SCOPE_SUGGEST_1300,
-    SCOPE_SUGGEST_1301;
+    SCOPE_SUGGEST_1301,
+
+    TYPE_SUGGEST_1400,
+    TYPE_SUGGEST_1401,
+    TYPE_SUGGEST_1402,
+    TYPE_SUGGEST_1403,
+    TYPE_SUGGEST_1404,
+    TYPE_SUGGEST_1405,
+    TYPE_SUGGEST_1406,
+    TYPE_SUGGEST_1407,
+    TYPE_SUGGEST_1408,
+    TYPE_SUGGEST_1409,
+    TYPE_SUGGEST_1410,
+    TYPE_SUGGEST_1411;
 
     private static Properties errorMessages;
     private static final String PATH = "utilities/ErrorType.properties";

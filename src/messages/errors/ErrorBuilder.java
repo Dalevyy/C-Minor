@@ -32,13 +32,18 @@ public class ErrorBuilder {
         return this;
     }
 
+    public ErrorBuilder addSuggestType(ErrorType et) {
+        this.error.setSuggestType(et);
+        return this;
+    }
+
     public ErrorBuilder addArgs(Object... args) {
         this.error.setArgs(args);
         return this;
     }
 
-    public ErrorBuilder addSuggestion(Object... extraArgs) {
-        this.error.setSuggests(extraArgs);
+    public ErrorBuilder addArgsForSuggestion(Object... extraArgs) {
+        this.error.setArgsForSuggestions(extraArgs);
         return this;
     }
     

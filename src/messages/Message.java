@@ -8,7 +8,7 @@ public abstract class Message {
     protected AST location;
     protected String msg;
     protected Object[] args;
-    protected Object[] suggests;
+    protected Object[] argsForSuggestions;
 
     protected boolean interpretMode;
 
@@ -26,8 +26,8 @@ public abstract class Message {
     public void setArgs(Object[] args) { this.args = args; }
     public Object[] args() { return this.args; }
 
-    public void setSuggests(Object[] args) { this.suggests = args; }
-    public Object[] suggests() { return this.suggests; }
+    public void setArgsForSuggestions(Object[] args) { this.argsForSuggestions = args; }
+    public Object[] suggests() { return this.argsForSuggestions; }
 
     public void setInterpretMode(boolean mode) { this.interpretMode = mode; }
 }
