@@ -1,0 +1,7 @@
+
+def main() => Void {
+    def a = 5 Int
+    def b = 6 Int
+
+    if(a + b) { }
+}
