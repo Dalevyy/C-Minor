@@ -9,9 +9,7 @@ import ast.top_level_decls.*;
 import ast.types.*;
 import ast.types.DiscreteType.*;
 import ast.types.ScalarType.*;
-import messages.errors.ErrorBuilder;
-import messages.errors.ErrorType;
-import messages.errors.TypeErrorFactory;
+import messages.errors.*;
 import token.Token;
 import utilities.*;
 
@@ -21,19 +19,20 @@ public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
     private AST currentContext;
+    private ScopeErrorFactory generateScopeError;
     private TypeErrorFactory generateTypeError;
     private ArrayList<String> errors;
 
     public TypeChecker() {
         this.currentScope = null;
         this.currentContext = null;
+        this.generateScopeError = new ScopeErrorFactory();
         this.generateTypeError = new TypeErrorFactory();
     }
 
     public TypeChecker(SymbolTable st) {
+        this();
         this.currentScope = st;
-        this.currentContext = null;
-        this.generateTypeError = new TypeErrorFactory();
     }
 
     // Missing ArrayLiteral and ListLiteral :')
@@ -343,7 +342,7 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-    _________________________ Cast Expressions  _______________________________
+    _________________________ Cast Expressions  _________________________
     In C Minor, we have 4 valid cast expressions a programmer can use:
 
         1. Char <--> Int
@@ -351,9 +350,9 @@ public class TypeChecker extends Visitor {
         3. Char  --> String
         4. Parent Class Object <-- Child Class Object (Runtime check)
 
-    For mixed type expressions, this means the programmer must perform explicit
-    type casts or else the compiler will generate a typing error.
-    ___________________________________________________________________________
+    For mixed type expressions, this means the programmer must perform
+    explicit type casts or else the compiler will generate a typing error.
+    ______________________________________________________________________
     */
     public void visitCastExpr(CastExpr ce) {
         ce.castExpr().visit(this);
@@ -361,34 +360,39 @@ public class TypeChecker extends Visitor {
         Type typeToCastInto = ce.castType();
 
         if(exprType.isInt()) {
-            // Error Check #1: An Int can only be typecasted into a Char and a Real
+            // ERROR CHECK #1: An Int can only be typecasted into a Char and a Real
             if(!typeToCastInto.isChar() && !typeToCastInto.isReal()) {
-//                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_INT_CAST);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ce)
+                        .addErrorType(ErrorType.TYPE_ERROR_408)
+                        .error());
             }
         }
         else if(exprType.isChar()) {
-            // Error Check #2: A Char can only be type casted into an Int and a String
+            // ERROR CHECK #2: A Char can only be type casted into an Int and a String
             if(!typeToCastInto.isInt() && !typeToCastInto.isString()) {
-//                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CHAR_CAST);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ce)
+                        .addErrorType(ErrorType.TYPE_ERROR_409)
+                        .error());
             }
         }
         else if(exprType.isReal()) {
-            // Error Check #3: A Real can only be type casted into an Int
+            // ERROR CHECK #3: A Real can only be type casted into an Int
             if(!typeToCastInto.isInt()) {
-//                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_REAL_CAST);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ce)
+                        .addErrorType(ErrorType.TYPE_ERROR_410)
+                        .error());
             }
         }
         else {
             // By default, all other cast expressions will be considered invalid
-//            msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CAST);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ce)
+                    .addErrorType(ErrorType.TYPE_ERROR_411)
+                    .addArgs(exprType,typeToCastInto)
+                    .error());
         }
 
         ce.type = typeToCastInto;
@@ -500,7 +504,7 @@ public class TypeChecker extends Visitor {
 
     Additionally, if the value is set to the keyword "uninit", we will give
     a default value based on the type specified.
-    _________________________________________________________________________
+    ________________________________________________________________________
     */
     public void visitFieldDecl(FieldDecl fd) {
         Var fieldVar = fd.var();
@@ -524,12 +528,14 @@ public class TypeChecker extends Visitor {
 
         if(fieldVar.init() != null) { fieldVar.init().visit(this); }
 
-        // Error Check #1: Check if the field's declared type
+        // ERROR CHECK #1: Check if the field's declared type
         //                 matches the type of the initial value
         if(!Type.assignmentCompatible(fd.type(),fieldVar.init().type)) {
-//            msg = new TypeError(fd.toString(),fd, fd.type(), fieldVar.init().type, ErrorType.FIELD_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fd)
+                    .addErrorType(ErrorType.TYPE_ERROR_415)
+                    .addArgs(fd.toString(),fd.type(),fieldVar.init().type)
+                    .error());
         }
 
         fieldVar.setType(fd.type());
@@ -537,21 +543,25 @@ public class TypeChecker extends Visitor {
 
     /*
     ___________________________ Field Expressions ___________________________
-    For a field expression, we only have to check if the target type represents
-    a class. If this is the case, then we can set the field expression to be
-    the type of whatever the corresponding field declaration is.
+    For a field expression, we only have to check if the target type
+    represents an Object.
+
+    If this is the case, then we can set the field expression to be the type
+    of whatever the corresponding field declaration is.
     _________________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
         Type targetType = fe.fieldTarget().type;
 
-        // Error Check #1: We want to make sure the target is indeed
-        // an object, so make sure it's assigned a class type
+        // ERROR CHECK #1: We want to make sure the target is indeed an object,
+        //                 so make sure it's assigned a class type
         if(!targetType.isClassType()) {
-//            msg = new TypeError(fe.fieldTarget().toString(),fe, targetType, null, ErrorType.FIELD_EXPR_INVALID_TARGET_TYPE);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fe)
+                    .addErrorType(ErrorType.TYPE_ERROR_416)
+                    .addArgs(fe.fieldTarget().toString(),targetType)
+                    .error());
         }
 
         ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
@@ -679,21 +689,20 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-    _______________________________ Invocations _______________________________
-    In C Minor, both forms of invocations will have the same exact type checking
-    done on them.
+    ____________________________ Invocations ____________________________
+    In C Minor, both forms of invocations will have the same exact type
+    checking done on them.
 
-    We need to check first whether we are passing the correct amount of arguments
-    to the function/method. Then, we need to make sure each argument's type is
-    assignment compatible with the type of the parameter declaration.
+    We first need to make sure the method exists via a name check since
+    we had to wait until we had the argument types to find the correct
+    method for overloading. If th
 
-    At the end, the type of the invocation will be based on the type of the
-    function's return type.
-    ___________________________________________________________________________
+    TODO: This might be broken... must think more
+    _____________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
-        //TODO: Name Checking here
         String funcSignature = in.toString() + "/";
+
         in.arguments().visit(this);
 
         for(int i = 0; i < in.arguments().size(); i++)
@@ -703,11 +712,13 @@ public class TypeChecker extends Visitor {
         // Function Check
         if(in.target() == null) {
 
-            // Error #1
+            // ERROR CHECK #1: Make sure the method exists in the current scope
             if(!currentScope.hasName(funcSignature)) {
-//                msg = new TypeError(funcSignature,in,null,null,ErrorType.FUNC_INVALID_NUM_OF_ARGS);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(ErrorType.SCOPE_ERROR_319)
+                        .addArgs(in.toString())
+                        .error());
             }
 
             FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
@@ -727,8 +738,18 @@ public class TypeChecker extends Visitor {
         // Method Check
         else {
             in.target().visit(this);
-            Type tt = in.target().type;
-            ClassDecl cd = currentScope.findName(tt.typeName()).declName().asTopLevelDecl().asClassDecl();
+            Type targetType = in.target().type;
+            ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
+
+            // ERROR CHECK #1: Make sure the method exists in the current scope
+            if(!cd.symbolTable.hasName(funcSignature)) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(ErrorType.SCOPE_ERROR_320)
+                        .addArgs(in.toString(),cd.toString())
+                        .error());
+            }
+
             MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
 
             // Error #1
@@ -750,7 +771,7 @@ public class TypeChecker extends Visitor {
 //                    catch(Exception e) { throw e; }
                 }
             }
-            in.targetType = tt;
+            in.targetType = targetType;
             in.type = md.returnType();
         }
     }
@@ -821,17 +842,20 @@ public class TypeChecker extends Visitor {
 
     /*
     _________________________ Main Declaration _________________________
-    There is no type checking needing to be inside of main. We just set
-    the current scope to be inside main and visit its body.
+    For Main, all we have to check is if the declared return type is
+    'Void'. If this is true, then we can type check the rest of main.
     ____________________________________________________________________
     */
     public void visitMainDecl(MainDecl md) {
         currentScope = md.symbolTable;
         currentContext = md;
+
+        // ERROR CHECK #1: Make sure main does not return any value
         if(!md.returnType().isVoidType()) {
-//            msg = new TypeError(md.toString(),md, md.returnType(),null, ErrorType.MAIN_RETURN_TYPE_ERROR);
-//            try { msg.printMsg(); }
-//            catch(Exception e) { throw e; }
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(md)
+                    .addErrorType(ErrorType.TYPE_ERROR_417)
+                    .error());
         }
         super.visitMainDecl(md);
         currentScope = currentScope.closeScope();
@@ -871,11 +895,11 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-    ___________________________ New Expressions _____________________________
-    Since we generate a constructor automatically for the user, we only have
-    to check whether an initial value given to an object matches the type of
-    its corresponding field declaration.
-    _________________________________________________________________________
+    ___________________________ New Expressions ___________________________
+    Since we generate a constructor automatically for the user, we only
+    have to check whether an initial value given to an object matches the
+    type of its corresponding field declaration.
+    _______________________________________________________________________
     */
     public void visitNewExpr(NewExpr ne) {
         String className = ne.classType().getName().toString();
@@ -893,56 +917,69 @@ public class TypeChecker extends Visitor {
             String argName = args.get(i).name().toString();
             Type fieldDeclType = cd.symbolTable.findName(argName).declName().asFieldDecl().type();
 
+            // ERROR CHECK #1: Make sure the type of argument value matches type of field declaration
             if(!Type.assignmentCompatible(currArg.type,fieldDeclType)) {
-//                msg = new TypeError(argName,ne, fieldDeclType, currArg.type, ErrorType.NEW_EXPR_INVALID_ARG_TYPE);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ne)
+                        .addErrorType(ErrorType.TYPE_ERROR_412)
+                        .addArgs(argName,fieldDeclType,currArg.type)
+                        .error());
             }
         }
         ne.type = ne.classType();
     }
 
     /*
-        A return statement will always be inside either a function,
-        a method, or the main function of the program.
+    ___________________________ Return Statements ___________________________
+    A return statement will always be found inside either a function, a
+    method, or the main function of the program.
+
+    Here, we are mainly checking to ensure the value we are returning matches
+    the return type of the current context we are in. If there are any typing
+    errors, then we have to create an error message.
+    _________________________________________________________________________
     */
     public void visitReturnStmt(ReturnStmt rs) {
 
-        // First, get the type of the expression we are returning (if any)
-        if(rs.expr() != null)
-            rs.expr().visit(this);
+        if(rs.expr() != null) { rs.expr().visit(this); }
 
-        // Then, we figure out the return type of the current function we are in
-        Type rType = null;
-        if(currentContext.isMethodDecl())
-            rType = currentContext.asMethodDecl().returnType();
+        Type declaredReturnType = null;
+        if(currentContext.isMethodDecl()) {
+            declaredReturnType = currentContext.asMethodDecl().returnType();
+        }
         else {
-            if(currentContext.asTopLevelDecl().isFuncDecl())
-                rType = currentContext.asTopLevelDecl().asFuncDecl().returnType();
-            else
-                rType = currentContext.asTopLevelDecl().asMainDecl().returnType();
+            if(currentContext.asTopLevelDecl().isFuncDecl()) {
+                declaredReturnType = currentContext.asTopLevelDecl().asFuncDecl().returnType();
+            }
+            else {
+                declaredReturnType = currentContext.asTopLevelDecl().asMainDecl().returnType();
+
+            }
         }
 
-        /*
-          ERROR CHECK #1:
-              If the function is declared "Void", then a return statement can not
-              return any expression.
-        */
-        if(rs.expr() != null && rType == null)
-           ; // StmtError.VoidReturnError(rs);
+        // ERROR CHECK #1: If the function is declared "Void", then a return statement
+        //                 can not return any expression.
+        if(rs.expr() != null && declaredReturnType.isVoidType()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(rs)
+                    .addErrorType(ErrorType.TYPE_ERROR_413)
+                    .addArgs(rs.expr().type,currentContext.toString())
+                    .error());
+        }
 
-        /*
-          ERROR CHECK #2:
-              If the function is declared with an explicit return type, then we need
-              to make sure the return statement's expression is of the corresponding type
-        */
-        if(rs.expr() != null && !Type.assignmentCompatible(rType,rs.expr().type))
-            ; //StmtError.InvalidReturnError(rs,rType);
+        // ERROR CHECK #2: If the function is declared with an explicit return type,
+        //                 then we need to make sure the return statement's expression
+        //                 is of the corresponding type
+        if(rs.expr() != null && !Type.assignmentCompatible(declaredReturnType,rs.expr().type)) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(rs)
+                    .addErrorType(ErrorType.TYPE_ERROR_414)
+                    .addArgs(rs.expr().type,currentContext.toString(),declaredReturnType)
+                    .error());
+        }
 
-        if(rs.expr() != null)
-            rs.type = rs.expr().type;
-        else
-            rs.type = null;
+        if(rs.expr() != null) { rs.type = rs.expr().type; }
+        else { rs.type = null; }
     }
 
     /*

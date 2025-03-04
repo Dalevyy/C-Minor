@@ -8,10 +8,12 @@ import ast.top_level_decls.*;
 import ast.types.*;
 import messages.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 
-import messages.errors.ErrorType;
-import messages.errors.ModifierError;
+import messages.errors.ErrorBuilder;
+import messages.MessageType;
+import messages.errors.mod_error.ModErrorFactory;
 import utilities.*;
 
 public class ModifierChecker extends Visitor {
@@ -19,11 +21,22 @@ public class ModifierChecker extends Visitor {
     private Message msg;
     private SymbolTable currentScope;
     private AST currentContext;
+    private ModErrorFactory generateModError;
+    private ArrayList<String> errors;
+
 
     public ModifierChecker() {
-        currentScope = null;
+        this.currentScope = null;
+        this.generateModError = new ModErrorFactory();
+        this.errors = new ArrayList<String>();
     }
 
+    public ModifierChecker(SymbolTable st) {
+        this();
+        this.currentScope = st;
+    }
+
+    // Based on Dr. Pedersen's algorithm (?)
     public void sortClassMethods(HashSet<String> abs, HashSet<String> con, ClassDecl cd) {
 
         if(AST.notNull(cd.superClass())) {
@@ -53,23 +66,35 @@ public class ModifierChecker extends Visitor {
         HashSet<String> abstracts = new HashSet<String>();
         sortClassMethods(abstracts,concretes,subClass);
 
-        if(abstracts.size() > 0) { msg = new ModifierError(subClass,superClass,
-                                   ErrorType.CONCRETE_CLASS_DOES_NOT_IMPLEMENT_ABSTRACT_SUPERCLASS); }
+        if(abstracts.size() > 0) {
+            errors.add(new ErrorBuilder(generateModError,interpretMode)
+                    .addLocation(subClass)
+                    .addErrorType(MessageType.MOD_ERROR_501)
+                    .addArgs(subClass.toString(),superClass.toString())
+                    .addSuggestType(MessageType.MOD_SUGGEST_1501)
+                    .error());
+        }
     }
 
     /*
-    _________________________ Assignment Statements ________________________
-    Since we allow global constants in C Minor, we have yet to check whether
-    or not a user tries to reassign a constant after it has been declared.
-    We will do that check as a part of modifier checking.
-    ________________________________________________________________________
+    ________________________ Assignment Statements ________________________
+    Since we allow global constants in C Minor, we have yet to check
+    whether or not a user tries to reassign a constant after it has been
+    declared. We will do that check as a part of modifier checking.
+    _______________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
         AST LHS = currentScope.findName(as.LHS().toString()).declName();
         if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
-            // ERROR CHECK #1) A constant variable can not change its value after declaration.
+            // ERROR CHECK #1: A constant variable can not change its
+            //                 value after declaration.
             if(LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
-                this.msg = new ModifierError(as,ErrorType.CONSTANT_VARAIBLE_CAN_NOT_BE_REASSIGNED);
+                errors.add(new ErrorBuilder(generateModError,interpretMode)
+                        .addLocation(as)
+                        .addErrorType(MessageType.MOD_ERROR_505)
+                        .addArgs(as.LHS().toString())
+                        .addSuggestType(MessageType.MOD_SUGGEST_1505)
+                        .error());
             }
         }
     }
@@ -94,12 +119,19 @@ public class ModifierChecker extends Visitor {
         if(superClass != null) {
             ClassDecl superDecl = currentScope.findName(superClass.toString()).declName().asTopLevelDecl().asClassDecl();
 
-            // ERROR CHECK #1) Class can only be inherited if 'final' keyword is missing
-            if(superDecl.mod.isFinal()) { msg = new ModifierError(cd,superDecl,ErrorType.CAN_NOT_INHERIT_FROM_A_FINAL_CLASS); }
+            // ERROR CHECK #1: Class can only be inherited if 'final' keyword is missing
+            if(superDecl.mod.isFinal()) {
+                errors.add(new ErrorBuilder(generateModError,interpretMode)
+                        .addLocation(cd)
+                        .addErrorType(MessageType.MOD_ERROR_500)
+                        .addArgs(cd.toString(),superDecl.toString())
+                        .addSuggestType(MessageType.MOD_SUGGEST_1500)
+                        .error());
+            }
 
             super.visitClassDecl(cd);
 
-            // ERROR CHECK #2) A concrete class inheriting from an abstract class must implement all of its methods
+            // ERROR CHECK #2: A concrete class inheriting from an abstract class must implement all of its methods
             if(!cd.mod.isAbstract() && superDecl.mod.isAbstract()) { abstractClassImplementation(cd,superDecl); }
         }
         else { super.visitClassDecl(cd); }
@@ -135,14 +167,20 @@ public class ModifierChecker extends Visitor {
     __________________________ Field Expressions __________________________
     The only check we do here is to make sure the field we are accessing is
     public. If it's not, we will output an error message.
-    ________________________________________________________________________
+    _______________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
         ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).declName().asTopLevelDecl().asClassDecl();
         FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).declName().asFieldDecl();
 
-        // ERROR CHECK #1) A field is only accessible outside a class scope if it's public
-        if(!fd.mod.isPublic()) { this.msg = new ModifierError(fe,cd,ErrorType.CAN_NOT_ACCESS_NON_PUBLIC_FIELD); }
+        // ERROR CHECK #1: A field is only accessible outside a class scope if it's public
+        if(!fd.mod.isPublic()) {
+            errors.add(new ErrorBuilder(generateModError,interpretMode)
+                    .addLocation(fe)
+                    .addErrorType(MessageType.MOD_ERROR_507)
+                    .addArgs(fe.fieldTarget().toString(),fd.toString())
+                    .addSuggestType(MessageType.MOD_SUGGEST_1507)
+                    .error());        }
 
         fe.fieldTarget().visit(this);
     }
@@ -162,18 +200,28 @@ public class ModifierChecker extends Visitor {
     we have to check here whether or not a user is allowed to call
     a function/method recursively.
 
-    Additionally, if we have a method invocation, we need to make sure
-    the method is accessible outside the class it was declared in.
+    Additionally, if we have a method invocation, we need to make
+    sure the method is accessible outside the class it was declared
+    in.
     _________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
+        String funcSignature = in.invokeSignature();
+
         // Function Invocation Case
         if(in.target() == null) {
-            FuncDecl fd = currentScope.findName(in.toString()).declName().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
 
-            if(currentContext == fd && fd.toString().equals(in.toString()))  {
-                // ERROR CHECK #1) A function can not recursively call itself without the 'recurs' keyword
-                if(!fd.mod.isRecurs()) { this.msg = new ModifierError(in,ErrorType.RECURSIVE_FUNCTION_CALL_NOT_ALLOWED); }
+            if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
+                // ERROR CHECK #1: A function can not recursively call itself without the 'recurs' keyword
+                if(!fd.mod.isRecurs()) {
+                    errors.add(new ErrorBuilder(generateModError,interpretMode)
+                            .addLocation(in)
+                            .addErrorType(MessageType.MOD_ERROR_502)
+                            .addArgs(fd.toString())
+                            .addSuggestType(MessageType.MOD_SUGGEST_1502)
+                            .error());
+                }
             }
         }
         // Method Invocation Case
@@ -181,12 +229,26 @@ public class ModifierChecker extends Visitor {
             ClassDecl cd = currentScope.findName(in.target().type.typeName()).declName().asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.symbolTable.findName(in.name().toString()).declName().asMethodDecl();
 
-            // ERROR CHECK #2) A method can not recursively call itself without the 'recurs' keyword
+            // ERROR CHECK #2: A method can not recursively call itself without the 'recurs' keyword
             if(currentContext == md && md.toString().equals(in.toString())) {
-                if(!md.mods.isRecurs()) { this.msg = new ModifierError(in,ErrorType.RECURSIVE_METHOD_CALL_NOT_ALLOWED); }
+                if(!md.mods.isRecurs()) {
+                    errors.add(new ErrorBuilder(generateModError,interpretMode)
+                            .addLocation(in)
+                            .addErrorType(MessageType.MOD_ERROR_503)
+                            .addArgs(md.toString())
+                            .addSuggestType(MessageType.MOD_SUGGEST_1503)
+                            .error());
+                }
             }
-            // ERROR CHECK #3) An object can only a method that is declared public
-            if(!md.mods.isPublic()) { this.msg = new ModifierError(in,ErrorType.CAN_NOT_ACCESS_NON_PUBLIC_METHOD); }
+            // ERROR CHECK #3: An object can only a method that is declared public
+            if(!md.mods.isPublic()) {
+                    errors.add(new ErrorBuilder(generateModError,interpretMode)
+                            .addLocation(in)
+                            .addErrorType(MessageType.MOD_ERROR_504)
+                            .addArgs(in.target().toString())
+                            .addSuggestType(MessageType.MOD_SUGGEST_1504)
+                            .error());
+            }
         }
     }
 
@@ -205,16 +267,23 @@ public class ModifierChecker extends Visitor {
     }
 
     /*
-    __________________________ New Expression __________________________
+    __________________________ New Expressions __________________________
     We are not allowed to instantiate objects from abstract classes, so
     this is the only check that is needed when visiting a new expression.
-    ____________________________________________________________________
+    _____________________________________________________________________
     */
     public void visitNewExpr(NewExpr ne) {
         ClassDecl cd = currentScope.findName(ne.type.typeName()).declName().asTopLevelDecl().asClassDecl();
 
-        // ERROR CHECK #1) Class must be concrete
-        if(cd.mod.isAbstract()) { this.msg = new ModifierError(ne,cd,ErrorType.CAN_NOT_INSTANTIATE_AN_ABSTRACT_CLASS); }
+        // ERROR CHECK #1: Class must be concrete
+        if(cd.mod.isAbstract()) {
+            errors.add(new ErrorBuilder(generateModError,interpretMode)
+                    .addLocation(ne)
+                    .addErrorType(MessageType.MOD_ERROR_506)
+                    .addArgs(ne.getParent().getParent().asStatement().asLocalDecl().var().toString())
+                    .addSuggestType(MessageType.MOD_SUGGEST_1506)
+                    .error());
+        }
 
         super.visitNewExpr(ne);
     }

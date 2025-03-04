@@ -1,0 +1,9 @@
+
+def func(in a Int) => Void {}
+def func(in a Double) => Void {}
+def func(in a Int, in b Double) => Void {}
+def func(out a Real) => Void {}
+
+def main() => Void {
+
+}
