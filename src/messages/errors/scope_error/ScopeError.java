@@ -1,8 +1,7 @@
-package messages.errors;
+package messages.errors.scope_error;
 
-import ast.AST;
+import messages.errors.Error;
 import utilities.PrettyPrint;
-import utilities.SymbolTable;
 
 public class ScopeError extends Error {
 
@@ -15,13 +14,5 @@ public class ScopeError extends Error {
                     + PrettyPrint.RESET + fileName() + "\n";
         }
         return PrettyPrint.YELLOW + "Scoping error detected!\n\n" + PrettyPrint.RESET;
-    }
-
-    @Override
-    public String buildSuggestion() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n\n");
-
-        return sb.toString();
     }
 }
