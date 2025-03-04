@@ -1,0 +1,6 @@
+
+def main() => Void {
+    def local a = 5, b = 7, c = 9 Int
+    def myName = 'Bob', myName2 = 'Charlie' Char 
+    def flag1 = True, flag2 = False, flag3 = False Bool 
+}

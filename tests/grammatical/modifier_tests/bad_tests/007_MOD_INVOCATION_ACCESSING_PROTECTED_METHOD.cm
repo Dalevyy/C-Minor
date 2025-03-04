@@ -1,0 +1,10 @@
+
+class Test {
+    protected method test1() => Void { }
+}
+
+def main() => Void {
+    def local obj = new Test() Test
+
+    obj.test1()
+}

@@ -1,0 +1,4 @@
+
+def main() => Void {
+    def p1 = new Person(firstName='ben',lastName='monica') Person
+}

@@ -1,0 +1,15 @@
+
+def main() => Void {
+    def flag = True Bool 
+    def local myNum = 0 Int 
+
+    while(flag) {
+        if(myNum == 10) {
+            set flag = False 
+        }
+        else {
+            set myNum += 1
+        }
+    }
+    stop 
+}

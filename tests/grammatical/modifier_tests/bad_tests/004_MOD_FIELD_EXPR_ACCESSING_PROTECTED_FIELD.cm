@@ -6,5 +6,5 @@ class MyClass {
 def main() => Void {
     def local obj = new MyClass() MyClass
 
-    obj.myField
+    cout << obj.myField
 }

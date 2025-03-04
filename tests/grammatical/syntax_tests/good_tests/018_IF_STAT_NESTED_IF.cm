@@ -1,0 +1,14 @@
+
+def main() => Void {
+    def local a = 5 Int 
+    def local b = 10 Int 
+
+    if a < b {
+        if(a == 5) {
+            cout << 'Congrats, you won a reward!'
+        }
+        else {
+            cout << 'You lost...'
+        }
+    }
+}

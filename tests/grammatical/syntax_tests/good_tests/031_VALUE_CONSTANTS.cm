@@ -1,0 +1,27 @@
+
+def main() => Void {
+    5
+    3
+    4
+    ~3
+    ~20
+    ~39
+
+    'c'
+    'a'
+
+    'hello there'
+    'Burger\nHam\nCheese\n'
+    '\"This is a sentence\"'
+
+    ''' hello again '''
+
+    True
+    False 
+    True True True True
+    False True False True
+
+    3.1415926
+    ~6.384023483242
+    1000.120211
+}

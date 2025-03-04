@@ -9,23 +9,34 @@ import ast.top_level_decls.*;
 import ast.types.*;
 import ast.types.DiscreteType.*;
 import ast.types.ScalarType.*;
-import errors.type_error.*;
-import messages.Message;
+import messages.errors.ErrorBuilder;
 import messages.errors.ErrorType;
-import messages.errors.TypeError;
+import messages.errors.TypeErrorFactory;
 import token.Token;
 import utilities.*;
+
+import java.util.ArrayList;
 
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
     private AST currentContext;
-    private Message msg;
+    private TypeErrorFactory generateTypeError;
+    private ArrayList<String> errors;
 
     public TypeChecker() {
-        currentScope = null;
-        currentContext = null;
+        this.currentScope = null;
+        this.currentContext = null;
+        this.generateTypeError = new TypeErrorFactory();
     }
+
+    public TypeChecker(SymbolTable st) {
+        this.currentScope = st;
+        this.currentContext = null;
+        this.generateTypeError = new TypeErrorFactory();
+    }
+
+    // Missing ArrayLiteral and ListLiteral :')
 
     /*
         For an ArrayExpr, we need to type check the target expression
@@ -40,7 +51,7 @@ public class TypeChecker extends Visitor {
                 represents an array.
         */
         if(!ae.arrayTarget().type.isArrayType())
-            TypeErrorOLD.GenericTypeError(ae);
+            ;
 
         ArrayType aType = ae.arrayTarget().type.asArrayType();
 
@@ -58,19 +69,18 @@ public class TypeChecker extends Visitor {
         */
         ae.arrayIndex().visit(this);
         if(!ae.arrayIndex().type.isInt())
-            TypeErrorOLD.GenericTypeError(ae);
+            ;
     }
 
-
     /*
-        _________________________Assignment Statements__________________________
-        If we want to assign a new value to a variable, we need to make sure the
-        value's type matches the type of the variable.
+    _________________________ Assignment Statements _________________________
+    If we want to assign a new value to a variable, we need to make sure the
+    value's type matches the type of the variable.
 
-        C Minor also supports compound assignment operations such as +=, -=, *=,
-        etc. which means we have to do an additional check to make sure the two
-        values can perform a legal binary operation.
-        ________________________________________________________________________
+    C Minor also supports compound assignment operations such as +=, -=, *=,
+    etc. which means we have to do an additional check to make sure the two
+    values can perform a legal binary operation.
+    _________________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
 
@@ -82,18 +92,25 @@ public class TypeChecker extends Visitor {
 
         String aOp = as.assignOp().toString();
 
-        // Error Check #1: Make sure both the variable and value type are the same
+        // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
-            msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_TYPE_DOES_NOT_MATCH);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(as)
+                    .addErrorType(ErrorType.TYPE_ERROR_402)
+                    .addArgs(as.LHS().toString(),lType,rType)
+                    .error());
         }
 
         switch(aOp) {
             case "+=": {
-                // Error Check #2: For a '+=' operation, the only allowed types are Int, Real, String, and Object
+                // ERROR CHECK #2: For a '+=' operation, the only allowed types
+                //                 are Int, Real, String, and Object
                 if(lType.isBool() || lType.isChar()) {
-                    msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_INVALID_TYPES_USED);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(as)
+                            .addErrorType(ErrorType.TYPE_ERROR_403)
+                            .addArgs(aOp,lType)
+                            .error());
                 }
                 break;
             }
@@ -102,10 +119,14 @@ public class TypeChecker extends Visitor {
             case "/=":
             case "%=":
             case "**=": {
-                // Error Check #3: For all other assignment operators, the types Int, Real, and Object have to be used
+                // ERROR CHECK #3: For all other assignment operators, the types
+                //                 Int, Real, and Object have to be used
                 if(lType.isBool() || lType.isChar() || lType.isString()) {
-                    msg = new TypeError(as.LHS().toString(), as, lType, rType, ErrorType.ASSIGN_STMT_INVALID_TYPES_USED);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(as)
+                            .addErrorType(ErrorType.TYPE_ERROR_403)
+                            .addArgs(aOp,lType)
+                            .error());
                 }
                 break;
             }
@@ -113,44 +134,44 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        ___________________________Binary Expressions___________________________
-        Since C Minor does not support type coercion, we are going to be strict
-        about which types are allowed for each possible binary operator.
+    ___________________________ Binary Expressions ___________________________
+    Since C Minor does not support type coercion, we are going to be strict
+    about which types are allowed for each possible binary operator.
 
-        There are currently 24 binary operators in C Minor. The following is a
-        list of each operator:
+    There are currently 24 binary operators in C Minor. The following is a
+    list of each operator:
 
-            1. '=='  '!='
-                - Operand Type: Both operands have to be the SAME type
-                - Binary Expression Type: Bool
+        1. '=='  '!='
+            - Operand Type: Both operands have to be the SAME type
+            - Binary Expression Type: Bool
 
-            2. '>'  '>='  '<'  '<='  '<>'  '<=>'
-                - Operand Type: Numeric -> Int, Real, Char
-                - Binary Expression Type: Bool
+        2. '>'  '>='  '<'  '<='  '<>'  '<=>'
+            - Operand Type: Numeric -> Int, Real, Char
+            - Binary Expression Type: Bool
 
-            3. '+'  '-'  '*'  '/'  '%'  '**'
-                - Operand Type: Numeric -> Int, Real, Char or String (+)
-                - Binary Expression Type: Type of both operands
+        3. '+'  '-'  '*'  '/'  '%'  '**'
+            - Operand Type: Numeric -> Int, Real, Char or String (+)
+            - Binary Expression Type: Type of both operands
 
-            4. '<<'  '>>'
-                - Operand Type: Int
-                - Binary Expression Type: Int
+        4. '<<'  '>>'
+            - Operand Type: Int
+            - Binary Expression Type: Int
 
-            5. '&'   '|'  '^'
-                - Operand Type: Discrete
-                - Binary Expression Type: Bool or Int (^)
+        5. '&'   '|'  '^'
+            - Operand Type: Discrete
+            - Binary Expression Type: Bool or Int (^)
 
-            6. 'and'  'or'
-                - Operand Type: Bool
-                - Binary Expression Type: Bool
+        6. 'and'  'or'
+            - Operand Type: Bool
+            - Binary Expression Type: Bool
 
-            7. 'instanceof'  '!instanceof'  'as?'
-                - Operand Type: Class
-                - Binary Expression Type: Bool
+        7. 'instanceof'  '!instanceof'  'as?'
+            - Operand Type: Class
+            - Binary Expression Type: Bool
 
-        Additionally, most of the binary operators can be overloaded by classes,
-        so we will check if the overloaded method was defined here as well.
-        ________________________________________________________________________
+    Additionally, most of the binary operators can be overloaded by classes,
+    so we will check if the overloaded method was defined here as well.
+    __________________________________________________________________________
     */
     public void visitBinaryExpr(BinaryExpr be) {
 
@@ -165,10 +186,15 @@ public class TypeChecker extends Visitor {
         switch(binOp) {
             case "==":
             case "!=": {
-                // Error Check #1: Both LHS/RHS have to be the same type.
+                // ERROR CHECK #1: Both LHS/RHS have to be the same type.
                 if(!Type.assignmentCompatible(lType,rType)) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1400)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -179,15 +205,25 @@ public class TypeChecker extends Visitor {
             case "<=":
             case "<>":
             case "<=>": {
-                // Error Check #1: Make sure both types are the same
+                // ERROR CHECK #1: Make sure both types are the same
                 if(!Type.assignmentCompatible(lType,rType)) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1400)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
-                // Error Check #2: Make sure the operands are numeric types
+                // ERROR CHECK #2: Make sure the operands are numeric types
                 if(!lType.isNumeric()) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_NUMERIC);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1401)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -203,15 +239,25 @@ public class TypeChecker extends Visitor {
             case "/":
             case "%":
             case "**": {
-                // Error Check #1: Make sure both types are the same
+                // ERROR CHECK #1: Make sure both types are the same
                 if(!Type.assignmentCompatible(lType,rType)) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1400)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
-                // Error Check #2: Make sure the operands are numeric types
+                // ERROR CHECK #2: Make sure the operands are numeric types
                 if(!lType.isNumeric()) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_NUMERIC);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1402)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
 
                 be.type = lType;
@@ -219,10 +265,15 @@ public class TypeChecker extends Visitor {
             }
             case "<<":
             case ">>": {
-                // Error Check #1: Both LHS and RHS have to be an INT for shift operations
+                // ERROR CHECK #1: Both LHS and RHS have to be an INT for shift operations
                 if(!lType.isInt() || !rType.isInt()) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_SLEFT_SRIGHT_NOT_INT);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1403)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
 
                 be.type = new DiscreteType(Discretes.INT);
@@ -231,16 +282,26 @@ public class TypeChecker extends Visitor {
             case "&":
             case "|":
             case "^": {
-                // Error Check #1: Make sure both types are the same
+                // ERROR CHECK #1: Make sure both types are the same
                 if(!Type.assignmentCompatible(lType,rType)) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_NOT_ASSIGNCOMP);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1400)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
 
-                // Error Check #2: Make sure both types are discrete
+                // ERROR CHECK #2: Make sure both types are discrete
                 if(!lType.isDiscreteType() || !rType.isDiscreteType()) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_BITWISE_NOT_DISCRETE);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1404)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
 
                 if(binOp.equals("^")) { be.type = new DiscreteType(Discretes.INT); }
@@ -249,10 +310,15 @@ public class TypeChecker extends Visitor {
             }
             case "and":
             case "or": {
-                // Error Check #1: Make sure both types are Bool
+                // ERROR CHECK #1: Make sure both types are Bool
                 if(!lType.isBool() || !rType.isBool()) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_LOGICAL_NOT_BOOL);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1405)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
 
                 be.type = new DiscreteType(Discretes.BOOL);
@@ -262,8 +328,13 @@ public class TypeChecker extends Visitor {
             case "!instanceof":
             case "as?": {
                 if(!lType.isClassType() && !rType.isClassType()) {
-                    msg = new TypeError(be.LHS().toString(), be, lType, rType, ErrorType.BIN_EXPR_OBJ_OPS_MISSING_OBJ);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(ErrorType.TYPE_ERROR_404)
+                            .addArgs(lType,rType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1406)
+                            .addArgsForSuggestion(binOp)
+                            .error());
                 }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -272,17 +343,17 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        _________________________ Cast Expressions  _______________________________
-        In C Minor, we have 4 valid cast expressions a programmer can use:
+    _________________________ Cast Expressions  _______________________________
+    In C Minor, we have 4 valid cast expressions a programmer can use:
 
-            1. Char <--> Int
-            2. Int  <--> Real
-            3. Char  --> String
-            4. Parent Class Object <-- Child Class Object (Runtime check)
+        1. Char <--> Int
+        2. Int  <--> Real
+        3. Char  --> String
+        4. Parent Class Object <-- Child Class Object (Runtime check)
 
-        For mixed type expressions, this means the programmer must perform explicit
-        type casts or else the compiler will generate a typing error.
-        ___________________________________________________________________________
+    For mixed type expressions, this means the programmer must perform explicit
+    type casts or else the compiler will generate a typing error.
+    ___________________________________________________________________________
     */
     public void visitCastExpr(CastExpr ce) {
         ce.castExpr().visit(this);
@@ -292,28 +363,32 @@ public class TypeChecker extends Visitor {
         if(exprType.isInt()) {
             // Error Check #1: An Int can only be typecasted into a Char and a Real
             if(!typeToCastInto.isChar() && !typeToCastInto.isReal()) {
-                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_INT_CAST);
-                msg.printMsg();
+//                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_INT_CAST);
+//                try { msg.printMsg(); }
+//                catch(Exception e) { throw e; }
             }
         }
         else if(exprType.isChar()) {
             // Error Check #2: A Char can only be type casted into an Int and a String
             if(!typeToCastInto.isInt() && !typeToCastInto.isString()) {
-                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CHAR_CAST);
-                msg.printMsg();
+//                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CHAR_CAST);
+//                try { msg.printMsg(); }
+//                catch(Exception e) { throw e; }
             }
         }
         else if(exprType.isReal()) {
             // Error Check #3: A Real can only be type casted into an Int
             if(!typeToCastInto.isInt()) {
-                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_REAL_CAST);
-                msg.printMsg();
+//                msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_REAL_CAST);
+//                try { msg.printMsg(); }
+//                catch(Exception e) { throw e; }
             }
         }
         else {
             // By default, all other cast expressions will be considered invalid
-            msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CAST);
-            msg.printMsg();
+//            msg = new TypeError(ce.toString(), ce, typeToCastInto, exprType, ErrorType.CAST_EXPR_INVALID_CAST);
+//            try { msg.printMsg(); }
+//            catch(Exception e) { throw e; }
         }
 
         ce.type = typeToCastInto;
@@ -332,7 +407,7 @@ public class TypeChecker extends Visitor {
         Type eType = cs.choiceExpr().type;
 
         if(!(eType.isInt() || eType.isChar() || eType.isString()))
-            TypeErrorOLD.GenericTypeError(cs);
+            ; //TypeErrorOLD.GenericTypeError(cs);
 
         for(int i = 0; i < cs.caseStmts().size(); i++) {
             CaseStmt currCase = cs.caseStmts().get(i);
@@ -340,12 +415,12 @@ public class TypeChecker extends Visitor {
             Type labelType = currCase.choiceLabel().leftLabel().type;
 
             if(!(labelType.isInt() || labelType.isChar() || labelType.isString()))
-                TypeErrorOLD.GenericTypeError(cs);
+                ;
 
             if(currCase.choiceLabel().rightLabel() != null) {
                 labelType = currCase.choiceLabel().rightLabel().type;
                 if(!(labelType.isInt() || labelType.isChar() || labelType.isString()))
-                    TypeErrorOLD.GenericTypeError(cs);
+                 ;
             }
             currCase.caseBlock().visit(this);
         }
@@ -356,6 +431,13 @@ public class TypeChecker extends Visitor {
 
     }
 
+    /*
+    _________________________ Class Declarations _________________________
+    There is no type checking needed with class declarations. We just set
+    the current scope to be inside the class and visit the class fields
+    and methods to type check.
+    ______________________________________________________________________
+    */
     public void visitClassDecl(ClassDecl cd) {
         currentScope = cd.symbolTable;
         super.visitClassDecl(cd);
@@ -363,10 +445,10 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        ___________________________ Do Statements ________________________________
-        With all looping constructs, we only need to check if the type of the loop
-        condition evaluates to be a Bool. That's all we DO here. ;)
-        __________________________________________________________________________
+    ___________________________ Do Statements ___________________________
+    With all looping constructs, we only need to check if the type of the
+    loop condition evaluates to be a Bool. That's all we DO here. ;)
+    _____________________________________________________________________
     */
     public void visitDoStmt(DoStmt ds) {
         currentScope = ds.symbolTable;
@@ -375,10 +457,13 @@ public class TypeChecker extends Visitor {
 
         ds.condition().visit(this);
 
-        // Error Check #1: Make sure Do's condition evaluates to Bool
+        // ERROR CHECK #1: Make sure Do's condition evaluates to Bool
         if(!ds.condition().type.isBool()) {
-            msg = new TypeError("",ds,ds.condition().type,null,ErrorType.LOOP_CONDITION_NOT_BOOLEAN);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ds.condition())
+                    .addErrorType(ErrorType.TYPE_ERROR_407)
+                    .addArgs(ds.condition().type)
+                    .error());
         }
 
         if(ds.nextExpr() != null) { ds.nextExpr().visit(this); }
@@ -401,60 +486,100 @@ public class TypeChecker extends Visitor {
                 e.visit(this);
 
                 if(!Type.assignmentCompatible(eType,e.type))
-                    TypeErrorOLD.GenericTypeError(ed);
+                    ; //TypeErrorOLD.GenericTypeError(ed);
             }
         }
     }
 
     /*
-        For a FieldDecl, we want to make sure the expression's type matches
-        the type of the FieldDecl if a user decides to initialize the field
-        to some initial value.
+    __________________________ Field Declarations __________________________
+    When we visit a field declaration, we want to check if the user assigned
+    an initial value to the field prior to calling the class constructor. If
+    this is true, then we have to make sure the initial type of the value
+    matches the type of the declaration.
+
+    Additionally, if the value is set to the keyword "uninit", we will give
+    a default value based on the type specified.
+    _________________________________________________________________________
     */
     public void visitFieldDecl(FieldDecl fd) {
-        if(fd.var().init() != null) {
-            fd.var().init().visit(this);
-            Type initType = fd.var().init().type;
-            if(!Type.assignmentCompatible(initType,fd.type()))
-                TypeErrorOLD.GenericTypeError(fd);
+        Var fieldVar = fd.var();
+
+        if(fieldVar.init() == null) {
+            Literal defaultValue = null;
+            if (fd.type().isInt())
+                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", fd.location), ConstantKind.INT);
+            else if(fd.type().isChar())
+                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", fd.location), ConstantKind.CHAR);
+            else if(fd.type().isBool())
+                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", fd.location), ConstantKind.BOOL);
+            else if(fd.type().isReal())
+                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", fd.location), ConstantKind.REAL);
+            else if(fd.type().isString())
+                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", fd.location), ConstantKind.STR);
+            else
+                defaultValue = null;
+            fieldVar.setInit(defaultValue);
         }
-        fd.var().setType(fd.type());
+
+        if(fieldVar.init() != null) { fieldVar.init().visit(this); }
+
+        // Error Check #1: Check if the field's declared type
+        //                 matches the type of the initial value
+        if(!Type.assignmentCompatible(fd.type(),fieldVar.init().type)) {
+//            msg = new TypeError(fd.toString(),fd, fd.type(), fieldVar.init().type, ErrorType.FIELD_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR);
+//            try { msg.printMsg(); }
+//            catch(Exception e) { throw e; }
+        }
+
+        fieldVar.setType(fd.type());
     }
 
+    /*
+    ___________________________ Field Expressions ___________________________
+    For a field expression, we only have to check if the target type represents
+    a class. If this is the case, then we can set the field expression to be
+    the type of whatever the corresponding field declaration is.
+    _________________________________________________________________________
+    */
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
         Type targetType = fe.fieldTarget().type;
 
         // Error Check #1: We want to make sure the target is indeed
         // an object, so make sure it's assigned a class type
-        if(!targetType.isClassType())
-            TypeErrorOLD.GenericTypeError(fe);
+        if(!targetType.isClassType()) {
+//            msg = new TypeError(fe.fieldTarget().toString(),fe, targetType, null, ErrorType.FIELD_EXPR_INVALID_TARGET_TYPE);
+//            try { msg.printMsg(); }
+//            catch(Exception e) { throw e; }
+        }
 
         ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
         FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).declName().asFieldDecl();
-//
-//        //Error Check #2
-//        if(!Type.assignmentCompatible(fType,fd.type()))
-//            TypeErrorOLD.GenericTypeError(fe);
-//
-         fe.type = fd.type();
+
+        fe.type = fd.type();
     }
 
     /*
-        ___________________________ For Statements ________________________________
-        Just like with do statements, we only check if the for loop's condition
-        evaluates to be a Bool. There's nothing else FOR us to type check here. ;)
-        ___________________________________________________________________________
+    ___________________________ For Statements ___________________________
+    Just like with do statements, we only check if the for loop's
+    condition evaluates to be a Bool. There's nothing else FOR us to type
+    check here. ;)
+    ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
         currentScope = fs.symbolTable;
 
         fs.condition().visit(this);
+
+        // ERROR CHECK #1: Make sure For's condition evaluates to Bool
         if(!fs.condition().type.isBool()) {
-            msg = new TypeError("",fs,fs.condition().type,null,ErrorType.LOOP_CONDITION_NOT_BOOLEAN);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.condition())
+                    .addErrorType(ErrorType.TYPE_ERROR_407)
+                    .addArgs(fs.condition().type)
+                    .error());
         }
-            TypeErrorOLD.GenericTypeError(fs);
 
         if(fs.nextExpr() != null) { fs.nextExpr().visit(this); }
         if(fs.forBlock() != null) { fs.forBlock().visit(this); }
@@ -462,6 +587,12 @@ public class TypeChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    /*
+    _______________________ Function Declarations _______________________
+    There is no type checking needing to be inside of functions. We just
+    set the current scope to be inside the function and visit its body.
+    _____________________________________________________________________
+    */
     public void visitFuncDecl(FuncDecl fd) {
         currentScope = fd.symbolTable;
         currentContext = fd;
@@ -470,14 +601,14 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-    ________________________Global Declarations___________________________
+    ________________________ Global Declarations ________________________
     Global declarations are handled in the exact same way that local
     declarations are.
 
-    We are checking if the global variable's declared type matches the type
-    of the initial value it is assigned to. Additionally, we will provide
-    default values if the user assigns the global to 'uninit'.
-    _______________________________________________________________________
+    We are checking if the global variable's declared type matches the
+    type of the initial value it is assigned to. Additionally, we will
+    provide default values if the user assigns the global to 'uninit'.
+    _____________________________________________________________________
     */
     public void visitGlobalDecl(GlobalDecl gd) {
         Var globalVar = gd.var();
@@ -503,30 +634,35 @@ public class TypeChecker extends Visitor {
         }
         globalVar.init().visit(this);
 
-        // Error Check #1: Check if the global variable's declared type
+        // ERROR CHECK #1: Check if the global variable's declared type
         //                 matches the type of the initial value
         if(!Type.assignmentCompatible(gd.type(),globalVar.init().type)) {
-            msg = new TypeError(gd.toString(),gd, gd.type(), globalVar.init().type, ErrorType.GLOBAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(gd)
+                    .addErrorType(ErrorType.TYPE_ERROR_401)
+                    .addArgs(gd.toString(),gd.type(),globalVar.init().type)
+                    .error());
         }
 
         globalVar.setType(gd.type());
     }
 
-
     /*
-    _____________________________  If Statements ______________________________
-    Similarly to the loop constructs, we only have to check if an if statement's
-    condition evaluates into a Bool. IF this is a true, then we are good to go
-    visit other nodes. :)
-    ___________________________________________________________________________
+    ________________________  If Statements ________________________
+    Similarly to the loop constructs, we only have to check if an if
+    statement's condition evaluates into a Bool. IF this is a true,
+    then we are good to go visit other nodes. :)
+    ________________________________________________________________
     */
     public void visitIfStmt(IfStmt is) {
         is.condition().visit(this);
 
         if(!is.condition().type.isBool()) {
-            msg = new TypeError("",is,is.condition().type,null,ErrorType.IF_CONDITION_NOT_BOOLEAN);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(is.condition())
+                    .addErrorType(ErrorType.TYPE_ERROR_406)
+                    .addArgs(is.condition().type)
+                    .error());
         }
 
         currentScope = is.symbolTableIfBlock;
@@ -542,24 +678,48 @@ public class TypeChecker extends Visitor {
         }
     }
 
+    /*
+    _______________________________ Invocations _______________________________
+    In C Minor, both forms of invocations will have the same exact type checking
+    done on them.
+
+    We need to check first whether we are passing the correct amount of arguments
+    to the function/method. Then, we need to make sure each argument's type is
+    assignment compatible with the type of the parameter declaration.
+
+    At the end, the type of the invocation will be based on the type of the
+    function's return type.
+    ___________________________________________________________________________
+    */
     public void visitInvocation(Invocation in) {
-        String funcName = in.toString();
+        //TODO: Name Checking here
+        String funcSignature = in.toString() + "/";
+        in.arguments().visit(this);
+
+        for(int i = 0; i < in.arguments().size(); i++)
+            funcSignature += in.arguments().get(i).type.typeSignature();
+        in.setInvokeSignature(funcSignature);
 
         // Function Check
         if(in.target() == null) {
-            FuncDecl fd = currentScope.findName(funcName).declName().asTopLevelDecl().asFuncDecl();
 
             // Error #1
-            if(fd.params().size() != in.arguments().size())
-                TypeErrorOLD.GenericTypeError(in);
+            if(!currentScope.hasName(funcSignature)) {
+//                msg = new TypeError(funcSignature,in,null,null,ErrorType.FUNC_INVALID_NUM_OF_ARGS);
+//                try { msg.printMsg(); }
+//                catch(Exception e) { throw e; }
+            }
 
-            in.arguments().visit(this);
+            FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
 
             for(int i = 0; i < fd.params().size(); i++) {
                 Type paramType = fd.params().get(i).getType();
                 Type argType = in.arguments().get(i).type;
-                if(!paramType.typeName().equals(argType.typeName()))
-                    TypeErrorOLD.GenericTypeError(in);
+                if(!paramType.typeName().equals(argType.typeName())) {
+//                    msg = new TypeError(in.arguments().get(i).toString(),in,paramType,argType,ErrorType.FUNC_INVALID_ARG_TYPE);
+//                    try { msg.printMsg(); }
+//                    catch(Exception e) { throw e; }
+                }
             }
 
             in.type = fd.returnType();
@@ -569,11 +729,14 @@ public class TypeChecker extends Visitor {
             in.target().visit(this);
             Type tt = in.target().type;
             ClassDecl cd = currentScope.findName(tt.typeName()).declName().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(funcName).declName().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
 
             // Error #1
-            if(in.arguments() != null && md.params().size() != in.arguments().size())
-                TypeErrorOLD.GenericTypeError(in);
+            if(in.arguments() != null && md.params().size() != in.arguments().size()) {
+//                msg = new TypeError(funcSignature,in,null,null,ErrorType.FUNC_INVALID_NUM_OF_ARGS);
+//                try { msg.printMsg(); }
+//                catch(Exception e) { throw e; }
+            }
 
             if(in.arguments() != null && in.arguments().size() > 0)
                 in.arguments().visit(this);
@@ -581,8 +744,11 @@ public class TypeChecker extends Visitor {
             for(int i = 0; i < md.params().size(); i++) {
                 Type paramType = md.params().get(i).getType();
                 Type argType = in.arguments().get(i).type;
-                if(!paramType.typeName().equals(argType.typeName()))
-                    TypeErrorOLD.GenericTypeError(in);
+                if(!paramType.typeName().equals(argType.typeName())) {
+//                    msg = new TypeError(in.arguments().get(i).toString(),in,paramType,argType,ErrorType.FUNC_INVALID_ARG_TYPE);
+//                    try { msg.printMsg(); }
+//                    catch(Exception e) { throw e; }
+                }
             }
             in.targetType = tt;
             in.type = md.returnType();
@@ -590,12 +756,12 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        ________________________Literals_________________________
-        We set the type based on the type of literal that
-        was parsed. This only includes Scalar and Discrete
-        types. All other literals (Arrays, Lists, and Objects)
-        will be handled in separate AST visits.
-        _________________________________________________________
+    ________________________ Literals ________________________
+    We set the type based on the type of literal that was
+    parsed. This only includes Scalar and Discrete types.
+    All other literals (Arrays, Lists, and Objects) will be
+    handled in separate AST visits.
+    __________________________________________________________
     */
     public void visitLiteral(Literal li) {
         if(li.getConstantKind() == ConstantKind.BOOL) { li.type = new DiscreteType(Discretes.BOOL); }
@@ -606,68 +772,76 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        _________________________Local Declarations___________________________
-        We need to ensure that if a user initializes a local variable
-        to a value, the value needs to match the type of the declaration.
+    ________________________ Local Declarations ________________________
+    We need to ensure that if a user initializes a local variable to a
+    value, the value needs to match the type of the declaration.
 
-        Remember, C Minor does NOT support type coercion. This means the
-        value MUST be the same type as the declaration. The only way around
-        this is through a valid cast expression.
+    Remember, C Minor does NOT support type coercion. This means the
+    value MUST be the same type as the declaration. The only way around
+    this is through a valid cast expression.
 
-        Also, if the user initially assigns a local variable to store `uninit`,
-        we will automatically set the default value based on the type.
-        ______________________________________________________________________
+    Also, if the user initially assigns a local variable to store
+    `uninit`, we will automatically set the default value based on the type.
+    ______________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
         Var localVar = ld.var();
 
         if(localVar.init() == null) {
             Literal defaultValue = null;
-            if (ld.type().isInt()) {
+            if (ld.type().isInt())
                 defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", ld.location), ConstantKind.INT);
-            }
-            else if(ld.type().isChar()) {
+            else if(ld.type().isChar())
                 defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", ld.location), ConstantKind.CHAR);
-            }
-            else if(ld.type().isBool()) {
+            else if(ld.type().isBool())
                 defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", ld.location), ConstantKind.BOOL);
-            }
-            else if(ld.type().isReal()) {
+            else if(ld.type().isReal())
                 defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", ld.location), ConstantKind.REAL);
-            }
-            else if(ld.type().isString()) {
+            else if(ld.type().isString())
                 defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", ld.location), ConstantKind.STR);
-            }
+            else
+                defaultValue = null;
             localVar.setInit(defaultValue);
         }
-        localVar.init().visit(this);
 
-        // Error Check #1: Check if the local variable's declared type
+        if(localVar.init() != null) { localVar.init().visit(this); }
+
+        // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
         if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
-            msg = new TypeError(ld.toString(),ld, ld.type(), localVar.init().type, ErrorType.LOCAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ld)
+                    .addErrorType(ErrorType.TYPE_ERROR_400)
+                    .addArgs(ld.toString(),ld.type(),localVar.init().type)
+                    .error());
         }
 
         localVar.setType(ld.type());
     }
 
     /*
-        We do not need to do any type checking when we visit the main
-        function of the program. All we have to do here is set the
-        currentScope to be in main.
+    _________________________ Main Declaration _________________________
+    There is no type checking needing to be inside of main. We just set
+    the current scope to be inside main and visit its body.
+    ____________________________________________________________________
     */
     public void visitMainDecl(MainDecl md) {
         currentScope = md.symbolTable;
         currentContext = md;
+        if(!md.returnType().isVoidType()) {
+//            msg = new TypeError(md.toString(),md, md.returnType(),null, ErrorType.MAIN_RETURN_TYPE_ERROR);
+//            try { msg.printMsg(); }
+//            catch(Exception e) { throw e; }
+        }
         super.visitMainDecl(md);
         currentScope = currentScope.closeScope();
     }
 
     /*
-        For a MethodDecl, there is no type checking that needs to
-        be done. We set the current scope to be the method and then
-        visit its children.
+    _________________________ Method Declarations _________________________
+    There is no type checking needing to be inside of methods. We just set
+    the current scope to be inside the method and visit its body.
+    _______________________________________________________________________
     */
     public void visitMethodDecl(MethodDecl md) {
         currentScope = md.symbolTable;
@@ -677,10 +851,10 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        ____________________________ Name Expressions  ____________________________
-        All we need to do is find the declaration associated with the name and set
-        it equal to the type given to the declaration.
-        ___________________________________________________________________________
+    _________________________ Name Expressions  _________________________
+    All we need to do is find the declaration associated with the name
+    and set it equal to the type given in its declaration.
+    _____________________________________________________________________
     */
     public void visitNameExpr(NameExpr ne) {
         NameNode decl = currentScope.findName(ne.toString());
@@ -697,32 +871,33 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        In C Minor, a default constructor will automatically be generated
-        whenever a user declares a class in their program. This means we
-        only need to check if the types of the fields corresponds to the
-        actual types of the expressions we are instantiating an object with.
+    ___________________________ New Expressions _____________________________
+    Since we generate a constructor automatically for the user, we only have
+    to check whether an initial value given to an object matches the type of
+    its corresponding field declaration.
+    _________________________________________________________________________
     */
     public void visitNewExpr(NewExpr ne) {
         String className = ne.classType().getName().toString();
 
-        // First, find the ClassDecl the new expression is trying
-        // to instantiate and get its constructor
+        // Find the ClassDecl node for the corresponding new expression
         ClassDecl cd = currentScope.findName(className).declName().asTopLevelDecl().asClassDecl();
-        InitDecl currConstructor = cd.getConstructor();
+        InitDecl currConstructor = cd.constructor();
 
         Vector<Var> args = ne.args();
-        Vector<FieldDecl> dataFields = currConstructor.params();
 
         for(int i = 0; i < args.size(); i++) {
-            Expression e = args.get(i).init();
-            e.visit(this);
-            Type eType = e.type;
+            Expression currArg = args.get(i).init();
+            currArg.visit(this);
 
             String argName = args.get(i).name().toString();
-            Type declType = cd.symbolTable.findName(argName).declName().asFieldDecl().type();
+            Type fieldDeclType = cd.symbolTable.findName(argName).declName().asFieldDecl().type();
 
-            if(!Type.assignmentCompatible(eType,declType))
-                TypeErrorOLD.GenericTypeError(ne);
+            if(!Type.assignmentCompatible(currArg.type,fieldDeclType)) {
+//                msg = new TypeError(argName,ne, fieldDeclType, currArg.type, ErrorType.NEW_EXPR_INVALID_ARG_TYPE);
+//                try { msg.printMsg(); }
+//                catch(Exception e) { throw e; }
+            }
         }
         ne.type = ne.classType();
     }
@@ -754,7 +929,7 @@ public class TypeChecker extends Visitor {
               return any expression.
         */
         if(rs.expr() != null && rType == null)
-            StmtError.VoidReturnError(rs);
+           ; // StmtError.VoidReturnError(rs);
 
         /*
           ERROR CHECK #2:
@@ -762,7 +937,7 @@ public class TypeChecker extends Visitor {
               to make sure the return statement's expression is of the corresponding type
         */
         if(rs.expr() != null && !Type.assignmentCompatible(rType,rs.expr().type))
-            StmtError.InvalidReturnError(rs,rType);
+            ; //StmtError.InvalidReturnError(rs,rType);
 
         if(rs.expr() != null)
             rs.type = rs.expr().type;
@@ -771,75 +946,78 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        __________________________ Unary Expressions  _____________________________
-        We only have 2 unary operators in C Minor, so there isn't much to check.
-        Here is each operator:
+    __________________________ Unary Expressions  __________________________
+    We only have 2 unary operators in C Minor, so there isn't much to check.
+    Here is each operator:
 
-            1. '~'
-                - Operand Type: Int or Real
-                - Unary Expression Type: Type of both operands
+        1. '~'
+            - Operand Type: Int or Real
+            - Unary Expression Type: Type of both operands
 
-            2. 'not'
-                - Operand Type: Bool
-                - Unary Expression Type: Bool
+        2. 'not'
+            - Operand Type: Bool
+            - Unary Expression Type: Bool
 
-        Both unary operators may also be overloaded, so we also will check if the
-        overload was defined by the user.
-        ___________________________________________________________________________
+    Both unary operators may also be overloaded, so we also will check if
+    the overload was defined by the user.
+    ________________________________________________________________________
     */
     public void visitUnaryExpr(UnaryExpr ue) {
 
         ue.expr().visit(this);
         Type eType = ue.expr().type;
-        String uOp = ue.unaryOp().toString();
 
-        // TODO: OPERATOR OVERLOAD CHECK HERE
-        if(eType.isClassType()) {
-            ClassDecl cd = currentScope.findName(eType.typeName()).declName().asTopLevelDecl().asClassDecl();
-            if(!cd.symbolTable.hasName(uOp)) {
-                // TODO: Error Message HERE
-                ;
-            }
-            ue.type = eType;
-            return;
-        }
+        String uOp = ue.unaryOp().toString();
 
         switch(uOp) {
             case "~":
-                // Error Check #2: Make sure we are negating an Int or Real
+                // ERROR CHECK #1: Make sure we are negating an Int or Real
                 if(eType.isInt()) { ue.type = new DiscreteType(Discretes.INT); }
                 else if(eType.isReal()) { ue.type = new ScalarType(Scalars.REAL); }
                 else {
-                    msg = new TypeError(ue.toString(), ue, eType, eType, ErrorType.UNARY_EXPR_INVALID_NEGATION);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ue)
+                            .addErrorType(ErrorType.TYPE_ERROR_405)
+                            .addArgs(eType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1407)
+                            .addArgsForSuggestion(uOp)
+                            .error());
                 }
                 break;
             case "not":
-                // Error Check #3: Make sure 'not' is performed on a Bool
+                // ERROR CHECK #2: Make sure 'not' is performed on a Bool
                 if(eType.isBool()) { ue.type = new DiscreteType(Discretes.BOOL); }
                 else {
-                    msg = new TypeError(ue.toString(), ue, eType, eType, ErrorType.UNARY_EXPR_INVALID_NOT);
-                    msg.printMsg();
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ue)
+                            .addErrorType(ErrorType.TYPE_ERROR_405)
+                            .addArgs(eType)
+                            .addSuggestType(ErrorType.TYPE_SUGGEST_1408)
+                            .addArgsForSuggestion(uOp)
+                            .error());
                 }
                 break;
         }
     }
 
     /*
-        ___________________________While Statements_____________________________
-        Similarly to the other loop constructs, we only need to check whether or
-        not the while's loop condition evaluates to a boolean. All other type
-        checks related to the while loop will be handled by other visits.
-        ________________________________________________________________________
+    ___________________________ While Statements ___________________________
+    Similarly to the other loop constructs, we only need to check whether or
+    not the while's loop condition evaluates to a boolean. All other type
+    checks related to the while loop will be handled by other visits.
+    ________________________________________________________________________
     */
     public void visitWhileStmt(WhileStmt ws) {
 
         ws.condition().visit(this);
 
-        // Error Check #1: While's condition must be a Boolean
+        // ERROR CHECK #1: While's condition must be a Boolean
         if(!ws.condition().type.isBool()) {
-            msg = new TypeError("",ws,ws.condition().type,null,ErrorType.LOOP_CONDITION_NOT_BOOLEAN);
-            msg.printMsg();
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ws.condition())
+                    .addErrorType(ErrorType.TYPE_ERROR_407)
+                    .addArgs(ws.condition().type)
+                    .error());
         }
 
         if(ws.nextExpr() != null) { ws.nextExpr().visit(this); }

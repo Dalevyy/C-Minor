@@ -1,0 +1,27 @@
+
+def main() => Void {
+    def local a = 8 Int 
+    def local b = 9 Int 
+
+    if(a < b) {
+        set a += 10
+        if(a > b) {
+            set a -= 2
+        }
+        else if(a == b) {
+            set b = a 
+        }
+        else {
+            set a += 2
+        }
+    }
+    else if(a == b) {
+        cout << 'true'
+    }
+    else {
+        def local c = 38 Int 
+        if(a == c) {
+            set c *= 2
+        }
+    }
+}

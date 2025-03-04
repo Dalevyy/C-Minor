@@ -1,0 +1,9 @@
+
+def main() => Void {
+    def local a = 5 Int 
+
+    while a != 10 {
+        cout << 'While loop running'
+        set a += 1
+    }
+}

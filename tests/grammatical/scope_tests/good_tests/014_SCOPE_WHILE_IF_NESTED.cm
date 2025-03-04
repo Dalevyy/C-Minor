@@ -1,0 +1,18 @@
+
+def main() => Void {
+    def flag = True Bool
+    def local a = 5 Int
+
+    while(flag) next a {
+        def a = 5 Int
+        def b = 6 Int
+
+        if a < b {
+            set flag = False
+        }
+        else {
+            set a -= b
+        }
+    }
+    stop
+}

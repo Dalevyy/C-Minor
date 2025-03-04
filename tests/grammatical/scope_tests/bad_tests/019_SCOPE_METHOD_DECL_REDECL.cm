@@ -1,0 +1,8 @@
+
+class MyClass {
+
+    public method myVal(in a Int, in b Real) => Void {}
+    public method myVal(in a Int, in b Real) => Void {}
+}
+
+def main() => Void {}

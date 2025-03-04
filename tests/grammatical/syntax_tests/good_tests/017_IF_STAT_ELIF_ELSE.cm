@@ -1,0 +1,15 @@
+
+def main() => Void {
+    def local a = 5 Int 
+    def local b = 10 Int 
+
+    if a < b {
+        cout << 'a is less than b'
+    }
+    else if (a > b) {
+        cout << 'a is greater than b'
+    }
+    else {
+        cout << 'a is exactly equal to b'
+    }
+}

@@ -1,0 +1,13 @@
+
+def main() => Void {
+    def local a = 5, b = 6 Int 
+
+    a + b
+    a - b 
+    a * b
+    a / b
+    a % b
+    a ** b
+
+    stop 
+}

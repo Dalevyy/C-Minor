@@ -1,0 +1,5 @@
+
+def DAYS type = { MON, TUES, WEDS }
+def DAYS2 type = { THURS, FRI, WEDS, SAT }
+
+def main() => Void {}

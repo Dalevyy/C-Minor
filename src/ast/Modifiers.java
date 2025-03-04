@@ -53,7 +53,7 @@ public class Modifiers {
             case "Pure":
                 nodeIsPure = true;
                 break;
-            case "Recurs":
+            case "Recursive":
                 nodeIsRecurs = true;
                 break;
             case "In":

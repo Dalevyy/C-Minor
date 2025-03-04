@@ -1,0 +1,10 @@
+
+class MyClass {
+    property myValue Int
+    public myValue2 = 'hello' String
+    protected myValue3 = 30.3221 Real
+}
+
+def main() => Void {
+
+}
