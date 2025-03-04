@@ -757,7 +757,7 @@ public class TypeChecker extends Visitor {
             FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
 
             for(int i = 0; i < fd.params().size(); i++) {
-                Type paramType = fd.params().get(i).getType();
+                Type paramType = fd.params().get(i).type();
                 Type argType = in.arguments().get(i).type;
                 if(!paramType.typeName().equals(argType.typeName())) {
 //                    msg = new TypeError(in.arguments().get(i).toString(),in,paramType,argType,MessageType.FUNC_INVALID_ARG_TYPE);
@@ -796,7 +796,7 @@ public class TypeChecker extends Visitor {
                 in.arguments().visit(this);
 
             for(int i = 0; i < md.params().size(); i++) {
-                Type paramType = md.params().get(i).getType();
+                Type paramType = md.params().get(i).type();
                 Type argType = in.arguments().get(i).type;
                 if(!paramType.typeName().equals(argType.typeName())) {
 //                    msg = new TypeError(in.arguments().get(i).toString(),in,paramType,argType,MessageType.FUNC_INVALID_ARG_TYPE);
@@ -943,7 +943,7 @@ public class TypeChecker extends Visitor {
         NameNode decl = currentScope.findName(ne.toString());
 
         if(decl.declName().isStatement()) { ne.type = decl.declName().asStatement().asLocalDecl().type(); }
-        else if(decl.declName().isParamDecl()) { ne.type = decl.declName().asParamDecl().getType(); }
+        else if(decl.declName().isParamDecl()) { ne.type = decl.declName().asParamDecl().type(); }
         else if(decl.declName().isTopLevelDecl()) {
             TopLevelDecl tDecl = decl.declName().asTopLevelDecl();
 
@@ -986,6 +986,28 @@ public class TypeChecker extends Visitor {
             }
         }
         ne.type = ne.classType();
+    }
+
+    /*
+    _______________________ Parameter Declarations _______________________
+    Each parameter will have a type, so we must check to ensure that type
+    actually exists. If it doesn't, then we have to error out and stop the
+    compilation process.
+    ______________________________________________________________________
+    */
+    public void visitParamDecl(ParamDecl pd) {
+        if(pd.type().isClassType()) {
+            // ERROR CHECK #1: If the type is not a primitive, then make
+            //                 sure it was defined somewhere in the program
+            if(!currentScope.hasNameSomewhere(pd.type().typeName())) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(pd)
+                        .addErrorType(MessageType.TYPE_ERROR_422)
+                        .addArgs(pd.type().typeName(),pd.toString())
+                        .error());
+            }
+        }
+
     }
 
     /*
