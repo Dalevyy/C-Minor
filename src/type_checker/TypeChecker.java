@@ -40,8 +40,6 @@ public class TypeChecker extends Visitor {
         this.currentScope = st;
     }
 
-    // Missing ArrayLiteral and ListLiteral :')
-
     /*
         For an ArrayExpr, we need to type check the target expression
         alongside the index we are using to access an array's memory.
@@ -75,6 +73,8 @@ public class TypeChecker extends Visitor {
         if(!ae.arrayIndex().type.isInt())
             ;
     }
+
+    public void visitArrayLiteral(ArrayLiteral al) {}
 
     /*
     _________________________ Assignment Statements _________________________
@@ -403,41 +403,71 @@ public class TypeChecker extends Visitor {
         ce.type = typeToCastInto;
     }
 
-    public void visitCaseStmt(CaseStmt cs) {
-        currentScope = cs.symbolTable;
-        super.visitCaseStmt(cs);
-        currentScope = currentScope.closeScope();
-    }
+    /*
+    _________________________ Choice Statements  _________________________
+    When we are visiting a choice statement, there are 2 main type checks
+    we have to perform.
 
+    First, we make sure the choice expression is either an Int, Char, or
+    a String. Then, we make sure each case's label corresponds to the
+    correct type of the choice expression. If this is all valid, then we
+    can continue with the compilation process.
+    ______________________________________________________________________
+    */
     public void visitChoiceStmt(ChoiceStmt cs) {
         cs.choiceExpr().visit(this);
 
         currentScope = cs.symbolTable;
-        Type eType = cs.choiceExpr().type;
+        Type choiceType = cs.choiceExpr().type;
 
-        if(!(eType.isInt() || eType.isChar() || eType.isString()))
-            ; //TypeErrorOLD.GenericTypeError(cs);
+        // ERROR CHECK #1: Only allow Ints, Chars, and Strings
+        //                 to be switched on
+        if(!(choiceType.isInt() || choiceType.isChar() || choiceType.isString())) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(cs.choiceExpr())
+                    .addErrorType(MessageType.TYPE_ERROR_424)
+                    .addArgs(choiceType)
+                    .addSuggestType(MessageType.TYPE_SUGGEST_1409)
+                    .error());
+        }
 
         for(int i = 0; i < cs.caseStmts().size(); i++) {
             CaseStmt currCase = cs.caseStmts().get(i);
             currCase.choiceLabel().visit(this);
             Type labelType = currCase.choiceLabel().leftLabel().type;
 
-            if(!(labelType.isInt() || labelType.isChar() || labelType.isString()))
-                ;
+            // ERROR CHECK #2: Make sure the case label's type corresponds
+            //                 to the type of the choice statement expression
+            if(!Type.assignmentCompatible(labelType,choiceType)) {
+                errors.add(new ErrorBuilder(generateTypeError, interpretMode)
+                        .addLocation(currCase.choiceLabel())
+                        .addErrorType(MessageType.TYPE_ERROR_425)
+                        .addArgs(labelType, choiceType)
+                        .addSuggestType(MessageType.TYPE_SUGGEST_1410)
+                        .error());
+            }
 
             if(currCase.choiceLabel().rightLabel() != null) {
                 labelType = currCase.choiceLabel().rightLabel().type;
-                if(!(labelType.isInt() || labelType.isChar() || labelType.isString()))
-                 ;
+                // ERROR CHECK #3: Same as ERROR CHECK #2, but now for the right label
+                if(!Type.assignmentCompatible(labelType,choiceType)) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(currCase.choiceLabel())
+                            .addErrorType(MessageType.TYPE_ERROR_425)
+                            .addArgs(labelType,choiceType)
+                            .addSuggestType(MessageType.TYPE_SUGGEST_1410)
+                            .error());
+                }
             }
+            SymbolTable oldScope = currentScope;
+            currentScope = currCase.symbolTable;
+
             currCase.caseBlock().visit(this);
+
+            currentScope = oldScope;
         }
-        if(cs.choiceBlock() != null)
-            cs.choiceBlock().visit(this);
+        if(cs.choiceBlock() != null) { cs.choiceBlock().visit(this); }
         currentScope = currentScope.closeScope();
-
-
     }
 
     /*
@@ -485,8 +515,18 @@ public class TypeChecker extends Visitor {
     public void visitEnumDecl(EnumDecl ed) {
         Type eType = ed.type();
 
-        if(eType == null)
-            eType = new DiscreteType(Discretes.INT);
+        if(eType == null) { eType = new DiscreteType(Discretes.INT); }
+        else {
+            // ERROR CHECK #1: Make sure the Enum has a valid type if
+            //                 a non-primitive type is used
+            if(eType.isClassType()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ed)
+                        .addErrorType(MessageType.TYPE_ERROR_423)
+                        .addArgs(ed.toString(),eType.typeName())
+                        .error());
+            }
+        }
 
         Vector<Var> eFields = ed.enumVars();
         for(int i = 0; i < eFields.size(); i++) {
@@ -824,6 +864,8 @@ public class TypeChecker extends Visitor {
         else if(li.getConstantKind() == ConstantKind.STR) { li.type = new ScalarType(Scalars.STR); }
         else if(li.getConstantKind() == ConstantKind.REAL) { li.type = new ScalarType(Scalars.REAL); }
     }
+
+    public void visitListLiteral(ListLiteral ll) {}
 
     /*
     ________________________ Local Declarations ________________________
