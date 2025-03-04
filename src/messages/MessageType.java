@@ -1,19 +1,15 @@
-package messages.errors;
+package messages;
 
-import utilities.PrettyPrint;
 import utilities.PropertiesLoader;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.net.URL;
-import java.io.InputStream;
 
 import java.util.Properties;
 
-public enum ErrorType {
+public enum MessageType {
 
     /*      SCOPE ERRORS     */
-
     SCOPE_ERROR_300,
     SCOPE_ERROR_301,
     SCOPE_ERROR_302,
@@ -33,6 +29,8 @@ public enum ErrorType {
     SCOPE_ERROR_316,
     SCOPE_ERROR_317,
     SCOPE_ERROR_318,
+    SCOPE_ERROR_319,
+    SCOPE_ERROR_320,
 
     /*      TYPE ERRORS     */
     TYPE_ERROR_400,
@@ -57,42 +55,17 @@ public enum ErrorType {
     TYPE_ERROR_419,
     TYPE_ERROR_420,
 
-    // Type Checking Errors
-    LOCAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR,
-    GLOBAL_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR,
-    FIELD_DECL_TYPE_DOES_NOT_MATCH_INIT_EXPR,
-    ASSIGN_STMT_TYPE_DOES_NOT_MATCH,
-    ASSIGN_STMT_INVALID_TYPES_USED,
 
-    BIN_EXPR_NOT_ASSIGNCOMP,
-    BIN_EXPR_NOT_NUMERIC,
-    BIN_EXPR_SLEFT_SRIGHT_NOT_INT,
-    BIN_EXPR_BITWISE_NOT_DISCRETE,
-    BIN_EXPR_LOGICAL_NOT_BOOL,
-    BIN_EXPR_OBJ_OPS_MISSING_OBJ,
-
-    UNARY_EXPR_INVALID_NEGATION,
-    UNARY_EXPR_INVALID_NOT,
-
-    CAST_EXPR_INVALID_INT_CAST,
-    CAST_EXPR_INVALID_CHAR_CAST,
-    CAST_EXPR_INVALID_REAL_CAST,
-    CAST_EXPR_INVALID_CAST,
-
-    IF_CONDITION_NOT_BOOLEAN,
-    LOOP_CONDITION_NOT_BOOLEAN,
-
-    NEW_EXPR_INVALID_ARG_TYPE,
-    FIELD_EXPR_INVALID_TARGET_TYPE,
-
-    FUNC_INVALID_NUM_OF_ARGS,
-    FUNC_INVALID_ARG_TYPE,
-
-    MAIN_RETURN_TYPE_ERROR,
-
-
-
-    //       MODIFIER ERRORS
+    /*      MOD ERRORS     */
+    MOD_ERROR_500,
+    MOD_ERROR_501,
+    MOD_ERROR_502,
+    MOD_ERROR_503,
+    MOD_ERROR_504,
+    MOD_ERROR_505,
+    MOD_ERROR_506,
+    MOD_ERROR_507,
+    MOD_ERROR_508,
 
     CAN_NOT_ACCESS_NON_PUBLIC_FIELD,
     CAN_NOT_ACCESS_NON_PUBLIC_METHOD,
@@ -117,10 +90,20 @@ public enum ErrorType {
     TYPE_SUGGEST_1408,
     TYPE_SUGGEST_1409,
     TYPE_SUGGEST_1410,
-    TYPE_SUGGEST_1411;
+    TYPE_SUGGEST_1411,
+
+    MOD_SUGGEST_1500,
+    MOD_SUGGEST_1501,
+    MOD_SUGGEST_1502,
+    MOD_SUGGEST_1503,
+    MOD_SUGGEST_1504,
+    MOD_SUGGEST_1505,
+    MOD_SUGGEST_1506,
+    MOD_SUGGEST_1507;
+
 
     private static Properties errorMessages;
-    private static final String PATH = "utilities/ErrorType.properties";
+    private static final String PATH = "utilities/MessageType.properties";
 
     public String getMessage() {
         return errorMessages.getProperty(name());
