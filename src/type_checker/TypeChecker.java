@@ -425,7 +425,7 @@ public class TypeChecker extends Visitor {
         if(!(choiceType.isInt() || choiceType.isChar() || choiceType.isString())) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(cs.choiceExpr())
-                    .addErrorType(MessageType.TYPE_ERROR_424)
+                    .addErrorType(MessageType.TYPE_ERROR_426)
                     .addArgs(choiceType)
                     .addSuggestType(MessageType.TYPE_SUGGEST_1409)
                     .error());
@@ -441,7 +441,7 @@ public class TypeChecker extends Visitor {
             if(!Type.assignmentCompatible(labelType,choiceType)) {
                 errors.add(new ErrorBuilder(generateTypeError, interpretMode)
                         .addLocation(currCase.choiceLabel())
-                        .addErrorType(MessageType.TYPE_ERROR_425)
+                        .addErrorType(MessageType.TYPE_ERROR_427)
                         .addArgs(labelType, choiceType)
                         .addSuggestType(MessageType.TYPE_SUGGEST_1410)
                         .error());
@@ -453,7 +453,7 @@ public class TypeChecker extends Visitor {
                 if(!Type.assignmentCompatible(labelType,choiceType)) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(currCase.choiceLabel())
-                            .addErrorType(MessageType.TYPE_ERROR_425)
+                            .addErrorType(MessageType.TYPE_ERROR_426)
                             .addArgs(labelType,choiceType)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1410)
                             .error());
@@ -509,34 +509,58 @@ public class TypeChecker extends Visitor {
     }
 
     /*
-        By default, each field of an enumeration will be
-        an Integer unless the use specifies otherwise.
+    ___________________________ Enum Declarations ___________________________
+    In C Minor, an enumeration can only store values of type Int and Char for
+    each constant. Additionally, we are going to be strict and require the
+    user to initialize all values of the enumeration if at least one constant
+    was initialized to a default value.
+    _________________________________________________________________________
     */
     public void visitEnumDecl(EnumDecl ed) {
         Type eType = ed.type();
 
         if(eType == null) { eType = new DiscreteType(Discretes.INT); }
         else {
-            // ERROR CHECK #1: Make sure the Enum has a valid type if
-            //                 a non-primitive type is used
-            if(eType.isClassType()) {
+            // ERROR CHECK #1: An Enum can only assign values of type Int and Char
+            if(!eType.isInt() && !eType.isChar()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ed)
                         .addErrorType(MessageType.TYPE_ERROR_423)
                         .addArgs(ed.toString(),eType.typeName())
+                        .addSuggestType(MessageType.TYPE_SUGGEST_1411)
                         .error());
             }
         }
 
         Vector<Var> eFields = ed.enumVars();
+        int initCount = 0;
         for(int i = 0; i < eFields.size(); i++) {
-            Expression e = eFields.get(i).asVar().init();
-            if(e != null) {
-                e.visit(this);
+            Var enumVar = eFields.get(i).asVar();
+            Expression varInit = enumVar.init();
+            if (varInit != null) {
+                initCount++;
 
-                if(!Type.assignmentCompatible(eType,e.type))
-                    ; //TypeErrorOLD.GenericTypeError(ed);
+                // ERROR CHECK #2: Make sure the initial value given to a constant
+                //                 matches the type given to the Enum
+                varInit.visit(this);
+                if(!Type.assignmentCompatible(eType,varInit.type)) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ed)
+                            .addErrorType(MessageType.TYPE_ERROR_424)
+                            .addArgs(enumVar.toString(),varInit.type.typeName(),eType)
+                            .error());
+                }
             }
+        }
+
+        // ERROR CHECK #3: Check to make sure each constant in the Enum was initialized
+        //                 if we found at least one constant that was initialized
+        if(initCount > 0 && initCount != eFields.size()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ed)
+                    .addErrorType(MessageType.TYPE_ERROR_425)
+                    .addArgs()
+                    .error());
         }
     }
 
