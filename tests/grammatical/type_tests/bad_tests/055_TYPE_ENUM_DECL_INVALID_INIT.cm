@@ -1,0 +1,4 @@
+
+def myVals Int type = {SUN=3,MOON,PLUTO=9,MERCURY }
+
+def main() => Void {}
