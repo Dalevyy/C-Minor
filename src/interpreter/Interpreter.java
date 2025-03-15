@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.math.BigDecimal;
 
 public class Interpreter extends Visitor {
 
@@ -24,6 +25,11 @@ public class Interpreter extends Visitor {
         stack = new SymbolTable();
         insideLoop = false;
         returnFound = false;
+    }
+
+    public Interpreter(SymbolTable st) {
+        this();
+        this.currentScope = st;
     }
 
     public void visitArrayExpr(ArrayExpr ae) {
@@ -77,15 +83,15 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(currExpr.type.isReal()) {
-                    double oldVal = (double) stack.getValueInRuntimeStack(assignID);
-                    double val = (double) newValue;
+                    BigDecimal oldVal = (BigDecimal) stack.getValueInRuntimeStack(assignID);
+                    BigDecimal val = (BigDecimal) newValue;
                     switch(aOp) {
-                        case "+=" -> stack.setValueInRuntimeStack(assignID,oldVal+val);
-                        case "-=" -> stack.setValueInRuntimeStack(assignID,oldVal-val);
-                        case "*=" -> stack.setValueInRuntimeStack(assignID,oldVal*val);
-                        case "/=" -> stack.setValueInRuntimeStack(assignID,oldVal/val);
-                        case "%=" -> stack.setValueInRuntimeStack(assignID,oldVal%val);
-                        case "**=" -> stack.setValueInRuntimeStack(assignID,Math.pow(oldVal,val));
+                        case "+=" -> stack.setValueInRuntimeStack(assignID,oldVal.add(val));
+                        case "-=" -> stack.setValueInRuntimeStack(assignID,oldVal.subtract(val));
+                        case "*=" -> stack.setValueInRuntimeStack(assignID,oldVal.multiply(val));
+                        case "/=" -> stack.setValueInRuntimeStack(assignID,oldVal.divide(val));
+                        case "%=" -> stack.setValueInRuntimeStack(assignID,oldVal.remainder(val));
+                        case "**=" -> stack.setValueInRuntimeStack(assignID,oldVal.pow(val.toBigInteger().intValue()));
                     }
                     break;
                 }
@@ -133,15 +139,15 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(be.type.isReal()) {
-                    double lValue = (double) LHS.getValue(stack);
-                    double rValue = (double) RHS.getValue(stack);
+                    BigDecimal lValue = (BigDecimal) LHS.getValue(stack);
+                    BigDecimal rValue = (BigDecimal) RHS.getValue(stack);
                     switch(binOp) {
-                        case "+" -> currExpr.setValue(lValue + rValue);
-                        case "-" -> currExpr.setValue(lValue - rValue);
-                        case "*" -> currExpr.setValue(lValue * rValue);
-                        case "/" -> currExpr.setValue(lValue / rValue);
-                        case "%" -> currExpr.setValue(lValue % rValue);
-                        case "**" -> currExpr.setValue(Math.pow(lValue,rValue));
+                        case "+" -> currExpr.setValue(lValue.add(rValue));
+                        case "-" -> currExpr.setValue(lValue.subtract(rValue));
+                        case "*" -> currExpr.setValue(lValue.multiply(rValue));
+                        case "/" -> currExpr.setValue(lValue.divide(rValue));
+                        case "%" -> currExpr.setValue(lValue.remainder(rValue));
+                        case "**" -> currExpr.setValue(lValue.pow(rValue.toBigInteger().intValue()));
                     }
                     break;
                 }
@@ -172,6 +178,33 @@ public class Interpreter extends Visitor {
                     }
                     break;
                 }
+                else if(LHS.type.isInt() && RHS.type.isInt()) {
+                    int lValue = (int) LHS.getValue(stack);
+                    int rValue = (int) RHS.getValue(stack);
+                    switch(binOp) {
+                        case "==" -> currExpr.setValue(lValue == rValue);
+                        case "!=" -> currExpr.setValue(lValue != rValue);
+                    }
+                    break;
+                }
+                else if(LHS.type.isChar() && RHS.type.isChar()) {
+                    char lValue = (char) LHS.getValue(stack);
+                    char rValue = (char) RHS.getValue(stack);
+                    switch(binOp) {
+                        case "==" -> currExpr.setValue(lValue == rValue);
+                        case "!=" -> currExpr.setValue(lValue != rValue);
+                    }
+                    break;
+                }
+                else if(LHS.type.isReal() && RHS.type.isReal()) {
+                    BigDecimal lValue = (BigDecimal) LHS.getValue(stack);
+                    BigDecimal rValue = (BigDecimal) RHS.getValue(stack);
+                    switch(binOp) {
+                        case "==" -> currExpr.setValue(lValue.compareTo(rValue) == 0);
+                        case "!=" -> currExpr.setValue(lValue.compareTo(rValue) != 0);
+                    }
+                    break;
+                }
             }
             case "<":
             case "<=":
@@ -189,13 +222,13 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(LHS.type.isReal() && RHS.type.isReal()) {
-                    double lValue = (double) LHS.getValue(stack);
-                    double rValue = (double) RHS.getValue(stack);
+                    BigDecimal lValue = (BigDecimal) LHS.getValue(stack);
+                    BigDecimal rValue = (BigDecimal) RHS.getValue(stack);
                     switch (binOp) {
-                        case "<" -> currExpr.setValue(lValue < rValue);
-                        case "<=" -> currExpr.setValue(lValue <= rValue);
-                        case ">" -> currExpr.setValue(lValue > rValue);
-                        case ">=" -> currExpr.setValue(lValue >= rValue);
+                        case "<" -> currExpr.setValue(lValue.compareTo(rValue) < 0);
+                        case "<=" -> currExpr.setValue(lValue.compareTo(rValue) > 0);
+                        case ">" -> currExpr.setValue(lValue.compareTo(rValue) >= 0);
+                        case ">=" -> currExpr.setValue(lValue.compareTo(rValue) <= 0);
                     }
                     break;
                 }
@@ -268,7 +301,7 @@ public class Interpreter extends Visitor {
     public void visitCastExpr(CastExpr cs) {
         cs.castExpr().visit(this);
         if(cs.castType().isInt()) { cs.setValue((int)currExpr.getValue(stack)); }
-        else if(cs.castType().isReal()) { cs.setValue(Double.valueOf((int)currExpr.getValue(stack))); }
+        else if(cs.castType().isReal()) { cs.setValue(BigDecimal.valueOf((int)currExpr.getValue(stack))); }
         else if(cs.castType().isChar()) { cs.setValue((Character)currExpr.getValue(stack)); }
         else if(cs.castType().isString()) { cs.setValue((String)currExpr.getValue(stack)); }
     }
@@ -301,8 +334,6 @@ public class Interpreter extends Visitor {
         } while ((boolean) currExpr.getValue(stack));
     }
 
-    public void visitEndl(Endl e) { currExpr.setValue("\n"); }
-
     public void visitEnumDecl(EnumDecl ed) {
         ArrayList<Object> arr = new ArrayList<Object>();
         for(int i = 0; i < ed.enumVars().size(); i++) {
@@ -310,6 +341,13 @@ public class Interpreter extends Visitor {
             arr.add(currExpr.getValue(stack));
         }
         stack.setValueInRuntimeStack(ed.name().toString(),arr);
+    }
+
+    public void visitFieldDecl(FieldDecl fd) {
+        if(fd.var().init() != null) {
+            fd.var().init().visit(this);
+            stack.setValueInRuntimeStack(fd.toString(),currExpr.getValue(stack));
+        }
     }
 
     public void visitFieldExpr(FieldExpr fe) {
@@ -353,6 +391,18 @@ public class Interpreter extends Visitor {
         }
     }
 
+    public void visitInitDecl(InitDecl id) {
+        HashMap<String,Object> objInstance = (HashMap<String,Object>)currExpr.getValue(stack);
+        for(int i = 0; i < id.assignStmts().size(); i++) {
+            AssignStmt as = id.assignStmts().get(i);
+
+            if(!objInstance.containsKey(as.LHS().toString())) {
+                as.RHS().visit(this);
+                objInstance.put(as.LHS().toString(),currExpr.getValue(stack));
+            }
+        }
+    }
+
     public void visitInStmt(InStmt in) {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input = "";
@@ -370,6 +420,7 @@ public class Interpreter extends Visitor {
 
     public void visitInvocation(Invocation in) {
         ArrayList<Object> args = new ArrayList<Object>();
+        String funcSignature = in.invokeSignature();
 
         for(int i = 0; i < in.arguments().size(); i++) {
             in.arguments().get(i).visit(this);
@@ -378,7 +429,7 @@ public class Interpreter extends Visitor {
 
         SymbolTable oldScope = currentScope;
         if(in.target() == null) {
-            FuncDecl fd = currentScope.findName(in.toString()).declName().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
             currentScope = fd.symbolTable;
 
             for(int i = 0; i < in.arguments().size(); i++) {
@@ -389,9 +440,17 @@ public class Interpreter extends Visitor {
             fd.visit(this);
         }
         else {
+            in.target().visit(this);
+            HashMap<String,Object> obj = (HashMap<String, Object>) in.target().getValue(stack);
+
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(in.toString()).declName().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
+
             currentScope = md.symbolTable;
+            stack = stack.openNewScope();
+
+            for(String s : obj.keySet())
+                stack.setValueInRuntimeStack(s,obj.get(s),true);
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -401,6 +460,8 @@ public class Interpreter extends Visitor {
             md.visit(this);
         }
         currentScope = oldScope;
+        stack = stack.closeScope();
+
     }
 
     public void visitListLiteral(ListLiteral li) {
@@ -422,12 +483,18 @@ public class Interpreter extends Visitor {
         }
         else if(li.type.isChar()) { currExpr.setValue(li.text); }
         else if(li.type.isBool()) { currExpr.setValue(Boolean.parseBoolean(li.text)); }
-        else if(li.type.isReal()) { currExpr.setValue(Double.parseDouble(li.text)); }
+        else if(li.type.isReal()) { currExpr.setValue(new BigDecimal(li.text)); }
         else if(li.type.isString()) {
             currExpr.setValue(li.text.substring(1,li.text.length()-1));
         }
     }
 
+    /*
+    _________________________ Local Declarations _________________________
+    For local declarations, we will evaluate their initial values and then
+    we will store the varaible on the stack.
+    ______________________________________________________________________
+    */
     public void visitLocalDecl(LocalDecl ld) {
         ld.var().init().visit(this);
         stack.setValueInRuntimeStack(ld.var().toString(),currExpr.getValue(stack));
@@ -454,12 +521,23 @@ public class Interpreter extends Visitor {
         }
         ne.setValue(instance);
         currExpr = ne;
+
+        cd.constructor().visit(this);
+        currExpr = ne;
     }
 
     public void visitOutStmt(OutStmt os) {
         for(int i = 0; i < os.outExprs().size(); i++) {
-            os.outExprs().get(i).visit(this);
-            System.out.print(currExpr.getValue(stack));
+            Expression e = os.outExprs().get(i);
+            if(e.isEndl()) { System.out.println(); }
+            else {
+                e.visit(this);
+                Object obj = currExpr.getValue(stack);
+                if(obj instanceof String && obj.equals("' '")) // Guess I need this here?
+                    System.out.print(" ");
+                else
+                    System.out.print(currExpr.getValue(stack));
+            }
         }
     }
 
@@ -471,6 +549,7 @@ public class Interpreter extends Visitor {
     }
 
     public void visitStopStmt(StopStmt ss) {
+        System.out.println();
         System.exit(1);
     }
 
@@ -490,8 +569,8 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(ue.type.isReal()) {
-                    double uVal = (double) val;
-                    currExpr.setValue(uVal*-1);
+                    BigDecimal uVal = (BigDecimal) val;
+                    currExpr.setValue(uVal.multiply(new BigDecimal(-1)));
                     break;
                 }
             }
