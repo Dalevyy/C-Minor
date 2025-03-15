@@ -361,15 +361,14 @@ public class Parser {
         }
         else match(TokenType.GLOBAL);
 
-        Vector<Var> varDecls = variableDecl();
-        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-
+        Vector<Var> vars = variableDecl();
         Vector<GlobalDecl> globals = new Vector<GlobalDecl>();
-        for(int i = 0; i < varDecls.size(); i++)
-            globals.append(new GlobalDecl(t,varDecls.get(i).asVar(), varDecls.get(i).asVar().type(), isConstant));
 
-        for(int i = 0; i < globals.size(); i++)
-            globals.get(i).toString();
+        for(int i = 0; i < vars.size(); i++) {
+            Var v = vars.get(i).asVar();
+            t.setText(input.getProgramInputForToken(t.getStartPos(),v.location.end));
+            globals.append(new GlobalDecl(t,v,v.type(),isConstant));
+        }
 
         return globals;
     }
@@ -694,14 +693,15 @@ public class Parser {
         }
 
         Vector<Var> vars = variableDecl();
+        Vector<FieldDecl> fields = new Vector<FieldDecl>();
 
-        Vector<FieldDecl> dataDecls = new Vector<FieldDecl>();
+        for(int i = 0; i < vars.size(); i++) {
+            Var v = vars.get(i).asVar();
+            t.setText(input.getProgramInputForToken(t.getStartPos(),v.location.end));
+            fields.append(new FieldDecl(t,m,v,v.type()));
+        }
 
-        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-
-        for(int i = 0; i < vars.size(); i++)
-            dataDecls.append(new FieldDecl(t,m,vars.get(i).asVar(),vars.get(i).asVar().type()));
-        return dataDecls;
+        return fields;
     }
 
     /*
@@ -1138,10 +1138,11 @@ public class Parser {
         Vector<Var> vars = variableDecl();
         Vector<LocalDecl> locals = new Vector<LocalDecl>();
 
-        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-        
-        for(int i = 0; i < vars.size(); i++)
-            locals.append(new LocalDecl(t ,vars.get(i).asVar(), vars.get(i).asVar().type()));
+        for(int i = 0; i < vars.size(); i++) {
+            Var v = vars.get(i).asVar();
+            t.setText(input.getProgramInputForToken(t.getStartPos(),v.location.end));
+            locals.append(new LocalDecl(t ,v, v.type()));
+        }
 
         return locals;
     }
