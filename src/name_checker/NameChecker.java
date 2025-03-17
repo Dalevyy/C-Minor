@@ -33,6 +33,28 @@ public class NameChecker extends Visitor {
     }
 
     /*
+    _________________________ Assignment Statements _________________________
+    We need to make sure the LHS of an assignment statement is either a name
+    expression or a field expression. It does not make sense to have any
+    construct here since we can only assign a value to a declared variable.
+    _________________________________________________________________________
+    */
+    public void visitAssignStmt(AssignStmt as) {
+
+        // ERROR CHECK #1 : Make sure the LHS of an assignment is a name or field
+        if(!(as.LHS() instanceof NameExpr) && !(as.LHS() instanceof FieldExpr)) {
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(as)
+                    .addErrorType(MessageType.SCOPE_ERROR_325)
+                    .addArgs(as.LHS().toString())
+                    .addSuggestType(MessageType.SCOPE_SUGGEST_1302)
+                    .error());
+        }
+
+        super.visitAssignStmt(as);
+    }
+
+    /*
     _________________________ Block Statements _________________________
     Any time we visit a block statement, we will open a new scope and
     visit the declarations and statements associated with the block
@@ -117,7 +139,16 @@ public class NameChecker extends Visitor {
                         .addArgs(className)
                         .error());
             }
-            className += "/" + cd.superClass().getName().toString();
+
+            if(!currentScope.hasName(baseClass)) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(cd)
+                        .addErrorType(MessageType.SCOPE_ERROR_322)
+                        .addArgs(baseClass)
+                        .error());
+            }
+
+            // className += "/" + cd.superClass().getName().toString();
         }
 
         currentScope.addName(className,cd);
@@ -141,6 +172,9 @@ public class NameChecker extends Visitor {
                     }
                     currentScope.addName(name,baseDecl.symbolTable.getVarNames().get(name));
                 }
+            }
+            for(String name: baseDecl.symbolTable.getMethodNames()) {
+                currentScope.addMethod(name);
             }
         }
 
