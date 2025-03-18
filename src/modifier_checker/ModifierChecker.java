@@ -3,7 +3,7 @@ package modifier_checker;
 import ast.*;
 import ast.class_body.*;
 import ast.expressions.*;
-import ast.statements.AssignStmt;
+import ast.statements.*;
 import ast.top_level_decls.*;
 import ast.types.*;
 import messages.*;
@@ -34,6 +34,7 @@ public class ModifierChecker extends Visitor {
     public ModifierChecker(SymbolTable st) {
         this();
         this.currentScope = st;
+        this.interpretMode = true;
     }
 
     // Based on Dr. Pedersen's algorithm (?)
@@ -97,6 +98,29 @@ public class ModifierChecker extends Visitor {
                         .error());
             }
         }
+        // ERROR CHECK #2: A constant found in an enumeration can not
+        //                 be reassigned a value.
+        else if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
+            errors.add(new ErrorBuilder(generateModError,interpretMode)
+                    .addLocation(as)
+                    .addErrorType(MessageType.MOD_ERROR_508)
+                    .addArgs(as.LHS().toString())
+                    .error());
+        }
+    }
+
+    public void visitCaseStmt(CaseStmt cs) {
+        SymbolTable oldScope = currentScope;
+        currentScope = cs.symbolTable;
+        super.visitCaseStmt(cs);
+        currentScope = oldScope;
+    }
+
+    public void visitChoiceStmt(ChoiceStmt cs) {
+        SymbolTable oldScope = currentScope;
+        currentScope = cs.symbolTable;
+        super.visitChoiceStmt(cs);
+        currentScope = oldScope;
     }
 
     /*
@@ -137,6 +161,13 @@ public class ModifierChecker extends Visitor {
         else { super.visitClassDecl(cd); }
 
         currentScope = currentScope.closeScope();
+    }
+
+    public void visitDoStmt(DoStmt ds) {
+        SymbolTable oldScope = currentScope;
+        currentScope = ds.symbolTable;
+        super.visitDoStmt(ds);
+        currentScope = oldScope;
     }
 
     //TODO: PROPERTIES
@@ -185,12 +216,36 @@ public class ModifierChecker extends Visitor {
         fe.fieldTarget().visit(this);
     }
 
+    public void visitForStmt(ForStmt fs) {
+        SymbolTable oldScope = currentScope;
+        currentScope = fs.symbolTable;
+        super.visitForStmt(fs);
+        currentScope = oldScope;
+    }
+
     public void visitFuncDecl(FuncDecl fd) {
         currentContext = fd;
         currentScope = fd.symbolTable;
         super.visitFuncDecl(fd);
         currentContext = null;
         currentScope = currentScope.closeScope();
+    }
+
+    public void visitIfStmt(IfStmt is) {
+        SymbolTable oldScope = currentScope;
+        currentScope = is.symbolTableIfBlock;
+        is.ifBlock().visit(this);
+        currentScope = oldScope;
+
+        if(is.elifStmts().size() > 0)
+            is.elifStmts().visit(this);
+
+        if(is.elseBlock() != null) {
+            oldScope = currentScope;
+            currentScope = is.symbolTableElseBlock;
+            is.elseBlock().visit(this);
+            currentScope = oldScope;
+        }
     }
 
     /*
@@ -227,7 +282,7 @@ public class ModifierChecker extends Visitor {
         // Method Invocation Case
         else {
             ClassDecl cd = currentScope.findName(in.target().type.typeName()).declName().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(in.name().toString()).declName().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
 
             // ERROR CHECK #2: A method can not recursively call itself without the 'recurs' keyword
             if(currentContext == md && md.toString().equals(in.toString())) {
@@ -286,5 +341,12 @@ public class ModifierChecker extends Visitor {
         }
 
         super.visitNewExpr(ne);
+    }
+
+    public void visitWhileStmt(WhileStmt ws) {
+        SymbolTable oldScope = currentScope;
+        currentScope = ws.symbolTable;
+        super.visitWhileStmt(ws);
+        currentScope = oldScope;
     }
 }
