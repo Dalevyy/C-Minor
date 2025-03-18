@@ -480,6 +480,16 @@ public class NameChecker extends Visitor {
                         .error());
             }
             ld.var().init().visit(this);
+            // ERROR CHECK #3) Make sure if the initial value is a name expression,
+            //                 the name isn't the name of an enum or a class
+//            NameNode initFound = currentScope.findName(ld.var().init().toString());
+//            if(initFound.declName().isTopLevelDecl()) {
+//                if(initFound.declName().asTopLevelDecl().isEnumDecl()) {
+//                    EnumDecl ed = initFound.declName().asTopLevelDecl().asEnumDecl();
+//                    if(ld.var().init().toString().equals(ed.toString())) { System.out.println("PROBLEM!"); }
+//                }
+//                else if(initFound.declName().asTopLevelDecl().isClassDecl()) { System.out.println("PROBLEM"); }
+//            }
         }
 
         currentScope.addName(localName,ld);
@@ -562,6 +572,16 @@ public class NameChecker extends Visitor {
                     .addErrorType(MessageType.SCOPE_ERROR_307)
                     .addArgs(name)
                     .error());
+        }
+        else {
+            NameNode nn = currentScope.findName(name);
+            if(nn.declName().isTopLevelDecl() && nn.declName().toString().equals(name)) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.SCOPE_ERROR_326)
+                                .addArgs(name)
+                                .error());
+            }
         }
     }
 
