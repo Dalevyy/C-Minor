@@ -9,34 +9,18 @@ import java.util.HashSet;
 public class SymbolTable {
 
     private HashMap<String, NameNode> varNames;
-    private HashMap<String, SymbolTable> methodNames;
-    private HashMap<String, Object> runtimeStack;
+    private HashSet<String> methodNames;
     private SymbolTable parent;
     private SymbolTable importParent;
 
     public SymbolTable() {
         varNames = new HashMap<String, NameNode>();
-        methodNames = new HashMap<String, SymbolTable>();
-        runtimeStack = new HashMap<String, Object>();
+        methodNames = new HashSet<String>();
     }
 
     public SymbolTable(SymbolTable p) {
         this();
         parent = p;
-    }
-
-    public void setValueInRuntimeStack(String name, Object value) {
-        if(!runtimeStack.containsKey(name) && parent != null)
-            parent.setValueInRuntimeStack(name,value);
-        else
-            runtimeStack.put(name,value);
-    }
-
-    public Object getValueInRuntimeStack(String name) {
-        Object valueFound = runtimeStack.get(name);
-        if(valueFound != null) return valueFound;
-        else if(parent != null) return parent.getValueInRuntimeStack(name);
-        else return null;
     }
 
     public void setParent(SymbolTable p) { parent = p; }
@@ -46,21 +30,13 @@ public class SymbolTable {
     public SymbolTable getImportParent() { return importParent; }
 
     public void addName(String name, NameNode n) { varNames.put(name,n); }
-    public void addMethod(String nameSignature, SymbolTable st) { methodNames.put(nameSignature,st); }
+    public void addMethod(String methodName) { methodNames.add(methodName); }
 
     public NameNode findName(String name) {
         NameNode nameFound = varNames.get(name);
         if(nameFound != null) return nameFound;
         else if(parent != null) return parent.findName(name);
         else if(importParent != null) return importParent.findName(name);
-        else return null;
-    }
-
-    public SymbolTable findMethod(String name) {
-        SymbolTable methodFound = methodNames.get(name);
-        if(methodFound != null) return methodFound;
-        else if(parent != null) return parent.findMethod(name);
-        else if(importParent != null) return importParent.findMethod(name);
         else return null;
     }
 
@@ -81,7 +57,7 @@ public class SymbolTable {
         return false;
     }
 
-    public boolean hasMethod(String name) { return methodNames.containsKey(name); }
+    public boolean hasMethod(String name) { return methodNames.contains(name); }
 
     public boolean hasMethodSomewhere(String name) {
         if(hasMethod(name)) return true;
@@ -90,16 +66,12 @@ public class SymbolTable {
         else return false;
     }
 
-    public boolean hasMethodInImportTable(String name) {
-        if(importParent != null)
-            return importParent.hasMethod(name);
-        return false;
+    public void removeName(String node) {
+        varNames.remove(node);
     }
 
-    public NameNode getVarName(String n) { return varNames.get(n); }
-
     public HashMap<String,NameNode> getVarNames() { return varNames; }
-    public HashMap<String,SymbolTable> getMethodNames() { return methodNames; }
+    public HashSet<String> getMethodNames() { return methodNames; }
 
     public boolean isNameUsedAnywhere(String name) {
         return hasNameSomewhere(name) || hasMethodSomewhere(name);
@@ -117,12 +89,6 @@ public class SymbolTable {
             sb.append("\nName: " + entry.getKey());
         }
         sb.append("\n" + level + ". Construct Names");
-        for(var entry : methodNames.entrySet()) {
-            if(!visited.contains(entry.getValue())) {
-                visited.add(entry.getValue());
-                entry.getValue().addEntries(sb,level+1,visited);
-            }
-        }
     }
 
     public String symbolTableToString(HashSet<SymbolTable> visited, int level) {
