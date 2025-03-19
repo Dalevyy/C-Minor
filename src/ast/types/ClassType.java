@@ -8,9 +8,8 @@ public class ClassType extends Type {
     private Name name;
     private Vector<Type> templateTypes;
 
-    public ClassType(Name n) { this(null,n,null); }
+    public ClassType(Name n) { this(new Token(),n,null); }
     public ClassType(Token t, Name n) { this(t,n,null); }
-
     public ClassType(Token t, Name n, Vector<Type> tt) {
         super(t);
         this.name = n;
@@ -29,9 +28,19 @@ public class ClassType extends Type {
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
 
-    public static boolean isSuperClass(ClassType current, ClassType sup) {
-        if(Type.typeEqual(current,sup))
-            return true;
+    public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
+        if(subClass.toString().equals(superClass.toString())) { return true; }
+
+        String classHierarchy = subClass.toString();
+        String superClassName = superClass.toString();
+        int slashLocation = classHierarchy.indexOf('/');
+
+        while(slashLocation != -1) {
+            String subClassName = classHierarchy.substring(0,slashLocation);
+            if(subClassName.equals(superClassName)) { return true; }
+            classHierarchy = classHierarchy.substring(slashLocation+1,classHierarchy.length());
+        }
+
         return false;
     }
 

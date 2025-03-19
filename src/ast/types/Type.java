@@ -36,13 +36,14 @@ public abstract class Type extends AST {
     }
 
     public static boolean assignmentCompatible(Type LHS, Type RHS) {
-        if(Type.typeEqual(LHS,RHS))
-            return true;
-        else if(LHS.isClassType() && RHS.isClassType())
-            ClassType.isSuperClass(LHS.asClassType(),RHS.asClassType());
-        else if(LHS.isArrayType() && RHS.isArrayType()) {
-            return true;
+        if(Type.typeEqual(LHS,RHS)) { return true; }
+        else if(LHS.isClassType() && RHS.isClassType()) {
+            if (LHS.asClassType().toString().length() > RHS.asClassType().toString().length()) {
+                return ClassType.isSuperClass(LHS.asClassType(), RHS.asClassType());
+            } else { return ClassType.isSuperClass(RHS.asClassType(), LHS.asClassType()); }
         }
+        else if(LHS.isListType() && RHS.isListType()) { return true; }
+        else if(LHS.isArrayType() && RHS.isArrayType()) { return true; }
         return false;
     }
 
@@ -74,10 +75,8 @@ public abstract class Type extends AST {
         return this.isScalarType() && (this.asScalarType().getScalarType() == ScalarType.Scalars.REAL);
     }
 
-    public boolean isArray() {
-        return this.isArrayType();
-    }
-
+    public boolean isList() { return this.isListType(); }
+    public boolean isArray() { return this.isArrayType(); }
     public boolean isNumeric() { return this.isInt() || this.isChar() || this.isReal(); }
 
     public boolean isScalarType() { return false; }
