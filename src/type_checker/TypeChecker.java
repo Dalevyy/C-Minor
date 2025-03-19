@@ -22,8 +22,8 @@ public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
     private AST currentContext;
-    private ScopeErrorFactory generateScopeError;
     private TypeErrorFactory generateTypeError;
+    private ScopeErrorFactory generateScopeError;
     private ArrayList<String> errors;
 
     private boolean returnStatementFound = false;
@@ -31,13 +31,15 @@ public class TypeChecker extends Visitor {
     public TypeChecker() {
         this.currentScope = null;
         this.currentContext = null;
-        this.generateScopeError = new ScopeErrorFactory();
         this.generateTypeError = new TypeErrorFactory();
+        this.generateScopeError = new ScopeErrorFactory();
+        this.errors = new ArrayList<String>();
     }
 
     public TypeChecker(SymbolTable st) {
         this();
         this.currentScope = st;
+        this.interpretMode = true;
     }
 
     /*
@@ -52,26 +54,27 @@ public class TypeChecker extends Visitor {
                 We first need to make sure the target expression
                 represents an array.
         */
-        if(!ae.arrayTarget().type.isArrayType())
+        if(ae.arrayTarget().type.isArrayType()) {
             ;
+        }
+        else if(ae.arrayTarget().type.isListType()) {
 
-        ArrayType aType = ae.arrayTarget().type.asArrayType();
+        }
+        else {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ae)
+                    .addErrorType(MessageType.TYPE_ERROR_430)
+                    .addArgs(ae.arrayTarget().toString())
+                    .error());
+        }
 
-        if(aType.asArrayType().getArrayDims() > 1)
-            ae.type = new ArrayType(aType.getBaseType(), aType.getArrayDims()-1);
-        else
-            ae.type = aType.getBaseType();
-
-        /*
-            ERROR CHECK #2:
-                We now need to check the type of the index being used.
-                In C Minor, you can only use Ints as indices for arrays, so
-                the index expression must evaluate to an Int to prevent a
-                type checking error.
-        */
-        ae.arrayIndex().visit(this);
-        if(!ae.arrayIndex().type.isInt())
-            ;
+        if(!ae.arrayIndex().type.isInt()) {
+            errors.add(new ErrorBuilder(generateTypeError, interpretMode)
+                    .addLocation(ae)
+                    .addErrorType(MessageType.TYPE_ERROR_431)
+                    .addArgs(ae.arrayIndex().type.typeName())
+                    .error());
+        }
     }
 
     public void visitArrayLiteral(ArrayLiteral al) {}
@@ -366,7 +369,7 @@ public class TypeChecker extends Visitor {
 
         if(exprType.isInt()) {
             // ERROR CHECK #1: An Int can only be typecasted into a Char and a Real
-            if(!typeToCastInto.isChar() && !typeToCastInto.isReal()) {
+            if(!typeToCastInto.isChar() && !typeToCastInto.isReal() && !typeToCastInto.isInt()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ce)
                         .addErrorType(MessageType.TYPE_ERROR_408)
@@ -375,7 +378,7 @@ public class TypeChecker extends Visitor {
         }
         else if(exprType.isChar()) {
             // ERROR CHECK #2: A Char can only be type casted into an Int and a String
-            if(!typeToCastInto.isInt() && !typeToCastInto.isString()) {
+            if(!typeToCastInto.isInt() && !typeToCastInto.isString() && !typeToCastInto.isChar()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ce)
                         .addErrorType(MessageType.TYPE_ERROR_409)
@@ -384,7 +387,7 @@ public class TypeChecker extends Visitor {
         }
         else if(exprType.isReal()) {
             // ERROR CHECK #3: A Real can only be type casted into an Int
-            if(!typeToCastInto.isInt()) {
+            if(!typeToCastInto.isInt() && !typeToCastInto.isReal()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ce)
                         .addErrorType(MessageType.TYPE_ERROR_410)
@@ -448,8 +451,17 @@ public class TypeChecker extends Visitor {
             }
 
             if(currCase.choiceLabel().rightLabel() != null) {
+                // ERROR CHECK #3: If we allow to choose from String values, then
+                //                 there is only one label allowed per case statement
+                if(choiceType.isString()) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(currCase.choiceLabel())
+                            .addErrorType(MessageType.TYPE_ERROR_433)
+                            .error());
+                }
+
                 labelType = currCase.choiceLabel().rightLabel().type;
-                // ERROR CHECK #3: Same as ERROR CHECK #2, but now for the right label
+                // ERROR CHECK #4: Same as ERROR CHECK #2, but now for the right label
                 if(!Type.assignmentCompatible(labelType,choiceType)) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(currCase.choiceLabel())
@@ -457,6 +469,28 @@ public class TypeChecker extends Visitor {
                             .addArgs(labelType,choiceType)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1410)
                             .error());
+                }
+
+                // ERROR CHECK #5: Make sure the label's right constant is greater than the left constant
+                if(choiceType.isInt()) {
+                    int lLabel = Integer.valueOf(currCase.choiceLabel().leftLabel().getText());
+                    int rLabel = Integer.valueOf(currCase.choiceLabel().rightLabel().getText());
+                    if(rLabel <= lLabel) {
+                        errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(currCase.choiceLabel())
+                                .addErrorType(MessageType.TYPE_ERROR_434)
+                                .error());
+                    }
+                }
+                else if(choiceType.isChar()) {
+                    char lLabel = currCase.choiceLabel().leftLabel().getText().charAt(1);
+                    char rLabel = currCase.choiceLabel().rightLabel().getText().charAt(1);
+                    if(rLabel <= lLabel) {
+                        errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(currCase.choiceLabel())
+                                .addErrorType(MessageType.TYPE_ERROR_434)
+                                .error());
+                    }
                 }
             }
             SymbolTable oldScope = currentScope;
@@ -517,9 +551,12 @@ public class TypeChecker extends Visitor {
     _________________________________________________________________________
     */
     public void visitEnumDecl(EnumDecl ed) {
-        Type eType = ed.type();
+        Type eType = ed.constantType();
 
-        if(eType == null) { eType = new DiscreteType(Discretes.INT); }
+        if(eType == null) {
+            eType = new DiscreteType(Discretes.INT);
+            ed.setType(eType);
+        }
         else {
             // ERROR CHECK #1: An Enum can only assign values of type Int and Char
             if(!eType.isInt() && !eType.isChar()) {
@@ -559,8 +596,25 @@ public class TypeChecker extends Visitor {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ed)
                     .addErrorType(MessageType.TYPE_ERROR_425)
-                    .addArgs()
                     .error());
+        }
+
+        if(initCount == 0) {
+            // ERROR CHECK #4: If the user didn't initialize any of the constants and the
+            //                 type was declared as a 'Char', we are going to output an
+            //                 error since there is no ordering that can be made from Chars.
+            if(eType.isChar()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ed)
+                        .addErrorType(MessageType.TYPE_ERROR_432)
+                        .addArgs(ed.toString())
+                        .error());
+            }
+            for(int i = 0; i < eFields.size(); i++) {
+                Var v = eFields.get(i);
+                v.setInit(new Literal(new Token(token.TokenType.INT_LIT,String.valueOf(i+1),v.location),ConstantKind.INT));
+                v.init().visit(this);
+            }
         }
     }
 
@@ -788,13 +842,16 @@ public class TypeChecker extends Visitor {
     /*
     ____________________________ Invocations ____________________________
     In C Minor, both forms of invocations will have the same exact type
-    checking done on them.
+    checking done on them. We will be checking whether or not a valid
+    overload of the function/method exist.
 
-    We first need to make sure the method exists via a name check since
-    we had to wait until we had the argument types to find the correct
-    method for overloading. If th
+    In the future, this could be a much more descriptive error message,
+    but for right now, we want to make sure the number of arguments and
+    their types match at least one valid function/method declaration.
 
-    TODO: This might be broken... must think more
+    We will also name check methods here since we now know the class type
+    of the object, so we can get the correct symbol table to check for
+    the method declaration.
     _____________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
@@ -808,28 +865,17 @@ public class TypeChecker extends Visitor {
 
         // Function Check
         if(in.target() == null) {
-
-            // ERROR CHECK #1: Make sure the method exists in the current scope
-            if(!currentScope.hasName(funcSignature)) {
-                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+            // ERROR CHECK #1: Make sure the function overload exists for the passed
+            //                 argument types
+            if(!currentScope.hasNameSomewhere(funcSignature)) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(in)
-                        .addErrorType(MessageType.SCOPE_ERROR_319)
+                        .addErrorType(MessageType.TYPE_ERROR_428)
                         .addArgs(in.toString())
                         .error());
             }
 
             FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
-
-            for(int i = 0; i < fd.params().size(); i++) {
-                Type paramType = fd.params().get(i).type();
-                Type argType = in.arguments().get(i).type;
-                if(!paramType.typeName().equals(argType.typeName())) {
-//                    msg = new TypeError(in.arguments().get(i).toString(),in,paramType,argType,MessageType.FUNC_INVALID_ARG_TYPE);
-//                    try { msg.printMsg(); }
-//                    catch(Exception e) { throw e; }
-                }
-            }
-
             in.type = fd.returnType();
         }
         // Method Check
@@ -838,36 +884,26 @@ public class TypeChecker extends Visitor {
             Type targetType = in.target().type;
             ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
 
-            // ERROR CHECK #1: Make sure the method exists in the current scope
-            if(!cd.symbolTable.hasName(funcSignature)) {
-                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+            // ERROR CHECK #2: Make sure the method was declared in the class
+            if (!cd.symbolTable.hasMethod(in.toString())) {
+                errors.add(new ErrorBuilder(generateScopeError, interpretMode)
                         .addLocation(in)
                         .addErrorType(MessageType.SCOPE_ERROR_320)
-                        .addArgs(in.toString(),cd.toString())
+                        .addArgs(in.toString(), cd.toString())
+                        .error());
+            }
+
+            // ERROR CHECK #3: Make sure the method overload exists for the passed
+            //                 argument types
+            if(!cd.symbolTable.hasName(funcSignature)) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.TYPE_ERROR_429)
+                        .addArgs(in.toString())
                         .error());
             }
 
             MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
-
-            // Error #1
-            if(in.arguments() != null && md.params().size() != in.arguments().size()) {
-//                msg = new TypeError(funcSignature,in,null,null,MessageType.FUNC_INVALID_NUM_OF_ARGS);
-//                try { msg.printMsg(); }
-//                catch(Exception e) { throw e; }
-            }
-
-            if(in.arguments() != null && in.arguments().size() > 0)
-                in.arguments().visit(this);
-
-            for(int i = 0; i < md.params().size(); i++) {
-                Type paramType = md.params().get(i).type();
-                Type argType = in.arguments().get(i).type;
-                if(!paramType.typeName().equals(argType.typeName())) {
-//                    msg = new TypeError(in.arguments().get(i).toString(),in,paramType,argType,MessageType.FUNC_INVALID_ARG_TYPE);
-//                    try { msg.printMsg(); }
-//                    catch(Exception e) { throw e; }
-                }
-            }
             in.targetType = targetType;
             in.type = md.returnType();
         }
@@ -889,7 +925,8 @@ public class TypeChecker extends Visitor {
         else if(li.getConstantKind() == ConstantKind.REAL) { li.type = new ScalarType(Scalars.REAL); }
     }
 
-    public void visitListLiteral(ListLiteral ll) {}
+    public void visitListLiteral(ListLiteral ll) {
+    }
 
     /*
     ________________________ Local Declarations ________________________
@@ -901,8 +938,9 @@ public class TypeChecker extends Visitor {
     this is through a valid cast expression.
 
     Also, if the user initially assigns a local variable to store
-    `uninit`, we will automatically set the default value based on the type.
-    ______________________________________________________________________
+    `uninit`, we will automatically set the default value based on
+    the type.
+    ____________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
         Var localVar = ld.var();
@@ -919,6 +957,8 @@ public class TypeChecker extends Visitor {
                 defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", ld.location), ConstantKind.REAL);
             else if(ld.type().isString())
                 defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", ld.location), ConstantKind.STR);
+            else if(ld.type().isList())
+                defaultValue = new ListLiteral(new Token(token.TokenType.LIST,"List()",ld.location),new Vector<Expression>());
             else
                 defaultValue = null;
             localVar.setInit(defaultValue);
@@ -1014,7 +1054,7 @@ public class TypeChecker extends Visitor {
             TopLevelDecl tDecl = decl.declName().asTopLevelDecl();
 
             if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
-            else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
+            else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().constantType(); }
             else if(tDecl.isClassDecl()) { ne.type = new ClassType(tDecl.asClassDecl().name()); }
         }
     }
@@ -1091,17 +1131,10 @@ public class TypeChecker extends Visitor {
         if(rs.expr() != null) { rs.expr().visit(this); }
 
         Type declaredReturnType = null;
-        if(currentContext.isMethodDecl()) {
-            declaredReturnType = currentContext.asMethodDecl().returnType();
-        }
+        if(currentContext.isMethodDecl()) { declaredReturnType = currentContext.asMethodDecl().returnType(); }
         else {
-            if(currentContext.asTopLevelDecl().isFuncDecl()) {
-                declaredReturnType = currentContext.asTopLevelDecl().asFuncDecl().returnType();
-            }
-            else {
-                declaredReturnType = currentContext.asTopLevelDecl().asMainDecl().returnType();
-
-            }
+            if(currentContext.asTopLevelDecl().isFuncDecl()) { declaredReturnType = currentContext.asTopLevelDecl().asFuncDecl().returnType(); }
+            else { declaredReturnType = currentContext.asTopLevelDecl().asMainDecl().returnType(); }
         }
 
         // ERROR CHECK #1: If the function is declared "Void", then a return statement
