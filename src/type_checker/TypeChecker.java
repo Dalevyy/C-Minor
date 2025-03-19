@@ -506,12 +506,28 @@ public class TypeChecker extends Visitor {
 
     /*
     _________________________ Class Declarations _________________________
-    There is no type checking needed with class declarations. We just set
-    the current scope to be inside the class and visit the class fields
-    and methods to type check.
+    For a class declaration, we will set the class type that represents
+    the inheritance hierarchy of the class before we proceed to visit the
+    class body.
     ______________________________________________________________________
     */
     public void visitClassDecl(ClassDecl cd) {
+        if(cd.superClass() != null) {
+            String inheritedClasses = cd.toString();
+            String baseClass = cd.superClass().toString();
+
+            // Adding class names to form the class hierarchy for use in type checking
+            do {
+                inheritedClasses += "/" + baseClass;
+                ClassDecl nextClass = currentScope.findName(baseClass).declName().asTopLevelDecl().asClassDecl();
+                if(nextClass.superClass() == null) { break; }
+                baseClass = nextClass.superClass().getName().toString();
+            }   while(currentScope.hasName(baseClass));
+
+            cd.setClassHierarchy(new ClassType(new Name(inheritedClasses)));
+            System.out.println(inheritedClasses);
+        } else { cd.setClassHierarchy(new ClassType(new Name(cd.toString()))); }
+
         currentScope = cd.symbolTable;
         super.visitClassDecl(cd);
         currentScope = currentScope.closeScope();
@@ -1091,7 +1107,7 @@ public class TypeChecker extends Visitor {
                         .error());
             }
         }
-        ne.type = ne.classType();
+        ne.type = cd.classHierarchy();
     }
 
     /*
