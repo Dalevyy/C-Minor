@@ -15,16 +15,18 @@ import java.math.BigDecimal;
 
 public class Interpreter extends Visitor {
 
-    private SymbolTable stack;
+    private RuntimeStack stack;
     private SymbolTable currentScope;
-    private Expression currExpr;
-    private boolean insideLoop;
+    private Object currValue;
     private boolean returnFound;
+    private boolean breakFound;
+    private boolean continueFound;
 
     public Interpreter() {
-        stack = new SymbolTable();
-        insideLoop = false;
+        stack = new RuntimeStack();
         returnFound = false;
+        breakFound = false;
+        continueFound = false;
     }
 
     public Interpreter(SymbolTable st) {
@@ -32,27 +34,35 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
     }
 
-    public void visitArrayExpr(ArrayExpr ae) {
-        ArrayList<Object> arr = (ArrayList<Object>) stack.getValueInRuntimeStack(ae.arrayTarget().toString());
-        ae.setValue(arr.get((int)ae.arrayIndex().getValue(stack)));
-        currExpr = ae;
-    }
+//    public void visitArrayExpr(ArrayExpr ae) {
+//        ArrayList<Object> arr = (ArrayList<Object>) stack.getValueInRuntimeStack(ae.arrayTarget().toString());
+//        ae.setValue(arr.get((int)ae.arrayIndex().getValue(stack)));
+//        currExpr = ae;
+//    }
+//
+//    public void visitArrayLiteral(ArrayLiteral al) {
+//        ArrayList<Object> arr = new ArrayList<Object>();
+//        for(int i = 0; i < al.arrayExprs().size(); i++) {
+//            al.arrayExprs().get(i).visit(this);
+//            arr.add(currExpr.getValue(stack));
+//        }
+//        currExpr = al;
+//    }
 
-    public void visitArrayLiteral(ArrayLiteral al) {
-        ArrayList<Object> arr = new ArrayList<Object>();
-        for(int i = 0; i < al.arrayExprs().size(); i++) {
-            al.arrayExprs().get(i).visit(this);
-            arr.add(currExpr.getValue(stack));
-        }
-        currExpr = al;
-    }
-
+    /*
+    _________________________ Assignment Statements _________________________
+    We will evaluate the LHS of the assignment to figure out what variable we
+    are updating and then the RHS to know what value we are going to assign
+    to it. Then, we will update the variable in the current call frame based
+    on the assignment operator we have.
+    _________________________________________________________________________
+    */
     public void visitAssignStmt(AssignStmt as) {
-        as.LHS().visit(this);
-        String assignID = currExpr.toString();
+        //as.LHS().visit(this);
+        String name = as.LHS().toString();
 
         as.RHS().visit(this);
-        Object newValue = currExpr.getValue(stack);
+        Object newValue = currValue;
 
         String aOp = as.assignOp().toString();
 
@@ -60,7 +70,7 @@ public class Interpreter extends Visitor {
 
         switch(aOp) {
             case "=": {
-                stack.setValueInRuntimeStack(assignID, newValue);
+                stack.setValue(name,newValue);
                 break;
             }
             case "+=":
@@ -69,52 +79,57 @@ public class Interpreter extends Visitor {
             case "/=":
             case "%=":
             case "**=": {
-                if(currExpr.type.isInt()) {
-                    int oldVal = (int) stack.getValueInRuntimeStack(assignID);
+                if(as.RHS().type.isInt()) {
+                    int oldVal = (int) stack.getValue(name);
                     int val = (int) newValue;
                     switch(aOp) {
-                        case "+=" -> stack.setValueInRuntimeStack(assignID,oldVal+val);
-                        case "-=" -> stack.setValueInRuntimeStack(assignID,oldVal-val);
-                        case "*=" -> stack.setValueInRuntimeStack(assignID,oldVal*val);
-                        case "/=" -> stack.setValueInRuntimeStack(assignID,oldVal/val);
-                        case "%=" -> stack.setValueInRuntimeStack(assignID,oldVal%val);
-                        case "**=" -> stack.setValueInRuntimeStack(assignID,(int)Math.pow(oldVal,val));
+                        case "+=" -> stack.setValue(name,oldVal+val);
+                        case "-=" -> stack.setValue(name,oldVal-val);
+                        case "*=" -> stack.setValue(name,oldVal*val);
+                        case "/=" -> stack.setValue(name,oldVal/val);
+                        case "%=" -> stack.setValue(name,oldVal%val);
+                        case "**=" -> stack.setValue(name,Math.pow(oldVal,val));
                     }
                     break;
                 }
-                else if(currExpr.type.isReal()) {
-                    BigDecimal oldVal = (BigDecimal) stack.getValueInRuntimeStack(assignID);
+                else if(as.RHS().type.isReal()) {
+                    BigDecimal oldVal = (BigDecimal) stack.getValue(name);
                     BigDecimal val = (BigDecimal) newValue;
                     switch(aOp) {
-                        case "+=" -> stack.setValueInRuntimeStack(assignID,oldVal.add(val));
-                        case "-=" -> stack.setValueInRuntimeStack(assignID,oldVal.subtract(val));
-                        case "*=" -> stack.setValueInRuntimeStack(assignID,oldVal.multiply(val));
-                        case "/=" -> stack.setValueInRuntimeStack(assignID,oldVal.divide(val));
-                        case "%=" -> stack.setValueInRuntimeStack(assignID,oldVal.remainder(val));
-                        case "**=" -> stack.setValueInRuntimeStack(assignID,oldVal.pow(val.toBigInteger().intValue()));
+                        case "+=" -> stack.setValue(name,oldVal.add(val));
+                        case "-=" -> stack.setValue(name,oldVal.subtract(val));
+                        case "*=" -> stack.setValue(name,oldVal.multiply(val));
+                        case "/=" -> stack.setValue(name,oldVal.divide(val));
+                        case "%=" -> stack.setValue(name,oldVal.remainder(val));
+                        case "**=" -> stack.setValue(name,oldVal.pow(val.toBigInteger().intValue()));
                     }
                     break;
                 }
-                else if(currExpr.type.isString()) {
-                    String oldVal = (String) stack.getValueInRuntimeStack(assignID);
+                else if(as.RHS().type.isString()) {
+                    String oldVal = (String) stack.getValue(name);
                     String val = (String) newValue;
-                    stack.setValueInRuntimeStack(assignID,oldVal+val);
+                    stack.setValue(name,oldVal+val);
                     break;
                 }
             }
         }
     }
 
+    /*
+    ___________________________ Binary Expressions ___________________________
+    We will first evaluate the LHS and then the RHS. From there, we will
+    evaluate the binary expression based on the types of both the LHS and RHS
+    and perform the correct operation from there.
+    __________________________________________________________________________
+    */
     public void visitBinaryExpr(BinaryExpr be) {
         be.LHS().visit(this);
-        Expression LHS = currExpr;
+        Object LHS = currValue;
 
         be.RHS().visit(this);
-        Expression RHS = currExpr;
+        Object RHS = currValue;
 
         String binOp = be.binaryOp().toString();
-
-        currExpr = be;
 
         // TODO: Check for operator overloads here
 
@@ -126,82 +141,82 @@ public class Interpreter extends Visitor {
             case "%":
             case "**": {
                 if(be.type.isInt()) {
-                    int lValue = (int) LHS.getValue(stack);
-                    int rValue = (int) RHS.getValue(stack);
+                    int lValue = (int) LHS;
+                    int rValue = (int) RHS;
                     switch(binOp) {
-                        case "+" -> currExpr.setValue(lValue + rValue);
-                        case "-" -> currExpr.setValue(lValue - rValue);
-                        case "*" -> currExpr.setValue(lValue * rValue);
-                        case "/" -> currExpr.setValue(lValue / rValue);
-                        case "%" -> currExpr.setValue(lValue % rValue);
-                        case "**" -> currExpr.setValue((int)Math.pow(lValue,rValue));
+                        case "+" -> currValue = lValue + rValue;
+                        case "-" -> currValue = lValue - rValue;
+                        case "*" -> currValue = lValue * rValue;
+                        case "/" -> currValue = lValue / rValue;
+                        case "%" -> currValue = lValue % rValue;
+                        case "**" -> currValue = Math.pow(lValue,rValue);
                     }
                     break;
                 }
                 else if(be.type.isReal()) {
-                    BigDecimal lValue = (BigDecimal) LHS.getValue(stack);
-                    BigDecimal rValue = (BigDecimal) RHS.getValue(stack);
+                    BigDecimal lValue = (BigDecimal) LHS;
+                    BigDecimal rValue = (BigDecimal) RHS;
                     switch(binOp) {
-                        case "+" -> currExpr.setValue(lValue.add(rValue));
-                        case "-" -> currExpr.setValue(lValue.subtract(rValue));
-                        case "*" -> currExpr.setValue(lValue.multiply(rValue));
-                        case "/" -> currExpr.setValue(lValue.divide(rValue));
-                        case "%" -> currExpr.setValue(lValue.remainder(rValue));
-                        case "**" -> currExpr.setValue(lValue.pow(rValue.toBigInteger().intValue()));
+                        case "+" -> currValue = lValue.add(rValue);
+                        case "-" -> currValue = lValue.subtract(rValue);
+                        case "*" -> currValue = lValue.multiply(rValue);
+                        case "/" -> currValue = lValue.divide(rValue);
+                        case "%" -> currValue = lValue.remainder(rValue);
+                        case "**" -> currValue = lValue.pow(rValue.toBigInteger().intValue());
                     }
                     break;
                 }
                 else if(be.type.isString()) {
-                    String lValue = (String) LHS.getValue(stack);
-                    String rValue = (String) RHS.getValue(stack);
-                    currExpr.setValue(lValue+rValue);
+                    String lValue = (String) LHS;
+                    String rValue = (String) RHS;
+                    currValue = lValue + rValue;
                     break;
                 }
             }
             case "==":
             case "!=": {
-                if(LHS.type.isBool() && RHS.type.isBool()) {
-                    boolean lValue = (boolean) LHS.getValue(stack);
-                    boolean rValue = (boolean) RHS.getValue(stack);
+                if(be.LHS().type.isBool() && be.RHS().type.isBool()) {
+                    boolean lValue = (boolean) LHS;
+                    boolean rValue = (boolean) RHS;
                     switch(binOp) {
-                        case "==" -> currExpr.setValue(lValue == rValue);
-                        case "!=" -> currExpr.setValue(lValue != rValue);
+                        case "==" -> currValue = lValue == rValue;
+                        case "!=" -> currValue = lValue != rValue;
                     }
                     break;
                 }
-                else if(LHS.type.isString() && RHS.type.isString()) {
-                    String lValue = (String) LHS.getValue(stack);
-                    String rValue = (String) RHS.getValue(stack);
+                else if(be.LHS().type.isString() && be.RHS().type.isString()) {
+                    String lValue = (String) LHS;
+                    String rValue = (String) RHS;
                     switch(binOp) {
-                        case "==" -> currExpr.setValue(lValue.equals(rValue));
-                        case "!=" -> currExpr.setValue(!lValue.equals(rValue));
+                        case "==" -> currValue = lValue.equals(rValue);
+                        case "!=" -> currValue = !lValue.equals(rValue);
                     }
                     break;
                 }
-                else if(LHS.type.isInt() && RHS.type.isInt()) {
-                    int lValue = (int) LHS.getValue(stack);
-                    int rValue = (int) RHS.getValue(stack);
+                else if(be.LHS().type.isInt() && be.RHS().type.isInt()) {
+                    int lValue = (int) LHS;
+                    int rValue = (int) RHS;
                     switch(binOp) {
-                        case "==" -> currExpr.setValue(lValue == rValue);
-                        case "!=" -> currExpr.setValue(lValue != rValue);
+                        case "==" -> currValue = lValue == rValue;
+                        case "!=" -> currValue = lValue == rValue;
                     }
                     break;
                 }
-                else if(LHS.type.isChar() && RHS.type.isChar()) {
-                    char lValue = (char) LHS.getValue(stack);
-                    char rValue = (char) RHS.getValue(stack);
+                else if(be.LHS().type.isChar() && be.RHS().type.isChar()) {
+                    char lValue = (char) LHS;
+                    char rValue = (char) RHS;
                     switch(binOp) {
-                        case "==" -> currExpr.setValue(lValue == rValue);
-                        case "!=" -> currExpr.setValue(lValue != rValue);
+                        case "==" -> currValue = lValue == rValue;
+                        case "!=" -> currValue = lValue != rValue;
                     }
                     break;
                 }
-                else if(LHS.type.isReal() && RHS.type.isReal()) {
-                    BigDecimal lValue = (BigDecimal) LHS.getValue(stack);
-                    BigDecimal rValue = (BigDecimal) RHS.getValue(stack);
+                else if(be.LHS().type.isReal() && be.RHS().type.isReal()) {
+                    BigDecimal lValue = (BigDecimal) LHS;
+                    BigDecimal rValue = (BigDecimal) RHS;
                     switch(binOp) {
-                        case "==" -> currExpr.setValue(lValue.compareTo(rValue) == 0);
-                        case "!=" -> currExpr.setValue(lValue.compareTo(rValue) != 0);
+                        case "==" -> currValue = lValue.compareTo(rValue) == 0;
+                        case "!=" -> currValue = lValue.compareTo(rValue) != 0;
                     }
                     break;
                 }
@@ -210,36 +225,36 @@ public class Interpreter extends Visitor {
             case "<=":
             case ">":
             case ">=": {
-                if(LHS.type.isInt() && RHS.type.isInt()) {
-                    int lValue = (int) LHS.getValue(stack);
-                    int rValue = (int) RHS.getValue(stack);
+                if(be.LHS().type.isInt() && be.RHS().type.isInt()) {
+                    int lValue = (int) LHS;
+                    int rValue = (int) RHS;
                     switch (binOp) {
-                        case "<" -> currExpr.setValue(lValue < rValue);
-                        case "<=" -> currExpr.setValue(lValue <= rValue);
-                        case ">" -> currExpr.setValue(lValue > rValue);
-                        case ">=" -> currExpr.setValue(lValue >= rValue);
+                        case "<" -> currValue = lValue < rValue;
+                        case "<=" -> currValue = lValue <= rValue;
+                        case ">" -> currValue = lValue > rValue;
+                        case ">=" -> currValue = lValue >= rValue;
                     }
                     break;
                 }
-                else if(LHS.type.isReal() && RHS.type.isReal()) {
-                    BigDecimal lValue = (BigDecimal) LHS.getValue(stack);
-                    BigDecimal rValue = (BigDecimal) RHS.getValue(stack);
+                else if(be.LHS().type.isReal() && be.RHS().type.isReal()) {
+                    BigDecimal lValue = (BigDecimal) LHS;
+                    BigDecimal rValue = (BigDecimal) RHS;
                     switch (binOp) {
-                        case "<" -> currExpr.setValue(lValue.compareTo(rValue) < 0);
-                        case "<=" -> currExpr.setValue(lValue.compareTo(rValue) > 0);
-                        case ">" -> currExpr.setValue(lValue.compareTo(rValue) >= 0);
-                        case ">=" -> currExpr.setValue(lValue.compareTo(rValue) <= 0);
+                        case "<" -> currValue = lValue.compareTo(rValue) < 0;
+                        case "<=" -> currValue = lValue.compareTo(rValue) > 0;
+                        case ">" -> currValue = lValue.compareTo(rValue) >= 0;
+                        case ">=" -> currValue = lValue.compareTo(rValue) <= 0;
                     }
                     break;
                 }
             }
             case "and":
             case "or": {
-                boolean lValue = (boolean) LHS.getValue(stack);
-                boolean rValue = (boolean) RHS.getValue(stack);
+                boolean lValue = (boolean) LHS;
+                boolean rValue = (boolean) RHS;
                 switch(binOp) {
-                    case "and" -> currExpr.setValue(lValue && rValue);
-                    case "or" -> currExpr.setValue(lValue || rValue);
+                    case "and" -> currValue = lValue && rValue;
+                    case "or" -> currValue = lValue || rValue;
                 }
                 break;
             }
@@ -249,21 +264,21 @@ public class Interpreter extends Visitor {
             case "|":
             case "^": {
                 if(be.type.isInt()) {
-                    int lValue = (int) LHS.getValue(stack);
-                    int rValue = (int) RHS.getValue(stack);
+                    int lValue = (int) LHS;
+                    int rValue = (int) RHS;
                     switch(binOp) {
-                        case "<<" -> currExpr.setValue(lValue << rValue);
-                        case ">>" -> currExpr.setValue(lValue >> rValue);
-                        case "^" -> currExpr.setValue(lValue ^ rValue);
+                        case "<<" -> currValue = lValue << rValue;
+                        case ">>" -> currValue = lValue >> rValue;
+                        case "^" -> currValue = lValue ^ rValue;
                     }
                     break;
                 }
                 else if(be.type.isBool()) {
-                    boolean lValue = (boolean) LHS.getValue(stack);
-                    boolean rValue = (boolean) RHS.getValue(stack);
+                    boolean lValue = (boolean) LHS;
+                    boolean rValue = (boolean) RHS;
                     switch(binOp) {
-                        case "&" -> currExpr.setValue(lValue & rValue);
-                        case "|" -> currExpr.setValue(lValue | rValue);
+                        case "&" -> currValue = lValue & rValue;
+                        case "|" -> currValue = lValue | rValue;
                     }
                     break;
                 }
@@ -276,112 +291,236 @@ public class Interpreter extends Visitor {
         }
     }
 
+    /*
+    ________________________ Block Statements ________________________
+    Every time we visit a block statement, we will create a new call
+    frame, visit the statements inside the block, and at the end, we
+    will destroy the call frame when we reach the end of the block.
+    __________________________________________________________________
+    */
     public void visitBlockStmt(BlockStmt bs) {
-        stack = stack.openNewScope();
+        stack = stack.createCallFrame();
 
         bs.decls().visit(this);
 
         for(int i = 0; i < bs.stmts().size(); i++) {
-            if(returnFound) {
-                returnFound = false;
+            bs.stmts().get(i).visit(this);
+            if(returnFound) { break; }
+            else if(breakFound) { break; }
+            else if(continueFound) {
+                continueFound = false;
                 break;
             }
-            bs.stmts().get(i).visit(this);
         }
-        stack = stack.closeScope();
+        stack = stack.destroyCallFrame();
     }
 
-    public void visitBreakStmt(BreakStmt bs) {
-        if(!insideLoop) {
-            System.out.println(PrettyPrint.RED + "Error! 'break' statement can not appear outside loop");
-            System.exit(1);
-        }
-    }
+    /*
+    _____________________ Break Statements _____________________
+    We set the breakFound flag to be true, and we continue
+    interpreting the C Minor program.
+    ____________________________________________________________
+    */
+    public void visitBreakStmt(BreakStmt bs) { breakFound = true; }
 
+    /*
+    _____________________ Cast Expressions _____________________
+    For cast expressions, we just evaluate the value we want to
+    cast and then do the explicit type cast.
+    ____________________________________________________________
+    */
     public void visitCastExpr(CastExpr cs) {
         cs.castExpr().visit(this);
-        if(cs.castType().isInt()) { cs.setValue((int)currExpr.getValue(stack)); }
-        else if(cs.castType().isReal()) { cs.setValue(BigDecimal.valueOf((int)currExpr.getValue(stack))); }
-        else if(cs.castType().isChar()) { cs.setValue((Character)currExpr.getValue(stack)); }
-        else if(cs.castType().isString()) { cs.setValue((String)currExpr.getValue(stack)); }
+        if(cs.castType().isInt()) {
+            if(cs.castExpr().type.isReal()) { currValue = ((BigDecimal) currValue).intValue(); }
+            else if(cs.castExpr().type.isChar()) {
+                if(currValue.toString().charAt(1) != '/') { currValue = (int) currValue.toString().charAt(1); }
+                else { currValue = (int) currValue.toString().charAt(1) + (int) currValue.toString().charAt(2); }
+            }
+        }
+        else if(cs.castType().isReal()) {
+            if(cs.castExpr().type.isInt()) { currValue = new BigDecimal(currValue.toString()); }
+        }
+        else if(cs.castType().isString()) {
+            if(cs.castType().isChar()) { currValue = currValue.toString(); }
+        }
     }
 
+    /*
+    _________________________ Choice Statements  _________________________
+    We first evaluate the value of the choice expression. Then, we check
+    which case's label corresponds to the initial choice value to determine
+    which case statement to execute. If none of the case statements match
+    the value, then we will execute the default case statement.
+    ______________________________________________________________________
+    */
     public void visitChoiceStmt(ChoiceStmt cs) {
         cs.choiceExpr().visit(this);
 
-        for(int i = 0; i < cs.caseStmts().size(); i++) {
-            CaseStmt curr = cs.caseStmts().get(i);
-            if(currExpr.getValue(stack).equals(curr.choiceLabel().toString())) {
-                curr.visit(this);
+        Object choiceVal = currValue;
+        for(int i = 0; i <= cs.caseStmts().size(); i++) {
+            // Default Case Execution
+            if(i == cs.caseStmts().size()) {
+                cs.choiceBlock().visit(this);
                 break;
+            }
+            CaseStmt currCase = cs.caseStmts().get(i);
+
+            // Int Case
+            if(cs.choiceExpr().type.isInt()) {
+                int val = (int) choiceVal;
+
+                currCase.choiceLabel().leftLabel().visit(this);
+                int label = (int) currValue;
+
+                if(currCase.choiceLabel().rightLabel() != null) {
+                    currCase.choiceLabel().rightLabel().visit(this);
+                    int rLabel = (int) currValue;
+                    if(val >= label  && val <= rLabel) {
+                        currCase.visit(this);
+                        break;
+                    }
+                }
+                else {
+                    if(val == label) {
+                        currCase.visit(this);
+                        break;
+                    }
+                }
+            }
+            // Character Case
+            else if(cs.choiceExpr().type.isChar()) {
+                char val = choiceVal.toString().charAt(0);
+
+                currCase.choiceLabel().leftLabel().visit(this);
+                char label = currValue.toString().charAt(0);
+
+                if(currCase.choiceLabel().rightLabel() != null) {
+                    currCase.choiceLabel().rightLabel().visit(this);
+                    char rLabel = currValue.toString().charAt(0);
+                    if(val >= label  && val <= rLabel) {
+                        currCase.visit(this);
+                        break;
+                    }
+                }
+                else {
+                    if(val == label) {
+                        currCase.visit(this);
+                        break;
+                    }
+                }
+            }
+            // String Case
+            else if(cs.choiceExpr().type.isString()) {
+                String val = choiceVal.toString();
+
+                currCase.choiceLabel().leftLabel().visit(this);
+                String label = currValue.toString();
+
+                if(val.equals(label)) {
+                    currCase.visit(this);
+                    break;
+                }
             }
         }
     }
 
-    public void visitContinueStmt(ContinueStmt cs) {
-        if(!insideLoop) {
-            System.out.println(PrettyPrint.RED + "Error! 'continue' statement can not appear outside loop");
-            System.exit(1);
-        }
-    }
+    /*
+    _____________________ Continue Statements _____________________
+    We set the continueFound flag to be true, and we CONTINUE
+    evaluating the C Minor program. ;)
+    _______________________________________________________________
+    */
+    public void visitContinueStmt(ContinueStmt cs) { continueFound = true; }
 
+    /*
+    ___________________________ Do Statements ___________________________
+    For a do while loop, we will execute the loop body once before we
+    evaluate the condition. From there, we handle this construct like we
+    do with while loops.
+    _____________________________________________________________________
+    */
     public void visitDoStmt(DoStmt ds) {
         do {
-            insideLoop = true;
             ds.doBlock().visit(this);
-            insideLoop = false;
+            if(breakFound) {
+                breakFound = false;
+                break;
+            }
             ds.condition().visit(this);
-        } while ((boolean) currExpr.getValue(stack));
+        } while ((boolean) currValue);
     }
 
+    /*
+    _________________________ Enum Declarations  _________________________
+    For each field inside an enumeration, we will evaluate its initial
+    value and then store the constant onto the runtime stack.
+    ______________________________________________________________________
+    */
     public void visitEnumDecl(EnumDecl ed) {
-        ArrayList<Object> arr = new ArrayList<Object>();
         for(int i = 0; i < ed.enumVars().size(); i++) {
-            ed.enumVars().get(i).visit(this);
-            arr.add(currExpr.getValue(stack));
-        }
-        stack.setValueInRuntimeStack(ed.name().toString(),arr);
-    }
-
-    public void visitFieldDecl(FieldDecl fd) {
-        if(fd.var().init() != null) {
-            fd.var().init().visit(this);
-            stack.setValueInRuntimeStack(fd.toString(),currExpr.getValue(stack));
+            Var enumConstant = ed.enumVars().get(i);
+            enumConstant.init().visit(this);
+            stack.addValue(enumConstant.toString(),currValue);
         }
     }
 
+    /*
+    ___________________________ Field Expressions ___________________________
+    For a field expression, we just access the object from the stack and get
+    the appropriate field's value with a lookup.
+    _________________________________________________________________________
+    */
     public void visitFieldExpr(FieldExpr fe) {
-        HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValueInRuntimeStack(fe.fieldTarget().toString());
-        fe.setValue(instance.get(fe.name().toString()));
-        currExpr = fe;
+        String objName = fe.fieldTarget().toString();
+        HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+        currValue = instance.get(fe.name().toString());
     }
 
-    public void visitForStmt(ForStmt fs) {
-        fs.forInits().visit(this);
-        fs.condition().visit(this);
-        while((boolean)currExpr.getValue(stack)) {
-            insideLoop = true;
-            fs.forBlock().visit(this);
-            insideLoop = false;
-            fs.nextExpr().visit(this);
-            fs.condition().visit(this);
-        }
-    }
+    //TODO: BROKEN AF :')
+    /*
+    ___________________________ For Statements ___________________________
+    With a for loop, we will evaluate the loop variable declarations, and
+    we will execute the loop until the loop condition becomes false.
+    ______________________________________________________________________
+    */
+//    public void visitForStmt(ForStmt fs) {
+//        fs.forInits().visit(this);
+//        fs.condition().visit(this);
+//        while((boolean)currValue) {
+//            fs.forBlock().visit(this);
+//            fs.condition().visit(this);
+//        }
+//    }
 
+    /*
+    ________________________ Global Declarations ________________________
+    We will first evaluate the initial value we assign the global
+    variable to and then we will save the variable onto the current call
+    frame.
+    _____________________________________________________________________
+    */
     public void visitGlobalDecl(GlobalDecl gd) {
         gd.var().init().visit(this);
-        stack.setValueInRuntimeStack(gd.var().toString(),currExpr.getValue(stack));
+        stack.addValue(gd.var().toString(),currValue);
     }
 
+    /*
+    ________________________ If Statements  ________________________
+    First, we will evaluate the value of the condition. Then, we
+    will use the condition's value to determine which branch of the
+    if statement we will execute.
+    ________________________________________________________________
+    */
     public void visitIfStmt(IfStmt is) {
         is.condition().visit(this);
-        if((boolean)currExpr.getValue(stack)) { is.ifBlock().visit(this); }
+        if((boolean)currValue) { is.ifBlock().visit(this); }
         else {
             if(is.elifStmts().size() > 0) {
                 for(int i = 0; i < is.elifStmts().size(); i++) {
                     IfStmt curr = is.elifStmts().get(i);
                     curr.condition().visit(this);
-                    if((boolean)currExpr.getValue(stack)) {
+                    if((boolean)currValue) {
                         curr.ifBlock().visit(this);
                         break;
                     }
@@ -391,125 +530,192 @@ public class Interpreter extends Visitor {
         }
     }
 
+    /*
+    _________________________ Init Declarations _________________________
+    When we visit a constructor declaration, we are concerned with
+    initializing all fields that the user did not specify during object
+    instantiation. We will fill these fields in for the user before we
+    continue the execution of the program.
+    _____________________________________________________________________
+    */
     public void visitInitDecl(InitDecl id) {
-        HashMap<String,Object> objInstance = (HashMap<String,Object>)currExpr.getValue(stack);
+        HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
         for(int i = 0; i < id.assignStmts().size(); i++) {
             AssignStmt as = id.assignStmts().get(i);
 
-            if(!objInstance.containsKey(as.LHS().toString())) {
+            if(!instance.containsKey(as.LHS().toString())) {
                 as.RHS().visit(this);
-                objInstance.put(as.LHS().toString(),currExpr.getValue(stack));
+                instance.put(as.LHS().toString(),currValue);
             }
         }
+        currValue = instance;
     }
 
-    public void visitInStmt(InStmt in) {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        String input = "";
-        try {
-            input = reader.readLine();
-        } catch(Exception e) {
-            System.out.println(e);
-            System.exit(1);
-        }
+//    public void visitInStmt(InStmt in) {
+//        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+//        String input = "";
+//        try {
+//            input = reader.readLine();
+//        } catch(Exception e) {
+//            System.out.println(e);
+//            System.exit(1);
+//        }
+//
+//        String[] args = input.split(" ");
+//        for(int i = 0; i < in.inExprs().size(); i++)
+//           stack.setValueInRuntimeStack(in.inExprs().get(i).toString(),args[i]);
+//    }
 
-        String[] args = input.split(" ");
-        for(int i = 0; i < in.inExprs().size(); i++)
-           stack.setValueInRuntimeStack(in.inExprs().get(i).toString(),args[i]);
-    }
+    /*
+    ____________________________ Invocations ____________________________
+    For invocations, we will first evaluate each argument we are passing
+    and store each value into a separate list.
 
+    Then, we determine whether the invocation is for a function or a
+    method. In either case, we will create a new call frame to store the
+    values for each parameter and then execute the function/method body.
+
+    At the end, we will save the parameter results if the parameters have
+    the appropriate modifiers.
+    _____________________________________________________________________
+    */
     public void visitInvocation(Invocation in) {
         ArrayList<Object> args = new ArrayList<Object>();
-        String funcSignature = in.invokeSignature();
+        HashMap<String,Object> vals = new HashMap<String,Object>();
 
         for(int i = 0; i < in.arguments().size(); i++) {
             in.arguments().get(i).visit(this);
-            args.add(currExpr.getValue(currentScope));
+            args.add(currValue);
         }
 
         SymbolTable oldScope = currentScope;
+        stack = stack.createCallFrame();
+
+        // Function Invocation
         if(in.target() == null) {
-            FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(in.invokeSignature()).declName().asTopLevelDecl().asFuncDecl();
             currentScope = fd.symbolTable;
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = fd.params().get(i);
-                stack.setValueInRuntimeStack(currParam.toString(),args.get(i));
+                stack.addValue(currParam.toString(),args.get(i));
             }
 
-            fd.visit(this);
+            fd.funcBlock().visit(this);
+            returnFound = false;
+
+            for(int i = 0; i < in.arguments().size(); i++) {
+                if(in.arguments().get(i) instanceof NameExpr) {
+                    String argName = in.arguments().get(i).toString();
+                    ParamDecl currParam = fd.params().get(i);
+
+                    if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
+                        vals.put(argName,stack.getValue(currParam.toString()));
+                }
+            }
         }
+        // Method Invocation
         else {
             in.target().visit(this);
-            HashMap<String,Object> obj = (HashMap<String, Object>) in.target().getValue(stack);
+            HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
 
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
+            String methodName = in.invokeSignature();
 
+            if(!cd.symbolTable.hasName(methodName)) {  methodName += "_" + cd.toString(); }
+
+            System.out.println(in.targetType.toString());
+
+//            if(cd.superClass() != null && in.type.) {
+//                methodName += "_" + cd.toString();
+//            }
+            MethodDecl md = cd.symbolTable.findName(methodName).declName().asMethodDecl();
             currentScope = md.symbolTable;
-            stack = stack.openNewScope();
 
-            for(String s : obj.keySet())
-                stack.setValueInRuntimeStack(s,obj.get(s),true);
+            for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
-                stack.setValueInRuntimeStack(currParam.toString(),args.get(i));
+                stack.addValue(currParam.toString(),args.get(i));
             }
 
-            md.visit(this);
+            md.methodBlock().visit(this);
+            returnFound = false;
+
+            for(int i = 0; i < in.arguments().size(); i++) {
+                if(in.arguments().get(i) instanceof NameExpr) {
+                    String argName = in.arguments().get(i).toString();
+                    ParamDecl currParam = md.params().get(i);
+
+                    if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
+                        vals.put(argName,stack.getValue(currParam.toString()));
+                }
+            }
         }
+
         currentScope = oldScope;
-        stack = stack.closeScope();
+        stack = stack.destroyCallFrame();
 
+        for(String s : vals.keySet()) { stack.setValue(s,vals.get(s)); }
     }
 
-    public void visitListLiteral(ListLiteral li) {
-        ArrayList<Object> arr = new ArrayList<Object>();
-        for(int i = 0; i < li.exprs().size(); i++) {
-            li.exprs().get(i).visit(this);
-            arr.add(currExpr.getValue(stack));
-        }
-        currExpr = li;
-    }
+//    public void visitListLiteral(ListLiteral li) {
+//        ArrayList<Object> arr = new ArrayList<Object>();
+//        for(int i = 0; i < li.exprs().size(); i++) {
+//            li.exprs().get(i).visit(this);
+//            arr.add(currExpr.getValue(stack));
+//        }
+//        currExpr = li;
+//    }
 
+    /*
+    ________________________ Literals ________________________
+    Whenever we visit a literal, we will just evaluate it and
+    set the current value to equal the evaluation result.
+    __________________________________________________________
+    */
     public void visitLiteral(Literal li) {
-        currExpr = li;
         if(li.type.isInt()) {
-            if(li.text.charAt(0) == '~')
-                currExpr.setValue(-1*Integer.parseInt(li.text.substring(1)));
-            else
-                currExpr.setValue(Integer.parseInt(li.text));
+            if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
+            else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) { currExpr.setValue(li.text); }
-        else if(li.type.isBool()) { currExpr.setValue(Boolean.parseBoolean(li.text)); }
-        else if(li.type.isReal()) { currExpr.setValue(new BigDecimal(li.text)); }
-        else if(li.type.isString()) {
-            currExpr.setValue(li.text.substring(1,li.text.length()-1));
+        else if(li.type.isChar()) { currValue = li.text; }
+        else if(li.type.isBool()) { currValue = Boolean.parseBoolean(li.text); }
+        else if(li.type.isReal()) {
+            if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }
+            else { currValue = new BigDecimal(li.text); }
         }
+        else if(li.type.isString()) { currValue = li.text.substring(1,li.text.length()-1); } // Removes quotes
     }
 
     /*
-    _________________________ Local Declarations _________________________
-    For local declarations, we will evaluate their initial values and then
-    we will store the varaible on the stack.
-    ______________________________________________________________________
+    ________________________ Local Declarations ________________________
+    We first visit the initial value that is set when we are making a
+    local declaration (at this point, the value will be either given or
+    we will manually set one for the user). We will then add the local
+    variable onto the current call frame.
+    ____________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
         ld.var().init().visit(this);
-        stack.setValueInRuntimeStack(ld.var().toString(),currExpr.getValue(stack));
+        stack.addValue(ld.var().toString(),currValue);
     }
 
-    public void visitMainDecl(MainDecl md) {
-        currentScope = md.symbolTable;
-        md.mainBody().visit(this);
-    }
+    /*
+    _________________________ Name Expressions  _________________________
+    For name expressions, we just need to retrieve the value associated
+    with the name from the stack and set the current value equal to it.
+    _____________________________________________________________________
+    */
+    public void visitNameExpr(NameExpr ne) { currValue = stack.getValue(ne.toString()); }
 
-    public void visitNameExpr(NameExpr ne) {
-        currExpr = ne;
-        currExpr.setValue(stack.getValueInRuntimeStack(ne.toString()));
-    }
-
+    /*
+    ___________________________ New Expressions ___________________________
+    When we are instantiating a new object, we will create a hash map that
+    stores each object's initial field value (if specified by the user) and
+    then we will call the constructor we made for the user.
+    _______________________________________________________________________
+    */
     public void visitNewExpr(NewExpr ne) {
         ClassDecl cd = currentScope.findName(ne.classType().typeName()).declName().asTopLevelDecl().asClassDecl();
 
@@ -517,45 +723,61 @@ public class Interpreter extends Visitor {
         for(int i = 0; i < ne.args().size(); i++) {
             Var currArg = ne.args().get(i);
             currArg.init().visit(this);
-            instance.put(currArg.toString(),currExpr.getValue(stack));
+            instance.put(currArg.toString(),currValue);
         }
-        ne.setValue(instance);
-        currExpr = ne;
+
+        currValue = instance;
 
         cd.constructor().visit(this);
-        currExpr = ne;
     }
 
+    /*
+    ___________________________ Out Statements ___________________________
+    ______________________________________________________________________
+    */
     public void visitOutStmt(OutStmt os) {
         for(int i = 0; i < os.outExprs().size(); i++) {
             Expression e = os.outExprs().get(i);
             if(e.isEndl()) { System.out.println(); }
             else {
                 e.visit(this);
-                Object obj = currExpr.getValue(stack);
-                if(obj instanceof String && obj.equals("' '")) // Guess I need this here?
+                if(currValue instanceof String && currValue.equals("' '")) // Guess I need this here?
                     System.out.print(" ");
                 else
-                    System.out.print(currExpr.getValue(stack));
+                    System.out.print(currValue);
             }
         }
     }
 
+    /*
+    ___________________________ Return Statements ___________________________
+    If a return statement has an expression, we will evaluate the expression.
+    Then, we will just set the return found flag to be true, so we can stop
+    evaluating statements in the block statement.
+    _________________________________________________________________________
+    */
     public void visitReturnStmt(ReturnStmt rs) {
-        if(rs.expr() != null)
-            rs.expr().visit(this);
-
+        if(rs.expr() != null) { rs.expr().visit(this); }
         returnFound = true;
     }
 
-    public void visitStopStmt(StopStmt ss) {
-        System.out.println();
-        System.exit(1);
-    }
+    /*
+    __________________________ Stop Statements  __________________________
+    When we encounter a `stop`, we are going to terminate the interpreter.
+    ______________________________________________________________________
+    */
+    public void visitStopStmt(StopStmt ss) { System.exit(1); }
 
+    /*
+    __________________________ Unary Expressions  __________________________
+    We will evaluate unary expressions just like we did with binary
+    expressions by first evaluating the individual expression and then we
+    will perform the operation that is needed.
+    ________________________________________________________________________
+    */
     public void visitUnaryExpr(UnaryExpr ue) {
         ue.expr().visit(this);
-        Object val = currExpr.getValue(stack);
+        Object val = currValue;
 
         String uOp = ue.unaryOp().toString();
 
@@ -565,32 +787,38 @@ public class Interpreter extends Visitor {
             case "~": {
                 if(ue.type.isInt()) {
                     int uVal = (int) val;
-                    currExpr.setValue(uVal*-1);
+                    currValue = uVal * -1;
                     break;
                 }
                 else if(ue.type.isReal()) {
                     BigDecimal uVal = (BigDecimal) val;
-                    currExpr.setValue(uVal.multiply(new BigDecimal(-1)));
+                    currValue = uVal.multiply(new BigDecimal(-1));
                     break;
                 }
             }
             case "not": {
                 boolean uVal = (boolean) val;
-                currExpr.setValue(!uVal);
+                currValue = !uVal;
                 break;
             }
         }
-
-        if(ue.expr().isNameExpr())
-            stack.setValueInRuntimeStack(ue.expr().asNameExpr().toString(),currExpr.getValue(stack));
     }
 
+    /*
+    ___________________________ While Statements ___________________________
+    For a while loop, we evaluate the condition and if its true, then we
+    will continue to execute the body of the loop until the condition
+    evaluates to be false.
+    ________________________________________________________________________
+    */
     public void visitWhileStmt(WhileStmt ws) {
         ws.condition().visit(this);
-        while((boolean)currExpr.getValue(stack)) {
-            insideLoop = true;
+        while((boolean)currValue) {
             ws.whileBlock().visit(this);
-            insideLoop = false;
+            if(breakFound) {
+                breakFound = false;
+                break;
+            }
             ws.condition().visit(this);
         }
     }
