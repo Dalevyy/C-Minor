@@ -41,7 +41,7 @@ public class ModifierChecker extends Visitor {
     public void sortClassMethods(HashSet<String> abs, HashSet<String> con, ClassDecl cd) {
 
         if(AST.notNull(cd.superClass())) {
-            ClassDecl superClass = currentScope.findName(cd.superClass().typeName()).declName().asTopLevelDecl().asClassDecl();
+            ClassDecl superClass = currentScope.findName(cd.superClass().typeName()).decl().asTopLevelDecl().asClassDecl();
             sortClassMethods(abs,con,superClass);
         }
 
@@ -85,7 +85,7 @@ public class ModifierChecker extends Visitor {
     _______________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
-        AST LHS = currentScope.findName(as.LHS().toString()).declName();
+        AST LHS = currentScope.findName(as.LHS().toString()).decl();
         if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
             // ERROR CHECK #1: A constant variable can not change its
             //                 value after declaration.
@@ -141,7 +141,7 @@ public class ModifierChecker extends Visitor {
 
         ClassType superClass = cd.superClass();
         if(superClass != null) {
-            ClassDecl superDecl = currentScope.findName(superClass.toString()).declName().asTopLevelDecl().asClassDecl();
+            ClassDecl superDecl = currentScope.findName(superClass.toString()).decl().asTopLevelDecl().asClassDecl();
 
             // ERROR CHECK #1: Class can only be inherited if 'final' keyword is missing
             if(superDecl.mod.isFinal()) {
@@ -201,8 +201,8 @@ public class ModifierChecker extends Visitor {
     _______________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
-        ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).declName().asTopLevelDecl().asClassDecl();
-        FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).declName().asFieldDecl();
+        ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).decl().asTopLevelDecl().asClassDecl();
+        FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
 
         // ERROR CHECK #1: A field is only accessible outside a class scope if it's public
         if(!fd.mod.isPublic()) {
@@ -265,7 +265,7 @@ public class ModifierChecker extends Visitor {
 
         // Function Invocation Case
         if(in.target() == null) {
-            FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
                 // ERROR CHECK #1: A function can not recursively call itself without the 'recurs' keyword
@@ -281,8 +281,12 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation Case
         else {
-            ClassDecl cd = currentScope.findName(in.target().type.typeName()).declName().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
+            ClassDecl cd = currentScope.findName(in.target().type.typeName()).decl().asTopLevelDecl().asClassDecl();
+            while(!cd.symbolTable.hasName(funcSignature)) {
+                cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            }
+
+            MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
 
             // ERROR CHECK #2: A method can not recursively call itself without the 'recurs' keyword
             if(currentContext == md && md.toString().equals(in.toString())) {
@@ -328,7 +332,7 @@ public class ModifierChecker extends Visitor {
     _____________________________________________________________________
     */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.typeName()).declName().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.typeName()).decl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: Class must be concrete
         if(cd.mod.isAbstract()) {

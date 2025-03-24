@@ -7,8 +7,6 @@ import ast.statements.*;
 import ast.top_level_decls.*;
 import utilities.*;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.math.BigDecimal;
@@ -34,20 +32,18 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
     }
 
-//    public void visitArrayExpr(ArrayExpr ae) {
-//        ArrayList<Object> arr = (ArrayList<Object>) stack.getValueInRuntimeStack(ae.arrayTarget().toString());
-//        ae.setValue(arr.get((int)ae.arrayIndex().getValue(stack)));
-//        currExpr = ae;
-//    }
-//
-//    public void visitArrayLiteral(ArrayLiteral al) {
-//        ArrayList<Object> arr = new ArrayList<Object>();
-//        for(int i = 0; i < al.arrayExprs().size(); i++) {
-//            al.arrayExprs().get(i).visit(this);
-//            arr.add(currExpr.getValue(stack));
-//        }
-//        currExpr = al;
-//    }
+    public void visitArrayExpr(ArrayExpr ae) {
+        ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(ae.arrayTarget().toString());
+        currValue = arr.get(Integer.parseInt(ae.arrayIndex().toString()));
+    }
+
+    public void visitArrayLiteral(ArrayLiteral al) {
+        ArrayList<Object> arr = new ArrayList<Object>();
+        for(int i = 0; i < al.arrayDims().size(); i++) {
+            al.arrayDims().get(i).visit(this);
+            arr.add(currValue);
+        }
+    }
 
     /*
     _________________________ Assignment Statements _________________________
@@ -593,7 +589,7 @@ public class Interpreter extends Visitor {
 
         // Function Invocation
         if(in.target() == null) {
-            FuncDecl fd = currentScope.findName(in.invokeSignature()).declName().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(in.invokeSignature()).decl().asTopLevelDecl().asFuncDecl();
             currentScope = fd.symbolTable;
 
             for(int i = 0; i < in.arguments().size(); i++) {
@@ -619,17 +615,20 @@ public class Interpreter extends Visitor {
             in.target().visit(this);
             HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
 
-            ClassDecl cd = currentScope.findName(in.targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
 
-            if(!cd.symbolTable.hasName(methodName)) {  methodName += "_" + cd.toString(); }
-
-            System.out.println(in.targetType.toString());
-
+            String searchMethod = methodName;
+            ClassDecl startClass = cd;
+            while(!cd.symbolTable.hasName(searchMethod)) {
+                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+                searchMethod = methodName + "_" + startClass.toString();
+            }
+            methodName = searchMethod;
 //            if(cd.superClass() != null && in.type.) {
 //                methodName += "_" + cd.toString();
 //            }
-            MethodDecl md = cd.symbolTable.findName(methodName).declName().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(methodName).decl().asMethodDecl();
             currentScope = md.symbolTable;
 
             for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
@@ -717,7 +716,7 @@ public class Interpreter extends Visitor {
     _______________________________________________________________________
     */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.classType().typeName()).declName().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.classType().typeName()).decl().asTopLevelDecl().asClassDecl();
 
         HashMap<String,Object> instance = new HashMap<String,Object>();
         for(int i = 0; i < ne.args().size(); i++) {

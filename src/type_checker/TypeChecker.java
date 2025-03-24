@@ -43,33 +43,43 @@ public class TypeChecker extends Visitor {
     }
 
     // Dr. Pedersen's wacky little algorithm ... ughhhhh
-    public boolean arrayAssignmentCompatible(Type at, Expression e) {
-        if(!at.isArrayType() && e.isArrayLiteral()) {
+    public void arrayAssignmentCompatible(Type at, Expression e) {
+        if(!at.isArrayType() && !e.isArrayLiteral()) {
+            if(!Type.assignmentCompatible(at,e.type)) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(at)
+                        .addErrorType(MessageType.TYPE_ERROR_400)
+                        .addArgs(at.toString(),at,e.type)
+                        .error());
+            }
+        }
+        else if(!at.isArrayType() && e.isArrayLiteral()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(currentContext)
                     .addErrorType(MessageType.TYPE_ERROR_435)
                     .error());
-            return false;
         }
-
-        if(at.isArrayType() && !e.isArrayLiteral()) {
-            e.visit(this);
+        else if(at.isArrayType() && !e.isArrayLiteral()) {
             if(e.type instanceof ArrayType) {
-                if(!Type.assignmentCompatible(at,e.type))
-                    ;
-                return true;
-            }
+                if(!Type.assignmentCompatible(at,e.type)) {
+                    System.out.println("Error 1!");
+                } else { return; }
+            } else { System.out.println("ERRROR 2!"); }
         }
 
-        e.type = at;
+
         Vector<Expression> inits = e.asArrayLiteral().arrayDims();
+        if(inits.size() == 0) { return; }
         boolean b = true;
         for(int i = 0; i < inits.size(); i++) {
             if(at.asArrayType().arrayDims() == 1) {
-                b = b && arrayAssignmentCompatible(at.asArrayType().baseType(), inits.get(i).asExpression());
+                arrayAssignmentCompatible(at.asArrayType().baseType(), inits.get(i).asExpression());
+            }
+            else {
+                ArrayType atBelow = new ArrayType(at.asArrayType().baseType(),at.asArrayType().arrayDims()-1);
+                arrayAssignmentCompatible(atBelow,inits.get(i).asExpression());
             }
         }
-        return b;
     }
 
     /*
@@ -109,6 +119,9 @@ public class TypeChecker extends Visitor {
 
     /*
     ___________________ Array Literals ___________________
+    For array literals, we are going to make sure that a
+    user specified integer dimensions, and we will type
+    check each individual value declared for the array.
     ______________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
@@ -116,6 +129,7 @@ public class TypeChecker extends Visitor {
         for(int i = 0; i < dims.size(); i++) {
             Expression arrDim = dims.get(i);
             arrDim.visit(this);
+
             // ERROR CHECK #1: Make sure each specified dimension in the array
             //                 literal represents an integer
             if(!arrDim.type.isInt()) {
@@ -125,6 +139,10 @@ public class TypeChecker extends Visitor {
                         .addArgs(arrDim.type.toString())
                         .error());
             }
+        }
+
+        for(int i = 0; i < al.arrayInits().size(); i++) {
+            al.arrayInits().get(i).visit(this);
         }
     }
 
@@ -568,7 +586,7 @@ public class TypeChecker extends Visitor {
             // Adding class names to form the class hierarchy for use in type checking
             do {
                 inheritedClasses += "/" + baseClass;
-                ClassDecl nextClass = currentScope.findName(baseClass).declName().asTopLevelDecl().asClassDecl();
+                ClassDecl nextClass = currentScope.findName(baseClass).decl().asTopLevelDecl().asClassDecl();
                 if(nextClass.superClass() == null) { break; }
                 baseClass = nextClass.superClass().getName().toString();
             }   while(currentScope.hasName(baseClass));
@@ -752,8 +770,8 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
-        FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).declName().asFieldDecl();
+        ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+        FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
 
         fe.type = fd.type();
     }
@@ -939,7 +957,7 @@ public class TypeChecker extends Visitor {
                         .error());
             }
 
-            FuncDecl fd = currentScope.findName(funcSignature).declName().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
             in.type = fd.returnType();
             in.setInvokeSignature(funcSignature);
         }
@@ -947,7 +965,7 @@ public class TypeChecker extends Visitor {
         else {
             in.target().visit(this);
             Type targetType = in.target().type;
-            ClassDecl cd = currentScope.findName(targetType.typeName()).declName().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
 
             String methodName = in.toString();
 
@@ -960,21 +978,21 @@ public class TypeChecker extends Visitor {
                         .error());
             }
 
-            while(cd.superClass() != null) {
-
-            }
 
             // ERROR CHECK #3: Make sure the method overload exists for the passed
             //                 argument types
-            if(!cd.symbolTable.hasName(funcSignature)) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.TYPE_ERROR_429)
-                        .addArgs(in.toString())
-                        .error());
+            while(!cd.symbolTable.hasName(funcSignature)) {
+                if(cd.superClass() == null) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(in)
+                            .addErrorType(MessageType.TYPE_ERROR_429)
+                            .addArgs(in.toString())
+                            .error());
+                    }
+                cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             }
 
-            MethodDecl md = cd.symbolTable.findName(funcSignature).declName().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
             in.targetType = targetType;
             in.type = md.returnType();
             in.setInvokeSignature(funcSignature);
@@ -1038,6 +1056,11 @@ public class TypeChecker extends Visitor {
 
         if(localVar.init() != null) { localVar.init().visit(this); }
 
+        if(localVar.init().isArrayLiteral()) {
+            currentContext = ld;
+            arrayAssignmentCompatible(ld.type(),localVar.init());
+            currentContext = null;
+        }
         // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
         else if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
@@ -1120,10 +1143,10 @@ public class TypeChecker extends Visitor {
     public void visitNameExpr(NameExpr ne) {
         NameNode decl = currentScope.findName(ne.toString());
 
-        if(decl.declName().isStatement()) { ne.type = decl.declName().asStatement().asLocalDecl().type(); }
-        else if(decl.declName().isParamDecl()) { ne.type = decl.declName().asParamDecl().type(); }
-        else if(decl.declName().isTopLevelDecl()) {
-            TopLevelDecl tDecl = decl.declName().asTopLevelDecl();
+        if(decl.decl().isStatement()) { ne.type = decl.decl().asStatement().asLocalDecl().type(); }
+        else if(decl.decl().isParamDecl()) { ne.type = decl.decl().asParamDecl().type(); }
+        else if(decl.decl().isTopLevelDecl()) {
+            TopLevelDecl tDecl = decl.decl().asTopLevelDecl();
 
             if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
             else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().constantType(); }
@@ -1142,7 +1165,7 @@ public class TypeChecker extends Visitor {
         String className = ne.classType().typeName();
 
         // Find the ClassDecl node for the corresponding new expression
-        ClassDecl cd = currentScope.findName(className).declName().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(className).decl().asTopLevelDecl().asClassDecl();
         InitDecl currConstructor = cd.constructor();
 
         Vector<Var> args = ne.args();
@@ -1152,7 +1175,7 @@ public class TypeChecker extends Visitor {
             currArg.visit(this);
 
             String argName = args.get(i).name().toString();
-            Type fieldDeclType = cd.symbolTable.findName(argName).declName().asFieldDecl().type();
+            Type fieldDeclType = cd.symbolTable.findName(argName).decl().asFieldDecl().type();
 
             // ERROR CHECK #1: Make sure the type of argument value matches type of field declaration
             if(!Type.assignmentCompatible(currArg.type,fieldDeclType)) {
