@@ -1,0 +1,6 @@
+
+def const NUM = 21 Int
+
+def main() => Void {
+    set NUM = 20
+}

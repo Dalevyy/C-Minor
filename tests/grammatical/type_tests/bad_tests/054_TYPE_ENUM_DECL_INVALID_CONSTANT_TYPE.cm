@@ -1,0 +1,4 @@
+
+def myEnum Int type = {MON=3, TUES=5,WEDS='hi',THURS=4}
+
+def main() => Void {}

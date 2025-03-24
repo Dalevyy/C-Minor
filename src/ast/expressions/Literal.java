@@ -17,14 +17,6 @@ public class Literal extends Expression {
 
     public ConstantKind getConstantKind() { return kind; }
 
-    public int intValue() {
-        if(kind != ConstantKind.INT) {
-            System.out.println(PrettyPrint.RED + "Error! " + this.type.typeName() + " is not of type Int.");
-            System.exit(1);
-        }
-        return Integer.parseInt(this.getText());
-    }
-
     public boolean isLiteral() { return true; }
     public Literal asLiteral() { return this; }
 

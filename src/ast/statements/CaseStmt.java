@@ -9,20 +9,20 @@ public class CaseStmt extends Statement {
     public SymbolTable symbolTable;
 
     private Label myLabel;
-    private BlockStmt myBlock;
+    private BlockStmt caseBlock;
 
     public CaseStmt(Token t, Label l, BlockStmt b) {
         super(t);
         this.myLabel = l;
-        this.myBlock = b;
+        this.caseBlock = b;
 
         addChild(this.myLabel);
-        addChild(this.myBlock);
+        addChild(this.caseBlock);
         setParent();
     }
 
     public Label choiceLabel() { return myLabel; }
-    public BlockStmt caseBlock() { return myBlock; }
+    public BlockStmt caseBlock() { return caseBlock; }
 
     public boolean isCaseStmt() { return true; }
     public CaseStmt asCaseStmt() { return this; }

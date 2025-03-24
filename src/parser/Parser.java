@@ -16,6 +16,7 @@ import ast.types.*;
 import ast.types.ScalarType.*;
 import ast.types.DiscreteType.*;
 import lexer.*;
+import messages.errors.syntax_error.SyntaxErrorFactory;
 import token.*;
 import utilities.PrettyPrint;
 
@@ -31,6 +32,8 @@ public class Parser {
     private int lookPos;               // Current lookahead position
     private final Token[] lookaheads;  // Array of k lookaheads
     private boolean printToks;         // Flag to print tokens to user
+    private boolean interpretMode = false;
+    private SyntaxErrorFactory generateSyntaxError;
 
     public Parser(Lexer input, boolean printTokens) {
         this.input = input;
@@ -39,6 +42,12 @@ public class Parser {
         this.printToks = printTokens;
         for(int i = 0; i < k; i++)
             consume();
+        this.generateSyntaxError = new SyntaxErrorFactory();
+    }
+
+    public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
+        this(input,false);
+        this.interpretMode = interpretMode;
     }
 
     private String errorPosition(int start, int end) {
@@ -67,8 +76,9 @@ public class Parser {
         else {
             System.out.println(PrettyPrint.CYAN + "Syntax Error Detected!" + PrettyPrint.RESET);
             input.printSyntaxError(currentLA().getStartPos());
-            //System.out.println(PrettyPrint.RED + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
-            System.exit(1);
+            System.out.println(PrettyPrint.RED + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column) + PrettyPrint.RESET);
+            if(interpretMode) { throw new RuntimeException(); }
+            else { System.exit(1); }
         }
         return false;
     }
@@ -82,8 +92,9 @@ public class Parser {
         else {
             System.out.println(PrettyPrint.CYAN + "Syntax Error Detected!" + PrettyPrint.RESET);
             input.printSyntaxError(currentLA().getStartPos());
-            //System.out.println(PrettyPrint.RED + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
-            System.exit(1);
+            System.out.println(PrettyPrint.RED + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column) + PrettyPrint.RESET);
+            if(interpretMode) { throw new RuntimeException(); }
+            else { System.exit(1); }
         }
     }
 
@@ -103,7 +114,6 @@ public class Parser {
                     FIRST Sets
     -----------------------------------------
     */
-
     private boolean isInTypeFIRST() {
         return isInScalarTypeFIRST() ||
                nextLA(TokenType.ID) ||
@@ -126,7 +136,7 @@ public class Parser {
     }
 
     private boolean isInStatementFIRST() {
-        return isConstant() ||
+        return isInConstantFIRST() ||
                isInScalarTypeFIRST() ||
                nextLA(TokenType.LBRACK) ||
                nextLA(TokenType.NEW) ||
@@ -150,7 +160,7 @@ public class Parser {
     }
 
     private boolean isInPrimaryExpressionFIRST() {
-        return isConstant() ||
+        return isInConstantFIRST() ||
                nextLA(TokenType.ARRAY) ||
                nextLA(TokenType.LIST) ||
                nextLA(TokenType.TUPLE) ||
@@ -159,7 +169,19 @@ public class Parser {
                nextLA(TokenType.ID) ||
                nextLA(TokenType.SLICE) ||
                nextLA(TokenType.LENGTH) ||
-               nextLA(TokenType.CAST);
+               nextLA(TokenType.CAST) ||
+               nextLA(TokenType.BREAK) ||
+               nextLA(TokenType.CONTINUE);
+    }
+
+    private boolean isInConstantFIRST() {
+        return nextLA(TokenType.STR_LIT) ||
+                nextLA(TokenType.TEXT_LIT) ||
+                nextLA(TokenType.REAL_LIT) ||
+                nextLA(TokenType.BOOL_LIT) ||
+                nextLA(TokenType.INT_LIT) ||
+                nextLA(TokenType.CHAR_LIT) ||
+                nextLA(TokenType.ARRAY);
     }
 
     /*
@@ -188,23 +210,29 @@ public class Parser {
                nextLA(TokenType.GTEQ);
     }
 
-    private boolean isConstant() {
-        return nextLA(TokenType.STR_LIT) ||
-                nextLA(TokenType.TEXT_LIT) ||
-                nextLA(TokenType.REAL_LIT) ||
-                nextLA(TokenType.BOOL_LIT) ||
-                nextLA(TokenType.INT_LIT) ||
-                nextLA(TokenType.CHAR_LIT) ||
-                nextLA(TokenType.ARRAY);
+    public AST parseVM() {
+        // Parse EnumDecl
+        if(nextLA(TokenType.DEF) && nextLA(TokenType.ID,1) &&
+                !(nextLA(TokenType.LT,2)||nextLA(TokenType.LPAREN,2) || nextLA(TokenType.COLON,2)))
+            return enumType();
+        // Parse GlobalDecl
+        else if(nextLA(TokenType.DEF) && (nextLA(TokenType.CONST, 1) || nextLA(TokenType.GLOBAL, 1)))
+            return globalVariable();
+        // Parse ClassDecl
+        else if(nextLA(TokenType.ABSTR) || nextLA(TokenType.FINAL) || nextLA(TokenType.CLASS))
+            return classType();
+        // Parse FuncDecl
+        else if((nextLA(TokenType.DEF)) && (nextLA(TokenType.PURE,1) || nextLA(TokenType.RECURS,1) || ((nextLA(TokenType.ID,1) && nextLA(TokenType.LPAREN,2))
+                && ((!nextLA(TokenType.MAIN,1)) && (!nextLA(TokenType.MAIN,2))))))
+            return function();
+        // Parse LocalDecl
+        else if((nextLA(TokenType.DEF) && nextLA(TokenType.ID,1) && nextLA(TokenType.COLON,2))
+                || (nextLA(TokenType.DEF) && nextLA(TokenType.LOCAL,1)))
+            return declaration();
+        // Parse Statement | Expression
+        else
+            return statement();
     }
-
-//    public Compilation parseInterpreter() {
-//        Vector<LocalDecl> vd = new Vector<LocalDecl>();
-//        while(nextLA(TokenType.DEF)) vd.merge(declaration());
-//
-//        Vector<Statement> st = new Vector<Statement>();
-//        while(isInStatementFIRST()) st.append(statement());
-//    }
 
     /*
     ------------------------------------------------------------
@@ -324,54 +352,50 @@ public class Parser {
     // 5. global_variable ::= 'def' ( 'const' | 'global' ) variable_decl
     private Vector<GlobalDecl> globalVariable() {
         Token t = currentLA();
+        boolean isConstant = false;
 
         match(TokenType.DEF);
-        if(nextLA(TokenType.CONST)) match(TokenType.CONST);
+        if(nextLA(TokenType.CONST)) {
+            match(TokenType.CONST);
+            isConstant = true;
+        }
         else match(TokenType.GLOBAL);
 
-        Vector<AST> varDecls = variableDecl();
-        Vector<Var> vars = varDecls.get(0).asVector();
-        Type varType = varDecls.get(1).asType();
-
-        t.newEndLocation(varType.getLocation().end);
-        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-
+        Vector<Var> vars = variableDecl();
         Vector<GlobalDecl> globals = new Vector<GlobalDecl>();
-        for(int i = 0; i < vars.size(); i++)
-            globals.append(new GlobalDecl(t,vars.get(i).asVar(), varType));
 
-        for(int i = 0; i < globals.size(); i++)
-            globals.get(i).toString();
+        for(int i = 0; i < vars.size(); i++) {
+            Var v = vars.get(i).asVar();
+            t.setText(input.getProgramInputForToken(t.getStartPos(),v.location.end));
+            globals.append(new GlobalDecl(t,v,v.type(),isConstant));
+        }
+
         return globals;
     }
 
     // 6. variable_decl ::= variable_decl_list
-    private Vector<AST> variableDecl() { return variableDeclList(); }
+    private Vector<Var> variableDecl() { return variableDeclList(); }
 
-    // 7. variable_decl_list ::= variable_decl_init ( ',' variable_decl_init )* type
-    private Vector<AST> variableDeclList() {
-        Vector<Var> v = new Vector<Var>(variableDeclInit());
+    // 7. variable_decl_list ::= variable_decl_init ( ',' variable_decl_init )*
+    private Vector<Var> variableDeclList() {
+        Vector<Var> varList = new Vector<Var>(variableDeclInit());
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
-            v.append(variableDeclInit());
+            varList.append(variableDeclInit());
         }
-
-        Type t = type();
-
-        Vector<AST> varList = new Vector<AST>();
-        varList.append(v);
-        varList.append(t);
 
         return varList;
     }
 
-    // 8. variable_decl_init ::= ID ( '=' ( expression | 'uninit' ) )?
+    // 8. variable_decl_init ::= ID ':' type ( '=' ( expression | 'uninit' ) )?
     private Var variableDeclInit() {
         Token t = currentLA();
 
         Name n = new Name(t);
         match(TokenType.ID,t);
+        match(TokenType.COLON,t);
+        Type type = type();
 
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ, t);
@@ -383,9 +407,9 @@ public class Parser {
                 t.newEndLocation(e.getLocation().end);
             }
             t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-            return new Var(t,n,e);
+            return new Var(t,n,type,e);
         }
-        return new Var(t,n);
+        return new Var(t,n,type);
     }
 
     /*
@@ -668,18 +692,16 @@ public class Parser {
             m = new Modifier(t,Mods.PUBLIC);
         }
 
-        Vector<AST> vals = variableDecl();
-        Vector<Var> vars = vals.get(0).asVector();
-        Type declType = vals.get(1).asType();
+        Vector<Var> vars = variableDecl();
+        Vector<FieldDecl> fields = new Vector<FieldDecl>();
 
-        Vector<FieldDecl> dataDecls = new Vector<FieldDecl>();
+        for(int i = 0; i < vars.size(); i++) {
+            Var v = vars.get(i).asVar();
+            t.setText(input.getProgramInputForToken(t.getStartPos(),v.location.end));
+            fields.append(new FieldDecl(t,m,v,v.type()));
+        }
 
-        t.newEndLocation(declType.getLocation().end);
-        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-
-        for(int i = 0; i < vars.size(); i++)
-            dataDecls.append(new FieldDecl(t,m,vars.get(i).asVar(),declType));
-        return dataDecls;
+        return fields;
     }
 
     /*
@@ -961,6 +983,7 @@ public class Parser {
     // 31. function ::= 'def' ( 'pure' | 'recurs' )? function_header '=>' return_type block_statement
     private FuncDecl function() {
         Token t = currentLA();
+        boolean isRecursive = false;
         match(TokenType.DEF);
 
         Modifier mod = null;
@@ -1112,16 +1135,14 @@ public class Parser {
         match(TokenType.DEF);
         if(nextLA(TokenType.LOCAL)) match(TokenType.LOCAL);
 
-        Vector<AST> varDecls = variableDecl();
-        Vector<Var> vars = varDecls.get(0).asVector();
-        Type varType = varDecls.get(1).asType();
+        Vector<Var> vars = variableDecl();
         Vector<LocalDecl> locals = new Vector<LocalDecl>();
 
-        t.newEndLocation(varType.getLocation().end);
-        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-        
-        for(int i = 0; i < vars.size(); i++)
-            locals.append(new LocalDecl(t ,vars.get(i).asVar(), varType));
+        for(int i = 0; i < vars.size(); i++) {
+            Var v = vars.get(i).asVar();
+            t.setText(input.getProgramInputForToken(t.getStartPos(),v.location.end));
+            locals.append(new LocalDecl(t ,v, v.type()));
+        }
 
         return locals;
     }
@@ -1496,8 +1517,11 @@ public class Parser {
                         e = new Invocation(t,primary.asExpression(),e1.asInvocation().name(),e1.asInvocation().arguments());
                         e1 = null;
                     }
-                    else
+                    else {
+                        t.newEndLocation(e1.getLocation().end);
+                        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
                         e = new FieldExpr(t,primary.asExpression(),e1.asExpression(),false);
+                    }
                 }
                 mainExpr = e;
             }
@@ -2013,10 +2037,13 @@ public class Parser {
         match(TokenType.LIST);
         match(TokenType.LPAREN);
 
-        Vector<Expression> exprs = new Vector<Expression>(expression());
-        while(nextLA(TokenType.COMMA)) {
-            match(TokenType.COMMA);
-            exprs.append(expression());
+        Vector<Expression> exprs = null;
+        if(isInPrimaryExpressionFIRST()) {
+            exprs = new Vector<Expression>(expression());
+            while(nextLA(TokenType.COMMA)) {
+                match(TokenType.COMMA);
+                exprs.append(expression());
+            }
         }
 
         match(TokenType.RPAREN,t);

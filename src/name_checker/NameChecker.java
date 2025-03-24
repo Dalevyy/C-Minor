@@ -6,8 +6,8 @@ import ast.expressions.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
 import messages.errors.ErrorBuilder;
-import messages.errors.ErrorType;
-import messages.errors.ScopeErrorFactory;
+import messages.MessageType;
+import messages.errors.scope_error.ScopeErrorFactory;
 import utilities.*;
 import java.util.ArrayList;
 
@@ -16,6 +16,7 @@ import java.util.HashSet;
 public class NameChecker extends Visitor {
 
     private SymbolTable currentScope;
+    private ClassDecl currentClass;
     private ScopeErrorFactory generateScopeError;
     private ArrayList<String> errors;
 
@@ -30,6 +31,28 @@ public class NameChecker extends Visitor {
         this.interpretMode = true;
         this.generateScopeError = new ScopeErrorFactory();
         this.errors = new ArrayList<String>();
+    }
+
+    /*
+    _________________________ Assignment Statements _________________________
+    We need to make sure the LHS of an assignment statement is either a name
+    expression or a field expression. It does not make sense to have any
+    construct here since we can only assign a value to a declared variable.
+    _________________________________________________________________________
+    */
+    public void visitAssignStmt(AssignStmt as) {
+
+        // ERROR CHECK #1 : Make sure the LHS of an assignment is a name or field
+        if(!(as.LHS() instanceof NameExpr) && !(as.LHS() instanceof FieldExpr)) {
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(as)
+                    .addErrorType(MessageType.SCOPE_ERROR_325)
+                    .addArgs(as.LHS().toString())
+                    .addSuggestType(MessageType.SCOPE_SUGGEST_1302)
+                    .error());
+        }
+
+        super.visitAssignStmt(as);
     }
 
     /*
@@ -100,7 +123,7 @@ public class NameChecker extends Visitor {
         if(currentScope.isNameUsedAnywhere(className)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(cd)
-                    .addErrorType(ErrorType.SCOPE_ERROR_316)
+                    .addErrorType(MessageType.SCOPE_ERROR_316)
                     .addArgs(className)
                     .error());
         }
@@ -113,38 +136,51 @@ public class NameChecker extends Visitor {
             if(className.equals(baseClass)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(cd)
-                        .addErrorType(ErrorType.SCOPE_ERROR_317)
+                        .addErrorType(MessageType.SCOPE_ERROR_317)
                         .addArgs(className)
                         .error());
             }
-            className += "/" + cd.superClass().getName().toString();
+
+            // ERROR CHECK #3: Make sure the class we are inheriting from
+            //                 already exists
+            if(!currentScope.hasNameSomewhere(baseClass)) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(cd)
+                        .addErrorType(MessageType.SCOPE_ERROR_322)
+                        .addArgs(baseClass)
+                        .error());
+            }
         }
 
         currentScope.addName(className,cd);
 
         currentScope = currentScope.openNewScope();
-
         cd.classBlock().fieldDecls().visit(this);
 
         if(baseClass != null) {
-            ClassDecl baseDecl = currentScope.findName(baseClass).declName().asTopLevelDecl().asClassDecl();
-            for(String name : baseDecl.symbolTable.getVarNames().keySet()) {
-                if(baseDecl.symbolTable.getVarNames().get(name).declName().isFieldDecl()) {
-
-                    // ERROR CHECK #3: Make sure the inherited fields have different names
+            ClassDecl baseDecl = currentScope.findName(baseClass).decl().asTopLevelDecl().asClassDecl();
+            for(String name : baseDecl.symbolTable.getAllNames().keySet()) {
+                if(baseDecl.symbolTable.getAllNames().get(name).decl().isFieldDecl()) {
+                    // ERROR CHECK #3: Each field name in a subclass needs to be unique
+                    //                 from the fields declared in the base class
                     if(currentScope.hasName(name)) {
-                        errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        errors.add(new ErrorBuilder(generateScopeError, interpretMode)
                                 .addLocation(cd)
-                                .addErrorType(ErrorType.SCOPE_ERROR_318)
+                                .addErrorType(MessageType.SCOPE_ERROR_318)
                                 .addArgs(name)
                                 .error());
                     }
-                    currentScope.addName(name,baseDecl.symbolTable.getVarNames().get(name));
+                    currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name));
                 }
+                if (name.contains("_")) { currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name)); }
+                else { currentScope.addName(name + "_" + baseDecl.toString(),baseDecl.symbolTable.getAllNames().get(name)); }
             }
+            for(String name: baseDecl.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
         }
 
+        currentClass = cd;
         cd.classBlock().methodDecls().visit(this);
+        currentClass = null;
 
         cd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
@@ -198,7 +234,7 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(enumName)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(ed)
-                    .addErrorType(ErrorType.SCOPE_ERROR_305)
+                    .addErrorType(MessageType.SCOPE_ERROR_305)
                     .addArgs(enumName)
                     .error());
         }
@@ -211,7 +247,7 @@ public class NameChecker extends Visitor {
             if(currentScope.hasName(constantName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ed)
-                        .addErrorType(ErrorType.SCOPE_ERROR_306)
+                        .addErrorType(MessageType.SCOPE_ERROR_306)
                         .addArgs(constantName)
                         .error());
             }
@@ -233,7 +269,7 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(fieldName)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(fd)
-                    .addErrorType(ErrorType.SCOPE_ERROR_315)
+                    .addErrorType(MessageType.SCOPE_ERROR_315)
                     .addArgs(fd.toString())
                     .error());
         }
@@ -292,7 +328,7 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(fd.toString())) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(fd)
-                    .addErrorType(ErrorType.SCOPE_ERROR_311)
+                    .addErrorType(MessageType.SCOPE_ERROR_311)
                     .addArgs(fd.toString())
                     .error());
         }
@@ -305,13 +341,15 @@ public class NameChecker extends Visitor {
         if(currentScope.hasNameSomewhere(funcSignature)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(fd)
-                    .addErrorType(ErrorType.SCOPE_ERROR_312)
+                    .addErrorType(MessageType.SCOPE_ERROR_312)
                     .addArgs(fd.toString())
                     .error());
         }
 
-        SymbolTable newScope = currentScope.openNewScope();
         currentScope.addName(funcSignature, fd);
+        currentScope.addMethod(fd.toString());
+
+        SymbolTable newScope = currentScope.openNewScope();
         currentScope = newScope;
 
         // If we have any parameters, then we will visit them to ensure
@@ -341,7 +379,7 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(globalName)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(gd)
-                    .addErrorType(ErrorType.SCOPE_ERROR_302)
+                    .addErrorType(MessageType.SCOPE_ERROR_302)
                     .addArgs(globalName)
                     .error());
         }
@@ -350,7 +388,7 @@ public class NameChecker extends Visitor {
             if(gd.var().init().toString().equals(globalName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(gd)
-                        .addErrorType(ErrorType.SCOPE_ERROR_303)
+                        .addErrorType(MessageType.SCOPE_ERROR_303)
                         .addArgs(globalName)
                         .error());
             }
@@ -385,9 +423,29 @@ public class NameChecker extends Visitor {
         }
     }
 
-    // Note: No visitInvocation will be done here since we are storing
-    // signatures. This means we need to know the correct argument types
-    // first which is only possible after name checking.
+    /*
+    ___________________________ Invocations ___________________________
+    For invocations, we will only check if the function name has been
+    declared in the program. We can not name check methods yet since
+    we have to know the class in which they were declared in. This will
+    only be known during type checking.
+    ___________________________________________________________________
+    */
+    public void visitInvocation(Invocation in) {
+        // Function Invocation Case
+        if(in.target() == null) {
+            String funcName = in.toString();
+            // ERROR CHECK #1: Make sure the function was declared previously
+            if(!currentScope.hasMethodSomewhere(funcName)) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_319)
+                        .addArgs(funcName)
+                        .error());
+            }
+        }
+        in.arguments().visit(this);
+    }
 
     /*
     _________________________ Local Declarations _________________________
@@ -408,7 +466,7 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(localName)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                      .addLocation(ld)
-                     .addErrorType(ErrorType.SCOPE_ERROR_300)
+                     .addErrorType(MessageType.SCOPE_ERROR_300)
                      .addArgs(localName)
                      .error());
         }
@@ -419,7 +477,7 @@ public class NameChecker extends Visitor {
             if(ld.var().init().toString().equals(localName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ld)
-                        .addErrorType(ErrorType.SCOPE_ERROR_301)
+                        .addErrorType(MessageType.SCOPE_ERROR_301)
                         .addArgs(localName)
                         .error());
             }
@@ -459,23 +517,27 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(md.toString())) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(md)
-                    .addErrorType(ErrorType.SCOPE_ERROR_313)
+                    .addErrorType(MessageType.SCOPE_ERROR_313)
                     .addArgs(md.toString())
                     .error());
         }
 
-        String methodSignature = md.toString() + "(" + md.paramSignature() + ")" + md.returnType().typeSignature();
+        String methodSignature = md.toString() + "/";
+        if(md.params() != null) { methodSignature += md.paramSignature(); }
+
         // ERROR CHECK #2: Make sure method signature is unique to support overloading
         if(currentScope.hasName(methodSignature)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(md)
-                    .addErrorType(ErrorType.SCOPE_ERROR_314)
+                    .addErrorType(MessageType.SCOPE_ERROR_314)
                     .addArgs(md.toString())
                     .error());
         }
 
-        SymbolTable newScope = currentScope.openNewScope();
         currentScope.addName(methodSignature,md);
+        currentScope.addMethod(md.toString());
+
+        SymbolTable newScope = currentScope.openNewScope();
         currentScope = newScope;
 
         if(md.params() != null) { md.params().visit(this); }
@@ -499,9 +561,19 @@ public class NameChecker extends Visitor {
         if(!currentScope.isNameUsedAnywhere(name)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(ne)
-                    .addErrorType(ErrorType.SCOPE_ERROR_307)
+                    .addErrorType(MessageType.SCOPE_ERROR_307)
                     .addArgs(name)
                     .error());
+        }
+        else {
+            NameNode nn = currentScope.findName(name);
+            if(nn.decl().isTopLevelDecl() && nn.decl().toString().equals(name)) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.SCOPE_ERROR_326)
+                                .addArgs(name)
+                                .error());
+            }
         }
     }
 
@@ -528,12 +600,12 @@ public class NameChecker extends Visitor {
         if(cd == null) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(ne)
-                    .addErrorType(ErrorType.SCOPE_ERROR_308)
+                    .addErrorType(MessageType.SCOPE_ERROR_308)
                     .addArgs(lookupName)
                     .error());
         }
 
-        SymbolTable classST = cd.declName().asTopLevelDecl().asClassDecl().symbolTable;
+        SymbolTable classST = cd.decl().asTopLevelDecl().asClassDecl().symbolTable;
 
         Vector<Var> newArgs = ne.args();
         HashSet<String> seen = new HashSet<String>();
@@ -544,7 +616,7 @@ public class NameChecker extends Visitor {
             if(!classST.hasName(fieldName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ne)
-                        .addErrorType(ErrorType.SCOPE_ERROR_309)
+                        .addErrorType(MessageType.SCOPE_ERROR_309)
                         .addArgs(fieldName,lookupName)
                         .error());
             }
@@ -552,7 +624,7 @@ public class NameChecker extends Visitor {
             else if(seen.contains(fieldName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ne)
-                        .addErrorType(ErrorType.SCOPE_ERROR_310)
+                        .addErrorType(MessageType.SCOPE_ERROR_310)
                         .addArgs(fieldName)
                         .error());
             }
@@ -577,7 +649,7 @@ public class NameChecker extends Visitor {
         if(currentScope.isNameUsedAnywhere(paramName)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(pd)
-                    .addErrorType(ErrorType.SCOPE_ERROR_304)
+                    .addErrorType(MessageType.SCOPE_ERROR_304)
                     .addArgs(paramName)
                     .error());
         }
