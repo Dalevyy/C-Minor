@@ -592,11 +592,12 @@ public class TypeChecker extends Visitor {
             }   while(currentScope.hasName(baseClass));
 
             cd.setClassHierarchy(new ClassType(new Name(inheritedClasses)));
-            System.out.println(inheritedClasses);
         } else { cd.setClassHierarchy(new ClassType(new Name(cd.toString()))); }
 
         currentScope = cd.symbolTable;
+        currentContext = cd;
         super.visitClassDecl(cd);
+        currentContext = null;
         currentScope = currentScope.closeScope();
     }
 
@@ -946,7 +947,7 @@ public class TypeChecker extends Visitor {
             funcSignature += in.arguments().get(i).type.typeSignature();
 
         // Function Check
-        if(in.target() == null) {
+        if(in.target() == null && !(currentContext instanceof ClassDecl)) {
             // ERROR CHECK #1: Make sure the function overload exists for the passed
             //                 argument types
             if(!currentScope.hasNameSomewhere(funcSignature)) {
@@ -956,16 +957,21 @@ public class TypeChecker extends Visitor {
                         .addArgs(in.toString())
                         .error());
             }
-
-            FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
-            in.type = fd.returnType();
-            in.setInvokeSignature(funcSignature);
+            else {
+                FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
+                in.type = fd.returnType();
+            }
         }
         // Method Check
         else {
-            in.target().visit(this);
-            Type targetType = in.target().type;
-            ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+            if(in.target() != null) { in.target().visit(this); }
+            else {
+                in.setTarget(new NameExpr(new Name("this")));
+                in.target().type = new ClassType(currentContext.asTopLevelDecl().asClassDecl().name());
+            }
+
+            in.targetType = in.target().type;
+            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
 
             String methodName = in.toString();
 
@@ -993,10 +999,9 @@ public class TypeChecker extends Visitor {
             }
 
             MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
-            in.targetType = targetType;
             in.type = md.returnType();
-            in.setInvokeSignature(funcSignature);
         }
+        in.setInvokeSignature(funcSignature);
     }
 
     /*
@@ -1105,7 +1110,6 @@ public class TypeChecker extends Visitor {
     */
     public void visitMethodDecl(MethodDecl md) {
         currentScope = md.symbolTable;
-        currentContext = md;
 
         // ERROR CHECK #1: Make sure method return type represents
         //                 a real type.
@@ -1141,12 +1145,13 @@ public class TypeChecker extends Visitor {
     _____________________________________________________________________
     */
     public void visitNameExpr(NameExpr ne) {
-        NameNode decl = currentScope.findName(ne.toString());
+        NameNode name = currentScope.findName(ne.toString());
 
-        if(decl.decl().isStatement()) { ne.type = decl.decl().asStatement().asLocalDecl().type(); }
-        else if(decl.decl().isParamDecl()) { ne.type = decl.decl().asParamDecl().type(); }
-        else if(decl.decl().isTopLevelDecl()) {
-            TopLevelDecl tDecl = decl.decl().asTopLevelDecl();
+        if(name.decl().isStatement()) { ne.type = name.decl().asStatement().asLocalDecl().type(); }
+        else if(name.decl().isParamDecl()) { ne.type = name.decl().asParamDecl().type(); }
+        else if(name.decl().isFieldDecl()) { ne.type = name.decl().asFieldDecl().type(); }
+        else if(name.decl().isTopLevelDecl()) {
+            TopLevelDecl tDecl = name.decl().asTopLevelDecl();
 
             if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
             else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().constantType(); }

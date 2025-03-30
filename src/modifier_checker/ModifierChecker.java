@@ -264,7 +264,7 @@ public class ModifierChecker extends Visitor {
         String funcSignature = in.invokeSignature();
 
         // Function Invocation Case
-        if(in.target() == null) {
+        if(in.target() == null && !in.targetType.isClassType()) {
             FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
@@ -281,7 +281,7 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation Case
         else {
-            ClassDecl cd = currentScope.findName(in.target().type.typeName()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             while(!cd.symbolTable.hasName(funcSignature)) {
                 cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             }
@@ -299,7 +299,7 @@ public class ModifierChecker extends Visitor {
                             .error());
                 }
             }
-            // ERROR CHECK #3: An object can only a method that is declared public
+            // ERROR CHECK #3: An object can only access a method that is declared public
             if(!md.mods.isPublic()) {
                     errors.add(new ErrorBuilder(generateModError,interpretMode)
                             .addLocation(in)

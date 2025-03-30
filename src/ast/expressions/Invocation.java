@@ -13,6 +13,8 @@ public class Invocation extends Expression {
     private Name name;
     private Vector<Expression> args;
 
+    private String invokeSignature;
+
     public Invocation(Token t, Name fn, Vector<Expression> p) { this(t,null, fn, p); }
 
     public Invocation(Token t, Expression e, Name fn, Vector<Expression> p) {
@@ -33,6 +35,10 @@ public class Invocation extends Expression {
 
     public boolean isInvocation() { return true; }
     public Invocation asInvocation() { return this; }
+
+    public void setTarget(Expression e) { if(this.target == null) { this.target = e;} }
+    public void setInvokeSignature(String inSig) { this.invokeSignature = inSig; }
+    public String invokeSignature() { return this.invokeSignature; }
 
     @Override
     public String toString() { return name.toString(); }
