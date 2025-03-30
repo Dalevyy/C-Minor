@@ -592,7 +592,6 @@ public class TypeChecker extends Visitor {
             }   while(currentScope.hasName(baseClass));
 
             cd.setClassHierarchy(new ClassType(new Name(inheritedClasses)));
-            System.out.println(inheritedClasses);
         } else { cd.setClassHierarchy(new ClassType(new Name(cd.toString()))); }
 
         currentScope = cd.symbolTable;
