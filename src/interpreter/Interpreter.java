@@ -16,12 +16,14 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
+    private String objContext;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
 
     public Interpreter() {
         stack = new RuntimeStack();
+        objContext = "";
         returnFound = false;
         breakFound = false;
         continueFound = false;
@@ -54,7 +56,7 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
-        //as.LHS().visit(this);
+        as.LHS().visit(this);
         String name = as.LHS().toString();
 
         as.RHS().visit(this);
@@ -588,7 +590,7 @@ public class Interpreter extends Visitor {
         stack = stack.createCallFrame();
 
         // Function Invocation
-        if(in.target() == null) {
+        if(in.target() == null && !in.targetType.isClassType()) {
             FuncDecl fd = currentScope.findName(in.invokeSignature()).decl().asTopLevelDecl().asFuncDecl();
             currentScope = fd.symbolTable;
 
@@ -615,6 +617,8 @@ public class Interpreter extends Visitor {
             in.target().visit(this);
             HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
 
+            if(!in.target().asNameExpr().getName().equals("this")) { stack.addValue("this",obj); }
+
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
 
@@ -629,7 +633,7 @@ public class Interpreter extends Visitor {
             MethodDecl md = cd.symbolTable.findName(methodName).decl().asMethodDecl();
             currentScope = md.symbolTable;
 
-            // for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
+            for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -704,7 +708,10 @@ public class Interpreter extends Visitor {
     with the name from the stack and set the current value equal to it.
     _____________________________________________________________________
     */
-    public void visitNameExpr(NameExpr ne) { currValue = stack.getValue(ne.toString()); }
+    public void visitNameExpr(NameExpr ne) {
+        if (ne.getName().equals("this")) { currValue = stack.getValue("this"); }
+        else { currValue = stack.getValue(ne.toString()); }
+    }
 
     /*
     ___________________________ New Expressions ___________________________
