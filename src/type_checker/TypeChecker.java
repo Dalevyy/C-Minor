@@ -1149,12 +1149,13 @@ public class TypeChecker extends Visitor {
     _____________________________________________________________________
     */
     public void visitNameExpr(NameExpr ne) {
-        NameNode decl = currentScope.findName(ne.toString());
+        NameNode name = currentScope.findName(ne.toString());
 
-        if(decl.decl().isStatement()) { ne.type = decl.decl().asStatement().asLocalDecl().type(); }
-        else if(decl.decl().isParamDecl()) { ne.type = decl.decl().asParamDecl().type(); }
-        else if(decl.decl().isTopLevelDecl()) {
-            TopLevelDecl tDecl = decl.decl().asTopLevelDecl();
+        if(name.decl().isStatement()) { ne.type = name.decl().asStatement().asLocalDecl().type(); }
+        else if(name.decl().isParamDecl()) { ne.type = name.decl().asParamDecl().type(); }
+        else if(name.decl().isFieldDecl()) { ne.type = name.decl().asFieldDecl().type(); }
+        else if(name.decl().isTopLevelDecl()) {
+            TopLevelDecl tDecl = name.decl().asTopLevelDecl();
 
             if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
             else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().constantType(); }
