@@ -948,7 +948,7 @@ public class TypeChecker extends Visitor {
             funcSignature += in.arguments().get(i).type.typeSignature();
 
         // Function Check
-        if(in.target() == null) {
+        if(in.target() == null && !(currentContext instanceof ClassDecl)) {
             // ERROR CHECK #1: Make sure the function overload exists for the passed
             //                 argument types
             if(!currentScope.hasNameSomewhere(funcSignature)) {
@@ -958,13 +958,6 @@ public class TypeChecker extends Visitor {
                         .addArgs(in.toString())
                         .error());
             }
-
-            if(currentContext instanceof ClassDecl) {
-                in.setTarget(new NameExpr(new Name("this")));
-                in.targetType = new ClassType(currentContext.asTopLevelDecl().asClassDecl().name());
-                MethodDecl md = currentScope.findName(funcSignature).decl().asMethodDecl();
-                in.type = md.returnType();
-            }
             else {
                 FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
                 in.type = fd.returnType();
@@ -972,9 +965,14 @@ public class TypeChecker extends Visitor {
         }
         // Method Check
         else {
-            in.target().visit(this);
-            Type targetType = in.target().type;
-            ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+            if(in.target() != null) { in.target().visit(this); }
+            else {
+                in.setTarget(new NameExpr(new Name("this")));
+                in.target().type = new ClassType(currentContext.asTopLevelDecl().asClassDecl().name());
+            }
+
+            in.targetType = in.target().type;
+            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
 
             String methodName = in.toString();
 
@@ -1002,7 +1000,6 @@ public class TypeChecker extends Visitor {
             }
 
             MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
-            in.targetType = targetType;
             in.type = md.returnType();
         }
         in.setInvokeSignature(funcSignature);
