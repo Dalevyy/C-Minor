@@ -596,7 +596,9 @@ public class TypeChecker extends Visitor {
         } else { cd.setClassHierarchy(new ClassType(new Name(cd.toString()))); }
 
         currentScope = cd.symbolTable;
+        currentContext = cd;
         super.visitClassDecl(cd);
+        currentContext = null;
         currentScope = currentScope.closeScope();
     }
 
@@ -957,9 +959,16 @@ public class TypeChecker extends Visitor {
                         .error());
             }
 
-            FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
-            in.type = fd.returnType();
-            in.setInvokeSignature(funcSignature);
+            if(currentContext instanceof ClassDecl) {
+                in.setTarget(new NameExpr(new Name("this")));
+                in.targetType = new ClassType(currentContext.asTopLevelDecl().asClassDecl().name());
+                MethodDecl md = currentScope.findName(funcSignature).decl().asMethodDecl();
+                in.type = md.returnType();
+            }
+            else {
+                FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
+                in.type = fd.returnType();
+            }
         }
         // Method Check
         else {
@@ -995,8 +1004,8 @@ public class TypeChecker extends Visitor {
             MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
             in.targetType = targetType;
             in.type = md.returnType();
-            in.setInvokeSignature(funcSignature);
         }
+        in.setInvokeSignature(funcSignature);
     }
 
     /*
@@ -1105,7 +1114,6 @@ public class TypeChecker extends Visitor {
     */
     public void visitMethodDecl(MethodDecl md) {
         currentScope = md.symbolTable;
-        currentContext = md;
 
         // ERROR CHECK #1: Make sure method return type represents
         //                 a real type.
