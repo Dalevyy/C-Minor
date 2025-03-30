@@ -625,13 +625,11 @@ public class Interpreter extends Visitor {
                 searchMethod = methodName + "_" + startClass.toString();
             }
             methodName = searchMethod;
-//            if(cd.superClass() != null && in.type.) {
-//                methodName += "_" + cd.toString();
-//            }
+
             MethodDecl md = cd.symbolTable.findName(methodName).decl().asMethodDecl();
             currentScope = md.symbolTable;
 
-            for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
+            // for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -727,7 +725,7 @@ public class Interpreter extends Visitor {
 
         currValue = instance;
 
-        cd.constructor().visit(this);
+        if(cd.constructor() != null) { cd.constructor().visit(this); }
     }
 
     /*
