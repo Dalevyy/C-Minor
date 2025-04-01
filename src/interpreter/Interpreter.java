@@ -475,21 +475,20 @@ public class Interpreter extends Visitor {
         currValue = instance.get(fe.name().toString());
     }
 
-    //TODO: BROKEN AF :')
     /*
     ___________________________ For Statements ___________________________
     With a for loop, we will evaluate the loop variable declarations, and
     we will execute the loop until the loop condition becomes false.
     ______________________________________________________________________
     */
-//    public void visitForStmt(ForStmt fs) {
-//        fs.forInits().visit(this);
-//        fs.condition().visit(this);
-//        while((boolean)currValue) {
-//            fs.forBlock().visit(this);
-//            fs.condition().visit(this);
-//        }
-//    }
+    public void visitForStmt(ForStmt fs) {
+        fs.forInits().visit(this);
+        fs.condition().visit(this);
+        while((boolean)currValue) {
+            fs.forBlock().visit(this);
+            fs.condition().visit(this);
+        }
+    }
 
     /*
     ________________________ Global Declarations ________________________
@@ -626,7 +625,7 @@ public class Interpreter extends Visitor {
             ClassDecl startClass = cd;
             while(!cd.symbolTable.hasName(searchMethod)) {
                 startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-                searchMethod = methodName + "_" + startClass.toString();
+                searchMethod = methodName + "/" + startClass.toString();
             }
             methodName = searchMethod;
 
