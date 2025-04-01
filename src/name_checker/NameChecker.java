@@ -285,7 +285,9 @@ public class NameChecker extends Visitor {
     during type checking instead.
     _____________________________________________________________________
     */
-    public void visitFieldExpr(FieldExpr fe) { fe.fieldTarget().visit(this); }
+    public void visitFieldExpr(FieldExpr fe) {
+        if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
+    }
 
     /*
     _________________________ For Statements _________________________
