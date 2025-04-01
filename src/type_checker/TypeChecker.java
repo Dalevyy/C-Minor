@@ -1110,6 +1110,7 @@ public class TypeChecker extends Visitor {
     */
     public void visitMethodDecl(MethodDecl md) {
         currentScope = md.symbolTable;
+        currentContext = md;
 
         // ERROR CHECK #1: Make sure method return type represents
         //                 a real type.
