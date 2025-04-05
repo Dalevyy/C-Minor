@@ -16,14 +16,12 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
-    private String objContext;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
 
     public Interpreter() {
         stack = new RuntimeStack();
-        objContext = "";
         returnFound = false;
         breakFound = false;
         continueFound = false;
@@ -110,6 +108,12 @@ public class Interpreter extends Visitor {
                     break;
                 }
             }
+        }
+
+        if(as.LHS().isFieldExpr()) {
+            String objName = as.LHS().asFieldExpr().fieldTarget().toString();
+            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+            instance.put(name,stack.getValue(name));
         }
     }
 
@@ -602,7 +606,7 @@ public class Interpreter extends Visitor {
             returnFound = false;
 
             for(int i = 0; i < in.arguments().size(); i++) {
-                if(in.arguments().get(i) instanceof NameExpr) {
+                if(in.arguments().get(i).isNameExpr()) {
                     String argName = in.arguments().get(i).toString();
                     ParamDecl currParam = fd.params().get(i);
 
@@ -616,7 +620,7 @@ public class Interpreter extends Visitor {
             in.target().visit(this);
             HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
 
-            if(!in.target().asNameExpr().getName().equals("this")) { stack.addValue("this",obj); }
+            if(!in.target().asNameExpr().getName().toString().equals("this")) { stack.addValue("this",obj); }
 
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
@@ -643,7 +647,7 @@ public class Interpreter extends Visitor {
             returnFound = false;
 
             for(int i = 0; i < in.arguments().size(); i++) {
-                if(in.arguments().get(i) instanceof NameExpr) {
+                if(in.arguments().get(i).isNameExpr()) {
                     String argName = in.arguments().get(i).toString();
                     ParamDecl currParam = md.params().get(i);
 
@@ -708,8 +712,11 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitNameExpr(NameExpr ne) {
-        if (ne.getName().equals("this")) { currValue = stack.getValue("this"); }
-        else { currValue = stack.getValue(ne.toString()); }
+        if (ne.getName().toString().equals("this")) { currValue = stack.getValue("this"); }
+        else {
+            currValue = stack.getValue(ne.toString());
+           // if(stack.getValue("this") )
+        }
     }
 
     /*
@@ -774,8 +781,8 @@ public class Interpreter extends Visitor {
     /*
     __________________________ Unary Expressions  __________________________
     We will evaluate unary expressions just like we did with binary
-    expressions by first evaluating the individual expression and then we
-    will perform the operation that is needed.
+    expressions by first evaluating the individual expression. From there,
+    we will perform the operation that is needed.
     ________________________________________________________________________
     */
     public void visitUnaryExpr(UnaryExpr ue) {
