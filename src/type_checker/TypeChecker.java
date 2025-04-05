@@ -952,7 +952,7 @@ public class TypeChecker extends Visitor {
             funcSignature += in.arguments().get(i).type.typeSignature();
 
         // Function Check
-        if(in.target() == null && !(currentContext instanceof ClassDecl)) {
+        if(in.target() == null && currentClass == null) {
             // ERROR CHECK #1: Make sure the function overload exists for the passed
             //                 argument types
             if(!currentScope.hasNameSomewhere(funcSignature)) {
@@ -972,7 +972,7 @@ public class TypeChecker extends Visitor {
             if(in.target() != null) { in.target().visit(this); }
             else {
                 in.setTarget(new NameExpr(new Name("this")));
-                in.target().type = new ClassType(currentContext.asTopLevelDecl().asClassDecl().name());
+                in.target().type = new ClassType(currentClass.name());
             }
 
             in.targetType = in.target().type;
