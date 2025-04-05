@@ -21,6 +21,7 @@ import java.util.ArrayList;
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
+    private ClassDecl currentClass;
     private AST currentContext;
     private TypeErrorFactory generateTypeError;
     private ScopeErrorFactory generateScopeError;
@@ -31,6 +32,7 @@ public class TypeChecker extends Visitor {
     public TypeChecker() {
         this.currentScope = null;
         this.currentContext = null;
+        this.currentClass = null;
         this.generateTypeError = new TypeErrorFactory();
         this.generateScopeError = new ScopeErrorFactory();
         this.errors = new ArrayList<String>();
@@ -596,8 +598,10 @@ public class TypeChecker extends Visitor {
 
         currentScope = cd.symbolTable;
         currentContext = cd;
+        currentClass = cd;
         super.visitClassDecl(cd);
         currentContext = null;
+        currentClass = null;
         currentScope = currentScope.closeScope();
     }
 
@@ -758,7 +762,8 @@ public class TypeChecker extends Visitor {
     _________________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
-        fe.fieldTarget().visit(this);
+        if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
+        else { fe.fieldTarget().type = new ClassType(new Name(currentClass.toString())); }
         Type targetType = fe.fieldTarget().type;
 
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
@@ -1150,7 +1155,9 @@ public class TypeChecker extends Visitor {
 
         if(name.decl().isStatement()) { ne.type = name.decl().asStatement().asLocalDecl().type(); }
         else if(name.decl().isParamDecl()) { ne.type = name.decl().asParamDecl().type(); }
-        else if(name.decl().isFieldDecl()) { ne.type = name.decl().asFieldDecl().type(); }
+        else if(name.decl().isFieldDecl()) {
+            ne.type = name.decl().asFieldDecl().type();
+        }
         else if(name.decl().isTopLevelDecl()) {
             TopLevelDecl tDecl = name.decl().asTopLevelDecl();
 
