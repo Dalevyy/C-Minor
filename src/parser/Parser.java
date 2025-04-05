@@ -9,6 +9,7 @@ import ast.expressions.Literal.*;
 import ast.operators.*;
 import ast.operators.AssignOp.*;
 import ast.operators.BinaryOp.*;
+import ast.operators.LoopOp.*;
 import ast.operators.UnaryOp.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
@@ -53,7 +54,7 @@ public class Parser {
     private String errorPosition(int start, int end) {
         StringBuilder sb = new StringBuilder();
 
-        for(int i = -3; i < start; i++)
+        for(int i = -2; i < start; i++)
             sb.append(' ');
 
         for(int i = start; i < end; i++)
@@ -216,7 +217,7 @@ public class Parser {
                 !(nextLA(TokenType.LT,2)||nextLA(TokenType.LPAREN,2) || nextLA(TokenType.COLON,2)))
             return enumType();
         // Parse GlobalDecl
-        else if(nextLA(TokenType.DEF) && (nextLA(TokenType.CONST, 1) || nextLA(TokenType.GLOBAL, 1)))
+        else if(nextLA(TokenType.DEF) && ((nextLA(TokenType.CONST, 1) || nextLA(TokenType.GLOBAL, 1))))
             return globalVariable();
         // Parse ClassDecl
         else if(nextLA(TokenType.ABSTR) || nextLA(TokenType.FINAL) || nextLA(TokenType.CLASS))
@@ -793,7 +794,7 @@ public class Parser {
         return header;
     }
 
-    // 23. formal_params : param_modifier Name type ( ',' param_modifier Name type)*
+    // 23. formal_params : param_modifier Name:type ( ',' param_modifier Name:type)*
     private Vector<ParamDecl> formalParams() {
         Token t = currentLA();
 
@@ -801,7 +802,7 @@ public class Parser {
 
         Name n = new Name(currentLA());
         match(TokenType.ID);
-
+        match(TokenType.COLON);
         Type ty = type();
 
         t.newEndLocation(ty.getLocation().end);
@@ -817,7 +818,7 @@ public class Parser {
 
             n = new Name(currentLA());
             match(TokenType.ID);
-
+            match(TokenType.COLON);
             ty = type();
 
             t.newEndLocation(ty.getLocation().end);
@@ -1339,30 +1340,90 @@ public class Parser {
         return new DoStmt(t,b,nextE,e);
     }
 
-    // 47. for_statement ::= 'for' localDecl? 'do' expression ( 'next' assignmentStatement )? block_statement
+    // for_statement : 'for' '(' range_iterator | array_iterator')' block_statement
     private ForStmt forStatement() {
         Token t = currentLA();
 
         match(TokenType.FOR);
-        Vector<LocalDecl> forVar = null;
-        if(nextLA(TokenType.DEF))
-            forVar = declaration();
+        match(TokenType.LPAREN);
 
-        match(TokenType.DO);
+        Vector<AST> forCondition = rangeIterator();
+        LocalDecl forVar = forCondition.get(0).asStatement().asLocalDecl();
+        Expression LHS = forCondition.get(1).asExpression();
+        Expression RHS = forCondition.get(3).asExpression();
+        LoopOp loopOp = forCondition.get(2).asOperator().asLoopOp();
 
-        Expression forCondition = expression();
-
-        Statement nextE = null;
-        if(nextLA(TokenType.NEXT)) {
-            match(TokenType.NEXT);
-            nextE = assignmentStatement();
-        }
-
+        match(TokenType.RPAREN);
         BlockStmt b = blockStatement();
 
         t.newEndLocation(b.getLocation().end);
         t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-        return new ForStmt(t,forVar,forCondition, nextE,b);
+        return new ForStmt(t,forVar,LHS,RHS,loopOp,b);
+    }
+
+    // range_iterator : 'def' Name 'in' expression range_operator expression ;
+    private Vector<AST> rangeIterator() {
+        Token t = currentLA();
+        Vector<AST> forComponents = new Vector<AST>();
+
+        match(TokenType.DEF);
+        forComponents.append(variableDeclInit());
+        match(TokenType.IN);
+
+        forComponents.append(expression());
+        forComponents.append(rangeOperator());
+        forComponents.append(expression());
+
+        return forComponents;
+    }
+
+    // range_operator : inclusive | exclusive_right | exclusive_left | exclusive ;
+    private LoopOp rangeOperator() {
+        if(nextLA(TokenType.INC) && nextLA(TokenType.LT,1)) { return exclusiveRight(); }
+        else if(nextLA(TokenType.INC)) { return inclusive(); }
+        else if(nextLA(TokenType.LT) && nextLA(TokenType.INC,1) && nextLA(TokenType.LT,2)) { return exclusive(); }
+        else { return exclusiveLeft(); }
+    }
+
+    // inclusive : '..' ;
+    private LoopOp inclusive() {
+        Token t = currentLA();
+
+        match(TokenType.INC);
+
+        return new LoopOp(t,LoopType.EXCL_L);
+    }
+
+    // exclusive_right : '..<' ;
+    private LoopOp exclusiveRight() {
+        Token t = currentLA();
+
+        match(TokenType.INC);
+        match(TokenType.LT,t);
+
+        return new LoopOp(t,LoopType.EXCL_R);
+
+    }
+
+    // exclusive_left : '<..' ;
+    private LoopOp exclusiveLeft() {
+        Token t = currentLA();
+
+        match(TokenType.LT);
+        match(TokenType.INC,t);
+
+        return new LoopOp(t,LoopType.EXCL_L);
+    }
+
+    // exclusive : '<..<'
+    private LoopOp exclusive() {
+        Token t = currentLA();
+
+        match(TokenType.LT);
+        match(TokenType.INC);
+        match(TokenType.LT,t);
+
+        return new LoopOp(t,LoopType.EXCL);
     }
 
     // 48. choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}'
