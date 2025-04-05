@@ -86,39 +86,10 @@ public abstract class Type extends AST {
     public boolean isArrayType() { return false; }
     public boolean isVoidType() { return false; }
 
-    public ScalarType asScalarType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ScalarType.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public DiscreteType asDiscreteType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a DiscreteType.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public ClassType asClassType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ClassType.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public ListType asListType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ListType.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public ArrayType asArrayType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an ArrayType.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public VoidType asVoidType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a VoidType.\n");
-        System.exit(1);
-        return null;
-    }
+    public ScalarType asScalarType() { throw new RuntimeException("Expression can not be casted into a ScalarType.\n"); }
+    public DiscreteType asDiscreteType() { throw new RuntimeException("Expression can not be casted into a DiscreteType.\n"); }
+    public ClassType asClassType() { throw new RuntimeException("Expression can not be casted into a ClassType.\n"); }
+    public ListType asListType() { throw new RuntimeException("Expression can not be casted into a ListType.\n"); }
+    public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
+    public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
 }

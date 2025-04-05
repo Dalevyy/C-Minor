@@ -15,85 +15,38 @@ public abstract class Statement extends AST {
     public Statement asStatement() { return this; }
 
     public boolean isAssignStmt() { return false; }
-    public AssignStmt asAssignStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an AssignStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public AssignStmt asAssignStmt() { throw new RuntimeException("Expression can not be casted into an AssignStmt.\n"); }
 
     public boolean isExprStmt() { return false; }
-    public ExprStmt asExprStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an ExprStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public ExprStmt asExprStmt() { throw new RuntimeException("Expression can not be casted into an ExprStmt.\n"); }
+
     public boolean isBlockStmt() { return false; }
-    public BlockStmt asBlockStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a BlockStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public BlockStmt asBlockStmt() { throw new RuntimeException("Expression can not be casted into a BlockStmt.\n"); }
 
     public boolean isStopStmt() { return false; }
-    public StopStmt asStopStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a StopStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public StopStmt asStopStmt() { throw new RuntimeException("Expression can not be casted into a StopStmt.\n"); }
 
     public boolean isReturnStmt() { return false; }
-    public ReturnStmt asReturnStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ReturnStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public ReturnStmt asReturnStmt() { throw new RuntimeException("Expression can not be casted into a ReturnStmt.\n"); }
 
     public boolean isIfStmt() { return false; }
-    public IfStmt asIfStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an IfStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public IfStmt asIfStmt() { throw new RuntimeException("Expression can not be casted into an IfStmt.\n"); }
 
     public boolean isWhileStmt() { return false; }
-    public WhileStmt asWhileStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a WhileStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public WhileStmt asWhileStmt() { throw new RuntimeException("Expression can not be casted into a WhileStmt.\n"); }
 
     public boolean isDoStmt() { return false; }
-    public DoStmt asDoStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a DoStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public DoStmt asDoStmt() { throw new RuntimeException("Expression can not be casted into a DoStmt.\n"); }
 
     public boolean isForStmt() { return false; }
-    public ForStmt asForStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ForStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public ForStmt asForStmt() { throw new RuntimeException("Expression can not be casted into a ForStmt.\n"); }
 
     public boolean isChoiceStmt() { return false; }
-    public ChoiceStmt asChoiceStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ChoiceStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public ChoiceStmt asChoiceStmt() { throw new RuntimeException("Expression can not be casted into a ChoiceStmt.\n"); }
 
     public boolean isCaseStmt() { return false; }
-    public CaseStmt asCaseStmt() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a CaseStmt.\n");
-        System.exit(1);
-        return null;
-    }
+    public CaseStmt asCaseStmt() { throw new RuntimeException("Expression can not be casted into a CaseStmt.\n"); }
 
     public boolean isLocalDecl() { return false; }
-    public LocalDecl asLocalDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a LocalDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public LocalDecl asLocalDecl() { throw new RuntimeException("Expression can not be casted into a LocalDecl.\n"); }
 }

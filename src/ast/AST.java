@@ -57,6 +57,12 @@ public abstract class AST {
     public void setEndLocation(Position end) { this.location.end = end;}
     public String getText() { return this.text; }
 
+    public void copy(AST n) {
+        this.text = n.text;
+        this.location = n.location;
+        this.parent = n.parent;
+    }
+
     public void setParent() {
         for(AST n : children)
             n.parent = this;
@@ -91,80 +97,38 @@ public abstract class AST {
     public void printLine() {
         System.out.println(startLine() + "| " + this.text);
     }
+    public String line() { return startLine() + "| " + this.text + "\n"; }
 
     public boolean isCompliation() { return false; }
-    public Compilation asCompilation() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a Compilation Unit.\n");
-        System.exit(1);
-        return null;
-    }
+    public Compilation asCompilation() { throw new RuntimeException("Expression can not be casted into a Compilation Unit.\n"); }
+
     public boolean isExpression() { return false; }
-    public Expression asExpression() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an Expression.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public boolean isOperator() { return false; }
-    public Operator asOperator() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an Operator.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public boolean isStatement() { return false; }
-    public Statement asStatement() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a Statement.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public boolean isTopLevelDecl() { return false; }
-    public TopLevelDecl asTopLevelDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a TopLevelDecl.\n");
-        System.exit(1);
-        return null;
-    }
-
-    public boolean isType() { return false; }
-    public Type asType() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a Type.\n");
-        System.exit(1);
-        return null;
-    }
+    public Expression asExpression() { throw new RuntimeException("Expression can not be casted into an Expression.\n"); }
 
     public boolean isFieldDecl() { return false; }
-    public FieldDecl asFieldDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a FieldDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public FieldDecl asFieldDecl() { throw new RuntimeException("Expression can not be casted into a FieldDecl.\n"); }
 
     public boolean isMethodDecl() { return false; }
-    public MethodDecl asMethodDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a MethodDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public MethodDecl asMethodDecl() { throw new RuntimeException("Expression can not be casted into a MethodDecl.\n"); }
+
+    public Name asName() { throw new RuntimeException("Expression can not be casted into a Name.\n"); }
+
+    public boolean isOperator() { return false; }
+    public Operator asOperator() { throw new RuntimeException("Expression can not be casted into an Operator.\n"); }
 
     public boolean isParamDecl() { return false; }
-    public ParamDecl asParamDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ParamDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public ParamDecl asParamDecl() { throw new RuntimeException("Expression can not be casted into a ParamDecl.\n"); }
 
-    public Vector asVector() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a Vector.\n");
-        System.exit(1);
-        return null;
-    }
+    public boolean isStatement() { return false; }
+    public Statement asStatement() { throw new RuntimeException("Expression can not be casted into a Statement.\n"); }
 
-    public Name asName() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a Name.\n");
-        System.exit(1);
-        return null;
-    }
+    public boolean isTopLevelDecl() { return false; }
+    public TopLevelDecl asTopLevelDecl() { throw new RuntimeException("Expression can not be casted into a TopLevelDecl.\n"); }
+
+    public boolean isType() { return false; }
+    public Type asType() { throw new RuntimeException("Expression can not be casted into a Type.\n"); }
+
+    public Vector asVector() { throw new RuntimeException("Expression can not be casted into a Vector.\n"); }
 
     public static boolean notNull(AST n) { return n != null;}
 

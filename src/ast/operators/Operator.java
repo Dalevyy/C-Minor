@@ -11,24 +11,11 @@ public abstract class Operator extends AST {
     public Operator asOperator() { return this; }
 
     public boolean isBinaryOp() { return false; }
-    public BinaryOp asBinaryOp() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a BinaryOp.\n");
-        System.exit(1);
-        return null;
-    }
+    public BinaryOp asBinaryOp() { throw new RuntimeException("Expression can not be casted into a BinaryOp.\n"); }
 
     public boolean isUnaryOp() { return false; }
-    public UnaryOp asUnaryOp() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a UnaryOp.\n");
-        System.exit(1);
-        return null;
-    }
+    public UnaryOp asUnaryOp() { throw new RuntimeException("Expression can not be casted into a UnaryOp.\n"); }
 
     public boolean isAssignOp() { return false; }
-    public AssignOp asAssignOp() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an AssignOp.\n");
-        System.exit(1);
-        return null;
-    }
-
+    public AssignOp asAssignOp() { throw new RuntimeException("Expression can not be casted into an AssignOp.\n"); }
 }
