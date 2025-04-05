@@ -7,11 +7,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import utilities.PrettyPrint;
 
-/*
----------------------------------------------------------
-                      C Minor Lexer
----------------------------------------------------------
-*/
 public class Lexer {
 
     public static final char EOF = '\0'; // EOF
@@ -22,6 +17,7 @@ public class Lexer {
     private Location currLoc;            // Current location
     private String currText;             // Current Text
     private ArrayList<String> lines;     // User Program (as an array)
+
 
     public Lexer(final String file) {
         this.file = file;
@@ -203,7 +199,7 @@ public class Lexer {
     }
 
     private Token createID(StringBuilder newID) {
-        while(isDigit() || isLetter()) {
+        while(isDigit() || isLetter() || lookChar == '_') {
             newID.append(lookChar);
             consume();
         }
@@ -213,7 +209,7 @@ public class Lexer {
     private Token name() {
         StringBuilder createStr = new StringBuilder();
 
-        while(isLetter() || match('#')) {
+        while(isLetter() || lookChar == '_' || match('#')) {
             createStr.append(lookChar);
             consume();
         }
@@ -321,10 +317,11 @@ public class Lexer {
         }
 
         if(match('.')) {
-            newNum.append('.');
-            if(isDigit())
+            if(isDigit()) {
+                newNum.append('.');
                 return realLit(newNum);
-            return new Token(TokenType.ERROR, "ERROR", currLoc.copy());
+            }
+            else { currPos -= 1; }  // Sorta a Pedersen hack, need to do this to scan '..' correctly
         }
 
         return new Token(TokenType.INT_LIT, newNum.toString(), currLoc.copy());
@@ -517,7 +514,7 @@ public class Lexer {
                     consume();
                     return new Token(TokenType.XOR, "^", currLoc.copy());
                 default:
-                    if(isLetter())
+                    if(isLetter() || lookChar == '_')
                         return name();
                     if(isDigit())
                         return number(new StringBuilder());

@@ -13,37 +13,17 @@ public abstract class TopLevelDecl extends AST {
     public TopLevelDecl asTopLevelDecl() { return this; }
 
     public boolean isClassDecl() { return false; }
-    public ClassDecl asClassDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a ClassDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public ClassDecl asClassDecl() { throw new RuntimeException("Expression can not be casted into a ClassDecl.\n"); }
 
     public boolean isEnumDecl() { return false; }
-    public EnumDecl asEnumDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into an EnumDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public EnumDecl asEnumDecl() { throw new RuntimeException("Expression can not be casted into an EnumDecl.\n"); }
 
     public boolean isFuncDecl() { return false; }
-    public FuncDecl asFuncDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a FuncDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public FuncDecl asFuncDecl() { throw new RuntimeException("Expression can not be casted into a FuncDecl.\n"); }
 
     public boolean isGlobalDecl() { return false; }
-    public GlobalDecl asGlobalDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a GlobalDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public GlobalDecl asGlobalDecl() { throw new RuntimeException("Expression can not be casted into a GlobalDecl.\n"); }
 
     public boolean isMainDecl() { return false; }
-    public MainDecl asMainDecl() {
-        System.out.println(PrettyPrint.RED + "Error! Expression can not be casted into a MainDecl.\n");
-        System.exit(1);
-        return null;
-    }
+    public MainDecl asMainDecl() { throw new RuntimeException("Expression can not be casted into a MainDecl.\n"); }
 }

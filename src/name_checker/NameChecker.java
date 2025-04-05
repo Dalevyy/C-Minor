@@ -5,6 +5,7 @@ import ast.class_body.*;
 import ast.expressions.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
+import ast.types.Type;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.scope_error.ScopeErrorFactory;
@@ -172,8 +173,8 @@ public class NameChecker extends Visitor {
                     }
                     currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name));
                 }
-                if (name.contains("_")) { currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name)); }
-                else { currentScope.addName(name + "_" + baseDecl.toString(),baseDecl.symbolTable.getAllNames().get(name)); }
+                if (name.contains("/")) { currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name)); }
+                else { currentScope.addName(name + "/" + baseDecl.toString(),baseDecl.symbolTable.getAllNames().get(name)); }
             }
             for(String name: baseDecl.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
         }
@@ -284,7 +285,9 @@ public class NameChecker extends Visitor {
     during type checking instead.
     _____________________________________________________________________
     */
-    public void visitFieldExpr(FieldExpr fe) { fe.fieldTarget().visit(this); }
+    public void visitFieldExpr(FieldExpr fe) {
+        if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
+    }
 
     /*
     _________________________ For Statements _________________________
@@ -522,7 +525,7 @@ public class NameChecker extends Visitor {
                     .error());
         }
 
-        String methodSignature = md.toString() + "/";
+        String methodSignature = md + "/";
         if(md.params() != null) { methodSignature += md.paramSignature(); }
 
         // ERROR CHECK #2: Make sure method signature is unique to support overloading

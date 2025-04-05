@@ -1,1 +1,0 @@
- def main() => Void { def local a = 0 Int while(a <=5) { cout << a set a += 1 } }
