@@ -15,7 +15,6 @@ public class ForStmt extends Statement {
     private Expression LHS;
     private Expression RHS;
     private LoopOp lOp;
-    private Statement nextExpr;
     private BlockStmt body;
 
     public ForStmt(Token t, LocalDecl ld, Expression LHS, Expression RHS, LoopOp lOp, BlockStmt b) {
@@ -38,7 +37,6 @@ public class ForStmt extends Statement {
     public Expression condLHS() { return this.LHS; }
     public Expression condRHS() { return this.RHS; }
     public LoopOp loopOp() { return this.lOp; }
-    public Statement nextExpr() { return nextExpr; }
     public BlockStmt forBlock() { return body; }
 
     public boolean isForStmt() { return true; }
