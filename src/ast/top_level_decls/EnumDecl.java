@@ -6,46 +6,43 @@ import token.*;
 import utilities.Visitor;
 
 /*
- +-----------------------------------------------------------+
- +                        EnumDecl                           +
- +-----------------------------------------------------------+
-
+____________________________ EnumDecl ____________________________
 An EnumDecl is composed of 3 parts:
     1. A name given to the Enum
     2. An optional type denoting what type the Enum evaluates to
     3. A vector of Vars that store the enum values. All Vars
        will have a name, but have an optional expression.
-
-Parent Node: Compilation
+__________________________________________________________________
 */
 public class EnumDecl extends TopLevelDecl implements NameNode {
 
     private Name name;
-    public Type type;
+    public Type constantType;
     private Vector<Var> eVars;
 
     public EnumDecl(Token t, Name name, Vector<Var> ef) { this(t,name, null, ef); }
 
-    public EnumDecl(Token t, Name name, Type type, Vector<Var> ef) {
+    public EnumDecl(Token t, Name name, Type constantType, Vector<Var> ef) {
         super(t);
         this.name = name;
-        this.type = type;
+        this.constantType = constantType;
         this.eVars = ef;
 
         addChild(this.name);
-        addChild(this.type);
+        addChild(this.constantType);
         addChild(this.eVars);
         setParent();
     }
 
     public Name name() { return name; }
-    public Type type() { return type; }
+    public Type constantType() { return constantType; }
     public Vector<Var> enumVars() { return eVars;}
 
     public boolean isEnumDecl() { return true; }
     public EnumDecl asEnumDecl() { return this; }
 
-    public AST declName() { return this; }
+    public AST decl() { return this; }
+    public void setType(Type t) { this.constantType = t; }
 
     @Override
     public String toString() { return name.toString(); }

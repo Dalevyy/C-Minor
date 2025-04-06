@@ -4,18 +4,25 @@ import ast.*;
 import token.*;
 import utilities.Visitor;
 
-// Leaf Node
+/*
+___________________________ DiscreteType ___________________________
+The second level of C Minor's primitive types will be discrete types
+denoted by the DiscreteType node. These types will include Int, Char,
+Bool, and also Enum.
+____________________________________________________________________
+*/
 public class DiscreteType extends Type {
 
-    public static enum Discretes { INT, CHAR, BOOL, ENUM };
-    public static String[] names = { "Int", "Char", "Bool", "ENUM" };
+    public enum Discretes { INT, CHAR, BOOL, ENUM }
+    public static String[] names = { "Int", "Char", "Bool", "Enum" };
 
-    private Discretes dType;
+    private final Discretes dType;
 
     public DiscreteType(Discretes d) {
         super((AST)null);
         this.dType = d;
     }
+
 
     public DiscreteType(Token t, Discretes d) {
         super(t);
@@ -29,7 +36,7 @@ public class DiscreteType extends Type {
     public String typeName() { return names[dType.ordinal()]; }
 
     @Override
-    public String toString() { return names[dType.ordinal()]; };
+    public String toString() { return names[dType.ordinal()]; }
 
     @Override
     public void visit(Visitor v) { v.visitDiscreteType(this); }

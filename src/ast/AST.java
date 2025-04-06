@@ -11,7 +11,13 @@ import ast.types.*;
 import token.*;
 import utilities.*;
 
-// TOTAL NODES : 46 Nodes
+/*
+____________________________ AST ____________________________
+This is the superclass for all C Minor parse tree nodes.
+
+Total Unique C Minor AST Nodes: 49
+_____________________________________________________________
+*/
 public abstract class AST {
 
     /*

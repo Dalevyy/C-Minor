@@ -4,13 +4,19 @@ import ast.*;
 import token.*;
 import utilities.Visitor;
 
-// Leaf Node
+/*
+___________________________ ScalarType ___________________________
+The first level of C Minor's primitive types will be scalar types
+denoted by the ScalarType node. These types will include String,
+Text, and Real.
+__________________________________________________________________
+*/
 public class ScalarType extends Type {
 
-    public static enum Scalars { STR, TEXT, REAL };
+    public enum Scalars { STR, TEXT, REAL }
     public static String[] names = { "String", "Text", "Real" };
 
-    private Scalars sType;
+    private final Scalars sType;
 
     public ScalarType(Scalars s) {
         super((AST)null);
