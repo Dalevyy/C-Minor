@@ -542,8 +542,8 @@ public class TypeChecker extends Visitor {
 
                 // ERROR CHECK #5: Make sure the label's right constant is greater than the left constant
                 if(choiceType.isInt()) {
-                    int lLabel = Integer.valueOf(currCase.choiceLabel().leftLabel().getText());
-                    int rLabel = Integer.valueOf(currCase.choiceLabel().rightLabel().getText());
+                    int lLabel = Integer.valueOf(currCase.choiceLabel().leftLabel().toString());
+                    int rLabel = Integer.valueOf(currCase.choiceLabel().rightLabel().toString());
                     if(rLabel <= lLabel) {
                         errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(currCase.choiceLabel())
@@ -845,9 +845,9 @@ public class TypeChecker extends Visitor {
         }
 
         // ERROR CHECK #6: Make sure the LHS is smaller than the RHS of the loop condition
-        if(Integer.parseInt(fs.condLHS().asLiteral().getText()) >= Integer.parseInt(fs.condRHS().asLiteral().getText())) {
+        if(Integer.parseInt(fs.condLHS().toString()) >= Integer.parseInt(fs.condRHS().toString())) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.condLHS())
+                    .addLocation(fs)
                     .addErrorType(MessageType.TYPE_ERROR_441)
                     .addArgs()
                     .error());
