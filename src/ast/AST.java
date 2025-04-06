@@ -128,6 +128,9 @@ public abstract class AST {
     public boolean isType() { return false; }
     public Type asType() { throw new RuntimeException("Expression can not be casted into a Type.\n"); }
 
+    public boolean isVar() { return false; }
+    public Var asVar() { throw new RuntimeException("Expression can not be casted into a Var.\n"); }
+
     public Vector asVector() { throw new RuntimeException("Expression can not be casted into a Vector.\n"); }
 
     public static boolean notNull(AST n) { return n != null;}
