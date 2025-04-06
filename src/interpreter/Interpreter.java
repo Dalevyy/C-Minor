@@ -3,6 +3,7 @@ package interpreter;
 import ast.*;
 import ast.class_body.*;
 import ast.expressions.*;
+import ast.operators.LoopOp;
 import ast.statements.*;
 import ast.top_level_decls.*;
 import utilities.*;
@@ -481,16 +482,37 @@ public class Interpreter extends Visitor {
 
     /*
     ___________________________ For Statements ___________________________
-    With a for loop, we will evaluate the loop variable declarations, and
-    we will execute the loop until the loop condition becomes false.
+    Since for loops are static, we will evaluate the LHS/RHS of the
+    conditional statement to determine the number of iterations we need to
+    do. From there, we will just execute the loop body and update our
+    iteration counter in the stack.
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
-        fs.forInits().visit(this);
-        fs.condition().visit(this);
-        while((boolean)currValue) {
+        fs.condLHS().visit(this);
+        int LHS = (int) currValue;
+
+        fs.condRHS().visit(this);
+        int RHS = (int) currValue;
+
+        switch(fs.loopOp().toString()) {
+            case "<..":
+                LHS += 1;
+                break;
+            case "..<":
+                RHS -= 1;
+                break;
+            case "<..<":
+                LHS += 1;
+                RHS -= 1;
+                break;
+        }
+
+        stack.addValue(fs.loopVar().toString(),LHS);
+
+        for(int i = LHS; i <= RHS; i++) {
+            stack.setValue(fs.loopVar().toString(),i);
             fs.forBlock().visit(this);
-            fs.condition().visit(this);
         }
     }
 

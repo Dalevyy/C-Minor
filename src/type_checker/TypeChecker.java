@@ -542,8 +542,8 @@ public class TypeChecker extends Visitor {
 
                 // ERROR CHECK #5: Make sure the label's right constant is greater than the left constant
                 if(choiceType.isInt()) {
-                    int lLabel = Integer.valueOf(currCase.choiceLabel().leftLabel().getText());
-                    int rLabel = Integer.valueOf(currCase.choiceLabel().rightLabel().getText());
+                    int lLabel = Integer.valueOf(currCase.choiceLabel().leftLabel().toString());
+                    int rLabel = Integer.valueOf(currCase.choiceLabel().rightLabel().toString());
                     if(rLabel <= lLabel) {
                         errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(currCase.choiceLabel())
@@ -784,28 +784,76 @@ public class TypeChecker extends Visitor {
 
     /*
     ___________________________ For Statements ___________________________
-    Just like with do statements, we only check if the for loop's
-    condition evaluates to be a Bool. There's nothing else FOR us to type
-    check here. ;)
+    Unlike the other two loop statements, we have a few error checks that
+    need to be done with for statements. We mainly need to make sure the
+    for loop has a loop control variable that represents an Int, and its
+    condition contains Int literals. Once done, then there's nothing else
+    FOR us to type check here. ;)
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
         currentScope = fs.symbolTable;
 
-        fs.condition().visit(this);
+        fs.loopVar().visit(this);
+        Type varType = fs.loopVar().type();
 
-        // ERROR CHECK #1: Make sure For's condition evaluates to Bool
-        if(!fs.condition().type.isBool()) {
+        // ERROR CHECK #1: Make sure loop control variable is an Int
+        if(!varType.isInt()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.condition())
+                    .addLocation(fs.loopVar())
                     .addErrorType(MessageType.TYPE_ERROR_407)
-                    .addArgs(fs.condition().type)
+                    .addArgs()
                     .error());
         }
 
-        if(fs.nextExpr() != null) { fs.nextExpr().visit(this); }
-        if(fs.forBlock() != null) { fs.forBlock().visit(this); }
+        // ERROR CHECK #2: Make sure LHS of condition is a literal
+        if(!fs.condLHS().isLiteral()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.loopVar())
+                    .addErrorType(MessageType.TYPE_ERROR_437)
+                    .addArgs()
+                    .error());
+        }
 
+        fs.condLHS().visit(this);
+        // ERROR CHECK #3: Make sure LHS of condition is an Int
+        if(!fs.condLHS().type.isInt()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.condLHS())
+                    .addErrorType(MessageType.TYPE_ERROR_438)
+                    .addArgs(fs.condLHS().type)
+                    .error());
+        }
+
+        // ERROR CHECK #4: Make sure RHS of condition is a literal
+        if(!fs.condLHS().isLiteral()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.condRHS())
+                    .addErrorType(MessageType.TYPE_ERROR_439)
+                    .addArgs()
+                    .error());
+        }
+
+        fs.condRHS().visit(this);
+        // ERROR CHECK #5: Make sure RHS of condition is an Int
+        if(!fs.condLHS().type.isInt()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.condRHS())
+                    .addErrorType(MessageType.TYPE_ERROR_440)
+                    .addArgs(fs.condRHS().type)
+                    .error());
+        }
+
+        // ERROR CHECK #6: Make sure the LHS is smaller than the RHS of the loop condition
+        if(Integer.parseInt(fs.condLHS().toString()) >= Integer.parseInt(fs.condRHS().toString())) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs)
+                    .addErrorType(MessageType.TYPE_ERROR_441)
+                    .addArgs()
+                    .error());
+        }
+
+        if(fs.forBlock() != null) { fs.forBlock().visit(this); }
         currentScope = currentScope.closeScope();
     }
 
