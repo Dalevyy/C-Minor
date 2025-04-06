@@ -1348,7 +1348,7 @@ public class Parser {
         match(TokenType.LPAREN);
 
         Vector<AST> forCondition = rangeIterator();
-        LocalDecl forVar = forCondition.get(0).asStatement().asLocalDecl();
+        Var forVar = forCondition.get(0).asVar();
         Expression LHS = forCondition.get(1).asExpression();
         Expression RHS = forCondition.get(3).asExpression();
         LoopOp loopOp = forCondition.get(2).asOperator().asLoopOp();
