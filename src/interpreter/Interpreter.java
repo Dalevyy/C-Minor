@@ -482,8 +482,10 @@ public class Interpreter extends Visitor {
 
     /*
     ___________________________ For Statements ___________________________
-    With a for loop, we will evaluate the loop variable declarations, and
-    we will execute the loop until the loop condition becomes false.
+    Since for loops are static, we will evaluate the LHS/RHS of the
+    conditional statement to determine the number of iterations we need to
+    do. From there, we will just execute the loop body and update our
+    iteration counter in the stack.
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
@@ -506,7 +508,12 @@ public class Interpreter extends Visitor {
                 break;
         }
 
-        for(int i = LHS; i <= RHS; i++) { fs.forBlock().visit(this); }
+        stack.addValue(fs.loopVar().toString(),LHS);
+
+        for(int i = LHS; i <= RHS; i++) {
+            stack.setValue(fs.loopVar().toString(),i);
+            fs.forBlock().visit(this);
+        }
     }
 
     /*
