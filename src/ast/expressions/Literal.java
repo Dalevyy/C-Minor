@@ -21,5 +21,16 @@ public class Literal extends Expression {
     public Literal asLiteral() { return this; }
 
     @Override
+    public String toString() {
+        switch(kind) {
+            case INT:
+                if(this.getText().startsWith("~")) {return "-" + this.getText().substring(1); }
+                else { return this.getText(); }
+            default:
+                return this.getText();
+        }
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitLiteral(this); }
 }
