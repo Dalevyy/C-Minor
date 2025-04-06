@@ -1,0 +1,10 @@
+
+class Test {
+    public method func() => Void {}
+}
+
+def main() => Void {
+    def local a = new Test() Test
+
+    a.func()
+}

@@ -1,0 +1,4 @@
+
+def main() => Void {
+    def lst = uninit List[Int]
+}
