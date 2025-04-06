@@ -1391,7 +1391,7 @@ public class Parser {
 
         match(TokenType.INC);
 
-        return new LoopOp(t,LoopType.EXCL_L);
+        return new LoopOp(t,LoopType.INCL);
     }
 
     // exclusive_right : '..<' ;
