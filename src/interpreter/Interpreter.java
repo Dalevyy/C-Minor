@@ -3,6 +3,7 @@ package interpreter;
 import ast.*;
 import ast.class_body.*;
 import ast.expressions.*;
+import ast.operators.LoopOp;
 import ast.statements.*;
 import ast.top_level_decls.*;
 import utilities.*;
@@ -486,12 +487,26 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
-        fs.forInits().visit(this);
-        fs.condition().visit(this);
-        while((boolean)currValue) {
-            fs.forBlock().visit(this);
-            fs.condition().visit(this);
+        fs.condLHS().visit(this);
+        int LHS = (int) currValue;
+
+        fs.condRHS().visit(this);
+        int RHS = (int) currValue;
+
+        switch(fs.loopOp().toString()) {
+            case "<..":
+                LHS += 1;
+                break;
+            case "..<":
+                RHS -= 1;
+                break;
+            case "<..<":
+                LHS += 1;
+                RHS -= 1;
+                break;
         }
+
+        for(int i = LHS; i <= RHS; i++) { fs.forBlock().visit(this); }
     }
 
     /*
