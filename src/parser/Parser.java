@@ -1779,7 +1779,7 @@ public class Parser {
         Token t = currentLA();
         Expression left = shiftExpression();
 
-        if(isInShiftExpressionFOLLOW()) {
+        if(isInShiftExpressionFOLLOW() && !nextLA(TokenType.INC,1)) {
             BinaryExpr mainBE = null, be = null;
             while(isInShiftExpressionFOLLOW()) {
                 BinaryOp bo = null;
