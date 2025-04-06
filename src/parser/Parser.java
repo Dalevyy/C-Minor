@@ -1348,7 +1348,7 @@ public class Parser {
         match(TokenType.LPAREN);
 
         Vector<AST> forCondition = rangeIterator();
-        Var forVar = forCondition.get(0).asVar();
+        LocalDecl forVar = forCondition.get(0).asStatement().asLocalDecl();
         Expression LHS = forCondition.get(1).asExpression();
         Expression RHS = forCondition.get(3).asExpression();
         LoopOp loopOp = forCondition.get(2).asOperator().asLoopOp();
@@ -1367,7 +1367,8 @@ public class Parser {
         Vector<AST> forComponents = new Vector<AST>();
 
         match(TokenType.DEF);
-        forComponents.append(variableDeclInit());
+        Var v = variableDeclInit();
+        forComponents.append(new LocalDecl(t,v,v.type()));
         match(TokenType.IN);
 
         forComponents.append(expression());

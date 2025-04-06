@@ -11,15 +11,15 @@ public class ForStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private Var loopControlVar;
+    private LocalDecl loopControlVar;
     private Expression LHS;
     private Expression RHS;
     private LoopOp lOp;
     private BlockStmt body;
 
-    public ForStmt(Token t, Var v, Expression LHS, Expression RHS, LoopOp lOp, BlockStmt b) {
+    public ForStmt(Token t, LocalDecl ld, Expression LHS, Expression RHS, LoopOp lOp, BlockStmt b) {
         super(t);
-        this.loopControlVar = v;
+        this.loopControlVar = ld;
         this.LHS = LHS;
         this.RHS = RHS;
         this.lOp = lOp;
@@ -33,7 +33,7 @@ public class ForStmt extends Statement {
         setParent();
     }
 
-    public Var loopVar() { return this.loopControlVar; }
+    public LocalDecl loopVar() { return this.loopControlVar; }
     public Expression condLHS() { return this.LHS; }
     public Expression condRHS() { return this.RHS; }
     public LoopOp loopOp() { return this.lOp; }
