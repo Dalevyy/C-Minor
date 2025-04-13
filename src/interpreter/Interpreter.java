@@ -35,15 +35,25 @@ public class Interpreter extends Visitor {
 
     public void visitArrayExpr(ArrayExpr ae) {
         ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(ae.arrayTarget().toString());
-        currValue = arr.get(Integer.parseInt(ae.arrayIndex().toString()));
+        currValue = arr.get(Integer.parseInt(ae.arrayIndex().toString())-1);
     }
 
+    /*
+    _________________________ Array Literals _________________________
+    Arrays are static in C Minor which means we will have to create an
+    array for the user and then evaluate/store each initial expression
+    into the array.
+    __________________________________________________________________
+    */
     public void visitArrayLiteral(ArrayLiteral al) {
-        ArrayList<Object> arr = new ArrayList<Object>();
-        for(int i = 0; i < al.arrayDims().size(); i++) {
-            al.arrayDims().get(i).visit(this);
+        ArrayList<Object> arr = new ArrayList<>();
+
+        for(int i = 0; i < al.arrayInits().size(); i++) {
+            al.arrayInits().get(i).visit(this);
             arr.add(currValue);
         }
+
+        currValue = arr;
     }
 
     /*
