@@ -1557,10 +1557,13 @@ public class Parser {
             Expression mainExpr = null, e = null;
             while(isInPrimaryExpressionFOLLOW()) {
                 if(nextLA(TokenType.LBRACK)) {
-                    match(TokenType.LBRACK);
-                    Expression index = expression();
-                    match(TokenType.RBRACK);
-                    e = new ArrayExpr(t,primary,index);
+                    Vector<Expression> indices = new Vector<>();
+                    while(nextLA(TokenType.LBRACK)) {
+                        match(TokenType.LBRACK);
+                        indices.append(expression());
+                        match(TokenType.RBRACK);
+                    }
+                    e = new ArrayExpr(t,primary,indices);
                 }
                 else if(nextLA(TokenType.LPAREN)) {
                     match(TokenType.LPAREN);
