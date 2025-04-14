@@ -117,6 +117,9 @@ public class TypeChecker extends Visitor {
                     .addArgs(ae.arrayIndex().type.toString())
                     .error());
         }
+
+        AST arrDecl = currentScope.findName(ae.arrayTarget().toString()).decl();
+        ae.type = arrDecl.asStatement().asLocalDecl().type().asArrayType().baseType();
     }
 
     /*
@@ -143,9 +146,12 @@ public class TypeChecker extends Visitor {
             }
         }
 
-        for(int i = 0; i < al.arrayInits().size(); i++) {
-            al.arrayInits().get(i).visit(this);
-        }
+        for(int i = 0; i < al.arrayInits().size(); i++) { al.arrayInits().get(i).visit(this); }
+
+       // al.type = new ArrayType();
+//        ArrayType.arrayAssignmentCompatibility();
+
+        //al.type = new ArrayType();
     }
 
     /*
@@ -1073,8 +1079,7 @@ public class TypeChecker extends Visitor {
         else if(li.getConstantKind() == ConstantKind.REAL) { li.type = new ScalarType(Scalars.REAL); }
     }
 
-    public void visitListLiteral(ListLiteral ll) {
-    }
+    public void visitListLiteral(ListLiteral ll) { }
 
     /*
     ________________________ Local Declarations ________________________
@@ -1094,34 +1099,22 @@ public class TypeChecker extends Visitor {
         Var localVar = ld.var();
 
         if(localVar.init() == null) {
-            Literal defaultValue = null;
-            if (ld.type().isInt())
-                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", ld.location), ConstantKind.INT);
-            else if(ld.type().isChar())
-                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", ld.location), ConstantKind.CHAR);
-            else if(ld.type().isBool())
-                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", ld.location), ConstantKind.BOOL);
-            else if(ld.type().isReal())
-                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", ld.location), ConstantKind.REAL);
-            else if(ld.type().isString())
-                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", ld.location), ConstantKind.STR);
-            else if(ld.type().isList())
-                defaultValue = new ListLiteral(new Token(token.TokenType.LIST,"List()",ld.location),new Vector<Expression>());
-            else
-                defaultValue = null;
+            Literal defaultValue;
+            if (ld.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(ld.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(ld.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else { defaultValue = null; }
             localVar.setInit(defaultValue);
         }
+        else { localVar.init().visit(this); }
 
-        if(localVar.init() != null) { localVar.init().visit(this); }
-
-        if(localVar.init().isArrayLiteral()) {
-            currentContext = ld;
-            arrayAssignmentCompatible(ld.type(),localVar.init());
-            currentContext = null;
-        }
+        if(ld.type().isArrayType()) { localVar.setType(ld.type()); return; }
         // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
-        else if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
+        if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ld)
                     .addErrorType(MessageType.TYPE_ERROR_400)
