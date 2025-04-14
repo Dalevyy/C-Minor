@@ -10,6 +10,7 @@ public class Literal extends Expression {
 
     private ConstantKind kind;
 
+    public Literal(ConstantKind ck) { this(new Token(), ck); }
     public Literal(Token t, ConstantKind ck) {
         super(t);
         this.kind = ck;
