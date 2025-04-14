@@ -1,14 +1,15 @@
 package ast.expressions;
 
+import ast.Vector;
 import token.*;
 import utilities.Visitor;
 
 public class ArrayExpr extends Expression {
 
     private Expression target;
-    private Expression index;
+    private Vector<Expression> index;
 
-    public ArrayExpr(Token t, Expression target, Expression i) {
+    public ArrayExpr(Token t, Expression target, Vector<Expression> i) {
         super(t);
         this.target = target;
         this.index = i;
@@ -19,7 +20,7 @@ public class ArrayExpr extends Expression {
     }
 
     public Expression arrayTarget() { return target; }
-    public Expression arrayIndex() { return index; }
+    public Vector<Expression> arrayIndex() { return index; }
 
     public boolean isArrayExpr() { return true; }
     public ArrayExpr asArrayExpr() { return this; }
