@@ -33,6 +33,13 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
     }
 
+    /*
+    _________________________ Array Expressions _________________________
+    For an array expression, we want to retrieve the array from the stack
+    and access the specific value the user wants by using the provided
+    index. Additionally, C Minor starts indexing at 1, not 0.
+    _____________________________________________________________________
+    */
     public void visitArrayExpr(ArrayExpr ae) {
         ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(ae.arrayTarget().toString());
         currValue = arr.get(Integer.parseInt(ae.arrayIndex().toString())-1);
@@ -72,6 +79,13 @@ public class Interpreter extends Visitor {
         Object newValue = currValue;
 
         String aOp = as.assignOp().toString();
+
+        if(as.LHS().isArrayExpr()) {
+            String arrName = as.LHS().asArrayExpr().arrayTarget().toString();
+            ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(arrName);
+            arr.set(Integer.parseInt(as.LHS().asArrayExpr().arrayIndex().toString())-1,newValue);
+            return;
+        }
 
         // TODO: Operator Overloads as well
 
