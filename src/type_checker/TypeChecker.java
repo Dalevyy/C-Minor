@@ -70,18 +70,18 @@ public class TypeChecker extends Visitor {
         }
 
 
-        Vector<Expression> inits = e.asArrayLiteral().arrayDims();
-        if(inits.size() == 0) { return; }
-        boolean b = true;
-        for(int i = 0; i < inits.size(); i++) {
-            if(at.asArrayType().arrayDims() == 1) {
-                arrayAssignmentCompatible(at.asArrayType().baseType(), inits.get(i).asExpression());
-            }
-            else {
-                ArrayType atBelow = new ArrayType(at.asArrayType().baseType(),at.asArrayType().arrayDims()-1);
-                arrayAssignmentCompatible(atBelow,inits.get(i).asExpression());
-            }
-        }
+//        Vector<Expression> inits = e.asArrayLiteral().arrayDims();
+//        if(inits.size() == 0) { return; }
+//        boolean b = true;
+//        for(int i = 0; i < inits.size(); i++) {
+//            if(at.asArrayType().arrayDims() == 1) {
+//                arrayAssignmentCompatible(at.asArrayType().baseType(), inits.get(i).asExpression());
+//            }
+//            else {
+//                ArrayType atBelow = new ArrayType(at.asArrayType().baseType(),at.asArrayType().arrayDims()-1);
+//                arrayAssignmentCompatible(atBelow,inits.get(i).asExpression());
+//            }
+//        }
     }
 
     /*
@@ -727,19 +727,14 @@ public class TypeChecker extends Visitor {
         Var fieldVar = fd.var();
 
         if(fieldVar.init() == null) {
-            Literal defaultValue = null;
-            if (fd.type().isInt())
-                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", fd.location), ConstantKind.INT);
-            else if(fd.type().isChar())
-                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", fd.location), ConstantKind.CHAR);
-            else if(fd.type().isBool())
-                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", fd.location), ConstantKind.BOOL);
-            else if(fd.type().isReal())
-                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", fd.location), ConstantKind.REAL);
-            else if(fd.type().isString())
-                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", fd.location), ConstantKind.STR);
-            else
-                defaultValue = null;
+            Literal defaultValue;
+            if (fd.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(fd.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(fd.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(fd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(fd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(fd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else { defaultValue = null; }
             fieldVar.setInit(defaultValue);
         }
 
@@ -918,25 +913,17 @@ public class TypeChecker extends Visitor {
         Var globalVar = gd.var();
 
         if(globalVar.init() == null) {
-            Literal defaultValue = null;
-            if (gd.type().isInt()) {
-                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", gd.location), ConstantKind.INT);
-            }
-            else if(gd.type().isChar()) {
-                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", gd.location), ConstantKind.CHAR);
-            }
-            else if(gd.type().isBool()) {
-                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", gd.location), ConstantKind.BOOL);
-            }
-            else if(gd.type().isReal()) {
-                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", gd.location), ConstantKind.REAL);
-            }
-            else if(gd.type().isString()) {
-                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", gd.location), ConstantKind.STR);
-            }
+            Literal defaultValue;
+            if (gd.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(gd.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(gd.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(gd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(gd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(gd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else { defaultValue = null; }
             globalVar.setInit(defaultValue);
         }
-        globalVar.init().visit(this);
+        else { globalVar.init().visit(this); }
 
         // ERROR CHECK #1: Check if the global variable's declared type
         //                 matches the type of the initial value
@@ -1114,6 +1101,7 @@ public class TypeChecker extends Visitor {
         if(ld.type().isArrayType()) { localVar.setType(ld.type()); return; }
         // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
+
         if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ld)
