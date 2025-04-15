@@ -139,8 +139,23 @@ public abstract class AST {
 
     public Vector asVector() { throw new RuntimeException("Expression can not be casted into a Vector.\n"); }
 
-    public static boolean notNull(AST n) { return n != null;}
+    // getType: Helper method to get a node's type (if applicable)
+    public Type getType() {
+        if(this.isExpression()) { return this.asExpression().type; }
+        else if(this.isParamDecl()) { return this.asParamDecl().type(); }
+        else if(this.isStatement()) {
+            if (this.asStatement().isLocalDecl()) { return this.asStatement().asLocalDecl().type();}
+            else { return null; }
+        }
+        else if(this.isTopLevelDecl()) {
+            if(this.asTopLevelDecl().isGlobalDecl()) { return this.asTopLevelDecl().asGlobalDecl().type(); }
+            else if(this.asTopLevelDecl().isEnumDecl()) { return this.asTopLevelDecl().asEnumDecl().constantType(); }
+            else { return null; }
+        }
+        else if(this.isFieldDecl()) { return this.asFieldDecl().type(); }
+        else { return null; }
 
+    }
     /*
     ----------------------------------------------------------------------
                                Visitor Methods
