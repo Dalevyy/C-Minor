@@ -143,13 +143,14 @@ public class TypeChecker extends Visitor {
                             .error());
                     return false;
                 }
-                else if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(dim.asLiteral().toString())) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_446)
-                            .error());
-                    return false;
-                }
+            }
+
+            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(al.arrayDims().get(0).toString())) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(curr)
+                        .addErrorType(MessageType.TYPE_ERROR_446)
+                        .error());
+                return false;
             }
 
             if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
@@ -177,8 +178,7 @@ public class TypeChecker extends Visitor {
 
     /*
     ______________________ Array Expressions ______________________
-    We only have to do 2 simple checks for array expressions.
-
+    Array expressions are how users can access memory from array.
     First, we make sure the target is an array (or a list) since it
     does not make sense to dereference a non-array type. Then, we
     will make sure the index evaluates to an integer. We will not
@@ -190,7 +190,6 @@ public class TypeChecker extends Visitor {
         ae.arrayTarget().visit(this);
 
         // ERROR CHECK #1: Make sure the target represents an array
-        //                 or a list previously declared.
         if(!ae.arrayTarget().type.isArrayType()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ae)
@@ -199,25 +198,41 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        ae.arrayIndex().visit(this);
-        // ERROR CHECK #2: Make sure the array index represents an Int
-//        if(!ae.arrayIndex().type.isInt()) {
-//            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-//                    .addLocation(ae)
-//                    .addErrorType(MessageType.TYPE_ERROR_430)
-//                    .addArgs(ae.arrayIndex().type.toString())
-//                    .error());
-//        }
+        ArrayType targetType = currentScope.findName(ae.arrayTarget().toString()).decl().getType().asArrayType();
 
-        AST arrDecl = currentScope.findName(ae.arrayTarget().toString()).decl();
-        ae.type = arrDecl.asStatement().asLocalDecl().type().asArrayType().baseType();
+        // ERROR CHECK #2: Make sure the number of indices matches the
+        //                 number of dimensions for the array
+        if(targetType.numOfDims != ae.arrayIndex().size()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(ae)
+                    .addErrorType(MessageType.TYPE_ERROR_448)
+                    .addArgs(ae.arrayTarget().toString(),targetType.numOfDims,ae.arrayIndex().size())
+                    .error());
+        }
+
+        for(int i = 0; i < ae.arrayIndex().size(); i++) {
+            Expression currIndex = ae.arrayIndex().get(i);
+            currIndex.visit(this);
+
+            // ERROR CHECK #3: For each index, make sure the value
+            //                 evaluates to be an Int
+            if(!currIndex.type.isInt()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ae)
+                        .addErrorType(MessageType.TYPE_ERROR_430)
+                        .addArgs(currIndex.type)
+                        .error());
+            }
+        }
+
+        ae.type = targetType.baseType();
     }
 
     /*
     ___________________ Array Literals ___________________
-    For array literals, we are going to make sure that a
-    user specified integer dimensions, and we will type
-    check each individual value declared for the array.
+    For array literals, we will call the helper method
+    arrayAssignmentCompatible to handle all type checking
+    for us.
     ______________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
