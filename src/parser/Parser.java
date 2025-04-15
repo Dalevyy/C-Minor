@@ -450,7 +450,12 @@ public class Parser {
 
             t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
 
-            return new ArrayType(t,ty,0);
+            if(ty.isArrayType()) {
+                ty.asArrayType().numOfDims += 1;
+                return ty;
+            }
+
+            return new ArrayType(t,ty,1);
         }
         return scalarType();
     }
