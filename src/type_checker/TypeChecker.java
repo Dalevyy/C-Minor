@@ -92,7 +92,7 @@ public class TypeChecker extends Visitor {
                     return false;
                 }
             }
-            else {
+            else if(dims.size() != 0) {
                 if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
