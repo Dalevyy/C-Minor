@@ -51,7 +51,7 @@ public class TypeChecker extends Visitor {
             3. Evaluate how many arguments Array(...) is (same as columns)
                 Recursion
     */
-    public boolean arrayAssignmentCompatibility(int currDepth, Type t, ArrayLiteral parent, ArrayLiteral curr) {
+    public boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
         if(currDepth == 1) {
             // ERROR CHECK #1: If we are checking a single dimension array, then we
             //                 want to ensure there are not 2 or more dimensions specified
@@ -75,9 +75,25 @@ public class TypeChecker extends Visitor {
                             .error());
                     return false;
                 }
-                // ERROR CHECK #3: We will also check if the arguments passed into the array
+                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(dim.asLiteral().toString())) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_446)
+                            .error());
+                    return false;
+                }
+                // ERROR CHECK #4: We will also check if the arguments passed into the array
                 //                 matches the specified size for the array
                 if(Integer.parseInt(dim.asLiteral().toString()) != curr.arrayInits().size()) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_444)
+                            .error());
+                    return false;
+                }
+            }
+            else {
+                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
                             .addErrorType(MessageType.TYPE_ERROR_444)
@@ -90,7 +106,7 @@ public class TypeChecker extends Visitor {
             for(int i = 0; i < inits.size(); i++) {
                 Expression val = inits.get(i);
                 val.visit(this);
-                // ERROR CHECK #4: For each argument value for the array, we will make sure its
+                // ERROR CHECK #5: For each argument value for the array, we will make sure its
                 //                 base type corresponds to the type declared
                 if(!Type.assignmentCompatible(t,val.type)) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
@@ -116,15 +132,46 @@ public class TypeChecker extends Visitor {
                 return false;
             }
 
-//            for(int i = 0; i < al.arrayDims().size(); i++) {
-//                Expression dimValue = al.arrayDims().get(i);
-//            }
+            for(int i = 0; i < al.arrayDims().size(); i++) {
+                Expression dim = al.arrayDims().get(i);
+                dim.visit(this);
+                // ERROR CHECK #: Make sure its integer constant
+                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_435)
+                            .error());
+                    return false;
+                }
+                else if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(dim.asLiteral().toString())) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_446)
+                            .error());
+                    return false;
+                }
+            }
 
+            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(curr)
+                        .addErrorType(MessageType.TYPE_ERROR_444)
+                        .error());
+                return false;
+            }
+
+            for(int i = 0; i < al.arrayInits().size();i++) {
+                if(!al.arrayInits().get(i).isArrayLiteral()) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_447)
+                            .error());
+                    return false;
+                }
+                arrayAssignmentCompatibility(currDepth-1,t,dims,al.arrayInits().get(i).asArrayLiteral());
+            }
+            return true;
         }
-        else if(currDepth > 1 && !curr.isArrayLiteral()) {
-            ;
-        }
-        else { return false; }
         return false;
     }
 
@@ -174,32 +221,7 @@ public class TypeChecker extends Visitor {
     ______________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
-//        Vector<Expression> dims = al.arrayDims();
-//
-//        for(int i = 0; i < dims.size(); i++) {
-//            Expression currDim = dims.get(i);
-//
-//            currDim.visit(this);
-//
-//            if(currDim.isNameExpr()) {
-//                AST nameDecl = currentScope.findName(currDim.toString()).decl();
-//                if(!(nameDecl.isTopLevelDecl() && nameDecl.asTopLevelDecl().asGlobalDecl().isConstant())) {
-//                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-//                            .addLocation(al)
-//                            .addErrorType(MessageType.TYPE_ERROR_435)
-//                            .error());
-//                }
-//            }
-//            else if(!(currDim.isLiteral() && currDim.type.isInt())) {
-//                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-//                        .addLocation(al)
-//                        .addErrorType(MessageType.TYPE_ERROR_436)
-//                        .addArgs(currDim.type)
-//                        .error());
-//            }
-//        }
-
-        arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al,al);
+        arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
     }
 
     /*
