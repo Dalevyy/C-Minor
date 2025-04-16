@@ -3,14 +3,22 @@ package ast;
 import token.*;
 import utilities.Visitor;
 
-// Leaf Node
+/*
+__________________________ Modifier __________________________
+A Modifier node will contain a modifier that a user specified
+for a given C Minor construct. Currently, modifiers can be
+applied to ClassDecls, FieldDecls, MethodDecls, FuncDecls, and
+ParamDecls.
+______________________________________________________________
+*/
 public class Modifier extends AST {
 
-    public static enum Mods { ABSTR, FINAL, PROPERTY, PROTECTED, PUBLIC, PURE,
-                              RECURS, IN, OUT, INOUT, REF }
+    public enum Mods { ABSTR, FINAL, PROPERTY, PROTECTED, PUBLIC, PURE, RECURS, IN, OUT, INOUT, REF }
     public static String[] names = {"Abstract", "Final", "Property", "Protected", "Public", "Pure",
                                     "Recursive", "In", "Out", "Inout", "Ref" };
-    private Mods mod;
+    private final Mods mod;
+
+    public Modifier(Mods m) { this.mod = m; }
 
     public Modifier(Token t, Mods m) {
         super(t);

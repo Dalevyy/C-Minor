@@ -66,11 +66,11 @@ public class SymbolTable {
         else return false;
     }
 
-    public void removeName(String node) {
-        varNames.remove(node);
+    public void removeName(String name) {
+        if(varNames.remove(name) == null) { parent.removeName(name); }
     }
 
-    public HashMap<String,NameNode> getVarNames() { return varNames; }
+    public HashMap<String,NameNode> getAllNames() { return varNames; }
     public HashSet<String> getMethodNames() { return methodNames; }
 
     public boolean isNameUsedAnywhere(String name) {

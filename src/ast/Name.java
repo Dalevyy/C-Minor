@@ -3,16 +3,12 @@ package ast;
 import token.*;
 import utilities.Visitor;
 
+
 /*
- +-----------------------------------------------------------+
- +                           Name                            +
- +-----------------------------------------------------------+
-
-A Name has 1 component:
-    1. A String representation of the Name
-
-Parent Node: Compilation
-This is also a leaf node.
+___________________________ Name ___________________________
+A Name represents an identifier in C Minor, and any
+construct that can be named will have a Name attached to it.
+____________________________________________________________
 */
 public class Name extends AST {
 
@@ -23,6 +19,7 @@ public class Name extends AST {
         super(t);
         this.ID = t.getText();
     }
+    public Name(String s) { this.ID = s; }
 
     public void setName(String newID) { ID = newID; }
     public String getName() { return ID; }

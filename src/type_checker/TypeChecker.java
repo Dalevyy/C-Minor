@@ -44,50 +44,141 @@ public class TypeChecker extends Visitor {
         this.interpretMode = true;
     }
 
-    // Dr. Pedersen's wacky little algorithm ... ughhhhh
-    public void arrayAssignmentCompatible(Type at, Expression e) {
-        if(!at.isArrayType() && !e.isArrayLiteral()) {
-            if(!Type.assignmentCompatible(at,e.type)) {
+    /*
+        For Array Literals Type Checking
+            1. Check rows (Count # of arguments and check if it matches first index)
+            2. Make sure it's an array if it's multidimensional
+            3. Evaluate how many arguments Array(...) is (same as columns)
+                Recursion
+    */
+    public boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
+        if(currDepth == 1) {
+            // ERROR CHECK #1: If we are checking a single dimension array, then we
+            //                 want to ensure there are not 2 or more dimensions specified
+            if(curr.arrayDims().size() > 1) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(at)
-                        .addErrorType(MessageType.TYPE_ERROR_400)
-                        .addArgs(at.toString(),at,e.type)
+                        .addLocation(curr)
+                        .addErrorType(MessageType.TYPE_ERROR_443)
                         .error());
+                return false;
             }
-        }
-        else if(!at.isArrayType() && e.isArrayLiteral()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(currentContext)
-                    .addErrorType(MessageType.TYPE_ERROR_435)
-                    .error());
-        }
-        else if(at.isArrayType() && !e.isArrayLiteral()) {
-            if(e.type instanceof ArrayType) {
-                if(!Type.assignmentCompatible(at,e.type)) {
-                    System.out.println("Error 1!");
-                } else { return; }
-            } else { System.out.println("ERRROR 2!"); }
-        }
+            else if(curr.arrayDims().size() == 1) {
+                Expression dim = curr.arrayDims().get(0);
+                dim.visit(this);
 
+                // ERROR CHECK #2: If a user specified a size for the 1D array, then we want to make sure
+                //                 that value is either an integer literal or integer constant
+                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_435)
+                            .error());
+                    return false;
+                }
+                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(dim.asLiteral().toString())) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_446)
+                            .error());
+                    return false;
+                }
+                // ERROR CHECK #4: We will also check if the arguments passed into the array
+                //                 matches the specified size for the array
+                if(Integer.parseInt(dim.asLiteral().toString()) != curr.arrayInits().size()) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_444)
+                            .error());
+                    return false;
+                }
+            }
+            else if(dims.size() != 0) {
+                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_444)
+                            .error());
+                    return false;
+                }
+            }
 
-        Vector<Expression> inits = e.asArrayLiteral().arrayDims();
-        if(inits.size() == 0) { return; }
-        boolean b = true;
-        for(int i = 0; i < inits.size(); i++) {
-            if(at.asArrayType().arrayDims() == 1) {
-                arrayAssignmentCompatible(at.asArrayType().baseType(), inits.get(i).asExpression());
+            Vector<Expression> inits = curr.arrayInits();
+            for(int i = 0; i < inits.size(); i++) {
+                Expression val = inits.get(i);
+                val.visit(this);
+                // ERROR CHECK #5: For each argument value for the array, we will make sure its
+                //                 base type corresponds to the type declared
+                if(!Type.assignmentCompatible(t,val.type)) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_445)
+                            .addArgs(t,val.type)
+                            .error());
+                    return false;
+                }
             }
-            else {
-                ArrayType atBelow = new ArrayType(at.asArrayType().baseType(),at.asArrayType().arrayDims()-1);
-                arrayAssignmentCompatible(atBelow,inits.get(i).asExpression());
-            }
+            return true;
         }
+        if(currDepth > 1) {
+            ArrayLiteral al = curr.asArrayLiteral();
+
+            // ERROR CHECK #1: For all n-dimensional array literals (where n>1), we need to make sure the user
+            //                 explicitly writes down the size given for each possible dimension.
+            if(al.arrayDims().size() != currDepth) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(al)
+                        .addErrorType(MessageType.TYPE_ERROR_442)
+                        .error());
+                return false;
+            }
+
+            for(int i = 0; i < al.arrayDims().size(); i++) {
+                Expression dim = al.arrayDims().get(i);
+                dim.visit(this);
+                // ERROR CHECK #: Make sure its integer constant
+                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_435)
+                            .error());
+                    return false;
+                }
+            }
+
+            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(al.arrayDims().get(0).toString())) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(curr)
+                        .addErrorType(MessageType.TYPE_ERROR_446)
+                        .error());
+                return false;
+            }
+
+            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(curr)
+                        .addErrorType(MessageType.TYPE_ERROR_444)
+                        .error());
+                return false;
+            }
+
+            for(int i = 0; i < al.arrayInits().size();i++) {
+                if(!al.arrayInits().get(i).isArrayLiteral()) {
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(curr)
+                            .addErrorType(MessageType.TYPE_ERROR_447)
+                            .error());
+                    return false;
+                }
+                arrayAssignmentCompatibility(currDepth-1,t,dims,al.arrayInits().get(i).asArrayLiteral());
+            }
+            return true;
+        }
+        return false;
     }
 
     /*
     ______________________ Array Expressions ______________________
-    We only have to do 2 simple checks for array expressions.
-
+    Array expressions are how users can access memory from array.
     First, we make sure the target is an array (or a list) since it
     does not make sense to dereference a non-array type. Then, we
     will make sure the index evaluates to an integer. We will not
@@ -99,7 +190,6 @@ public class TypeChecker extends Visitor {
         ae.arrayTarget().visit(this);
 
         // ERROR CHECK #1: Make sure the target represents an array
-        //                 or a list previously declared.
         if(!ae.arrayTarget().type.isArrayType()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ae)
@@ -108,44 +198,45 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        ae.arrayIndex().visit(this);
-        // ERROR CHECK #2: Make sure the array index represents an Int
-        if(!ae.arrayIndex().type.isInt()) {
+        ArrayType targetType = currentScope.findName(ae.arrayTarget().toString()).decl().getType().asArrayType();
+
+        // ERROR CHECK #2: Make sure the number of indices matches the
+        //                 number of dimensions for the array
+        if(targetType.numOfDims != ae.arrayIndex().size()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ae)
-                    .addErrorType(MessageType.TYPE_ERROR_430)
-                    .addArgs(ae.arrayIndex().type.toString())
+                    .addErrorType(MessageType.TYPE_ERROR_448)
+                    .addArgs(ae.arrayTarget().toString(),targetType.numOfDims,ae.arrayIndex().size())
                     .error());
         }
-    }
 
-    /*
-    ___________________ Array Literals ___________________
-    For array literals, we are going to make sure that a
-    user specified integer dimensions, and we will type
-    check each individual value declared for the array.
-    ______________________________________________________
-    */
-    public void visitArrayLiteral(ArrayLiteral al) {
-        Vector<Expression> dims = al.arrayDims();
-        for(int i = 0; i < dims.size(); i++) {
-            Expression arrDim = dims.get(i);
-            arrDim.visit(this);
+        for(int i = 0; i < ae.arrayIndex().size(); i++) {
+            Expression currIndex = ae.arrayIndex().get(i);
+            currIndex.visit(this);
 
-            // ERROR CHECK #1: Make sure each specified dimension in the array
-            //                 literal represents an integer
-            if(!arrDim.type.isInt()) {
+            // ERROR CHECK #3: For each index, make sure the value
+            //                 evaluates to be an Int
+            if(!currIndex.type.isInt()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(al)
-                        .addErrorType(MessageType.TYPE_ERROR_436)
-                        .addArgs(arrDim.type.toString())
+                        .addLocation(ae)
+                        .addErrorType(MessageType.TYPE_ERROR_430)
+                        .addArgs(currIndex.type)
                         .error());
             }
         }
 
-        for(int i = 0; i < al.arrayInits().size(); i++) {
-            al.arrayInits().get(i).visit(this);
-        }
+        ae.type = targetType.baseType();
+    }
+
+    /*
+    ___________________ Array Literals ___________________
+    For array literals, we will call the helper method
+    arrayAssignmentCompatible to handle all type checking
+    for us.
+    ______________________________________________________
+    */
+    public void visitArrayLiteral(ArrayLiteral al) {
+        arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
     }
 
     /*
@@ -721,19 +812,14 @@ public class TypeChecker extends Visitor {
         Var fieldVar = fd.var();
 
         if(fieldVar.init() == null) {
-            Literal defaultValue = null;
-            if (fd.type().isInt())
-                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", fd.location), ConstantKind.INT);
-            else if(fd.type().isChar())
-                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", fd.location), ConstantKind.CHAR);
-            else if(fd.type().isBool())
-                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", fd.location), ConstantKind.BOOL);
-            else if(fd.type().isReal())
-                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", fd.location), ConstantKind.REAL);
-            else if(fd.type().isString())
-                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", fd.location), ConstantKind.STR);
-            else
-                defaultValue = null;
+            Literal defaultValue;
+            if (fd.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(fd.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(fd.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(fd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(fd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(fd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else { defaultValue = null; }
             fieldVar.setInit(defaultValue);
         }
 
@@ -912,25 +998,17 @@ public class TypeChecker extends Visitor {
         Var globalVar = gd.var();
 
         if(globalVar.init() == null) {
-            Literal defaultValue = null;
-            if (gd.type().isInt()) {
-                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", gd.location), ConstantKind.INT);
-            }
-            else if(gd.type().isChar()) {
-                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", gd.location), ConstantKind.CHAR);
-            }
-            else if(gd.type().isBool()) {
-                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", gd.location), ConstantKind.BOOL);
-            }
-            else if(gd.type().isReal()) {
-                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", gd.location), ConstantKind.REAL);
-            }
-            else if(gd.type().isString()) {
-                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", gd.location), ConstantKind.STR);
-            }
+            Literal defaultValue;
+            if (gd.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(gd.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(gd.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(gd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(gd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(gd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else { defaultValue = null; }
             globalVar.setInit(defaultValue);
         }
-        globalVar.init().visit(this);
+        else { globalVar.init().visit(this); }
 
         // ERROR CHECK #1: Check if the global variable's declared type
         //                 matches the type of the initial value
@@ -1073,8 +1151,7 @@ public class TypeChecker extends Visitor {
         else if(li.getConstantKind() == ConstantKind.REAL) { li.type = new ScalarType(Scalars.REAL); }
     }
 
-    public void visitListLiteral(ListLiteral ll) {
-    }
+    public void visitListLiteral(ListLiteral ll) { }
 
     /*
     ________________________ Local Declarations ________________________
@@ -1094,34 +1171,23 @@ public class TypeChecker extends Visitor {
         Var localVar = ld.var();
 
         if(localVar.init() == null) {
-            Literal defaultValue = null;
-            if (ld.type().isInt())
-                defaultValue = new Literal(new Token(token.TokenType.INT_LIT, "0", ld.location), ConstantKind.INT);
-            else if(ld.type().isChar())
-                defaultValue = new Literal(new Token(token.TokenType.CHAR_LIT, "", ld.location), ConstantKind.CHAR);
-            else if(ld.type().isBool())
-                defaultValue = new Literal(new Token(token.TokenType.BOOL_LIT, "False", ld.location), ConstantKind.BOOL);
-            else if(ld.type().isReal())
-                defaultValue = new Literal(new Token(token.TokenType.REAL_LIT, "0.0", ld.location), ConstantKind.REAL);
-            else if(ld.type().isString())
-                defaultValue = new Literal(new Token(token.TokenType.STR_LIT, "", ld.location), ConstantKind.STR);
-            else if(ld.type().isList())
-                defaultValue = new ListLiteral(new Token(token.TokenType.LIST,"List()",ld.location),new Vector<Expression>());
-            else
-                defaultValue = null;
+            Literal defaultValue;
+            if (ld.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(ld.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(ld.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else { defaultValue = null; }
             localVar.setInit(defaultValue);
         }
+        else { currentContext = ld.type(); localVar.init().visit(this); }
 
-        if(localVar.init() != null) { localVar.init().visit(this); }
+        if(ld.type().isArrayType()) { localVar.setType(ld.type()); return; }
 
-        if(localVar.init().isArrayLiteral()) {
-            currentContext = ld;
-            arrayAssignmentCompatible(ld.type(),localVar.init());
-            currentContext = null;
-        }
         // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
-        else if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
+        if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ld)
                     .addErrorType(MessageType.TYPE_ERROR_400)
@@ -1269,7 +1335,6 @@ public class TypeChecker extends Visitor {
                         .error());
             }
         }
-
     }
 
     /*

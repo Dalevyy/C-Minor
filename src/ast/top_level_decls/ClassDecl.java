@@ -6,6 +6,10 @@ import ast.types.*;
 import token.*;
 import utilities.*;
 
+/*
+____________________________ ClassDecl ____________________________
+___________________________________________________________________
+*/
 public class ClassDecl extends TopLevelDecl implements NameNode {
 
     public SymbolTable symbolTable;
@@ -16,6 +20,8 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     private ClassType superClass;
     private ClassBody body;
     private InitDecl constructor;
+
+    private ClassType classHierarchy;
 
     public ClassDecl(Token t, Modifier m, Name n, ClassBody b) { this(t,m,n,null,null,b); }
 
@@ -37,13 +43,15 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     public Name name() { return name; }
     public Vector<Type> typeParams() { return typeParams; }
     public ClassType superClass() { return superClass; }
-    public ClassBody clalssBlock() { return body; }
+    public ClassBody classBlock() { return body; }
 
-    public void setID(String s) { this.name.setName(s); }
-    public AST declName() { return this; }
+    public AST decl() { return this; }
 
     public void setConstructor(InitDecl ind) { this.constructor = ind; }
-    public InitDecl getConstructor() { return this.constructor; }
+    public InitDecl constructor() { return this.constructor; }
+
+    public void setClassHierarchy(ClassType ct) { this.classHierarchy = ct; }
+    public ClassType classHierarchy() { return this.classHierarchy; }
 
     public boolean isClassDecl() { return true; }
     public ClassDecl asClassDecl() { return this; }

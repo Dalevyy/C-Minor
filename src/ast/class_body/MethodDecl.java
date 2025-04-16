@@ -14,12 +14,16 @@ public class MethodDecl extends AST implements NameNode {
     public Modifiers mods;
 
     private Name methodName;       // Set if we have a MethodDecl
-    private Operator op;     // Set if we have a OperatorDecl
+    private Operator op;           // Set if we have a OperatorDecl
     private Vector<ParamDecl> params;
     private Type returnType;
     private BlockStmt block;
 
     private boolean isOverrode;
+
+    public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
+        this(new Token(),m,n,null,p,rt,b,false);
+    }
 
     public MethodDecl(Token t, Vector<Modifier> m, Name n, Operator o, Vector<ParamDecl> p, Type rt, BlockStmt b, boolean override) {
        super(t);
@@ -40,7 +44,7 @@ public class MethodDecl extends AST implements NameNode {
        setParent();
     }
 
-    public AST declName() { return this; }
+    public AST decl() { return this; }
 
     public Name name() { return methodName; }
     public Operator operator() { return op; }
@@ -56,12 +60,12 @@ public class MethodDecl extends AST implements NameNode {
     public String paramSignature() {
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < params.size(); i++)
-            sb.append(params.get(i).getType().typeSignature());
+            sb.append(params.get(i).type().typeSignature());
         return sb.toString();
     }
 
     public String methodSignature() {
-        return toString() + "(" + paramSignature() + ")" + returnType.typeSignature();
+        return this + "(" + paramSignature() + ")" + returnType.typeSignature();
     }
 
     @Override

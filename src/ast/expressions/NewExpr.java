@@ -26,6 +26,8 @@ public class NewExpr extends Expression {
     public boolean isNewExpr() { return true; }
     public NewExpr asNewExpr() { return this; }
 
+    public String getObjectName() { return this.getParent().toString(); }
+
     @Override
     public void visit(Visitor v) { v.visitNewExpr(this); }
 }

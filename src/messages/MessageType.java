@@ -81,6 +81,13 @@ public enum MessageType {
     TYPE_ERROR_439,
     TYPE_ERROR_440,
     TYPE_ERROR_441,
+    TYPE_ERROR_442,
+    TYPE_ERROR_443,
+    TYPE_ERROR_444,
+    TYPE_ERROR_445,
+    TYPE_ERROR_446,
+    TYPE_ERROR_447,
+    TYPE_ERROR_448,
 
     /*      MOD ERRORS     */
     MOD_ERROR_500,

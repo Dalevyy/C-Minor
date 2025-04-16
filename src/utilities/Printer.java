@@ -121,7 +121,9 @@ public class Printer extends Visitor {
 
     public void visitClassType(ClassType ct) {
         System.out.println(printSpaces() + "ClassType");
+        spaces += 2;
         super.visitClassType(ct);
+        spaces -= 2;
     }
 
     public void visitCompilation(Compilation c) {
@@ -212,8 +214,11 @@ public class Printer extends Visitor {
         spaces -= 2;
     }
 
-    public void visitListLiteral(ListLiteral lc) {
+    public void visitListLiteral(ListLiteral li) {
         System.out.println(printSpaces() + "ListLiteral");
+        spaces += 2;
+        super.visitListLiteral(li);
+        spaces -= 2;
     }
 
     public void visitListType(ListType lt) {
@@ -230,6 +235,8 @@ public class Printer extends Visitor {
         super.visitLocalDecl(ld);
         spaces -= 2;
     }
+
+    public void visitLoopOp(LoopOp lo) { System.out.println(printSpaces() + "LoopOp" + debugInfo(lo)); }
 
     public void visitMainDecl(MainDecl md) {
         System.out.println(printSpaces() + "Main" + debugLines(md));

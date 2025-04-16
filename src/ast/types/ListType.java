@@ -3,27 +3,33 @@ package ast.types;
 import token.*;
 import utilities.Visitor;
 
-// Leaf Node
+/*
+___________________________ ListType ___________________________
+The third structured type is a ListType. In C Minor, lists are
+also continuous blocks of memory like arrays, but lists may be
+dynamically resized by the user during runtime.
+________________________________________________________________
+*/
 public class ListType extends Type {
 
     // A list is homogeneous in C Minor which means a list
     // only stores a single data type
-    private Type memberType;
+    private final Type lType;
 
     public ListType(Token t, Type mt) {
         super(t);
-        this.memberType = mt;
+        this.lType = mt;
     }
 
     public boolean isListType() { return true; }
     public ListType asListType() { return this; }
 
-    public Type getMemberType() { return memberType; }
+    public Type listType() { return lType; }
 
-    public String typeName() { return "List: " + memberType.typeName(); }
+    public String typeName() { return "List: " + lType.typeName(); }
 
     @Override
-    public String toString()  { return "List: " + memberType.typeName(); }
+    public String toString()  { return "List: " + lType.typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitListType(this); }

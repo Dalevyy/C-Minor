@@ -6,6 +6,8 @@ public class Token {
     private String text;
     private Location location;
 
+    public Token() { this(TokenType.ID,"",new Location()); }
+    public Token(String txt) { this(TokenType.ID,txt,new Location()); }
     public Token(TokenType type, String text, Location location) {
         this.type = type;
         this.text = text;

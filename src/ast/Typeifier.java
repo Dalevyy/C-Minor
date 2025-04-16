@@ -3,6 +3,12 @@ package ast;
 import token.*;
 import utilities.*;
 
+/*
+___________________________ Typeifier ___________________________
+A typeifier node is used to keep track of templated types when
+working with templated classes/functions. (NOT YET IMPLEMENTED)
+_________________________________________________________________
+*/
 public class Typeifier extends AST {
 
     public static enum Tyfiers { DISCR, SCALAR, CLASS }

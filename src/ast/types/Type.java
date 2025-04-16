@@ -2,8 +2,18 @@ package ast.types;
 
 import ast.*;
 import token.*;
-import utilities.PrettyPrint;
 
+/*
+__________________________ Type __________________________
+Type is an abstract class that will be inherited by all C
+Minor type nodes. This class contains a bunch of helper
+methods to aid in type checking/interpretation including
+type equality and assignment compatibility.
+
+C Minor will have two main forms of types: Structured and
+Primitive types.
+__________________________________________________________
+*/
 public abstract class Type extends AST {
 
     public Type(Token t) { super(t); }
@@ -43,7 +53,11 @@ public abstract class Type extends AST {
             } else { return ClassType.isSuperClass(RHS.asClassType(), LHS.asClassType()); }
         }
         else if(LHS.isListType() && RHS.isListType()) { return true; }
-        else if(LHS.isArrayType() && RHS.isArrayType()) { return true; }
+        else if(LHS.isArrayType() && RHS.isArrayType()) {
+            ArrayType lType = LHS.asArrayType();
+            ArrayType rType = RHS.asArrayType();
+            return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
+        }
         return false;
     }
 

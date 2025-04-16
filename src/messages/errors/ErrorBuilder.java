@@ -1,6 +1,7 @@
 package messages.errors;
 
 import ast.AST;
+import messages.MessageType;
 
 public class ErrorBuilder {
     private Error error;
@@ -27,12 +28,12 @@ public class ErrorBuilder {
         return this;
     }
 
-    public ErrorBuilder addErrorType(ErrorType et) {
+    public ErrorBuilder addErrorType(MessageType et) {
         this.error.setErrorType(et);
         return this;
     }
 
-    public ErrorBuilder addSuggestType(ErrorType et) {
+    public ErrorBuilder addSuggestType(MessageType et) {
         this.error.setSuggestType(et);
         return this;
     }

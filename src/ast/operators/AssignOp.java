@@ -11,6 +11,7 @@ public class AssignOp extends Operator {
 
     private AssignType myOp;
 
+    public AssignOp(AssignType op) { this(new Token(),op); }
     public AssignOp(Token t, AssignType op) {
         super(t);
         this.myOp = op;

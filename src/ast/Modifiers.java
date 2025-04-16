@@ -1,16 +1,12 @@
 package ast;
 
-// TODO: Error out when there's a double final, pure, or recurs (needed for methods)
-
 /*
-    -------------------------------------------------------------------------
-                                    Modifiers
-    -------------------------------------------------------------------------
-
-    This is a helper class that is not part of a C Minor AST. Modifiers will
-    take a single Modifier and/or Modifiers and set the appropriate boolean
-    flag to be true. This will aid us when we are performing modifier checking
-    alongside code generation.
+________________________________ Modifiers ________________________________
+This is a helper class that is not part of a C Minor AST. Modifiers will
+take a single Modifier and/or Modifiers and set the appropriate boolean
+flag to be true. This will aid us when we are performing modifier checking
+alongside code generation.
+___________________________________________________________________________
 */
 public class Modifiers {
 

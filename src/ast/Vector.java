@@ -2,7 +2,14 @@ package ast;
 
 import utilities.Visitor;
 
-// Extend from Arraylist
+// Extend from Arraylist!!!!
+/*
+___________________________ Vector ___________________________
+A Vector node that internally keeps track of AST nodes. This
+should not be part of the C Minor AST in the future, so this
+needs to be reworked!
+______________________________________________________________
+*/
 public class Vector<ASTNode extends AST> extends AST {
 
     public Vector() { super(); }
@@ -12,6 +19,7 @@ public class Vector<ASTNode extends AST> extends AST {
     }
 
     public void append(ASTNode node) { addChild(node); }
+    public void insert(int pos, ASTNode node) { this.children.add(pos,node); }
 
     public AST pop() { return removeChild(); }
 

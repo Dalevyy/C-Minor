@@ -4,9 +4,17 @@ import ast.*;
 import token.*;
 import utilities.Visitor;
 
+/*
+___________________________ ClassType ___________________________
+The first structured type is a ClassType. These types represent
+any custom types that a C Minor uses defines when they create a
+class. Any name that is used as a type will be parsed as a
+ClassType as well.
+_________________________________________________________________
+*/
 public class ClassType extends Type {
-    private Name name;
-    private Vector<Type> templateTypes;
+    private final Name name;
+    private final Vector<Type> templateTypes;
 
     public ClassType(Name n) { this(new Token(),n,null); }
     public ClassType(Token t, Name n) { this(t,n,null); }
@@ -21,9 +29,12 @@ public class ClassType extends Type {
     }
 
     public Name getName() { return name; }
-    public Vector<Type> getTemplateTypes() { return templateTypes; }
+    public Vector<Type> templateTypes() { return templateTypes; }
 
-    public String typeName() { return name.toString(); }
+    public String typeName() {
+        if(name.toString().contains("/")) { return name.toString().substring(0,name.toString().indexOf("/")); }
+        return name.toString();
+    }
 
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }

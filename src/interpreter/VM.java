@@ -1,10 +1,9 @@
 package interpreter;
 
 import java.io.*;
-import ast.AST;
+import ast.*;
 import lexer.Lexer;
-import micropasses.GenerateConstructor;
-import micropasses.OutputInputRewrite;
+import micropasses.*;
 import modifier_checker.ModifierChecker;
 import name_checker.NameChecker;
 import parser.Parser;
@@ -15,6 +14,17 @@ public class VM {
     public static void runInterpreter() throws IOException {
         System.out.println("C Minor Interpreter");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        Compilation compilationUnit = new Compilation();
+
+        var ioRewrite = new OutputInputRewrite();
+        var generatePropertyMethods = new GeneratePropertyMethods();
+        var nameChecker = new NameChecker(compilationUnit.globalTable);
+        var fieldRewrite = new FieldRewrite();
+        var typeChecker = new TypeChecker(compilationUnit.globalTable);
+        var generateConstructor = new GenerateConstructor();
+        var loopKeywordCheck = new LoopKeywordCheck(true);
+        var modChecker = new ModifierChecker(compilationUnit.globalTable);
+        var interpreter = new Interpreter(compilationUnit.globalTable);
 
         while(true) {
             String input = "";
@@ -23,6 +33,14 @@ public class VM {
             input = reader.readLine();
 
             if(input.equals("#quit")) { System.exit(1); }
+            else if(input.equals("#clear")) {
+                compilationUnit = new Compilation();
+                nameChecker = new NameChecker(compilationUnit.globalTable);
+                typeChecker = new TypeChecker(compilationUnit.globalTable);
+                modChecker = new ModifierChecker(compilationUnit.globalTable);
+                interpreter = new Interpreter(compilationUnit.globalTable);
+                continue;
+            }
             else if(input.isEmpty()) { continue; }
             else {
                 int tabs = 0;
@@ -37,25 +55,38 @@ public class VM {
                     program.append(input).append("\n");
                 }
             }
-
+            AST node = null;
             try {
                 var lexer = new Lexer(program.toString());
                 var parser = new Parser(lexer,false,true);
 
-                AST root = parser.compilation();
+                node = parser.parseVM();
 
-                root.visit(new OutputInputRewrite());
-                root.visitChildren(new NameChecker(true));
+                node.visit(ioRewrite);
+                node.visit(generatePropertyMethods);
+                node.visit(nameChecker);
+                if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
+                node.visit(loopKeywordCheck);
+                node.visit(typeChecker);
+                node.visit(generateConstructor);
+                node.visit(modChecker);
 
-                root.visitChildren(new TypeChecker());
-                root.visit(new GenerateConstructor());
-
-                //root.visitChildren(new ModifierChecker());
-
-                root.asCompilation().mainDecl().visit(new Interpreter());
+                if(node.isTopLevelDecl()) {
+                    if(node.asTopLevelDecl().isClassDecl()) { compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl()); }
+                    else if(node.asTopLevelDecl().isFuncDecl()) { compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl()); }
+                    else { node.visit(interpreter); }
+                }
+                else {
+                    node.visit(interpreter);
+                    if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
+                    else { compilationUnit.mainDecl().mainBody().addDecl(node.asVector()); }
+                }
                 System.out.println();
             }
-            catch(Exception e) { /* Do nothing */ }
+            catch(Exception e) {
+                // if(e.getMessage() != null) { compilationUnit.globalTable.removeName(e.getMessage()); }
+                /* Do nothing */
+            }
         }
     }
 }

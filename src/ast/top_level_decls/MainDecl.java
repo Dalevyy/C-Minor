@@ -6,6 +6,10 @@ import ast.types.*;
 import token.*;
 import utilities.*;
 
+/*
+____________________________ MainDecl ____________________________
+__________________________________________________________________
+*/
 public class MainDecl extends TopLevelDecl {
 
     public SymbolTable symbolTable;
@@ -13,6 +17,10 @@ public class MainDecl extends TopLevelDecl {
     private Vector<ParamDecl> args;
     private Type retType;
     private BlockStmt body;
+
+    public MainDecl() {
+        this.body = new BlockStmt();
+    }
 
     public MainDecl(Token t, Vector<ParamDecl> a, Type rt, BlockStmt b) {
         super(t);

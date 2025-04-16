@@ -2,30 +2,29 @@ package micropasses;
 
 import ast.*;
 import ast.class_body.*;
+import ast.expressions.NameExpr;
+import ast.operators.AssignOp;
 import ast.top_level_decls.*;
+import ast.statements.AssignStmt;
+import token.*;
 import utilities.*;
 import java.util.HashMap;
 
 /*
-    After name checking is complete, we will do a micropass
-    to generate a constructor for every class a user defines.
-    This constructor will initialize all the DataDecls that
-    belong to a single class either to a default value or a
-    value provided by the user.
+MICROPASS #2 : Constructor Generation after type checking
 */
-
 public class GenerateConstructor extends Visitor {
 
     public void visitClassDecl(ClassDecl cd) {
         SymbolTable declNames = cd.symbolTable;
-        HashMap<String, NameNode> fields = declNames.getVarNames();
+        HashMap<String, NameNode> fields = declNames.getAllNames();
 
-        Vector<FieldDecl> initParams = new Vector<FieldDecl>();
+        Vector<AssignStmt> initParams = new Vector<AssignStmt>();
 
         for(String key : fields.keySet()) {
-            if(fields.get(key).declName().isFieldDecl()) {
-                FieldDecl decl = fields.get(key).declName().asFieldDecl();
-                initParams.append(decl);;
+            if(fields.get(key).decl().isFieldDecl()) {
+                FieldDecl currFieldDecl = fields.get(key).decl().asFieldDecl();
+                initParams.append( new AssignStmt(new Token(null,"",new Location()),new NameExpr(new Token(null,"",new Location()),currFieldDecl.var().name()),currFieldDecl.var().init(),new AssignOp(new Token(null,"",new Location()), AssignOp.AssignType.EQ)));
             }
         }
 

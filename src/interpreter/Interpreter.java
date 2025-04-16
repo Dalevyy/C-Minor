@@ -33,17 +33,53 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
     }
 
+    /*
+    _________________________ Array Expressions _________________________
+    For an array expression, we want to retrieve the array from the stack
+    and access the specific value the user wants by using the provided
+    index. Additionally, C Minor starts indexing at 1, not 0.
+    _____________________________________________________________________
+    */
     public void visitArrayExpr(ArrayExpr ae) {
+        LocalDecl arrayDecl = currentScope.findName(ae.arrayTarget().toString()).decl().asStatement().asLocalDecl();
         ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(ae.arrayTarget().toString());
-        currValue = arr.get(Integer.parseInt(ae.arrayIndex().toString()));
+
+        int index = 0;
+        Vector<Expression> dims = arrayDecl.var().init().asArrayLiteral().arrayDims();
+        for(int i = 0; i < ae.arrayIndex().size(); i++) {
+            ae.arrayIndex().get(i).visit(this);
+            int currOffset = (int) currValue-1;
+            for(int j = i+1; j < dims.size(); j++) {
+                dims.get(i).visit(this);
+                currOffset *= (int) currValue;
+            }
+            index += currOffset;
+        }
+
+        currValue = arr.get(index);
     }
 
+    //
+
+    /*
+    _________________________ Array Literals _________________________
+    Arrays are static in C Minor which means we will have to create an
+    array for the user and then evaluate/store each initial expression
+    into the array.
+    __________________________________________________________________
+    */
     public void visitArrayLiteral(ArrayLiteral al) {
-        ArrayList<Object> arr = new ArrayList<Object>();
-        for(int i = 0; i < al.arrayDims().size(); i++) {
-            al.arrayDims().get(i).visit(this);
-            arr.add(currValue);
+        ArrayList<Object> arr = new ArrayList<>();
+
+        for(int i = 0; i < al.arrayInits().size(); i++) {
+            al.arrayInits().get(i).visit(this);
+            if(currValue instanceof ArrayList) {
+                ArrayList<Object> smallArr = (ArrayList<Object>) currValue;
+                for(int j = 0; j < smallArr.size(); j++) { arr.add(smallArr.get(j)); }
+            } else { arr.add(currValue); }
         }
+
+        currValue = arr;
     }
 
     /*
@@ -62,6 +98,10 @@ public class Interpreter extends Visitor {
         Object newValue = currValue;
 
         String aOp = as.assignOp().toString();
+
+        if(as.LHS().isArrayExpr()) {
+            return;
+        }
 
         // TODO: Operator Overloads as well
 
@@ -685,14 +725,17 @@ public class Interpreter extends Visitor {
         for(String s : vals.keySet()) { stack.setValue(s,vals.get(s)); }
     }
 
-//    public void visitListLiteral(ListLiteral li) {
-//        ArrayList<Object> arr = new ArrayList<Object>();
-//        for(int i = 0; i < li.exprs().size(); i++) {
-//            li.exprs().get(i).visit(this);
-//            arr.add(currExpr.getValue(stack));
-//        }
-//        currExpr = li;
-//    }
+    public void visitListLiteral(ListLiteral li) {
+
+        ArrayList<Object> lst = new ArrayList<>();
+
+        for(int i = 0; i < li.inits().size(); i++) {
+            li.inits().get(i).visit(this);
+            lst.add(currValue);
+        }
+
+        currValue = lst;
+    }
 
     /*
     ________________________ Literals ________________________

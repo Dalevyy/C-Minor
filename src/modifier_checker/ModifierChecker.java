@@ -40,7 +40,7 @@ public class ModifierChecker extends Visitor {
     // Based on Dr. Pedersen's algorithm (?)
     public void sortClassMethods(HashSet<String> abs, HashSet<String> con, ClassDecl cd) {
 
-        if(AST.notNull(cd.superClass())) {
+        if(cd.superClass() != null) {
             ClassDecl superClass = currentScope.findName(cd.superClass().typeName()).decl().asTopLevelDecl().asClassDecl();
             sortClassMethods(abs,con,superClass);
         }
@@ -205,7 +205,7 @@ public class ModifierChecker extends Visitor {
         FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
 
         // ERROR CHECK #1: A field is only accessible outside a class scope if it's public
-        if(!fd.mod.isPublic()) {
+        if(!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
             errors.add(new ErrorBuilder(generateModError,interpretMode)
                     .addLocation(fe)
                     .addErrorType(MessageType.MOD_ERROR_507)

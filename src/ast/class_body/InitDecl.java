@@ -1,18 +1,21 @@
 package ast.class_body;
 
 import ast.*;
+import ast.statements.AssignStmt;
 import utilities.Visitor;
 
-// Created after NameChecker
+/*
+Created after type checking is complete
+*/
 public class InitDecl extends AST {
 
-    private Vector<FieldDecl> params;
+    private Vector<AssignStmt> params;
     
-    public InitDecl(Vector<FieldDecl> p) {
+    public InitDecl(Vector<AssignStmt> p) {
         this.params = p;
     }
 
-    public Vector<FieldDecl> params() { return this.params; }
+    public Vector<AssignStmt> assignStmts() { return this.params; }
 
     @Override
     public void visit(Visitor v) { v.visitInitDecl(this); }
