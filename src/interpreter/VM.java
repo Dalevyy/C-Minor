@@ -22,7 +22,7 @@ public class VM {
         var fieldRewrite = new FieldRewrite();
         var typeChecker = new TypeChecker(compilationUnit.globalTable);
         var generateConstructor = new GenerateConstructor();
-        var loopKeywordCheck = new BreakContinueInLoopCheck(true);
+        var loopKeywordCheck = new LoopKeywordCheck(true);
         var modChecker = new ModifierChecker(compilationUnit.globalTable);
         var interpreter = new Interpreter(compilationUnit.globalTable);
 

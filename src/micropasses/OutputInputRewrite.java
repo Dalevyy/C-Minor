@@ -26,10 +26,13 @@ public class OutputInputRewrite extends Visitor {
     public void visitBinaryExpr(BinaryExpr be) {
         if(insideIO) {
             if(be.binaryOp().toString().equals("<<") || be.binaryOp().toString().equals(">>")) {
-                be.LHS().visit(this);
+                if(!be.toString().startsWith("(")) {
+                    be.LHS().visit(this);
+                    if(!be.LHS().isBinaryExpr())
+                        exprs.addChild(be.LHS());
+                }
+                else { exprs.addChild(be.LHS()); }
 
-                if(!be.LHS().isBinaryExpr())
-                    exprs.addChild(be.LHS());
                 exprs.addChild(be.RHS());
             }
             else

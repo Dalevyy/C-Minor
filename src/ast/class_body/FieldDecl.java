@@ -23,13 +23,16 @@ public class FieldDecl extends AST implements NameNode {
         setParent();
     }
 
-    public AST declName() { return this; }
+    public AST decl() { return this; }
 
     public Var var() { return var; }
     public Type type() { return type; }
 
     public boolean isFieldDecl() { return true; }
     public FieldDecl asFieldDecl() { return this; }
+
+    @Override
+    public String toString() { return var().toString(); }
 
     @Override
     public void visit(Visitor v) { v.visitFieldDecl(this); }

@@ -1,18 +1,20 @@
 // System properties
 import java.io.*;
 import ast.*;
-import errors.*;
 import interpreter.*;
+import micropasses.GenerateConstructor;
 import micropasses.OutputInputRewrite;
 import parser.*;
 import lexer.*;
-import name_checker.*;
+import modifier_checker.ModifierChecker;
+import name_checker.NameChecker;
+import type_checker.TypeChecker;
 import utilities.*;
 
 public class Main {
 
-    static Boolean printTokens = false;
-    static Boolean printParseTree = false;
+    private static Boolean printTokens = false;
+    private static Boolean printParseTree = false;
 
     public static void main(String[] args) throws IOException {
         String input = readProgram(args);
@@ -43,13 +45,12 @@ public class Main {
     }
 
     private static void semanticAnalysis(AST root) {
-        root.visitChildren(new NameChecker());
+        root.asCompilation().visit(new NameChecker());
 
-//        root.whosThatNode(new GenerateConstructor());
-//        root.visitChildren(new TypeChecker());
-//
-//        root.visitChildren(new ModifierChecker());
-//        System.out.println("\nModifier Checking is complete...");
+        root.visitChildren(new TypeChecker());
+        root.visit(new GenerateConstructor());
+
+        root.visitChildren(new ModifierChecker());
     }
 
     /*
@@ -64,7 +65,6 @@ public class Main {
         try {
             File program = new File(fileName);
             BufferedReader readInput = new BufferedReader(new FileReader(program));
-            BasicError.setFileName(fileName);
 
             String currLine = readInput.readLine();
             while(currLine != null) {

@@ -11,6 +11,7 @@ public class ReturnStmt extends Statement {
     public Type type;
     private Expression expr;
 
+    public ReturnStmt(Expression e) { this(new Token(),e); }
     public ReturnStmt(Token t, Expression e) {
         super(t);
         this.type = null;

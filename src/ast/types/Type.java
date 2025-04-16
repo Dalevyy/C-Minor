@@ -53,7 +53,12 @@ public abstract class Type extends AST {
             } else { return ClassType.isSuperClass(RHS.asClassType(), LHS.asClassType()); }
         }
         else if(LHS.isListType() && RHS.isListType()) { return true; }
-        else return LHS.isArrayType() && RHS.isArrayType();
+        else if(LHS.isArrayType() && RHS.isArrayType()) {
+            ArrayType lType = LHS.asArrayType();
+            ArrayType rType = RHS.asArrayType();
+            return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
+        }
+        return false;
     }
 
 

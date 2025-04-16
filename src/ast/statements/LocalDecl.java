@@ -25,7 +25,7 @@ public class LocalDecl extends Statement implements NameNode {
     public Type type() { return type; }
     public String toString() { return myVar.toString(); }
 
-    public AST declName() { return this; }
+    public AST decl() { return this; }
 
     public boolean isLocalDecl() { return true; }
     public LocalDecl asLocalDecl() { return this; }

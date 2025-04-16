@@ -10,6 +10,7 @@ public class FieldExpr extends Expression {
 
     private boolean asCheck;
 
+    public FieldExpr(Expression ft, Expression fn) { this(new Token(),ft,fn,false); }
     public FieldExpr(Token t, Expression ft, Expression fn, boolean ac) {
         super(t);
         this.target = ft;

@@ -44,7 +44,7 @@ public class NameChecker extends Visitor {
     public void visitAssignStmt(AssignStmt as) {
 
         // ERROR CHECK #1 : Make sure the LHS of an assignment is a name or field
-        if(!(as.LHS() instanceof NameExpr) && !(as.LHS() instanceof FieldExpr)) {
+        if(!(as.LHS() instanceof NameExpr) && !(as.LHS() instanceof FieldExpr) && !(as.LHS() instanceof ArrayExpr)) {
             errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(as)
                     .addErrorType(MessageType.SCOPE_ERROR_325)
@@ -300,13 +300,9 @@ public class NameChecker extends Visitor {
     public void visitForStmt(ForStmt fs) {
         currentScope = currentScope.openNewScope();
 
-        fs.forInits().visit(this);
-        fs.condition().visit(this);
-
-        Statement nextExpr = fs.nextExpr();
-
-        if(nextExpr != null)
-            nextExpr.visit(this);
+        fs.loopVar().visit(this);
+        fs.condLHS().visit(this);
+        fs.condRHS().visit(this);
 
         fs.forBlock().decls().visit(this);
         fs.forBlock().stmts().visit(this);

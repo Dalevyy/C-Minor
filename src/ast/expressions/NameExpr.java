@@ -8,6 +8,8 @@ public class NameExpr extends Expression {
 
     private Name name;
 
+    public NameExpr(Name n) { this(new Token(),n); }
+
     public NameExpr(Token t, Name n) {
         super(t);
         this.name = n;

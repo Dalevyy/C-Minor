@@ -6,17 +6,17 @@ import utilities.Visitor;
 
 public class ListLiteral extends Literal {
 
-    private Vector<Expression> exprs;
+    private Vector<Expression> inits;
 
     public ListLiteral(Token t, Vector<Expression> e) {
         super(t,ConstantKind.LIST);
-        this.exprs = e;
+        this.inits = e;
 
-        addChild(this.exprs);
+        addChild(this.inits);
         setParent();
     }
 
-    public Vector<Expression> exprs() { return exprs; }
+    public Vector<Expression> inits() { return inits; }
 
     public boolean isListLiteral() { return true; }
     public ListLiteral asListLiteral() { return this; }

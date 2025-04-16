@@ -11,6 +11,7 @@ public class AssignStmt extends Statement {
     private Expression RHS;
     private AssignOp op;
 
+    public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op); }
     public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) {
         super(t);
         this.LHS = LHS;
