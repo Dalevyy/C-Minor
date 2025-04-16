@@ -1091,6 +1091,7 @@ public class TypeChecker extends Visitor {
             else {
                 FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
                 in.type = fd.returnType();
+                in.targetType = new VoidType();
             }
         }
         // Method Check

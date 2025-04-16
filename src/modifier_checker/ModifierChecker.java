@@ -170,7 +170,6 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
-    //TODO: PROPERTIES
     /*
     __________________________ Field Declarations __________________________
     In C Minor, there are no specific modifier error checks that need to be
@@ -268,14 +267,14 @@ public class ModifierChecker extends Visitor {
             FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
-                // ERROR CHECK #1: A function can not recursively call itself without the 'recurs' keyword
-                if(!fd.mod.isRecurs()) {
-                    errors.add(new ErrorBuilder(generateModError,interpretMode)
-                            .addLocation(in)
-                            .addErrorType(MessageType.MOD_ERROR_502)
-                            .addArgs(fd.toString())
-                            .addSuggestType(MessageType.MOD_SUGGEST_1502)
-                            .error());
+            // ERROR CHECK #1: A function can not recursively call itself without the 'recurs' keyword
+            if(!fd.mod.isRecurs()) {
+                errors.add(new ErrorBuilder(generateModError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.MOD_ERROR_502)
+                        .addArgs(fd.toString())
+                        .addSuggestType(MessageType.MOD_SUGGEST_1502)
+                        .error());
                 }
             }
         }
