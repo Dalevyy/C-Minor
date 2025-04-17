@@ -18,6 +18,12 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
     private final ArrayList<T> lst; // Internal ArrayList to store all elements
 
     public Vector() { lst = new ArrayList<>(); }
+
+    public Vector(T arg) {
+        this();
+        this.lst.add(arg);
+    }
+
     public Vector(T[] args) {
         this();
         this.lst.addAll(Arrays.asList(args));
