@@ -8,7 +8,6 @@ import ast.top_level_decls.*;
 import ast.types.*;
 import messages.*;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 
 import messages.errors.ErrorBuilder;
@@ -22,13 +21,12 @@ public class ModifierChecker extends Visitor {
     private SymbolTable currentScope;
     private AST currentContext;
     private ModErrorFactory generateModError;
-    private ArrayList<String> errors;
-
+    private Vector<String> errors;
 
     public ModifierChecker() {
         this.currentScope = null;
         this.generateModError = new ModErrorFactory();
-        this.errors = new ArrayList<String>();
+        this.errors = new Vector<>();
     }
 
     public ModifierChecker(SymbolTable st) {
@@ -236,8 +234,7 @@ public class ModifierChecker extends Visitor {
         is.ifBlock().visit(this);
         currentScope = oldScope;
 
-        if(is.elifStmts().size() > 0)
-            is.elifStmts().visit(this);
+        for(IfStmt e : is.elifStmts()) { e.visit(this); }
 
         if(is.elseBlock() != null) {
             oldScope = currentScope;

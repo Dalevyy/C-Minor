@@ -1,7 +1,7 @@
 package micropasses;
 
-import ast.*;
 import ast.expressions.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*
@@ -29,14 +29,14 @@ public class OutputInputRewrite extends Visitor {
                 if(!be.toString().startsWith("(")) {
                     be.LHS().visit(this);
                     if(!be.LHS().isBinaryExpr())
-                        exprs.addChild(be.LHS());
+                        exprs.add(be.LHS());
                 }
-                else { exprs.addChild(be.LHS()); }
+                else { exprs.add(be.LHS()); }
 
-                exprs.addChild(be.RHS());
+                exprs.add(be.RHS());
             }
             else
-                exprs.addChild(be);
+                exprs.add(be);
         }
     }
 
@@ -48,7 +48,7 @@ public class OutputInputRewrite extends Visitor {
             return;
 
         os.removeChild(0);
-        os.outExprs().visit(this);
+        for(Expression e : os.outExprs()) { e.visit(this); }
 
         os.setOutExprs(exprs);
         os.addChild(exprs);
@@ -60,7 +60,7 @@ public class OutputInputRewrite extends Visitor {
         exprs = new Vector<>();
         in.removeChild(0);
 
-        in.inExprs().visit(this);
+        for(Expression e : in.inExprs()) { e.visit(this); }
 
         in.setInExprs(exprs);
         in.addChild(exprs);

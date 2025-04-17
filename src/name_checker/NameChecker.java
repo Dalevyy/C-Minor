@@ -10,7 +10,6 @@ import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.scope_error.ScopeErrorFactory;
 import utilities.*;
-import java.util.ArrayList;
 
 import java.util.HashSet;
 
@@ -19,19 +18,19 @@ public class NameChecker extends Visitor {
     private SymbolTable currentScope;
     private ClassDecl currentClass;
     private ScopeErrorFactory generateScopeError;
-    private ArrayList<String> errors;
+    private Vector<String> errors;
 
     public NameChecker() {
         this.currentScope = new SymbolTable();
         this.generateScopeError = new ScopeErrorFactory();
-        this.errors = new ArrayList<String>();
+        this.errors = new Vector<>();
     }
 
     public NameChecker(SymbolTable st) {
         this.currentScope = st;
         this.interpretMode = true;
         this.generateScopeError = new ScopeErrorFactory();
-        this.errors = new ArrayList<String>();
+        this.errors = new Vector<>();
     }
 
     /*
@@ -67,8 +66,8 @@ public class NameChecker extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openNewScope();
 
-        bs.decls().visit(this);
-        bs.stmts().visit(this);
+        for(LocalDecl ld : bs.decls()) { ld.visit(this); }
+        for(Statement s : bs.stmts()) { s.visit(this); }
     }
 
     /*
@@ -98,7 +97,7 @@ public class NameChecker extends Visitor {
     public void visitChoiceStmt(ChoiceStmt cs) {
 
         cs.choiceExpr().visit(this);
-        cs.caseStmts().visit(this);
+        for(CaseStmt c : cs.caseStmts()) { c.visit(this); }
 
         cs.choiceBlock().visit(this);
 
@@ -156,7 +155,7 @@ public class NameChecker extends Visitor {
         currentScope.addName(className,cd);
 
         currentScope = currentScope.openNewScope();
-        cd.classBlock().fieldDecls().visit(this);
+        for(FieldDecl fd : cd.classBlock().fieldDecls()) { fd.visit(this); }
 
         if(baseClass != null) {
             ClassDecl baseDecl = currentScope.findName(baseClass).decl().asTopLevelDecl().asClassDecl();
@@ -180,7 +179,7 @@ public class NameChecker extends Visitor {
         }
 
         currentClass = cd;
-        cd.classBlock().methodDecls().visit(this);
+        for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
         currentClass = null;
 
         cd.symbolTable = currentScope;
@@ -303,9 +302,7 @@ public class NameChecker extends Visitor {
         fs.loopVar().visit(this);
         fs.condLHS().visit(this);
         fs.condRHS().visit(this);
-
-        fs.forBlock().decls().visit(this);
-        fs.forBlock().stmts().visit(this);
+        fs.forBlock().visit(this);
 
         fs.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
@@ -353,10 +350,10 @@ public class NameChecker extends Visitor {
 
         // If we have any parameters, then we will visit them to ensure
         // their names do not produce any conflicts.
-        if(fd.params() != null) { fd.params().visit(this); }
+        for(ParamDecl pd : fd.params()) { pd.visit(this); }
 
-        fd.funcBlock().decls().visit(this);
-        fd.funcBlock().stmts().visit(this);
+        for(LocalDecl ld : fd.funcBlock().decls()) { ld.visit(this); }
+        for(Statement s : fd.funcBlock().stmts()) { s.visit(this); }
 
         fd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
@@ -412,8 +409,7 @@ public class NameChecker extends Visitor {
         is.symbolTableIfBlock = currentScope;
         currentScope = currentScope.closeScope();
 
-        if(is.elifStmts().size() > 0)
-            is.elifStmts().visit(this);
+        for(IfStmt e : is.elifStmts()) { e.visit(this); }
 
         if(is.elseBlock() != null) {
             is.elseBlock().visit(this);
@@ -443,7 +439,8 @@ public class NameChecker extends Visitor {
                         .error());
             }
         }
-        in.arguments().visit(this);
+
+        for(Expression e : in.arguments()) { e.visit(this); }
     }
 
     /*
@@ -494,11 +491,10 @@ public class NameChecker extends Visitor {
     ________________________________________________________________
     */
     public void visitMainDecl(MainDecl md) {
-        if(md.args() != null)
-            md.args().visit(this);
+        for(ParamDecl e : md.args()) { e.visit(this); }
 
-        md.mainBody().decls().visit(this);
-        md.mainBody().stmts().visit(this);
+        for(LocalDecl ld : md.mainBody().decls()) { ld.visit(this); }
+        for(Statement s : md.mainBody().stmts()) { s.visit(this); }
 
         md.symbolTable = currentScope;
         currentScope.closeScope();
@@ -539,10 +535,10 @@ public class NameChecker extends Visitor {
         SymbolTable newScope = currentScope.openNewScope();
         currentScope = newScope;
 
-        if(md.params() != null) { md.params().visit(this); }
+        for(ParamDecl pd : md.params()) { pd.visit(this); }
 
-        md.methodBlock().decls().visit(this);
-        md.methodBlock().stmts().visit(this);
+        for(LocalDecl ld : md.methodBlock().decls()) { ld.visit(this); }
+        for(Statement s : md.methodBlock().stmts()) { s.visit(this); }
 
         md.symbolTable = currentScope;
         currentScope = currentScope.closeScope();

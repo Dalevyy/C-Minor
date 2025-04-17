@@ -344,7 +344,7 @@ public class Interpreter extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
-        bs.decls().visit(this);
+        for(AST decl : bs.decls()) { decl.visit(this); }
 
         for(int i = 0; i < bs.stmts().size(); i++) {
             bs.stmts().get(i).visit(this);

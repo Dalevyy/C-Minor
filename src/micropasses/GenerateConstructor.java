@@ -24,7 +24,7 @@ public class GenerateConstructor extends Visitor {
         for(String key : fields.keySet()) {
             if(fields.get(key).decl().isFieldDecl()) {
                 FieldDecl currFieldDecl = fields.get(key).decl().asFieldDecl();
-                initParams.append( new AssignStmt(new Token(null,"",new Location()),new NameExpr(new Token(null,"",new Location()),currFieldDecl.var().name()),currFieldDecl.var().init(),new AssignOp(new Token(null,"",new Location()), AssignOp.AssignType.EQ)));
+                initParams.add( new AssignStmt(new Token(null,"",new Location()),new NameExpr(new Token(null,"",new Location()),currFieldDecl.var().name()),currFieldDecl.var().init(),new AssignOp(new Token(null,"",new Location()), AssignOp.AssignType.EQ)));
             }
         }
 

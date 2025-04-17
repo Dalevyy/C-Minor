@@ -16,8 +16,6 @@ import messages.errors.type_error.TypeErrorFactory;
 import token.Token;
 import utilities.*;
 
-import java.util.ArrayList;
-
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
@@ -25,7 +23,7 @@ public class TypeChecker extends Visitor {
     private AST currentContext;
     private TypeErrorFactory generateTypeError;
     private ScopeErrorFactory generateScopeError;
-    private ArrayList<String> errors;
+    private Vector<String> errors;
 
     private boolean returnStatementFound = false;
 
@@ -35,7 +33,7 @@ public class TypeChecker extends Visitor {
         this.currentClass = null;
         this.generateTypeError = new TypeErrorFactory();
         this.generateScopeError = new ScopeErrorFactory();
-        this.errors = new ArrayList<String>();
+        this.errors = new Vector<>();
     }
 
     public TypeChecker(SymbolTable st) {
@@ -1045,7 +1043,7 @@ public class TypeChecker extends Visitor {
         if(is.ifBlock() != null) { is.ifBlock().visit(this); }
         currentScope = currentScope.closeScope();
 
-        if(is.elifStmts().size() > 0) { is.elifStmts().visit(this); }
+        for(IfStmt e : is.elifStmts()) { e.visit(this); }
 
         if(is.elseBlock() != null) {
             currentScope = is.symbolTableElseBlock;
@@ -1072,7 +1070,7 @@ public class TypeChecker extends Visitor {
     public void visitInvocation(Invocation in) {
         String funcSignature = in.toString() + "/";
 
-        in.arguments().visit(this);
+        for(Expression e : in.arguments()) { e.visit(this); }
 
         for(int i = 0; i < in.arguments().size(); i++)
             funcSignature += in.arguments().get(i).type.typeSignature();
