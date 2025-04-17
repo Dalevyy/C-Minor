@@ -745,7 +745,7 @@ public class Interpreter extends Visitor {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) { currValue = li.text; }
+        else if(li.type.isChar()) { currValue = li.asChar(); }
         else if(li.type.isBool()) { currValue = Boolean.parseBoolean(li.text); }
         else if(li.type.isReal()) {
             if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }

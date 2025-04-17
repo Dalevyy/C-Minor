@@ -32,6 +32,14 @@ public class Literal extends Expression {
         }
     }
 
+    public char asChar() {
+      if(this.kind == ConstantKind.CHAR) {
+          if(this.getText().charAt(1) == '\\') { return (char) ('\\' + this.getText().charAt(2));}
+          return this.getText().charAt(1);
+      }
+      return '\0';
+    }
+
     @Override
     public void visit(Visitor v) { v.visitLiteral(this); }
 }
