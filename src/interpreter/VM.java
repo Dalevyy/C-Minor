@@ -60,7 +60,7 @@ public class VM {
                 var lexer = new Lexer(program.toString());
                 var parser = new Parser(lexer,false,true);
 
-                node = parser.parseVM();
+                node = (AST) parser.parseVM();
 
                 node.visit(ioRewrite);
                 node.visit(generatePropertyMethods);
@@ -79,7 +79,6 @@ public class VM {
                 else {
                     node.visit(interpreter);
                     if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
-                    else { compilationUnit.mainDecl().mainBody().addDecl(node.asVector()); }
                 }
                 System.out.println();
             }
