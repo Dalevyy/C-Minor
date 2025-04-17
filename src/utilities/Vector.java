@@ -2,6 +2,7 @@ package utilities;
 
 import java.util.ArrayList;
 import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.Iterator;
 
 /*
@@ -17,6 +18,10 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
     private final ArrayList<T> lst; // Internal ArrayList to store all elements
 
     public Vector() { lst = new ArrayList<>(); }
+    public Vector(T[] args) {
+        this();
+        this.lst.addAll(Arrays.asList(args));
+    }
 
     @Override
     public boolean add(T item) {
