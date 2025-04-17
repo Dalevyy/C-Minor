@@ -578,19 +578,16 @@ public class Interpreter extends Visitor {
     public void visitIfStmt(IfStmt is) {
         is.condition().visit(this);
         if((boolean)currValue) { is.ifBlock().visit(this); }
-        else {
-            if(is.elifStmts().size() > 0) {
-                for(int i = 0; i < is.elifStmts().size(); i++) {
-                    IfStmt curr = is.elifStmts().get(i);
-                    curr.condition().visit(this);
-                    if((boolean)currValue) {
-                        curr.ifBlock().visit(this);
-                        break;
-                    }
+        else if(is.elifStmts().size() > 0){
+            for(IfStmt e : is.elifStmts()) {
+                e.condition().visit(this);
+                if ((boolean) currValue) {
+                    e.ifBlock().visit(this);
+                    break;
                 }
             }
-            else if(is.elseBlock() != null) { is.elseBlock().visit(this); }
         }
+        else if(is.elseBlock() != null) { is.elseBlock().visit(this); }
     }
 
     /*
