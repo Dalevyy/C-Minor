@@ -60,7 +60,7 @@ public class VM {
                 var lexer = new Lexer(program.toString());
                 var parser = new Parser(lexer,false,true);
 
-                node = (AST) parser.parseVM();
+                node = parser.parseVM();
 
                 node.visit(ioRewrite);
                 node.visit(generatePropertyMethods);
