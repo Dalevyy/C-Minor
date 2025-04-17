@@ -3,8 +3,6 @@ package ast.expressions;
 import ast.*;
 import ast.types.*;
 import token.*;
-import utilities.PrettyPrint;
-import utilities.SymbolTable;
 
 public abstract class Expression extends AST {
 

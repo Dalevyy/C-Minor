@@ -1,9 +1,8 @@
 package ast.class_body;
 
 import ast.*;
-import ast.Vector;
 import token.*;
-import utilities.Visitor;
+import utilities.*;
 
 public class ClassBody extends AST {
 

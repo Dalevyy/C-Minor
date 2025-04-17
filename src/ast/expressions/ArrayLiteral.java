@@ -2,6 +2,7 @@ package ast.expressions;
 
 import ast.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 public class ArrayLiteral extends Literal {

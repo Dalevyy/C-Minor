@@ -1,13 +1,14 @@
 package ast.operators;
 
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 // Leaf Node
 public class UnaryOp extends Operator {
 
-    public static enum UnaryType { NEGATE, NOT }
-    public static String[] names = { "~", "not" };
+    public enum UnaryType { NEGATE, NOT }
+    private static Vector<String> names = new Vector<>(new String[]{"~", "not"});
 
     private UnaryType uOp;
 
@@ -21,7 +22,7 @@ public class UnaryOp extends Operator {
     public UnaryOp asUnaryOp() { return this; }
 
     @Override
-    public String toString() { return names[uOp.ordinal()];}
+    public String toString() { return names.get(uOp.ordinal()); }
 
     @Override
     public void visit(Visitor v) { v.visitUnaryOp(this); }

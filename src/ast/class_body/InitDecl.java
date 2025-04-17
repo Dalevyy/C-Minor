@@ -2,6 +2,7 @@ package ast.class_body;
 
 import ast.*;
 import ast.statements.AssignStmt;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*

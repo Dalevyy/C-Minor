@@ -3,6 +3,7 @@ package ast.top_level_decls;
 import ast.*;
 import ast.types.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*

@@ -15,7 +15,6 @@ public class ArrayType extends Type {
     private final Type baseType;
     public int numOfDims;
 
-    public ArrayType(Type bt, int num) { this(new Token(),bt,num); }
     public ArrayType(Token t, Type bt, int num) {
         super(t);
         this.baseType = bt;

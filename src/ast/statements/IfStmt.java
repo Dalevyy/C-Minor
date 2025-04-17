@@ -1,8 +1,8 @@
 package ast.statements;
 
 import ast.expressions.*;
-import ast.Vector;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
@@ -16,7 +16,7 @@ public class IfStmt extends Statement {
     private Vector<IfStmt> elifStmts;
     private BlockStmt elseBlock;
 
-    public IfStmt(Token t, Expression c, BlockStmt ib) { this(t,c,ib,new Vector<IfStmt>(),null); }
+    public IfStmt(Token t, Expression c, BlockStmt ib) { this(t,c,ib,new Vector<>(),null); }
     public IfStmt(Token t, Expression c, BlockStmt ib, Vector<IfStmt> es) { this(t,c,ib,es,null); }
     public IfStmt(Token t, Expression c, BlockStmt ib, Vector<IfStmt> es, BlockStmt eb) {
         super(t);

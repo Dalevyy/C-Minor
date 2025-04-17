@@ -1,5 +1,7 @@
 package ast;
 
+import utilities.Vector;
+
 /*
 ________________________________ Modifiers ________________________________
 This is a helper class that is not part of a C Minor AST. Modifiers will

@@ -1,7 +1,8 @@
 package ast.statements;
 
-import ast.Vector;
 import token.*;
+import utilities.Vector;
+
 import utilities.Visitor;
 
 public class BlockStmt extends Statement {
@@ -30,7 +31,7 @@ public class BlockStmt extends Statement {
     public Vector<Statement> stmts() { return stmts; }
 
     public void addDecl(Vector<LocalDecl> ld) { this.decls.merge(ld); }
-    public void addStmt(Statement s) { this.stmts.append(s); }
+    public void addStmt(Statement s) { this.stmts.add(s); }
 
     public boolean isBlockStmt() { return true; }
     public BlockStmt asBlockStmt() { return this; }

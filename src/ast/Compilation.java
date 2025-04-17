@@ -3,6 +3,7 @@ package ast;
 import ast.top_level_decls.*;
 import token.*;
 import utilities.SymbolTable;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*
@@ -53,10 +54,10 @@ public class Compilation extends AST {
     public Vector<FuncDecl> funcDecls() { return funcDecls; }
     public MainDecl mainDecl() { return mainFunc; }
 
-    public void addEnumDecl(EnumDecl ed) { this.enumDecls.append(ed); }
+    public void addEnumDecl(EnumDecl ed) { this.enumDecls.add(ed); }
     public void addGlobalDecl(Vector<GlobalDecl> gd) { this.globalDecls.merge(gd); }
-    public void addClassDecl(ClassDecl cd) { this.classDecls.append(cd); }
-    public void addFuncDecl(FuncDecl fd) { this.funcDecls.append(fd); }
+    public void addClassDecl(ClassDecl cd) { this.classDecls.add(cd); }
+    public void addFuncDecl(FuncDecl fd) { this.funcDecls.add(fd); }
 
     public boolean isCompilation() { return true; }
     public Compilation asCompilation() { return this; }

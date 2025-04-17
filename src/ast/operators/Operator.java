@@ -2,7 +2,6 @@ package ast.operators;
 
 import ast.*;
 import token.*;
-import utilities.PrettyPrint;
 
 public abstract class Operator extends AST {
     public Operator(Token t) { super(t); }

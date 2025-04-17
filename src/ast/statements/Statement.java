@@ -1,10 +1,7 @@
 package ast.statements;
 
 import ast.*;
-import ast.expressions.BreakStmt;
-import ast.expressions.ContinueStmt;
 import token.*;
-import utilities.PrettyPrint;
 
 public abstract class Statement extends AST {
     public Statement() { super(); }

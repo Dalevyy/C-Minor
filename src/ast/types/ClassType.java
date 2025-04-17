@@ -2,6 +2,7 @@ package ast.types;
 
 import ast.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*

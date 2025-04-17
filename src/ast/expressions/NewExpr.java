@@ -3,6 +3,7 @@ package ast.expressions;
 import ast.*;
 import ast.types.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 public class NewExpr extends Expression {

@@ -2,6 +2,7 @@ package ast.types;
 
 import ast.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*
@@ -14,7 +15,7 @@ __________________________________________________________________
 public class ScalarType extends Type {
 
     public enum Scalars { STR, TEXT, REAL }
-    public static String[] names = { "String", "Text", "Real" };
+    private static Vector<String> names = new Vector<>(new String[]{"String", "Text", "Real" });
 
     private final Scalars sType;
 
@@ -32,10 +33,10 @@ public class ScalarType extends Type {
     public ScalarType asScalarType() { return this; }
     public Scalars getScalarType() { return sType; }
 
-    public String typeName() { return names[sType.ordinal()]; }
+    public String typeName() { return names.get(sType.ordinal()); }
 
     @Override
-    public String toString() { return names[sType.ordinal()]; }
+    public String toString() { return names.get(sType.ordinal()); }
 
     @Override
     public void visit(Visitor v) { v.visitScalarType(this); }
