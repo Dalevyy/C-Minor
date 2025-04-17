@@ -37,7 +37,7 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
 
     @Override
     public void add(int pos, T item) {
-        if(pos < 0 || pos >= lst.size())
+        if(pos < 0 || pos > lst.size())
             throw new RuntimeException("Vector size is " + lst.size() + ", so insert position " + pos + " is invalid!");
         lst.add(pos,item);
     }
@@ -49,6 +49,7 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
         return lst.remove(pos);
     }
 
+    public void merge(T item) { this.lst.add(item); }
     public void merge(Vector<T> lst) { this.lst.addAll(lst); }
 
     @Override
@@ -66,5 +67,4 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
         public boolean hasNext() { return pos < size(); }
         public T next() { return get(pos++); }
     }
-
 }
