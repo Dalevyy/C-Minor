@@ -8,7 +8,6 @@ import ast.statements.*;
 import ast.top_level_decls.*;
 import utilities.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.math.BigDecimal;
 
@@ -42,7 +41,7 @@ public class Interpreter extends Visitor {
     */
     public void visitArrayExpr(ArrayExpr ae) {
         LocalDecl arrayDecl = currentScope.findName(ae.arrayTarget().toString()).decl().asStatement().asLocalDecl();
-        ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(ae.arrayTarget().toString());
+        Vector<Object> arr = (Vector<Object>) stack.getValue(ae.arrayTarget().toString());
 
         int index = 0;
         Vector<Expression> dims = arrayDecl.var().init().asArrayLiteral().arrayDims();
@@ -50,7 +49,7 @@ public class Interpreter extends Visitor {
             ae.arrayIndex().get(i).visit(this);
             int currOffset = (int) currValue-1;
             for(int j = i+1; j < dims.size(); j++) {
-                dims.get(i).visit(this);
+                dims.get(j).visit(this);
                 currOffset *= (int) currValue;
             }
             index += currOffset;
@@ -58,8 +57,6 @@ public class Interpreter extends Visitor {
 
         currValue = arr.get(index);
     }
-
-    //
 
     /*
     _________________________ Array Literals _________________________
@@ -69,14 +66,12 @@ public class Interpreter extends Visitor {
     __________________________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
-        ArrayList<Object> arr = new ArrayList<>();
+        Vector<Object> arr = new Vector<>();
 
-        for(int i = 0; i < al.arrayInits().size(); i++) {
-            al.arrayInits().get(i).visit(this);
-            if(currValue instanceof ArrayList) {
-                ArrayList<Object> smallArr = (ArrayList<Object>) currValue;
-                for(int j = 0; j < smallArr.size(); j++) { arr.add(smallArr.get(j)); }
-            } else { arr.add(currValue); }
+        for(Expression e : al.arrayInits()) {
+            e.visit(this);
+            if(currValue instanceof Vector) { arr.addAll((Vector<Object>)currValue); }
+            else { arr.add(currValue); }
         }
 
         currValue = arr;
@@ -611,20 +606,7 @@ public class Interpreter extends Visitor {
         currValue = instance;
     }
 
-//    public void visitInStmt(InStmt in) {
-//        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-//        String input = "";
-//        try {
-//            input = reader.readLine();
-//        } catch(Exception e) {
-//            System.out.println(e);
-//            System.exit(1);
-//        }
-//
-//        String[] args = input.split(" ");
-//        for(int i = 0; i < in.inExprs().size(); i++)
-//           stack.setValueInRuntimeStack(in.inExprs().get(i).toString(),args[i]);
-//    }
+    public void visitInStmt(InStmt in) {}
 
     /*
     ____________________________ Invocations ____________________________
@@ -640,7 +622,7 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
-        ArrayList<Object> args = new ArrayList<Object>();
+        Vector<Object> args = new Vector<Object>();
         HashMap<String,Object> vals = new HashMap<String,Object>();
 
         for(int i = 0; i < in.arguments().size(); i++) {
@@ -724,7 +706,7 @@ public class Interpreter extends Visitor {
 
     public void visitListLiteral(ListLiteral li) {
 
-        ArrayList<Object> lst = new ArrayList<>();
+        Vector<Object> lst = new Vector<>();
 
         for(int i = 0; i < li.inits().size(); i++) {
             li.inits().get(i).visit(this);
