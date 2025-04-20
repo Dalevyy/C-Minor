@@ -8,6 +8,7 @@ import modifier_checker.ModifierChecker;
 import name_checker.NameChecker;
 import parser.Parser;
 import type_checker.TypeChecker;
+import utilities.Vector;
 
 public class VM {
 
@@ -55,32 +56,34 @@ public class VM {
                     program.append(input).append("\n");
                 }
             }
-            AST node = null;
+            Vector<? extends AST> nodes;
             try {
                 var lexer = new Lexer(program.toString());
                 var parser = new Parser(lexer,false,true);
 
-                node = parser.parseVM();
+                nodes = parser.parseVM();
 
-                node.visit(ioRewrite);
-                node.visit(generatePropertyMethods);
-                node.visit(nameChecker);
-                if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
-                node.visit(loopKeywordCheck);
-                node.visit(typeChecker);
-                node.visit(generateConstructor);
-                node.visit(modChecker);
+                for(AST node : nodes) {
+                    node.visit(ioRewrite);
+                    node.visit(generatePropertyMethods);
+                    node.visit(nameChecker);
+                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
+                    node.visit(loopKeywordCheck);
+                    node.visit(typeChecker);
+                    node.visit(generateConstructor);
+                    node.visit(modChecker);
 
-                if(node.isTopLevelDecl()) {
-                    if(node.asTopLevelDecl().isClassDecl()) { compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl()); }
-                    else if(node.asTopLevelDecl().isFuncDecl()) { compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl()); }
-                    else { node.visit(interpreter); }
+                    if(node.isTopLevelDecl()) {
+                        if(node.asTopLevelDecl().isClassDecl()) { compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl()); }
+                        else if(node.asTopLevelDecl().isFuncDecl()) { compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl()); }
+                        else { node.visit(interpreter); }
+                    }
+                    else {
+                        node.visit(interpreter);
+                        if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
+                    }
+                    System.out.println();
                 }
-                else {
-                    node.visit(interpreter);
-                    if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
-                }
-                System.out.println();
             }
             catch(Exception e) {
                 // if(e.getMessage() != null) { compilationUnit.globalTable.removeName(e.getMessage()); }
