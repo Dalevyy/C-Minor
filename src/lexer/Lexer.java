@@ -15,8 +15,7 @@ public class Lexer {
     private char lookChar;               // Current lookahead
     private Location currLoc;            // Current location
     private String currText;             // Current Text
-    private Vector<String> lines;     // User Program (as an array)
-
+    private Vector<String> lines;        // User Program (as an array)
 
     public Lexer(final String file) {
         this.file = file;
