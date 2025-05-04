@@ -12,9 +12,7 @@ public class InitDecl extends AST {
 
     private Vector<AssignStmt> params;
     
-    public InitDecl(Vector<AssignStmt> p) {
-        this.params = p;
-    }
+    public InitDecl(Vector<AssignStmt> p) { this.params = p; }
 
     public Vector<AssignStmt> assignStmts() { return this.params; }
 
