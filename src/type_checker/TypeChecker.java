@@ -768,7 +768,7 @@ public class TypeChecker extends Visitor {
         }
 
         // ERROR CHECK #3: Check to make sure each constant in the Enum was initialized
-        //                 if we found at least one constant that was initialized
+        //                 If we found at least one constant that wasn't initialized, error out
         if(initCount > 0 && initCount != eFields.size()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ed)
@@ -898,10 +898,20 @@ public class TypeChecker extends Visitor {
                     .addArgs()
                     .error());
         }
-
         fs.condLHS().visit(this);
-        // ERROR CHECK #3: Make sure LHS of condition is an Int, Char, or Enum
-        if(!fs.condLHS().type.isInt() && !fs.condLHS().type.isChar() && !fs.condLHS().type.isEnum()) {
+
+        // ERROR CHECK #3: Make sure RHS of condition is a literal
+        if(!fs.condRHS().isLiteral()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.condRHS())
+                    .addErrorType(MessageType.TYPE_ERROR_439)
+                    .addArgs()
+                    .error());
+        }
+        fs.condRHS().visit(this);
+
+        // ERROR CHECK #4: Make sure the LHS and RHS conditions have the same type
+        if(!Type.assignmentCompatible(fs.condLHS().type,fs.condRHS().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.condLHS())
                     .addErrorType(MessageType.TYPE_ERROR_438)
@@ -909,32 +919,38 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        // ERROR CHECK #4: Make sure RHS of condition is a literal
-        if(!fs.condLHS().isLiteral()) {
+        // ERROR CHECK #5: Make sure the loop condition literals match the type of the control variable
+        if(!Type.assignmentCompatible(varType,fs.condLHS().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.condRHS())
-                    .addErrorType(MessageType.TYPE_ERROR_439)
-                    .addArgs()
+                    .addLocation(fs.condLHS())
+                    .addErrorType(MessageType.TYPE_ERROR_440)
+                    .addArgs(fs.condLHS().type)
                     .error());
         }
 
-        fs.condRHS().visit(this);
-        // ERROR CHECK #5: Make sure RHS of condition is an Int, Char, or Enum
-        if(!fs.condLHS().type.isInt() && !fs.condLHS().type.isChar() && !fs.condLHS().type.isEnum()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.condRHS())
-                    .addErrorType(MessageType.TYPE_ERROR_440)
-                    .addArgs(fs.condRHS().type)
-                    .error());
-        }
 
         // ERROR CHECK #6: Make sure the LHS is smaller than the RHS of the loop condition
-        if(Integer.parseInt(fs.condLHS().toString()) >= Integer.parseInt(fs.condRHS().toString())) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs)
-                    .addErrorType(MessageType.TYPE_ERROR_441)
-                    .addArgs()
-                    .error());
+        if(varType.isInt()) {
+            if(Integer.parseInt(fs.condLHS().toString()) >= Integer.parseInt(fs.condRHS().toString())) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(fs)
+                        .addErrorType(MessageType.TYPE_ERROR_441)
+                        .addArgs()
+                        .error());
+            }
+        }
+        else if(varType.isChar()) {
+            if(fs.condLHS().asLiteral().asChar() >= fs.condRHS().asLiteral().asChar()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(fs)
+                        .addErrorType(MessageType.TYPE_ERROR_441)
+                        .addArgs()
+                        .error());
+            }
+        }
+        else {
+            currentScope.findName(fs.condLHS().toString()).decl();
+            currentScope.findName(fs.condRHS().toString());
         }
 
         if(fs.forBlock() != null) { fs.forBlock().visit(this); }
