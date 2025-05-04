@@ -17,8 +17,8 @@ public class ClassType extends Type {
     private final Name name;
     private final Vector<Type> templateTypes;
 
-    public ClassType(Name n) { this(new Token(),n,null); }
-    public ClassType(Token t, Name n) { this(t,n,null); }
+    public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
+    public ClassType(Token t, Name n) { this(t,n,new Vector<>()); }
     public ClassType(Token t, Name n, Vector<Type> tt) {
         super(t);
         this.name = n;
