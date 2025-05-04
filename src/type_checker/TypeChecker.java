@@ -881,8 +881,8 @@ public class TypeChecker extends Visitor {
         fs.loopVar().visit(this);
         Type varType = fs.loopVar().type();
 
-        // ERROR CHECK #1: Make sure loop control variable is an Int
-        if(!varType.isInt()) {
+        // ERROR CHECK #1: Make sure loop control variable is an Int, Char, or Enum
+        if(!varType.isInt() && !varType.isChar() && !varType.isEnum()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.loopVar())
                     .addErrorType(MessageType.TYPE_ERROR_407)
@@ -900,8 +900,8 @@ public class TypeChecker extends Visitor {
         }
 
         fs.condLHS().visit(this);
-        // ERROR CHECK #3: Make sure LHS of condition is an Int
-        if(!fs.condLHS().type.isInt()) {
+        // ERROR CHECK #3: Make sure LHS of condition is an Int, Char, or Enum
+        if(!fs.condLHS().type.isInt() && !fs.condLHS().type.isChar() && !fs.condLHS().type.isEnum()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.condLHS())
                     .addErrorType(MessageType.TYPE_ERROR_438)
@@ -919,8 +919,8 @@ public class TypeChecker extends Visitor {
         }
 
         fs.condRHS().visit(this);
-        // ERROR CHECK #5: Make sure RHS of condition is an Int
-        if(!fs.condLHS().type.isInt()) {
+        // ERROR CHECK #5: Make sure RHS of condition is an Int, Char, or Enum
+        if(!fs.condLHS().type.isInt() && !fs.condLHS().type.isChar() && !fs.condLHS().type.isEnum()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.condRHS())
                     .addErrorType(MessageType.TYPE_ERROR_440)
@@ -1180,7 +1180,8 @@ public class TypeChecker extends Visitor {
             else { defaultValue = null; }
             localVar.setInit(defaultValue);
         }
-        else { currentContext = ld.type(); localVar.init().visit(this); }
+        currentContext = ld.type();
+        localVar.init().visit(this);
 
         if(ld.type().isArrayType()) { localVar.setType(ld.type()); return; }
 
