@@ -23,13 +23,6 @@ public class FieldRewrite extends Visitor {
                 FieldExpr fe = new FieldExpr(new NameExpr(new Name("this")), ne);
                 fe.copy(ne);
                 fe.setParent();
-                for(int i = 0; i < ne.getParent().children.size(); i++) {
-                    AST currNode = ne.getParent().children.get(i);
-                    if(currNode.isExpression() && currNode.asExpression().isNameExpr()) {
-                        ne.getParent().children.set(i,fe);
-                        break;
-                    }
-                }
             }
         }
     }
