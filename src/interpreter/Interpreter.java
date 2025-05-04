@@ -3,11 +3,16 @@ package interpreter;
 import ast.*;
 import ast.class_body.*;
 import ast.expressions.*;
-import ast.operators.LoopOp;
 import ast.statements.*;
 import ast.top_level_decls.*;
+import messages.*;
+import messages.errors.ErrorBuilder;
+import messages.errors.runtime_error.RuntimeErrorFactory;
 import utilities.*;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.math.BigDecimal;
 
@@ -16,12 +21,15 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
+    private RuntimeErrorFactory generateRuntimeError;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
 
     public Interpreter() {
         stack = new RuntimeStack();
+        generateRuntimeError = new RuntimeErrorFactory();
+        this.interpretMode = true;
         returnFound = false;
         breakFound = false;
         continueFound = false;
@@ -94,9 +102,7 @@ public class Interpreter extends Visitor {
 
         String aOp = as.assignOp().toString();
 
-        if(as.LHS().isArrayExpr()) {
-            return;
-        }
+        if(as.LHS().isArrayExpr()) { return; }
 
         // TODO: Operator Overloads as well
 
@@ -606,7 +612,39 @@ public class Interpreter extends Visitor {
         currValue = instance;
     }
 
-    public void visitInStmt(InStmt in) {}
+    /*
+    ___________________________ In Statements ___________________________
+    _____________________________________________________________________
+    */
+    public void visitInStmt(InStmt in) {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String input = "";
+        try { input = br.readLine(); }
+        catch(IOException e) { System.out.println("Error! Input was not recognized"); }
+
+        Vector<String> vals = new Vector<>();
+        while(input.indexOf(' ') != -1) {
+            vals.add(input.substring(0,input.indexOf(' ')));
+            input = input.substring(input.indexOf(' ')+1);
+        }
+        vals.add(input);
+
+        // ERROR CHECK #1: Make sure the number of input arguments matches the number
+        //                 of expected input values that should be written
+        if(vals.size() != in.inExprs().size()) {
+            new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(in)
+                    .addErrorType(MessageType.RUNTIME_ERROR_600)
+                    .error();
+        }
+        for(int i = 0; i < vals.size(); i++) {
+            String currVal = vals.get(i);
+            Expression currExpr = in.inExprs().get(i);
+            if(currExpr.type.isInt()) {
+                stack.setValue(currExpr.toString(),Integer.parseInt(currVal));
+            }
+        }
+    }
 
     /*
     ____________________________ Invocations ____________________________
