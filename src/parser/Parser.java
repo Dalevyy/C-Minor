@@ -380,7 +380,7 @@ public class Parser {
 
     // 7. variable_decl_list ::= variable_decl_init ( ',' variable_decl_init )*
     private Vector<Var> variableDeclList() {
-        Vector<Var> varList = new Vector<Var>(variableDeclInit());
+        Vector<Var> varList = new Vector<>(variableDeclInit());
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
@@ -607,7 +607,7 @@ public class Parser {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        Vector<Type> types = null;
+        Vector<Type> types = new Vector<>();
         if(nextLA(TokenType.LT)) types = typeParams();
 
         ClassType ct = null;
