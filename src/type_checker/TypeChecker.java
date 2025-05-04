@@ -1177,6 +1177,7 @@ public class TypeChecker extends Visitor {
             else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
             else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
             else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(ld.type().isListType()) { defaultValue = new ListLiteral(); }
             else { defaultValue = null; }
             localVar.setInit(defaultValue);
         }

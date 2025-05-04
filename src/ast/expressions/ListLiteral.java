@@ -8,6 +8,8 @@ public class ListLiteral extends Literal {
 
     private Vector<Expression> inits;
 
+    public ListLiteral() { this(new Token(),new Vector<>()); }
+
     public ListLiteral(Token t, Vector<Expression> e) {
         super(t,ConstantKind.LIST);
         this.inits = e;
