@@ -530,11 +530,17 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
+        int LHS = 0, RHS = 0;
+
         fs.condLHS().visit(this);
-        int LHS = (int) currValue;
+        if(fs.condLHS().type.isChar()) {
+            LHS = (char) currValue;
+        }
+        else { LHS = (int) currValue; }
 
         fs.condRHS().visit(this);
-        int RHS = (int) currValue;
+        if(fs.condRHS().type.isChar()) { RHS = (char) currValue; }
+        else { RHS = (int) currValue; }
 
         switch(fs.loopOp().toString()) {
             case "<..":
@@ -549,7 +555,7 @@ public class Interpreter extends Visitor {
                 break;
         }
 
-        stack.addValue(fs.loopVar().toString(),LHS);
+        stack.addValue(fs.loopVar().toString(),(char)LHS);
 
         for(int i = LHS; i <= RHS; i++) {
             stack.setValue(fs.loopVar().toString(),i);
@@ -641,8 +647,15 @@ public class Interpreter extends Visitor {
             String currVal = vals.get(i);
             Expression currExpr = in.inExprs().get(i);
             if(currExpr.type.isInt()) {
-                stack.setValue(currExpr.toString(),Integer.parseInt(currVal));
+                if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
+                else { stack.setValue(currExpr.toString(),Integer.parseInt(currVal)); }
             }
+            else if(currExpr.type.isReal()) {
+                if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),new BigDecimal(currVal.substring(1)).multiply(new BigDecimal(-1))); }
+                else { stack.setValue(currExpr.toString(), new BigDecimal(currVal)); }
+            }
+            else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
+            else { stack.setValue(currExpr.toString(), currVal); }
         }
     }
 
