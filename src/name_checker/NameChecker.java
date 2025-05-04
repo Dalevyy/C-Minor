@@ -155,6 +155,8 @@ public class NameChecker extends Visitor {
         currentScope.addName(className,cd);
 
         currentScope = currentScope.openNewScope();
+        cd.symbolTable = currentScope;
+
         for(FieldDecl fd : cd.classBlock().fieldDecls()) { fd.visit(this); }
 
         if(baseClass != null) {
@@ -182,7 +184,6 @@ public class NameChecker extends Visitor {
         for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
         currentClass = null;
 
-        cd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
     }
 
