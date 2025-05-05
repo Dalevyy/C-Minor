@@ -24,7 +24,7 @@ import utilities.Visitor;
 public class OutputInputRewrite extends Visitor {
 
     private boolean insideIO = false;
-    private ScopeErrorFactory generateScopeError;
+    private final ScopeErrorFactory generateScopeError;
     private Vector<Expression> exprs;
 
     public OutputInputRewrite() { generateScopeError = new ScopeErrorFactory(); }
@@ -97,7 +97,7 @@ public class OutputInputRewrite extends Visitor {
                         .error();
             }
         }
-        
+
         insideIO = false;
     }
 }

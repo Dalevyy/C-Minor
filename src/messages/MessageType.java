@@ -89,6 +89,7 @@ public enum MessageType {
     TYPE_ERROR_446,
     TYPE_ERROR_447,
     TYPE_ERROR_448,
+    TYPE_ERROR_449,
 
     /*      MOD ERRORS     */
     MOD_ERROR_500,
@@ -104,6 +105,7 @@ public enum MessageType {
 
     /*     RUNTIME ERRORS   */
     RUNTIME_ERROR_600,
+    RUNTIME_ERROR_601,
 
     SCOPE_SUGGEST_1300,
     SCOPE_SUGGEST_1301,
