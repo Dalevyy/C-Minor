@@ -56,6 +56,9 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
     public T get(int i) { return lst.get(i); }
 
     @Override
+    public T set(int i, T item) { return lst.set(i,item); }
+
+    @Override
     public int size() { return lst.size(); }
 
     public Iterator<T> iterator() { return new VectorIterator(); }
