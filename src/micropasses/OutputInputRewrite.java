@@ -1,6 +1,9 @@
 package micropasses;
 
 import ast.expressions.*;
+import messages.errors.ErrorBuilder;
+import messages.errors.scope_error.ScopeErrorFactory;
+import messages.MessageType;
 import utilities.Vector;
 import utilities.Visitor;
 
@@ -21,7 +24,14 @@ import utilities.Visitor;
 public class OutputInputRewrite extends Visitor {
 
     private boolean insideIO = false;
+    private ScopeErrorFactory generateScopeError;
     private Vector<Expression> exprs;
+
+    public OutputInputRewrite() { generateScopeError = new ScopeErrorFactory(); }
+    public OutputInputRewrite(boolean interpretMode) {
+        this();
+        this.interpretMode = interpretMode;
+    }
 
     public void visitBinaryExpr(BinaryExpr be) {
         if(insideIO) {
@@ -59,14 +69,35 @@ public class OutputInputRewrite extends Visitor {
         insideIO = true;
         exprs = new Vector<>();
 
-        if(!in.inExprs().get(0).isBinaryExpr())
+        // ERROR CHECK #1: If we have a single input expression, then
+        //                 make sure it refers to some name
+        if(!in.inExprs().get(0).isBinaryExpr()) {
+            if(!in.inExprs().get(0).isNameExpr()) {
+                new ErrorBuilder(generateScopeError,this.interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_327)
+                        .error();
+            }
             return;
+        }
 
         in.removeChild(0);
         for(Expression e : in.inExprs()) { e.visit(this); }
 
         in.setInExprs(exprs);
         in.addChild(exprs);
+
+        // ERROR CHECK #2: Same as error check #1, make sure each input
+        //                 expression represents a name
+        for(Expression e : in.inExprs()) {
+            if(!e.isNameExpr()) {
+                new ErrorBuilder(generateScopeError,this.interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_327)
+                        .error();
+            }
+        }
+        
         insideIO = false;
     }
 }

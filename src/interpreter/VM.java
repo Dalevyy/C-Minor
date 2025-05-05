@@ -17,7 +17,7 @@ public class VM {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         Compilation compilationUnit = new Compilation();
 
-        var ioRewrite = new OutputInputRewrite();
+        var ioRewrite = new OutputInputRewrite(true);
         var generatePropertyMethods = new GeneratePropertyMethods();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
         var fieldRewrite = new FieldRewrite();
