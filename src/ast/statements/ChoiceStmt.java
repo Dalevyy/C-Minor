@@ -1,8 +1,9 @@
 package ast.statements;
 
 import ast.expressions.*;
-import ast.Vector;
 import token.*;
+import utilities.Vector;
+
 import utilities.Visitor;
 import utilities.SymbolTable;
 

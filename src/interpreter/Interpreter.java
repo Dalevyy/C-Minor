@@ -3,12 +3,16 @@ package interpreter;
 import ast.*;
 import ast.class_body.*;
 import ast.expressions.*;
-import ast.operators.LoopOp;
 import ast.statements.*;
 import ast.top_level_decls.*;
+import messages.*;
+import messages.errors.ErrorBuilder;
+import messages.errors.runtime_error.RuntimeErrorFactory;
 import utilities.*;
 
-import java.util.ArrayList;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.math.BigDecimal;
 
@@ -17,12 +21,15 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
+    private RuntimeErrorFactory generateRuntimeError;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
 
     public Interpreter() {
         stack = new RuntimeStack();
+        generateRuntimeError = new RuntimeErrorFactory();
+        this.interpretMode = true;
         returnFound = false;
         breakFound = false;
         continueFound = false;
@@ -42,7 +49,7 @@ public class Interpreter extends Visitor {
     */
     public void visitArrayExpr(ArrayExpr ae) {
         LocalDecl arrayDecl = currentScope.findName(ae.arrayTarget().toString()).decl().asStatement().asLocalDecl();
-        ArrayList<Object> arr = (ArrayList<Object>) stack.getValue(ae.arrayTarget().toString());
+        Vector<Object> arr = (Vector<Object>) stack.getValue(ae.arrayTarget().toString());
 
         int index = 0;
         Vector<Expression> dims = arrayDecl.var().init().asArrayLiteral().arrayDims();
@@ -50,7 +57,7 @@ public class Interpreter extends Visitor {
             ae.arrayIndex().get(i).visit(this);
             int currOffset = (int) currValue-1;
             for(int j = i+1; j < dims.size(); j++) {
-                dims.get(i).visit(this);
+                dims.get(j).visit(this);
                 currOffset *= (int) currValue;
             }
             index += currOffset;
@@ -58,8 +65,6 @@ public class Interpreter extends Visitor {
 
         currValue = arr.get(index);
     }
-
-    //
 
     /*
     _________________________ Array Literals _________________________
@@ -69,14 +74,12 @@ public class Interpreter extends Visitor {
     __________________________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
-        ArrayList<Object> arr = new ArrayList<>();
+        Vector<Object> arr = new Vector<>();
 
-        for(int i = 0; i < al.arrayInits().size(); i++) {
-            al.arrayInits().get(i).visit(this);
-            if(currValue instanceof ArrayList) {
-                ArrayList<Object> smallArr = (ArrayList<Object>) currValue;
-                for(int j = 0; j < smallArr.size(); j++) { arr.add(smallArr.get(j)); }
-            } else { arr.add(currValue); }
+        for(Expression e : al.arrayInits()) {
+            e.visit(this);
+            if(currValue instanceof Vector) { arr.addAll((Vector<Object>)currValue); }
+            else { arr.add(currValue); }
         }
 
         currValue = arr;
@@ -99,9 +102,7 @@ public class Interpreter extends Visitor {
 
         String aOp = as.assignOp().toString();
 
-        if(as.LHS().isArrayExpr()) {
-            return;
-        }
+        if(as.LHS().isArrayExpr()) { return; }
 
         // TODO: Operator Overloads as well
 
@@ -344,7 +345,7 @@ public class Interpreter extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
-        bs.decls().visit(this);
+        for(AST decl : bs.decls()) { decl.visit(this); }
 
         for(int i = 0; i < bs.stmts().size(); i++) {
             bs.stmts().get(i).visit(this);
@@ -529,11 +530,17 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
+        int LHS = 0, RHS = 0;
+
         fs.condLHS().visit(this);
-        int LHS = (int) currValue;
+        if(fs.condLHS().type.isChar()) {
+            LHS = (char) currValue;
+        }
+        else { LHS = (int) currValue; }
 
         fs.condRHS().visit(this);
-        int RHS = (int) currValue;
+        if(fs.condRHS().type.isChar()) { RHS = (char) currValue; }
+        else { RHS = (int) currValue; }
 
         switch(fs.loopOp().toString()) {
             case "<..":
@@ -548,7 +555,7 @@ public class Interpreter extends Visitor {
                 break;
         }
 
-        stack.addValue(fs.loopVar().toString(),LHS);
+        stack.addValue(fs.loopVar().toString(),(char)LHS);
 
         for(int i = LHS; i <= RHS; i++) {
             stack.setValue(fs.loopVar().toString(),i);
@@ -578,19 +585,16 @@ public class Interpreter extends Visitor {
     public void visitIfStmt(IfStmt is) {
         is.condition().visit(this);
         if((boolean)currValue) { is.ifBlock().visit(this); }
-        else {
-            if(is.elifStmts().size() > 0) {
-                for(int i = 0; i < is.elifStmts().size(); i++) {
-                    IfStmt curr = is.elifStmts().get(i);
-                    curr.condition().visit(this);
-                    if((boolean)currValue) {
-                        curr.ifBlock().visit(this);
-                        break;
-                    }
+        else if(is.elifStmts().size() > 0){
+            for(IfStmt e : is.elifStmts()) {
+                e.condition().visit(this);
+                if ((boolean) currValue) {
+                    e.ifBlock().visit(this);
+                    break;
                 }
             }
-            else if(is.elseBlock() != null) { is.elseBlock().visit(this); }
         }
+        else if(is.elseBlock() != null) { is.elseBlock().visit(this); }
     }
 
     /*
@@ -614,20 +618,46 @@ public class Interpreter extends Visitor {
         currValue = instance;
     }
 
-//    public void visitInStmt(InStmt in) {
-//        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-//        String input = "";
-//        try {
-//            input = reader.readLine();
-//        } catch(Exception e) {
-//            System.out.println(e);
-//            System.exit(1);
-//        }
-//
-//        String[] args = input.split(" ");
-//        for(int i = 0; i < in.inExprs().size(); i++)
-//           stack.setValueInRuntimeStack(in.inExprs().get(i).toString(),args[i]);
-//    }
+    /*
+    ___________________________ In Statements ___________________________
+    _____________________________________________________________________
+    */
+    public void visitInStmt(InStmt in) {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String input = "";
+        try { input = br.readLine(); }
+        catch(IOException e) { System.out.println("Error! Input was not recognized"); }
+
+        Vector<String> vals = new Vector<>();
+        while(input.indexOf(' ') != -1) {
+            vals.add(input.substring(0,input.indexOf(' ')));
+            input = input.substring(input.indexOf(' ')+1);
+        }
+        vals.add(input);
+
+        // ERROR CHECK #1: Make sure the number of input arguments matches the number
+        //                 of expected input values that should be written
+        if(vals.size() != in.inExprs().size()) {
+            new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(in)
+                    .addErrorType(MessageType.RUNTIME_ERROR_600)
+                    .error();
+        }
+        for(int i = 0; i < vals.size(); i++) {
+            String currVal = vals.get(i);
+            Expression currExpr = in.inExprs().get(i);
+            if(currExpr.type.isInt()) {
+                if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
+                else { stack.setValue(currExpr.toString(),Integer.parseInt(currVal)); }
+            }
+            else if(currExpr.type.isReal()) {
+                if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),new BigDecimal(currVal.substring(1)).multiply(new BigDecimal(-1))); }
+                else { stack.setValue(currExpr.toString(), new BigDecimal(currVal)); }
+            }
+            else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
+            else { stack.setValue(currExpr.toString(), currVal); }
+        }
+    }
 
     /*
     ____________________________ Invocations ____________________________
@@ -643,7 +673,7 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
-        ArrayList<Object> args = new ArrayList<Object>();
+        Vector<Object> args = new Vector<Object>();
         HashMap<String,Object> vals = new HashMap<String,Object>();
 
         for(int i = 0; i < in.arguments().size(); i++) {
@@ -727,7 +757,7 @@ public class Interpreter extends Visitor {
 
     public void visitListLiteral(ListLiteral li) {
 
-        ArrayList<Object> lst = new ArrayList<>();
+        Vector<Object> lst = new Vector<>();
 
         for(int i = 0; i < li.inits().size(); i++) {
             li.inits().get(i).visit(this);
@@ -748,7 +778,7 @@ public class Interpreter extends Visitor {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) { currValue = li.text; }
+        else if(li.type.isChar()) { currValue = li.asChar(); }
         else if(li.type.isBool()) { currValue = Boolean.parseBoolean(li.text); }
         else if(li.type.isReal()) {
             if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }

@@ -5,6 +5,7 @@ import ast.operators.*;
 import ast.statements.*;
 import ast.types.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 

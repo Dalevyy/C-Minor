@@ -1,7 +1,7 @@
 package ast.types;
 
-import ast.*;
-import token.*;
+import token.Token;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*
@@ -14,16 +14,11 @@ ____________________________________________________________________
 public class DiscreteType extends Type {
 
     public enum Discretes { INT, CHAR, BOOL, ENUM }
-    public static String[] names = { "Int", "Char", "Bool", "Enum" };
+    private static final Vector<String> names = new Vector<>(new String[]{ "Int", "Char", "Bool", "Enum" });
 
     private final Discretes dType;
 
-    public DiscreteType(Discretes d) {
-        super((AST)null);
-        this.dType = d;
-    }
-
-
+    public DiscreteType(Discretes d) { this(new Token(),d); }
     public DiscreteType(Token t, Discretes d) {
         super(t);
         this.dType = d;
@@ -33,10 +28,10 @@ public class DiscreteType extends Type {
     public DiscreteType asDiscreteType() { return this; }
     public Discretes getDiscreteType() { return dType; }
 
-    public String typeName() { return names[dType.ordinal()]; }
+    public String typeName() { return names.get(dType.ordinal()); }
 
     @Override
-    public String toString() { return names[dType.ordinal()]; }
+    public String toString() { return names.get(dType.ordinal()); }
 
     @Override
     public void visit(Visitor v) { v.visitDiscreteType(this); }

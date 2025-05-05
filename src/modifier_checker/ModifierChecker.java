@@ -8,7 +8,6 @@ import ast.top_level_decls.*;
 import ast.types.*;
 import messages.*;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 
 import messages.errors.ErrorBuilder;
@@ -22,13 +21,12 @@ public class ModifierChecker extends Visitor {
     private SymbolTable currentScope;
     private AST currentContext;
     private ModErrorFactory generateModError;
-    private ArrayList<String> errors;
-
+    private Vector<String> errors;
 
     public ModifierChecker() {
         this.currentScope = null;
         this.generateModError = new ModErrorFactory();
-        this.errors = new ArrayList<String>();
+        this.errors = new Vector<>();
     }
 
     public ModifierChecker(SymbolTable st) {
@@ -170,7 +168,6 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
-    //TODO: PROPERTIES
     /*
     __________________________ Field Declarations __________________________
     In C Minor, there are no specific modifier error checks that need to be
@@ -237,8 +234,7 @@ public class ModifierChecker extends Visitor {
         is.ifBlock().visit(this);
         currentScope = oldScope;
 
-        if(is.elifStmts().size() > 0)
-            is.elifStmts().visit(this);
+        for(IfStmt e : is.elifStmts()) { e.visit(this); }
 
         if(is.elseBlock() != null) {
             oldScope = currentScope;
@@ -268,14 +264,14 @@ public class ModifierChecker extends Visitor {
             FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
-                // ERROR CHECK #1: A function can not recursively call itself without the 'recurs' keyword
-                if(!fd.mod.isRecurs()) {
-                    errors.add(new ErrorBuilder(generateModError,interpretMode)
-                            .addLocation(in)
-                            .addErrorType(MessageType.MOD_ERROR_502)
-                            .addArgs(fd.toString())
-                            .addSuggestType(MessageType.MOD_SUGGEST_1502)
-                            .error());
+            // ERROR CHECK #1: A function can not recursively call itself without the 'recurs' keyword
+            if(!fd.mod.isRecurs()) {
+                errors.add(new ErrorBuilder(generateModError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.MOD_ERROR_502)
+                        .addArgs(fd.toString())
+                        .addSuggestType(MessageType.MOD_SUGGEST_1502)
+                        .error());
                 }
             }
         }

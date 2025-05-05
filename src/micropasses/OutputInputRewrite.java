@@ -1,7 +1,10 @@
 package micropasses;
 
-import ast.*;
 import ast.expressions.*;
+import messages.errors.ErrorBuilder;
+import messages.errors.scope_error.ScopeErrorFactory;
+import messages.MessageType;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*
@@ -21,7 +24,14 @@ import utilities.Visitor;
 public class OutputInputRewrite extends Visitor {
 
     private boolean insideIO = false;
+    private ScopeErrorFactory generateScopeError;
     private Vector<Expression> exprs;
+
+    public OutputInputRewrite() { generateScopeError = new ScopeErrorFactory(); }
+    public OutputInputRewrite(boolean interpretMode) {
+        this();
+        this.interpretMode = interpretMode;
+    }
 
     public void visitBinaryExpr(BinaryExpr be) {
         if(insideIO) {
@@ -29,14 +39,14 @@ public class OutputInputRewrite extends Visitor {
                 if(!be.toString().startsWith("(")) {
                     be.LHS().visit(this);
                     if(!be.LHS().isBinaryExpr())
-                        exprs.addChild(be.LHS());
+                        exprs.add(be.LHS());
                 }
-                else { exprs.addChild(be.LHS()); }
+                else { exprs.add(be.LHS()); }
 
-                exprs.addChild(be.RHS());
+                exprs.add(be.RHS());
             }
             else
-                exprs.addChild(be);
+                exprs.add(be);
         }
     }
 
@@ -48,7 +58,7 @@ public class OutputInputRewrite extends Visitor {
             return;
 
         os.removeChild(0);
-        os.outExprs().visit(this);
+        for(Expression e : os.outExprs()) { e.visit(this); }
 
         os.setOutExprs(exprs);
         os.addChild(exprs);
@@ -58,12 +68,36 @@ public class OutputInputRewrite extends Visitor {
     public void visitInStmt(InStmt in) {
         insideIO = true;
         exprs = new Vector<>();
-        in.removeChild(0);
 
-        in.inExprs().visit(this);
+        // ERROR CHECK #1: If we have a single input expression, then
+        //                 make sure it refers to some name
+        if(!in.inExprs().get(0).isBinaryExpr()) {
+            if(!in.inExprs().get(0).isNameExpr()) {
+                new ErrorBuilder(generateScopeError,this.interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_327)
+                        .error();
+            }
+            return;
+        }
+
+        in.removeChild(0);
+        for(Expression e : in.inExprs()) { e.visit(this); }
 
         in.setInExprs(exprs);
         in.addChild(exprs);
+
+        // ERROR CHECK #2: Same as error check #1, make sure each input
+        //                 expression represents a name
+        for(Expression e : in.inExprs()) {
+            if(!e.isNameExpr()) {
+                new ErrorBuilder(generateScopeError,this.interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_327)
+                        .error();
+            }
+        }
+        
         insideIO = false;
     }
 }

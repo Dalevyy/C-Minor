@@ -2,9 +2,8 @@ package lexer;
 
 import token.*;
 
-import java.text.StringCharacterIterator;
-import java.util.ArrayList;
 import java.util.Iterator;
+import utilities.Vector;
 import utilities.PrettyPrint;
 
 public class Lexer {
@@ -16,8 +15,7 @@ public class Lexer {
     private char lookChar;               // Current lookahead
     private Location currLoc;            // Current location
     private String currText;             // Current Text
-    private ArrayList<String> lines;     // User Program (as an array)
-
+    private Vector<String> lines;        // User Program (as an array)
 
     public Lexer(final String file) {
         this.file = file;
@@ -25,7 +23,7 @@ public class Lexer {
         this.lookChar = file.charAt(currPos);
         this.currLoc = new Location();
         this.currText = "";
-        this.lines = new ArrayList<String>();
+        this.lines = new Vector<>();
     }
 
     /*

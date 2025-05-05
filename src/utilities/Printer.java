@@ -317,11 +317,6 @@ public class Printer extends Visitor {
         spaces -= 2;
     }
 
-    public void visitVector(Vector s) {
-        if(s.children.size() > 0)
-            super.visitVector(s);
-    }
-
     public void visitWhileStmt(WhileStmt ws) {
         System.out.println(printSpaces() + "WhileStmt");
         spaces += 2;

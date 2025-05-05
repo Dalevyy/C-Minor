@@ -10,7 +10,11 @@ public class Literal extends Expression {
 
     private ConstantKind kind;
 
-    public Literal(ConstantKind ck, String val) { this(new Token(), ck); }
+    public Literal(ConstantKind ck, String val) {
+        this(new Token(), ck);
+        this.text = val;
+    }
+
     public Literal(Token t, ConstantKind ck) {
         super(t);
         this.kind = ck;
@@ -30,6 +34,14 @@ public class Literal extends Expression {
             default:
                 return this.getText();
         }
+    }
+
+    public char asChar() {
+      if(this.kind == ConstantKind.CHAR) {
+          if(this.getText().charAt(1) == '\\') { return (char) ('\\' + this.getText().charAt(2));}
+          return this.getText().charAt(1);
+      }
+      return '\0';
     }
 
     @Override

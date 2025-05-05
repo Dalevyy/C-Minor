@@ -4,7 +4,6 @@ import ast.*;
 import java.util.HashMap;
 import java.util.HashSet;
 
-
 // SymbolTable needs to be fixed for imports
 public class SymbolTable {
 

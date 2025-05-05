@@ -1,7 +1,5 @@
 package ast;
 
-import java.util.ArrayList;
-
 import ast.class_body.*;
 import ast.expressions.*;
 import ast.operators.*;
@@ -35,8 +33,8 @@ public abstract class AST {
             parent alongside references to all of its children.
     */
     private AST parent;
-    //TODO: Change to a Vector :)
-    public ArrayList<AST> children = new ArrayList<AST>();
+
+    public Vector<AST> children = new Vector<>();
 
     public AST() {
         this.text = "";
@@ -79,6 +77,8 @@ public abstract class AST {
         if(node != null)
             children.add(node);
     }
+
+    public <T extends AST> void addChild(Vector<T> nodes) { for(AST node : nodes) { this.addChild(node); } }
 
     public AST removeChild() {
         if(!children.isEmpty())
@@ -136,8 +136,6 @@ public abstract class AST {
 
     public boolean isVar() { return false; }
     public Var asVar() { throw new RuntimeException("Expression can not be casted into a Var.\n"); }
-
-    public Vector asVector() { throw new RuntimeException("Expression can not be casted into a Vector.\n"); }
 
     // getType: Helper method to get a node's type (if applicable)
     public Type getType() {

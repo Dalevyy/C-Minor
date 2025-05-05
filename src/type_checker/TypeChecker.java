@@ -16,8 +16,6 @@ import messages.errors.type_error.TypeErrorFactory;
 import token.Token;
 import utilities.*;
 
-import java.util.ArrayList;
-
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
@@ -25,7 +23,7 @@ public class TypeChecker extends Visitor {
     private AST currentContext;
     private TypeErrorFactory generateTypeError;
     private ScopeErrorFactory generateScopeError;
-    private ArrayList<String> errors;
+    private Vector<String> errors;
 
     private boolean returnStatementFound = false;
 
@@ -35,7 +33,7 @@ public class TypeChecker extends Visitor {
         this.currentClass = null;
         this.generateTypeError = new TypeErrorFactory();
         this.generateScopeError = new ScopeErrorFactory();
-        this.errors = new ArrayList<String>();
+        this.errors = new Vector<>();
     }
 
     public TypeChecker(SymbolTable st) {
@@ -770,7 +768,7 @@ public class TypeChecker extends Visitor {
         }
 
         // ERROR CHECK #3: Check to make sure each constant in the Enum was initialized
-        //                 if we found at least one constant that was initialized
+        //                 If we found at least one constant that wasn't initialized, error out
         if(initCount > 0 && initCount != eFields.size()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ed)
@@ -883,8 +881,8 @@ public class TypeChecker extends Visitor {
         fs.loopVar().visit(this);
         Type varType = fs.loopVar().type();
 
-        // ERROR CHECK #1: Make sure loop control variable is an Int
-        if(!varType.isInt()) {
+        // ERROR CHECK #1: Make sure loop control variable is an Int, Char, or Enum
+        if(!varType.isInt() && !varType.isChar() && !varType.isEnum()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.loopVar())
                     .addErrorType(MessageType.TYPE_ERROR_407)
@@ -900,10 +898,20 @@ public class TypeChecker extends Visitor {
                     .addArgs()
                     .error());
         }
-
         fs.condLHS().visit(this);
-        // ERROR CHECK #3: Make sure LHS of condition is an Int
-        if(!fs.condLHS().type.isInt()) {
+
+        // ERROR CHECK #3: Make sure RHS of condition is a literal
+        if(!fs.condRHS().isLiteral()) {
+            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                    .addLocation(fs.condRHS())
+                    .addErrorType(MessageType.TYPE_ERROR_439)
+                    .addArgs()
+                    .error());
+        }
+        fs.condRHS().visit(this);
+
+        // ERROR CHECK #4: Make sure the LHS and RHS conditions have the same type
+        if(!Type.assignmentCompatible(fs.condLHS().type,fs.condRHS().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.condLHS())
                     .addErrorType(MessageType.TYPE_ERROR_438)
@@ -911,32 +919,38 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        // ERROR CHECK #4: Make sure RHS of condition is a literal
-        if(!fs.condLHS().isLiteral()) {
+        // ERROR CHECK #5: Make sure the loop condition literals match the type of the control variable
+        if(!Type.assignmentCompatible(varType,fs.condLHS().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.condRHS())
-                    .addErrorType(MessageType.TYPE_ERROR_439)
-                    .addArgs()
+                    .addLocation(fs.condLHS())
+                    .addErrorType(MessageType.TYPE_ERROR_440)
+                    .addArgs(fs.condLHS().type)
                     .error());
         }
 
-        fs.condRHS().visit(this);
-        // ERROR CHECK #5: Make sure RHS of condition is an Int
-        if(!fs.condLHS().type.isInt()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.condRHS())
-                    .addErrorType(MessageType.TYPE_ERROR_440)
-                    .addArgs(fs.condRHS().type)
-                    .error());
-        }
 
         // ERROR CHECK #6: Make sure the LHS is smaller than the RHS of the loop condition
-        if(Integer.parseInt(fs.condLHS().toString()) >= Integer.parseInt(fs.condRHS().toString())) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs)
-                    .addErrorType(MessageType.TYPE_ERROR_441)
-                    .addArgs()
-                    .error());
+        if(varType.isInt()) {
+            if(Integer.parseInt(fs.condLHS().toString()) >= Integer.parseInt(fs.condRHS().toString())) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(fs)
+                        .addErrorType(MessageType.TYPE_ERROR_441)
+                        .addArgs()
+                        .error());
+            }
+        }
+        else if(varType.isChar()) {
+            if(fs.condLHS().asLiteral().asChar() >= fs.condRHS().asLiteral().asChar()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(fs)
+                        .addErrorType(MessageType.TYPE_ERROR_441)
+                        .addArgs()
+                        .error());
+            }
+        }
+        else {
+            currentScope.findName(fs.condLHS().toString()).decl();
+            currentScope.findName(fs.condRHS().toString());
         }
 
         if(fs.forBlock() != null) { fs.forBlock().visit(this); }
@@ -1045,7 +1059,7 @@ public class TypeChecker extends Visitor {
         if(is.ifBlock() != null) { is.ifBlock().visit(this); }
         currentScope = currentScope.closeScope();
 
-        if(is.elifStmts().size() > 0) { is.elifStmts().visit(this); }
+        for(IfStmt e : is.elifStmts()) { e.visit(this); }
 
         if(is.elseBlock() != null) {
             currentScope = is.symbolTableElseBlock;
@@ -1072,7 +1086,7 @@ public class TypeChecker extends Visitor {
     public void visitInvocation(Invocation in) {
         String funcSignature = in.toString() + "/";
 
-        in.arguments().visit(this);
+        for(Expression e : in.arguments()) { e.visit(this); }
 
         for(int i = 0; i < in.arguments().size(); i++)
             funcSignature += in.arguments().get(i).type.typeSignature();
@@ -1091,6 +1105,7 @@ public class TypeChecker extends Visitor {
             else {
                 FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
                 in.type = fd.returnType();
+                in.targetType = new VoidType();
             }
         }
         // Method Check
@@ -1178,10 +1193,12 @@ public class TypeChecker extends Visitor {
             else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
             else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
             else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(ld.type().isListType()) { defaultValue = new ListLiteral(); }
             else { defaultValue = null; }
             localVar.setInit(defaultValue);
         }
-        else { currentContext = ld.type(); localVar.init().visit(this); }
+        currentContext = ld.type();
+        localVar.init().visit(this);
 
         if(ld.type().isArrayType()) { localVar.setType(ld.type()); return; }
 

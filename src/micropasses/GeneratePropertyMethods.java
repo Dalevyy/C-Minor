@@ -9,6 +9,7 @@ import ast.operators.AssignOp;
 import ast.statements.*;
 import ast.top_level_decls.ClassDecl;
 import ast.types.VoidType;
+import utilities.Vector;
 import utilities.Visitor;
 
 public class GeneratePropertyMethods extends Visitor {
@@ -17,10 +18,10 @@ public class GeneratePropertyMethods extends Visitor {
     // A setter will just be a MethodDecl with an AssignStmt
     public MethodDecl createSetter(FieldDecl fd) {
         Vector<Modifier> mods = new Vector<>();
-        mods.append(new Modifier(Mods.PUBLIC));
+        mods.add(new Modifier(Mods.PUBLIC));
         Name n = new Name("set_"+fd);
         Vector<ParamDecl> param = new Vector<>();
-        param.append(new ParamDecl(new Modifier(Mods.IN),new Name("param" + fd),fd.type()));
+        param.add(new ParamDecl(new Modifier(Mods.IN),new Name("param" + fd),fd.type()));
         BlockStmt b = new BlockStmt();
 
         MethodDecl setter = new MethodDecl(mods,n,param,new VoidType(),b);
@@ -38,14 +39,14 @@ public class GeneratePropertyMethods extends Visitor {
     // A getter will just be a MethodDecl with a ReturnStmt
     public MethodDecl createGetter(FieldDecl fd) {
         Vector<Modifier> mods = new Vector<>();
-        mods.append(new Modifier(Mods.PUBLIC));
+        mods.add(new Modifier(Mods.PUBLIC));
         Name n = new Name("get_"+fd);
         Vector<ParamDecl> param = new Vector<>();
 
         ReturnStmt rs = new ReturnStmt(new FieldExpr(new NameExpr(new Name("this")),
                                                      new NameExpr(new Name(fd.toString()))));
         Vector<Statement> stmt = new Vector<>();
-        stmt.append(rs);
+        stmt.add(rs);
 
         BlockStmt b = new BlockStmt(stmt);
 
@@ -61,9 +62,9 @@ public class GeneratePropertyMethods extends Visitor {
             FieldDecl currField = fields.get(i);
             if(currField.mod.isProperty()) {
                 // First, create the setter method
-                cd.classBlock().methodDecls().insert(0,createSetter(currField));
+                cd.classBlock().methodDecls().add(0,createSetter(currField));
                 // Then, create the getter method
-                cd.classBlock().methodDecls().insert(0,createGetter(currField));
+                cd.classBlock().methodDecls().add(0,createGetter(currField));
             }
         }
     }

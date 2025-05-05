@@ -1,12 +1,14 @@
 package ast.expressions;
 
-import ast.Vector;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 public class ListLiteral extends Literal {
 
     private Vector<Expression> inits;
+
+    public ListLiteral() { this(new Token(),new Vector<>()); }
 
     public ListLiteral(Token t, Vector<Expression> e) {
         super(t,ConstantKind.LIST);

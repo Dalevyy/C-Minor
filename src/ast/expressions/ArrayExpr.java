@@ -1,7 +1,7 @@
 package ast.expressions;
 
-import ast.Vector;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 public class ArrayExpr extends Expression {
