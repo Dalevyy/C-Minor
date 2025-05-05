@@ -1069,6 +1069,27 @@ public class TypeChecker extends Visitor {
     }
 
     /*
+    _________________________ Input Statements _________________________
+    With input statements, we want to make sure only primitive typed
+    input (discrete and scalar) are allowed. None of the structured
+    types will be allowed to be inputted by the user.
+    ____________________________________________________________________
+    */
+    public void visitInStmt(InStmt is) {
+        for(Expression e : is.inExprs()) {
+            e.visit(this);
+            // ERROR CHECK #1: Make sure the current input expression is either
+            //                 a discrete or scalar type
+            if((!e.type.isDiscreteType() && !e.type.isScalarType()) || e.type.isEnum()) {
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(is)
+                        .addErrorType(MessageType.TYPE_ERROR_449)
+                        .error());
+            }
+        }
+    }
+
+    /*
     ____________________________ Invocations ____________________________
     In C Minor, both forms of invocations will have the same exact type
     checking done on them. We will be checking whether or not a valid
