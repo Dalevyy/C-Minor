@@ -22,6 +22,7 @@ public class Interpreter extends Visitor {
     private SymbolTable currentScope;
     private Object currValue;
     private RuntimeErrorFactory generateRuntimeError;
+    private boolean inAssignStmt;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
@@ -63,7 +64,8 @@ public class Interpreter extends Visitor {
             index += currOffset;
         }
 
-        currValue = arr.get(index);
+        if(inAssignStmt) { currValue = new Vector<>(new Object[]{arr,index}); }
+        else { currValue = arr.get(index); }
     }
 
     /*
@@ -94,7 +96,6 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
-        as.LHS().visit(this);
         String name = as.LHS().toString();
 
         as.RHS().visit(this);
@@ -102,7 +103,57 @@ public class Interpreter extends Visitor {
 
         String aOp = as.assignOp().toString();
 
-        if(as.LHS().isArrayExpr()) { return; }
+        if(as.LHS().isArrayExpr()) {
+            inAssignStmt = true;
+            as.LHS().visit(this);
+            Vector<Object> arr = (Vector) ((Vector)currValue).get(0);
+            int index = (int) ((Vector)currValue).get(1);
+            switch(aOp) {
+                case "=": {
+                    arr.set(index, newValue);
+                    break;
+                }
+                case "+=":
+                case "-=":
+                case "*=":
+                case "/=":
+                case "%=":
+                case "**=": {
+                    if (as.RHS().type.isInt()) {
+                        int oldVal = (int) arr.get(index);
+                        int val = (int) newValue;
+                        switch (aOp) {
+                            case "+=" -> arr.set(index, oldVal + val);
+                            case "-=" -> arr.set(index, oldVal - val);
+                            case "*=" -> arr.set(index, oldVal * val);
+                            case "/=" -> arr.set(index, oldVal / val);
+                            case "%=" -> arr.set(index, oldVal % val);
+                            case "**=" -> arr.set(index, Math.pow(oldVal, val));
+                        }
+                        break;
+                    } else if (as.RHS().type.isReal()) {
+                        BigDecimal oldVal = (BigDecimal) arr.get(index);
+                        BigDecimal val = (BigDecimal) newValue;
+                        switch (aOp) {
+                            case "+=" -> arr.set(index, oldVal.add(val));
+                            case "-=" -> arr.set(index, oldVal.subtract(val));
+                            case "*=" -> arr.set(index, oldVal.multiply(val));
+                            case "/=" -> arr.set(index, oldVal.divide(val));
+                            case "%=" -> arr.set(index, oldVal.remainder(val));
+                            case "**=" -> arr.set(index, oldVal.pow(val.toBigInteger().intValue()));
+                        }
+                        break;
+                    } else if (as.RHS().type.isString()) {
+                        String oldVal = (String) arr.get(index);
+                        String val = (String) newValue;
+                        arr.set(index, oldVal + val);
+                        break;
+                    }
+                }
+            }
+            inAssignStmt = false;
+            return;
+        }
 
         // TODO: Operator Overloads as well
 
