@@ -646,16 +646,24 @@ public class Interpreter extends Visitor {
         for(int i = 0; i < vals.size(); i++) {
             String currVal = vals.get(i);
             Expression currExpr = in.inExprs().get(i);
-            if(currExpr.type.isInt()) {
-                if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
-                else { stack.setValue(currExpr.toString(),Integer.parseInt(currVal)); }
+            try {
+                if(currExpr.type.isInt()) {
+                    if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
+                    else { stack.setValue(currExpr.toString(),Integer.parseInt(currVal)); }
+                }
+                else if(currExpr.type.isReal()) {
+                    if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),new BigDecimal(currVal.substring(1)).multiply(new BigDecimal(-1))); }
+                    else { stack.setValue(currExpr.toString(), new BigDecimal(currVal)); }
+                }
+                else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
+                else { stack.setValue(currExpr.toString(), currVal); }
+            } catch(Exception e) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.RUNTIME_ERROR_601)
+                        .addArgs(currExpr.type)
+                        .error();
             }
-            else if(currExpr.type.isReal()) {
-                if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),new BigDecimal(currVal.substring(1)).multiply(new BigDecimal(-1))); }
-                else { stack.setValue(currExpr.toString(), new BigDecimal(currVal)); }
-            }
-            else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
-            else { stack.setValue(currExpr.toString(), currVal); }
         }
     }
 
@@ -673,8 +681,8 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
-        Vector<Object> args = new Vector<Object>();
-        HashMap<String,Object> vals = new HashMap<String,Object>();
+        Vector<Object> args = new Vector<>();
+        HashMap<String,Object> vals = new HashMap<>();
 
         for(int i = 0; i < in.arguments().size(); i++) {
             in.arguments().get(i).visit(this);
