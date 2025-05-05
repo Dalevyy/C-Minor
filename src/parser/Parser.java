@@ -183,7 +183,8 @@ public class Parser {
                 nextLA(TokenType.BOOL_LIT) ||
                 nextLA(TokenType.INT_LIT) ||
                 nextLA(TokenType.CHAR_LIT) ||
-                nextLA(TokenType.ARRAY);
+                nextLA(TokenType.ARRAY) ||
+                nextLA(TokenType.NEW);
     }
 
     /*
