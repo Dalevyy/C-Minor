@@ -658,6 +658,7 @@ public class Interpreter extends Visitor {
                 else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
                 else { stack.setValue(currExpr.toString(), currVal); }
             } catch(Exception e) {
+                // ERROR CHECK #2: Make sure user input matches the type of the input variable
                 new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(in)
                         .addErrorType(MessageType.RUNTIME_ERROR_601)
