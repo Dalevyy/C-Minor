@@ -106,6 +106,7 @@ public enum MessageType {
     /*     RUNTIME ERRORS   */
     RUNTIME_ERROR_600,
     RUNTIME_ERROR_601,
+    RUNTIME_ERROR_602,
 
     SCOPE_SUGGEST_1300,
     SCOPE_SUGGEST_1301,

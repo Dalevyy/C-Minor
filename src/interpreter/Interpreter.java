@@ -64,6 +64,13 @@ public class Interpreter extends Visitor {
             index += currOffset;
         }
 
+        if(index < 0 || index >= arr.size()) {
+            new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ae)
+                    .addErrorType(MessageType.RUNTIME_ERROR_602)
+                    .error();
+        }
+
         if(inAssignStmt) { currValue = new Vector<>(new Object[]{arr,index}); }
         else { currValue = arr.get(index); }
     }
