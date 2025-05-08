@@ -563,7 +563,10 @@ public class NameChecker extends Visitor {
         }
         else {
             NameNode nn = currentScope.findName(name);
-            if(nn.decl().isTopLevelDecl() && nn.decl().toString().equals(name)) {
+            if(nn.decl().isTopLevelDecl()
+                    && (nn.decl().asTopLevelDecl().isEnumDecl()
+                    || nn.decl().asTopLevelDecl().isClassDecl())
+                    && nn.decl().toString().equals(name)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                                 .addLocation(ne)
                                 .addErrorType(MessageType.SCOPE_ERROR_326)
