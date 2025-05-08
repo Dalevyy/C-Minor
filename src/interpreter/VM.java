@@ -86,7 +86,7 @@ public class VM {
                 }
             }
             catch(Exception e) {
-                // if(e.getMessage() != null) { compilationUnit.globalTable.removeName(e.getMessage()); }
+                if(e.getMessage() != null) { compilationUnit.globalTable.removeName(e.getMessage());}
                 /* Do nothing */
             }
         }
