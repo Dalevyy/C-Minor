@@ -934,9 +934,10 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitOutStmt(OutStmt os) {
+        boolean endlFound = false;
         for(int i = 0; i < os.outExprs().size(); i++) {
             Expression e = os.outExprs().get(i);
-            if(e.isEndl()) { System.out.println(); }
+            if(e.isEndl()) { System.out.println(); endlFound = true; }
             else {
                 e.visit(this);
                 if(currValue instanceof String && currValue.equals("' '")) // Guess I need this here?
@@ -945,6 +946,7 @@ public class Interpreter extends Visitor {
                     System.out.print(currValue);
             }
         }
+        if(!endlFound) System.out.println();
     }
 
     /*

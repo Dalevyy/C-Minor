@@ -82,7 +82,6 @@ public class VM {
                         node.visit(interpreter);
                         if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
                     }
-                    System.out.println();
                 }
             }
             catch(Exception e) {
