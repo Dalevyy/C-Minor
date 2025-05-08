@@ -588,36 +588,62 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
-        int LHS = 0, RHS = 0;
+        if(fs.condLHS().type.isInt()) {
+            int LHS = 0, RHS = 0;
+            fs.condLHS().visit(this);
+            LHS = (int) currValue;
 
-        fs.condLHS().visit(this);
-        if(fs.condLHS().type.isChar()) {
+            fs.condRHS().visit(this);
+            RHS = (int) currValue;
+
+            switch(fs.loopOp().toString()) {
+                case "<..":
+                    LHS += 1;
+                    break;
+                case "..<":
+                    RHS -= 1;
+                    break;
+                case "<..<":
+                    LHS += 1;
+                    RHS -= 1;
+                    break;
+            }
+            stack = stack.createCallFrame();
+            stack.addValue(fs.loopVar().toString(),LHS);
+            for(int i = LHS; i <= RHS; i++) {
+                stack.setValue(fs.loopVar().toString(),i);
+                fs.forBlock().visit(this);
+            }
+            stack = stack.destroyCallFrame();
+        }
+        else if(fs.condRHS().type.isChar()) {
+            char LHS = 0, RHS = 0;
+            fs.condLHS().visit(this);
             LHS = (char) currValue;
-        }
-        else { LHS = (int) currValue; }
 
-        fs.condRHS().visit(this);
-        if(fs.condRHS().type.isChar()) { RHS = (char) currValue; }
-        else { RHS = (int) currValue; }
+            fs.condRHS().visit(this);
+            RHS = (char) currValue;
 
-        switch(fs.loopOp().toString()) {
-            case "<..":
-                LHS += 1;
-                break;
-            case "..<":
-                RHS -= 1;
-                break;
-            case "<..<":
-                LHS += 1;
-                RHS -= 1;
-                break;
-        }
+            switch(fs.loopOp().toString()) {
+                case "<..":
+                    LHS += 1;
+                    break;
+                case "..<":
+                    RHS -= 1;
+                    break;
+                case "<..<":
+                    LHS += 1;
+                    RHS -= 1;
+                    break;
+            }
 
-        stack.addValue(fs.loopVar().toString(),(char)LHS);
-
-        for(int i = LHS; i <= RHS; i++) {
-            stack.setValue(fs.loopVar().toString(),i);
-            fs.forBlock().visit(this);
+            stack = stack.createCallFrame();
+            stack.addValue(fs.loopVar().toString(),LHS);
+            for(char i = LHS; i <= RHS; i++) {
+                stack.setValue(fs.loopVar().toString(),i);
+                fs.forBlock().visit(this);
+            }
+            stack = stack.destroyCallFrame();
         }
     }
 
