@@ -871,7 +871,10 @@ public class Interpreter extends Visitor {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) { currValue = li.asChar(); }
+        else if(li.type.isChar()) {
+            if(li.text.charAt(1) == '\\') { currValue = li.text.substring(1,3); }
+            else { currValue = li.text.charAt(1); }
+        }
         else if(li.type.isBool()) { currValue = Boolean.parseBoolean(li.text); }
         else if(li.type.isReal()) {
             if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }
@@ -940,10 +943,7 @@ public class Interpreter extends Visitor {
             if(e.isEndl()) { System.out.println(); endlFound = true; }
             else {
                 e.visit(this);
-                if(currValue instanceof String && currValue.equals("' '")) // Guess I need this here?
-                    System.out.print(" ");
-                else
-                    System.out.print(currValue);
+                System.out.print(currValue);
             }
         }
         if(!endlFound) System.out.println();
