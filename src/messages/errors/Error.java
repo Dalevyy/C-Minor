@@ -31,9 +31,7 @@ public abstract class Error extends Message {
             throw new RuntimeException(this.location().toString());
         }
         else if(this.location().isTopLevelDecl()) {
-            if(this.location.asTopLevelDecl().isEnumDecl()
-                    && this.errorType() != MessageType.SCOPE_ERROR_305
-                    && this.errorType() != MessageType.SCOPE_ERROR_306) {
+            if(this.location.asTopLevelDecl().isEnumDecl() && this.errorType() != MessageType.SCOPE_ERROR_305) {
                 throw new RuntimeException(this.location().toString());
             }
             else if(this.location.asTopLevelDecl().isClassDecl() && this.errorType() != MessageType.SCOPE_ERROR_316) {
