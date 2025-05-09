@@ -136,16 +136,46 @@ public class Lexer {
         sequence is not valid, we will output an error.
     */
     private void escapeSequence(StringBuilder sb) {
-        char escapeChar = lookChar;
-        if(match('\'') || match('\"') || match('?')  ||
-           match('\\') || match('a')  || match('b')  ||
-           match('f')  || match('n')  || match('r')  ||
-           match('t')  || match('v')  || match('0')) {
-            sb.append(escapeChar);
-        }
-        else {
-            System.out.println(PrettyPrint.RED + "Error! Invalid escape sequence written at positions " + currLoc.toString() + ".");
-            System.exit(1);
+        switch(lookChar) {
+            case '\'':
+                match('\'');
+                sb.append('\'');
+                break;
+            case '\"':
+                match('\"');
+                sb.append('\"');
+                break;
+            case '\\':
+                match('\\');
+                sb.append('\\');
+                break;
+            case 'b':
+                match('b');
+                sb.append('\b');
+                break;
+            case 'f':
+                match('f');
+                sb.append('\f');
+                break;
+            case 'n':
+                match('n');
+                sb.append('\n');
+                break;
+            case 'r':
+                match('r');
+                sb.append('\r');
+                break;
+            case 't':
+                match('t');
+                sb.append('\t');
+                break;
+            case '0':
+                match('0');
+                sb.append('\0');
+                break;
+            default:
+                System.out.println(PrettyPrint.RED + "Error! Invalid escape sequence written at positions " + currLoc.toString() + ".");
+                System.exit(1);
         }
     }
 
@@ -154,7 +184,6 @@ public class Lexer {
         newChar.append('\'');
 
         if(match('\\')) {
-            newChar.append('\\');
             escapeSequence(newChar);
         }
         else {
@@ -172,7 +201,6 @@ public class Lexer {
     private Token strLit(StringBuilder newStr) {
         while(!match('\'') && !isEOF()) {
             if(match('\\')) {
-                newStr.append('\\');
                 escapeSequence(newStr);
             }
             else {
