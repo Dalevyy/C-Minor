@@ -257,7 +257,7 @@ public class Printer extends Visitor {
     }
 
     public void visitNameExpr(NameExpr ne) {
-        System.out.println(printSpaces() + "NameExpr" + debugInfo(ne));
+        System.out.println(printSpaces() + "NameExpr" + debugLines(ne));
         spaces += 2;
         super.visitNameExpr(ne);
         spaces -= 2;
