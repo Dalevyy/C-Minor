@@ -26,6 +26,7 @@ public class FieldDecl extends AST implements NameNode {
     public AST decl() { return this; }
 
     public Var var() { return var; }
+    public void setType(Type t) { this.type = t; }
     public Type type() { return type; }
 
     public boolean isFieldDecl() { return true; }
