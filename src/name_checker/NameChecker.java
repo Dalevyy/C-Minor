@@ -55,6 +55,34 @@ public class NameChecker extends Visitor {
         super.visitAssignStmt(as);
     }
 
+    public void visitBinaryExpr(BinaryExpr be) {
+        be.LHS().visit(this);
+
+        switch(be.binaryOp().toString()) {
+            case "instanceof":
+            case "!instanceof":
+            case "as?":
+                if(!currentScope.hasNameSomewhere(be.RHS().toString())) {
+                    errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(MessageType.SCOPE_ERROR_328)
+                            .addArgs(be.RHS().toString())
+                            .error());
+                }
+                AST classDecl = currentScope.findName(be.RHS().toString()).decl();
+                if(!classDecl.isTopLevelDecl() || !classDecl.asTopLevelDecl().isClassDecl()) {
+                    errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(MessageType.SCOPE_ERROR_329)
+                            .addArgs(be.RHS().toString())
+                            .error());
+                }
+                break; 
+            default:
+                be.RHS().visit(this);
+        }
+    }
+
     /*
     _________________________ Block Statements _________________________
     Any time we visit a block statement, we will open a new scope and
@@ -440,6 +468,7 @@ public class NameChecker extends Visitor {
                         .error());
             }
         }
+        else { in.target().visit(this); }
 
         for(Expression e : in.arguments()) { e.visit(this); }
     }
