@@ -33,7 +33,7 @@ public class Parser {
     private final int k = 3;           // k = # of lookaheads
     private int lookPos;               // Current lookahead position
     private final Token[] lookaheads;  // Array of k lookaheads
-    private boolean printToks;         // Flag to print tokens to user
+    private final boolean printToks;   // Flag to print tokens to user
     private boolean interpretMode = false;
     private SyntaxErrorFactory generateSyntaxError;
 
@@ -1095,8 +1095,8 @@ public class Parser {
         match(TokenType.DEF);
         match(TokenType.MAIN);
 
-        Vector<ParamDecl> args = null;
-        if(nextLA(TokenType.LPAREN)) args = args();
+        Vector<ParamDecl> args = new Vector<>();
+        if(nextLA(TokenType.LPAREN)) { args.merge(args()); }
 
         match(TokenType.ARROW);
         Type rt = returnType();
@@ -1111,7 +1111,7 @@ public class Parser {
     // 36. args ::= '(' formal_params? ')'
     private Vector<ParamDecl> args() {
         match(TokenType.LPAREN);
-        Vector<ParamDecl> pd = null;
+        Vector<ParamDecl> pd = new Vector<>();
         if(nextLA(TokenType.IN) || nextLA(TokenType.OUT) || nextLA(TokenType.INOUT) || nextLA(TokenType.REF))
             pd = formalParams();
         match(TokenType.RPAREN);
@@ -1561,7 +1561,7 @@ public class Parser {
         Expression primary = primaryExpression();
 
         if(isInPrimaryExpressionFOLLOW()) {
-            Expression mainExpr = null, e = null;
+            Expression mainExpr = null, subExpr = null;
             while(isInPrimaryExpressionFOLLOW()) {
                 if(nextLA(TokenType.LBRACK)) {
                     Vector<Expression> indices = new Vector<>();
@@ -1570,7 +1570,7 @@ public class Parser {
                         indices.add(expression());
                         match(TokenType.RBRACK);
                     }
-                    e = new ArrayExpr(t,primary,indices);
+                    subExpr = new ArrayExpr(t,primary,indices);
                 }
                 else if(nextLA(TokenType.LPAREN)) {
                     match(TokenType.LPAREN);
@@ -1579,27 +1579,31 @@ public class Parser {
                         args = arguments();
                     match(TokenType.RPAREN,t);
                     t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-                    e = new Invocation(t,primary.asExpression().asNameExpr().getName(),args);
+                    subExpr = new Invocation(t,primary.asExpression().asNameExpr().getName(),args);
                 }
                 else {
-                    if(nextLA(TokenType.ELVIS)) match(TokenType.ELVIS);
-                    else match(TokenType.PERIOD);
-                    Expression e1 = expression();
-                    if(e1.isInvocation()) {
-                        e = new Invocation(t,primary.asExpression(),e1.asInvocation().name(),e1.asInvocation().arguments());
-                        e1 = null;
+                    if (nextLA(TokenType.PERIOD)) {
+                        match(TokenType.PERIOD);
+                    } else {
+                        match(TokenType.ELVIS);
                     }
-                    else {
-                        t.newEndLocation(e1.getLocation().end);
-                        t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
-                        e = new FieldExpr(t,primary.asExpression(),e1.asExpression(),false);
-                    }
-                }
-                mainExpr = e;
-            }
-            t.newEndLocation(mainExpr.getLocation().end);
-            t.setText(input.getProgramInputForToken(t.getStartPos(),t.getEndPos()));
 
+                    Expression RHS = expression();
+
+                    t.newEndLocation(primary.getLocation().end);
+                    t.setText(input.getProgramInputForToken(t.getStartPos(), t.getEndPos()));
+
+                    if (RHS.isInvocation()) {
+                        if(mainExpr != null) {
+                            subExpr = new Invocation(t, mainExpr, RHS.asInvocation().name(), RHS.asInvocation().arguments());
+                        }
+                        else {
+                            subExpr = new Invocation(t, primary.asExpression(), RHS.asInvocation().name(), RHS.asInvocation().arguments());
+                        }
+                    } else { subExpr = new FieldExpr(t, primary.asExpression(), RHS.asExpression(), false); }
+                }
+                mainExpr = subExpr;
+            }
             return mainExpr;
         }
 
