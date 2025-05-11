@@ -21,6 +21,7 @@ public class VM {
         var generatePropertyMethods = new GeneratePropertyMethods();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
         var fieldRewrite = new FieldRewrite();
+        var classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
         var typeChecker = new TypeChecker(compilationUnit.globalTable);
         var generateConstructor = new GenerateConstructor();
         var loopKeywordCheck = new LoopKeywordCheck(true);
@@ -69,6 +70,7 @@ public class VM {
                     node.visit(nameChecker);
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
                     node.visit(loopKeywordCheck);
+                    node.visit(classToEnum);
                     node.visit(typeChecker);
                     node.visit(generateConstructor);
                     node.visit(modChecker);
