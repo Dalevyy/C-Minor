@@ -5,14 +5,13 @@ import ast.class_body.*;
 import ast.expressions.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
+import ast.types.Type;
 import messages.*;
 import messages.errors.ErrorBuilder;
 import messages.errors.runtime_error.RuntimeErrorFactory;
 import utilities.*;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.math.BigDecimal;
 
@@ -386,10 +385,11 @@ public class Interpreter extends Visitor {
                 }
             }
             case "instanceof":
+                currValue = Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                break;
             case "!instanceof":
-            case "as?": {
-                //TODO: Check class name here
-            }
+                currValue = !Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                break;
         }
     }
 
@@ -670,11 +670,15 @@ public class Interpreter extends Visitor {
         is.condition().visit(this);
         if((boolean)currValue) { is.ifBlock().visit(this); }
         else if(is.elifStmts().size() > 0){
-            for(IfStmt e : is.elifStmts()) {
+            for(int i = 0; i < is.elifStmts().size(); i++) {
+                IfStmt e = is.elifStmts().get(i);
                 e.condition().visit(this);
                 if ((boolean) currValue) {
                     e.ifBlock().visit(this);
                     break;
+                }
+                else if(i == is.elifStmts().size()-1 && is.elseBlock() != null) {
+                    is.elseBlock().visit(this);
                 }
             }
         }
@@ -880,7 +884,7 @@ public class Interpreter extends Visitor {
             if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }
             else { currValue = new BigDecimal(li.text); }
         }
-        else if(li.type.isString()) { currValue = li.text.substring(1,li.text.length()-1); } // Removes quotes
+        else if(li.type.isString()) { currValue = li.text.substring(1,li.text.length()-1); } // Removes single quotes
     }
 
     /*
@@ -906,7 +910,6 @@ public class Interpreter extends Visitor {
         if (ne.getName().toString().equals("this")) { currValue = stack.getValue("this"); }
         else {
             currValue = stack.getValue(ne.toString());
-           // if(stack.getValue("this") )
         }
     }
 
@@ -1015,7 +1018,7 @@ public class Interpreter extends Visitor {
         ws.condition().visit(this);
         while((boolean)currValue) {
             ws.whileBlock().visit(this);
-            if(breakFound) {
+            if(breakFound || returnFound) {
                 breakFound = false;
                 break;
             }
