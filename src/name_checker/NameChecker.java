@@ -77,7 +77,7 @@ public class NameChecker extends Visitor {
                             .addArgs(be.RHS().toString())
                             .error());
                 }
-                break; 
+                break;
             default:
                 be.RHS().visit(this);
         }
