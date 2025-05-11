@@ -6,7 +6,7 @@ import utilities.*;
 // Leaf Node
 public class Literal extends Expression {
 
-    public enum ConstantKind { BOOL, INT, CHAR, STR, TEXT, REAL, LIST, ARR }
+    public enum ConstantKind { BOOL, INT, CHAR, STR, TEXT, REAL, LIST, ARR, ENUM }
 
     private ConstantKind kind;
 
