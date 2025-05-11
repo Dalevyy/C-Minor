@@ -49,7 +49,7 @@ public class TypeChecker extends Visitor {
             3. Evaluate how many arguments Array(...) is (same as columns)
                 Recursion
     */
-    public boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
+    private boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
         if(currDepth == 1) {
             // ERROR CHECK #1: If we are checking a single dimension array, then we
             //                 want to ensure there are not 2 or more dimensions specified
@@ -173,6 +173,10 @@ public class TypeChecker extends Visitor {
         }
         return false;
     }
+
+//    private boolean listAssignmentCompatibility(int currDepth, Type lt, ListLiteral curr) {
+//
+//    }
 
     /*
     ______________________ Array Expressions ______________________
@@ -492,7 +496,7 @@ public class TypeChecker extends Visitor {
             case "instanceof":
             case "!instanceof":
             case "as?": {
-                if(!lType.isClassType() && !rType.isClassType()) {
+                if(!lType.isClassType()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(be)
                             .addErrorType(MessageType.TYPE_ERROR_404)
@@ -731,7 +735,7 @@ public class TypeChecker extends Visitor {
         Type eType = ed.constantType();
 
         if(eType == null) {
-            eType = new DiscreteType(Discretes.INT);
+            eType = new EnumType(ed.toString(),Discretes.INT);
             ed.setType(eType);
         }
         else {
@@ -744,6 +748,8 @@ public class TypeChecker extends Visitor {
                         .addSuggestType(MessageType.TYPE_SUGGEST_1411)
                         .error());
             }
+            if(eType.isInt()) { ed.setType(new EnumType(ed.toString(),Discretes.INT)); }
+            else { ed.setType(new EnumType(ed.toString(),Discretes.CHAR)); }
         }
 
         Vector<Var> eFields = ed.enumVars();
@@ -757,14 +763,16 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #2: Make sure the initial value given to a constant
                 //                 matches the type given to the Enum
                 varInit.visit(this);
-                if(!Type.assignmentCompatible(eType,varInit.type)) {
+                if(!Type.assignmentCompatible(eType.asEnumType().constantType(),varInit.type)) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(ed)
                             .addErrorType(MessageType.TYPE_ERROR_424)
                             .addArgs(enumVar.toString(),varInit.type.typeName(),eType)
                             .error());
                 }
+                varInit.type = eType;
             }
+            enumVar.setType(eType);
         }
 
         // ERROR CHECK #3: Check to make sure each constant in the Enum was initialized
@@ -817,6 +825,7 @@ public class TypeChecker extends Visitor {
             else if(fd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
             else if(fd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
             else if(fd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(fd.type().isListType()) { defaultValue = new ListLiteral(); }
             else { defaultValue = null; }
             fieldVar.setInit(defaultValue);
         }
@@ -882,7 +891,7 @@ public class TypeChecker extends Visitor {
         Type varType = fs.loopVar().type();
 
         // ERROR CHECK #1: Make sure loop control variable is an Int, Char, or Enum
-        if(!varType.isInt() && !varType.isChar() && !varType.isEnum()) {
+        if(!varType.isInt() && !varType.isChar() && !varType.isEnumType()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.loopVar())
                     .addErrorType(MessageType.TYPE_ERROR_407)
@@ -935,7 +944,6 @@ public class TypeChecker extends Visitor {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(fs)
                         .addErrorType(MessageType.TYPE_ERROR_441)
-                        .addArgs()
                         .error());
             }
         }
@@ -944,13 +952,24 @@ public class TypeChecker extends Visitor {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(fs)
                         .addErrorType(MessageType.TYPE_ERROR_441)
-                        .addArgs()
                         .error());
             }
         }
         else {
-            currentScope.findName(fs.condLHS().toString()).decl();
-            currentScope.findName(fs.condRHS().toString());
+            EnumDecl ed = currentScope.findName(fs.loopVar().type().toString()).decl().asTopLevelDecl().asEnumDecl();
+            Var RHS = null;
+            for(Var v : ed.enumVars()) {
+              if(v.toString().equals(fs.condLHS().toString())) {
+                  if(RHS != null) {
+                      errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                              .addLocation(fs)
+                              .addErrorType(MessageType.TYPE_ERROR_441)
+                              .error());
+                  }
+                  break;
+              }
+              else if(v.toString().equals(fs.condRHS().toString())) { RHS = v; }
+            }
         }
 
         if(fs.forBlock() != null) { fs.forBlock().visit(this); }
@@ -1019,6 +1038,7 @@ public class TypeChecker extends Visitor {
             else if(gd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
             else if(gd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
             else if(gd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(gd.type().isListType()) { defaultValue = new ListLiteral(); }
             else { defaultValue = null; }
             globalVar.setInit(defaultValue);
         }
@@ -1080,7 +1100,7 @@ public class TypeChecker extends Visitor {
             e.visit(this);
             // ERROR CHECK #1: Make sure the current input expression is either
             //                 a discrete or scalar type
-            if((!e.type.isDiscreteType() && !e.type.isScalarType()) || e.type.isEnum()) {
+            if((!e.type.isDiscreteType() && !e.type.isScalarType()) || e.type.isEnumType()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(is)
                         .addErrorType(MessageType.TYPE_ERROR_449)
@@ -1185,9 +1205,14 @@ public class TypeChecker extends Visitor {
         else if(li.getConstantKind() == ConstantKind.CHAR) { li.type = new DiscreteType(Discretes.CHAR); }
         else if(li.getConstantKind() == ConstantKind.STR) { li.type = new ScalarType(Scalars.STR); }
         else if(li.getConstantKind() == ConstantKind.REAL) { li.type = new ScalarType(Scalars.REAL); }
+        else if(li.getConstantKind() == ConstantKind.ENUM) { li.type = new DiscreteType(Discretes.ENUM); }
     }
 
-    public void visitListLiteral(ListLiteral ll) { }
+    public void visitListLiteral(ListLiteral ll) {
+//        listAssignmentCompatibility();
+//        arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
+
+    }
 
     /*
     ________________________ Local Declarations ________________________
@@ -1204,6 +1229,7 @@ public class TypeChecker extends Visitor {
     ____________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
+        Type declaredType = ld.type();
         Var localVar = ld.var();
 
         if(localVar.init() == null) {
@@ -1215,17 +1241,24 @@ public class TypeChecker extends Visitor {
             else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
             else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
             else if(ld.type().isListType()) { defaultValue = new ListLiteral(); }
-            else { defaultValue = null; }
+            else {
+                TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
+                if(customType.isEnumDecl()) {
+                    defaultValue = new Literal(ConstantKind.ENUM, customType.asEnumDecl().enumVars().get(0).asVar().toString());
+                }
+                else { defaultValue = null; }
+            }
+
             localVar.setInit(defaultValue);
         }
         currentContext = ld.type();
         localVar.init().visit(this);
 
-        if(ld.type().isArrayType()) { localVar.setType(ld.type()); return; }
+        if(ld.type().isArrayType() || ld.type().isListType()) { localVar.setType(ld.type()); return; }
 
         // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
-        if(!Type.assignmentCompatible(ld.type(),localVar.init().type)) {
+        if(!Type.assignmentCompatible(declaredType,localVar.init().type)) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ld)
                     .addErrorType(MessageType.TYPE_ERROR_400)
