@@ -6,9 +6,9 @@ import micropasses.GenerateConstructor;
 import micropasses.OutputInputRewrite;
 import parser.*;
 import lexer.*;
-import modifier_checker.ModifierChecker;
-import name_checker.NameChecker;
-import type_checker.TypeChecker;
+import modifierchecker.ModifierChecker;
+import namechecker.NameChecker;
+import typechecker.TypeChecker;
 import utilities.*;
 
 public class Main {

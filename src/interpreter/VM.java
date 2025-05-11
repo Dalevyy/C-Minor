@@ -4,10 +4,10 @@ import java.io.*;
 import ast.*;
 import lexer.Lexer;
 import micropasses.*;
-import modifier_checker.ModifierChecker;
-import name_checker.NameChecker;
+import modifierchecker.ModifierChecker;
+import namechecker.NameChecker;
 import parser.Parser;
-import type_checker.TypeChecker;
+import typechecker.TypeChecker;
 import utilities.Vector;
 
 public class VM {

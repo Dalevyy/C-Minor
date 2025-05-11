@@ -1,4 +1,4 @@
-package modifier_checker;
+package modifierchecker;
 
 import ast.*;
 import ast.class_body.*;

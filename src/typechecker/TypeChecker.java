@@ -1,4 +1,4 @@
-package type_checker;
+package typechecker;
 
 import ast.*;
 import ast.class_body.*;
@@ -1251,10 +1251,15 @@ public class TypeChecker extends Visitor {
 
             localVar.setInit(defaultValue);
         }
+        AST oldContext = currentContext;
         currentContext = ld.type();
         localVar.init().visit(this);
 
-        if(ld.type().isArrayType() || ld.type().isListType()) { localVar.setType(ld.type()); return; }
+        if(ld.type().isArrayType() || ld.type().isListType()) {
+            localVar.setType(ld.type());
+            currentContext = oldContext;
+            return;
+        }
 
         // ERROR CHECK #1: Check if the local variable's declared type
         //                 matches the type of the initial value
@@ -1267,6 +1272,7 @@ public class TypeChecker extends Visitor {
         }
 
         localVar.setType(ld.type());
+        currentContext = oldContext;
     }
 
     /*

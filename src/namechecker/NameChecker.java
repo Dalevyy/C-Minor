@@ -1,11 +1,10 @@
-package name_checker;
+package namechecker;
 
 import ast.*;
 import ast.class_body.*;
 import ast.expressions.*;
 import ast.statements.*;
 import ast.top_level_decls.*;
-import ast.types.Type;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.scope_error.ScopeErrorFactory;
