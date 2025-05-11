@@ -156,6 +156,8 @@ public class NameChecker extends Visitor {
                     .error());
         }
 
+        currentScope.addName(className,cd);
+
         String baseClass = null;
         if(cd.superClass() != null) {
             baseClass = cd.superClass().getName().toString();
@@ -179,8 +181,6 @@ public class NameChecker extends Visitor {
                         .error());
             }
         }
-
-        currentScope.addName(className,cd);
 
         currentScope = currentScope.openNewScope();
         cd.symbolTable = currentScope;

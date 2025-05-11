@@ -305,9 +305,7 @@ public class Parser {
 
         match(TokenType.DEF);
         Name n = new Name(currentLA());
-        if(!match(TokenType.ID)) {
-            System.out.println("Hi this is an error");
-        }
+        match(TokenType.ID);
 
         Type ty = null;
         if(isInTypeFIRST()) ty = type();
@@ -648,7 +646,7 @@ public class Parser {
         Name superName = new Name(t);
         match(TokenType.ID);
 
-        Vector<Type> vectorOfTypes = null;
+        Vector<Type> vectorOfTypes = new Vector<>();
         if(nextLA(TokenType.LT)) {
             vectorOfTypes = typeParams();
             t.setText(input.toString());
