@@ -28,9 +28,9 @@ public abstract class Type extends AST {
         if(this.isBool()) return "B";
         else if(this.isInt()) return "I";
         else if(this.isChar()) return "C";
-        else if(this.isEnum()) return "E";
         else if(this.isString()) return "S";
         else if(this.isReal()) return "R";
+        else if(this.isEnumType()) return "E";
         else if(this.isListType()) return "L";
         else if(this.isArrayType()) return "A";
         else if(this.isClassType()) return "O";
@@ -51,6 +51,9 @@ public abstract class Type extends AST {
             if (LHS.asClassType().toString().length() > RHS.asClassType().toString().length()) {
                 return ClassType.isSuperClass(LHS.asClassType(), RHS.asClassType());
             } else { return ClassType.isSuperClass(RHS.asClassType(), LHS.asClassType()); }
+        }
+        else if(LHS.isEnumType() && RHS.isEnumType()) {
+            return LHS.asEnumType().toString().equals(RHS.asEnumType().toString());
         }
         else if(LHS.isListType() && RHS.isListType()) { return true; }
         else if(LHS.isArrayType() && RHS.isArrayType()) {
@@ -75,10 +78,6 @@ public abstract class Type extends AST {
         return this.isDiscreteType() && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.CHAR);
     }
 
-    public boolean isEnum() {
-        return this.isDiscreteType() && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.ENUM);
-    }
-
     /*
         Scalar Type Predicates
     */
@@ -92,7 +91,7 @@ public abstract class Type extends AST {
     public boolean isList() { return this.isListType(); }
     public boolean isArray() { return this.isArrayType(); }
     public boolean isNumeric() { return this.isInt() || this.isChar() || this.isReal(); }
-
+    public boolean isEnumType() { return false; }
     public boolean isScalarType() { return false; }
     public boolean isDiscreteType() { return false; }
     public boolean isClassType() { return false; }
@@ -106,4 +105,5 @@ public abstract class Type extends AST {
     public ListType asListType() { throw new RuntimeException("Expression can not be casted into a ListType.\n"); }
     public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
     public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
+    public EnumType asEnumType() { throw new RuntimeException("Expression can not be casted into an EnumType.\n"); }
 }
