@@ -67,6 +67,13 @@ public abstract class AST {
         this.parent = n.parent;
     }
 
+    public void updateNode(Token t) {
+        this.text = t.getText();
+        this.location = new Location();
+        this.location.start = t.getLocation().start;
+        this.location.end = t.getLocation().end;
+    }
+
     public void setParent() {
         for(AST n : children)
             n.parent = this;
