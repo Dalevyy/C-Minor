@@ -25,7 +25,8 @@ public class Token {
     public Token copy() { return new Token(type,text,location); }
 
     public void appendText(String txt) { this.text += txt; }
-    public void newEndLocation(Position end) { this.location.end = end; }
+    public void setStartLocation(Position start) { this.location.start = start; }
+    public void setEndLocation(Position end) { this.location.end = end; }
     
     @Override
     public String toString() {
