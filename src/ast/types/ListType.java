@@ -15,10 +15,15 @@ public class ListType extends Type {
     // A list is homogeneous in C Minor which means a list
     // only stores a single data type
     private final Type lType;
+    public int numOfDims;
 
-    public ListType(Token t, Type mt) {
+    public ListType(Token t, Type mt, int num) {
         super(t);
         this.lType = mt;
+        this.numOfDims = num;
+
+        addChild(this.lType);
+        setParent();
     }
 
     public boolean isListType() { return true; }
