@@ -1532,43 +1532,50 @@ public class Parser {
     //                                               | ( '.' | '?.' ) expression )*
     private Expression postfixExpression() {
         tokenStack.add(currentLA());
-        Expression primary = primaryExpression();
+        Expression LHS = primaryExpression();
 
         if(inPrimaryExpressionFOLLOW()) {
-            Expression mainExpr = null;
+            Expression RHS = null;
             while(inPrimaryExpressionFOLLOW()) {
                 if(nextLA(TokenType.LBRACK)) {
                     Vector<Expression> indices = new Vector<>();
+
                     while(nextLA(TokenType.LBRACK)) {
                         match(TokenType.LBRACK);
                         indices.add(expression());
                         match(TokenType.RBRACK);
                     }
-                    mainExpr = new ArrayExpr(nodeToken(),primary,indices);
+
+                    RHS = new ArrayExpr(tokenStack.top(),LHS,indices);
                 }
                 else if(nextLA(TokenType.LPAREN)) {
                     match(TokenType.LPAREN);
+
                     Vector<Expression> args = new Vector<>();
-                    if(!nextLA(TokenType.RPAREN))
-                        args = arguments();
+                    if(!nextLA(TokenType.RPAREN)) { args = arguments(); }
+                    
                     match(TokenType.RPAREN);
 
-                    mainExpr = new Invocation(nodeToken(),primary.asExpression().asNameExpr().getName(),args);
+                    RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),args);
                 }
                 else {
-                    if(nextLA(TokenType.PERIOD)) { match(TokenType.PERIOD); }
-                    else { match(TokenType.ELVIS); }
+                    boolean nullCheck = false;
 
-                    Expression RHS = expression();
+                    if(nextLA(TokenType.PERIOD)) {match(TokenType.PERIOD); }
+                    else {
+                        match(TokenType.ELVIS);
+                        nullCheck = true;
+                    }
 
-                    mainExpr = new FieldExpr(nodeToken(),primary.asExpression(),RHS.asExpression(),false);
+                    Expression expr = expression();
+                    RHS = new FieldExpr(tokenStack.top(),LHS.asExpression(),expr.asExpression(),nullCheck);
                 }
             }
-            return mainExpr;
+            LHS = RHS.asExpression();
         }
 
         nodeToken();
-        return primary;
+        return LHS;
     }
 
     // 55. arguments ::= expression ( ',' expression )*
