@@ -1,11 +1,6 @@
 package token;
 
-/*
-                        Position
-                   -------------------
-This class keeps track of a position.
-________________________________________________________
-*/
+// Keeps track of Position for a token
 public class Position implements Comparable<Position> {
 
     public int line;
