@@ -60,9 +60,9 @@ public class VM {
             Vector<? extends AST> nodes;
             try {
                 var lexer = new Lexer(program.toString());
-                var parser = new Parser(lexer,false,true);
+                var parser = new Parser(lexer);
 
-                nodes = parser.parseVM();
+                nodes = parser.nextNode();
 
                 for(AST node : nodes) {
                     node.visit(ioRewrite);
@@ -87,7 +87,10 @@ public class VM {
                 }
             }
             catch(Exception e) {
-                if(e.getMessage() != null) { compilationUnit.globalTable.removeName(e.getMessage());}
+                if(e.getMessage() != null) {
+                    try { compilationUnit.globalTable.removeName(e.getMessage()); }
+                    catch(Exception e2) { System.out.println(e.getMessage()); }
+                }
                 /* Do nothing */
             }
         }
