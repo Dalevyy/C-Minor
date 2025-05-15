@@ -294,6 +294,7 @@ public class Lexer {
             case "remove" -> new Token(TokenType.REMOVE, "remove", currLoc.copy());
             case "rename" -> new Token(TokenType.RENAME, "rename", currLoc.copy());
             case "return" -> new Token(TokenType.RETURN, "return", currLoc.copy());
+            case "retype" -> new Token(TokenType.RETYPE, "retype", currLoc.copy());
             case "scalar" -> new Token(TokenType.SCALAR, "scalar", currLoc.copy());
             case "set" -> new Token(TokenType.SET, "set", currLoc.copy());
             case "slice" -> new Token(TokenType.SLICE, "slice", currLoc.copy());

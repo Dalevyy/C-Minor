@@ -75,6 +75,7 @@ public enum TokenType {
     REMOVE,      // remove
     RENAME,      // rename
     RETURN,      // return
+    RETYPE,      // retype
     SCALAR,      // scalar
     SET,         // set
     SLICE,       // slice
