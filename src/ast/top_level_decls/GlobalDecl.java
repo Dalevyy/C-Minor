@@ -11,10 +11,10 @@ ___________________________________________________________________
 */
 public class GlobalDecl extends TopLevelDecl implements NameNode {
 
-    private Var myVar;
+    private final Var myVar;
     private Type type;
 
-    private boolean isConstant; // GlobalDecl can either be a global/constant
+    private final boolean isConstant; // GlobalDecl can either be a global/constant
 
     public GlobalDecl(Token t, Var v, Type type) { this(t,v,type,false); }
 

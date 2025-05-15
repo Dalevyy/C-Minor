@@ -5,8 +5,8 @@ import utilities.Visitor;
 
 public class EnumType extends DiscreteType {
 
-    private Name name;
-    private Type constantType;
+    private final Name name;
+    private final Type constantType;
 
     public EnumType(String n, Discretes d) {
         super(d);

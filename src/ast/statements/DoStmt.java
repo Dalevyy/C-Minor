@@ -9,9 +9,9 @@ public class DoStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private BlockStmt doBlock;
-    private Statement nextExpr;
-    private Expression cond;
+    private final BlockStmt doBlock;
+    private final Statement nextExpr;
+    private final Expression cond;
 
     public DoStmt(Token t, BlockStmt db, Expression c) { this(t,db,null,c); }
 

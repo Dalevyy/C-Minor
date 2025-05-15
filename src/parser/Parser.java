@@ -1060,17 +1060,17 @@ public class Parser {
     private Typeifier typeifier() {
         tokenStack.add(currentLA());
 
-        Tyfiers tf = null;
+        Typfiers tf = null;
         if(nextLA(TokenType.DISCR)) {
-            tf = Tyfiers.DISCR;
+            tf = Typfiers.DISCR;
             match(TokenType.DISCR);
         }
         else if(nextLA(TokenType.SCALAR)) {
-            tf = Tyfiers.SCALAR;
+            tf = Typfiers.SCALAR;
             match(TokenType.SCALAR);
         }
         else if(nextLA(TokenType.CLASS)) {
-            tf = Tyfiers.CLASS;
+            tf = Typfiers.CLASS;
             match(TokenType.CLASS);
         }
 

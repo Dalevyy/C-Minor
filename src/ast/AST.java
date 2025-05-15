@@ -52,6 +52,8 @@ public abstract class AST {
         if(node != null) {
             this.text = node.text;
             this.location = node.location;
+            this.parent = node.parent;
+            this.children = node.children;
         }
     }
 
@@ -100,11 +102,7 @@ public abstract class AST {
     }
 
     public String getStartPosition() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(this.location.start.line);
-        sb.append(".");
-        sb.append(this.location.start.column);
-        return sb.toString();
+        return this.location.start.line + "." + this.location.start.column;
     }
 
     public void printLine() {
@@ -112,7 +110,7 @@ public abstract class AST {
     }
     public String line() { return startLine() + "| " + this.text + "\n"; }
 
-    public boolean isCompliation() { return false; }
+    public boolean isCompilation() { return false; }
     public Compilation asCompilation() { throw new RuntimeException("Expression can not be casted into a Compilation Unit.\n"); }
 
     public boolean isExpression() { return false; }

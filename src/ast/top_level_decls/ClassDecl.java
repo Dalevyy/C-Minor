@@ -15,10 +15,10 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     public SymbolTable symbolTable;
     public Modifiers mod;
 
-    private Name name;
-    private Vector<Type> typeParams; // Only used if using a templated class
-    private ClassType superClass;
-    private ClassBody body;
+    private final Name name;
+    private final Vector<Type> typeParams; // Only used if using a templated class
+    private final ClassType superClass;
+    private final ClassBody body;
     private InitDecl constructor;
 
     private ClassType classHierarchy;

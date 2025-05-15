@@ -7,10 +7,10 @@ import utilities.Visitor;
 // Leaf node
 public class AssignOp extends Operator {
 
-    public static enum AssignType { EQ, PLUSEQ, MINUSEQ, MULTEQ, DIVEQ, MODEQ, EXPEQ }
-    private static Vector<String> names = new Vector<>(new String[]{"=", "+=", "-=", "*=", "/=", "%=", "**="});
+    public enum AssignType { EQ, PLUSEQ, MINUSEQ, MULTEQ, DIVEQ, MODEQ, EXPEQ }
+    private static final Vector<String> names = new Vector<>(new String[]{"=", "+=", "-=", "*=", "/=", "%=", "**="});
 
-    private AssignType myOp;
+    private final AssignType myOp;
 
     public AssignOp(AssignType op) { this(new Token(),op); }
     public AssignOp(Token t, AssignType op) {

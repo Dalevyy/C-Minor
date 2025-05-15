@@ -7,7 +7,7 @@ import utilities.Visitor;
 
 public class LocalDecl extends Statement implements NameNode {
 
-    private Var myVar;
+    private final Var myVar;
     private Type type;
 
     public LocalDecl(Token t, Var v, Type type) {

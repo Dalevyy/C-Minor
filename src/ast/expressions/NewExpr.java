@@ -8,8 +8,8 @@ import utilities.Visitor;
 
 public class NewExpr extends Expression {
 
-    private ClassType cType;
-    private Vector<Var> fields;
+    private final ClassType cType;
+    private final Vector<Var> fields;
 
     public NewExpr(Token t, ClassType ct, Vector<Var> f) {
         super(t);

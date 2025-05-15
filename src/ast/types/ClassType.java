@@ -50,7 +50,7 @@ public class ClassType extends Type {
         while(slashLocation != -1) {
             String subClassName = classHierarchy.substring(0,slashLocation);
             if(subClassName.equals(superClassName)) { return true; }
-            classHierarchy = classHierarchy.substring(slashLocation+1,classHierarchy.length());
+            classHierarchy = classHierarchy.substring(slashLocation+1);
         }
 
         return false;

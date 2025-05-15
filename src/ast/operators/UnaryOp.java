@@ -8,9 +8,9 @@ import utilities.Visitor;
 public class UnaryOp extends Operator {
 
     public enum UnaryType { NEGATE, NOT }
-    private static Vector<String> names = new Vector<>(new String[]{"~", "not"});
+    private static final Vector<String> names = new Vector<>(new String[]{"~", "not"});
 
-    private UnaryType uOp;
+    private final UnaryType uOp;
 
     public UnaryOp(Token t, UnaryType uo) {
         super(t);
@@ -18,7 +18,7 @@ public class UnaryOp extends Operator {
     }
 
     public UnaryType getUnaryOp() { return uOp; }
-    public boolean isUnaryOp() { return false; }
+    public boolean isUnaryOp() { return true; }
     public UnaryOp asUnaryOp() { return this; }
 
     @Override

@@ -16,7 +16,7 @@ public class MainDecl extends TopLevelDecl {
 
     private Vector<ParamDecl> args;
     private Type retType;
-    private BlockStmt body;
+    private final BlockStmt body;
 
     public MainDecl() {
         this.body = new BlockStmt();

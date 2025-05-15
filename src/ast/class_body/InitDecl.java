@@ -5,12 +5,10 @@ import ast.statements.AssignStmt;
 import utilities.Vector;
 import utilities.Visitor;
 
-/*
-Created after type checking is complete
-*/
+// Constructor Declaration is created after type checking is successful
 public class InitDecl extends AST {
 
-    private Vector<AssignStmt> params;
+    private final Vector<AssignStmt> params;
     
     public InitDecl(Vector<AssignStmt> p) { this.params = p; }
 

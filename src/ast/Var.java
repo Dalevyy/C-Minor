@@ -17,7 +17,7 @@ ___________________________________________________________
 */
 public class Var extends AST {
 
-    private Name name;
+    private final Name name;
     private Expression init;
     private Type type;
 

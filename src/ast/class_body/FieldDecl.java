@@ -9,7 +9,7 @@ public class FieldDecl extends AST implements NameNode {
 
     public Modifiers mod;
 
-    private Var var;
+    private final Var var;
     private Type type;
 
     public FieldDecl(Token t, Modifier m, Var v, Type type) {

@@ -6,7 +6,7 @@ import utilities.Visitor;
 
 public class ExprStmt extends Statement {
 
-    private Expression expr;
+    private final Expression expr;
 
     public ExprStmt(Token t, Expression e) {
         super(t);

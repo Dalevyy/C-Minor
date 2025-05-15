@@ -11,8 +11,8 @@ public class Invocation extends Expression {
     public Type targetType;
 
     private Expression target;
-    private Name name;
-    private Vector<Expression> args;
+    private final Name name;
+    private final Vector<Expression> args;
 
     private String invokeSignature;
 

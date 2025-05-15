@@ -17,11 +17,11 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public SymbolTable symbolTable;
     public Modifiers mod;
 
-    private Name name;
-    private Vector<Typeifier> typeParams;
-    private Vector<ParamDecl> params;
-    private Type retType;
-    private BlockStmt block;
+    private final Name name;
+    private final Vector<Typeifier> typeParams;
+    private final Vector<ParamDecl> params;
+    private final Type retType;
+    private final BlockStmt block;
 
     public FuncDecl(Token t, Modifier m, Name n, Vector<Typeifier> tp, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         super(t);
@@ -51,7 +51,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public boolean isFuncDecl() { return true; }
     public FuncDecl asFuncDecl() { return this; }
 
-    public String funcSignature() { return this.toString() + this.paramSignature(); }
+    public String funcSignature() { return this + this.paramSignature(); }
 
     public String paramSignature() {
         StringBuilder sb = new StringBuilder();

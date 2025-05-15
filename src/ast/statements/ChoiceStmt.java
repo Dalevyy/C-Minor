@@ -11,9 +11,9 @@ public class ChoiceStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private Expression expr;
-    private Vector<CaseStmt> caseStmts;
-    private BlockStmt block;
+    private final Expression expr;
+    private final Vector<CaseStmt> caseStmts;
+    private final BlockStmt block;
 
     public ChoiceStmt(Token t, Expression e, BlockStmt b) { this(t,e,null,b); }
 

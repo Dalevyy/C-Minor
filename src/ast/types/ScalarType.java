@@ -15,7 +15,7 @@ __________________________________________________________________
 public class ScalarType extends Type {
 
     public enum Scalars { STR, TEXT, REAL }
-    private static Vector<String> names = new Vector<>(new String[]{"String", "Text", "Real" });
+    private static final Vector<String> names = new Vector<>(new String[]{"String", "Text", "Real" });
 
     private final Scalars sType;
 

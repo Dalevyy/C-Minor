@@ -8,7 +8,7 @@ public class Literal extends Expression {
 
     public enum ConstantKind { BOOL, INT, CHAR, STR, TEXT, REAL, LIST, ARR, ENUM }
 
-    private ConstantKind kind;
+    private final ConstantKind kind;
 
     public Literal(ConstantKind ck, String val) {
         this(new Token(), ck);

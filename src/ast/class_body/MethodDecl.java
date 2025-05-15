@@ -14,13 +14,13 @@ public class MethodDecl extends AST implements NameNode {
     public SymbolTable symbolTable;
     public Modifiers mods;
 
-    private Name methodName;       // Set if we have a MethodDecl
-    private Operator op;           // Set if we have a OperatorDecl
-    private Vector<ParamDecl> params;
-    private Type returnType;
-    private BlockStmt block;
+    private final Name methodName;       // Set if we have a MethodDecl
+    private final Operator op;           // Set if we have a OperatorDecl
+    private final Vector<ParamDecl> params;
+    private final Type returnType;
+    private final BlockStmt block;
 
-    private boolean isOverrode;
+    private final boolean isOverridden;
 
     public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         this(new Token(),m,n,null,p,rt,b,false);
@@ -35,7 +35,7 @@ public class MethodDecl extends AST implements NameNode {
        this.returnType = rt;
        this.block = b;
 
-       this.isOverrode = override;
+       this.isOverridden = override;
 
        addChild(this.methodName);
        addChild(this.op);
@@ -53,7 +53,7 @@ public class MethodDecl extends AST implements NameNode {
     public Type returnType() { return returnType; }
     public BlockStmt methodBlock() { return block; }
 
-    public boolean isOverriden() { return isOverrode; }
+    public boolean isOverridden() { return isOverridden; }
 
     public boolean isMethodDecl() { return true; }
     public MethodDecl asMethodDecl() { return this; }

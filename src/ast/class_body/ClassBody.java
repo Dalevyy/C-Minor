@@ -6,8 +6,8 @@ import utilities.*;
 
 public class ClassBody extends AST {
 
-    Vector<FieldDecl> fieldDecls;
-    Vector<MethodDecl> methodDecls;
+    private final Vector<FieldDecl> fieldDecls;
+    private final Vector<MethodDecl> methodDecls;
 
     public ClassBody(Token t, Vector<FieldDecl> dd, Vector<MethodDecl> md) {
         super(t);

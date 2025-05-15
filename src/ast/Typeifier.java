@@ -11,13 +11,13 @@ _________________________________________________________________
 */
 public class Typeifier extends AST {
 
-    public static enum Tyfiers { DISCR, SCALAR, CLASS }
+    public enum Typfiers { DISCR, SCALAR, CLASS }
     public static String[] names = {"Discrete", "Scalar", "Class" };
 
-    private Tyfiers typef;
-    private Name name;
+    private final Typfiers typef;
+    private final Name name;
 
-    public Typeifier(Token t, Tyfiers m, Name n) {
+    public Typeifier(Token t, Typfiers m, Name n) {
         super(t);
         this.typef = m;
         this.name = n;
@@ -26,7 +26,7 @@ public class Typeifier extends AST {
         setParent();
     }
 
-    public Tyfiers getTypeifier() { return typef; }
+    public Typfiers getTypeifier() { return typef; }
     public Name getName() { return name; }
 
     public boolean isTypeifier() { return true; }

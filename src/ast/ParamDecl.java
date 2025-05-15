@@ -15,7 +15,7 @@ public class ParamDecl extends AST implements NameNode {
 
     public Modifiers mod;
 
-    private Name name;
+    private final Name name;
     private Type type;
 
     public ParamDecl(Modifier m, Name n, Type type) { this(new Token(),m,n,type); }

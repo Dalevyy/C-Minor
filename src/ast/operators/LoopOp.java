@@ -7,9 +7,9 @@ import utilities.Visitor;
 public class LoopOp extends Operator {
 
     public enum LoopType { INCL, EXCL, EXCL_L, EXCL_R }
-    private static Vector<String> names = new Vector<>(new String[]{"..", "<..<", "<..", "..<"});
+    private static final Vector<String> names = new Vector<>(new String[]{"..", "<..<", "<..", "..<"});
 
-    private LoopType op;
+    private final LoopType op;
 
     public LoopOp(Token t, LoopType lt) {
         super(t);
