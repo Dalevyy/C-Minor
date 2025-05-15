@@ -1218,20 +1218,25 @@ public class Parser {
     private Statement assignmentStatement() {
         tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.SET) || nextLA(TokenType.RETYPE)) {
-            boolean retyped = false;
-            if(nextLA(TokenType.SET)) { match(TokenType.SET); }
-            else {
-                match(TokenType.RETYPE);
-                retyped = true;
-            }
-
+        if(nextLA(TokenType.SET)) {
+            match(TokenType.SET);
             Expression LHS = expression();
             AssignOp op = assignmentOperator();
             Expression RHS = expression();
 
-            return new AssignStmt(nodeToken(),LHS,RHS,op,retyped);
+            return new AssignStmt(nodeToken(),LHS,RHS,op);
         }
+        else if(nextLA(TokenType.RETYPE)) {
+            match(TokenType.RETYPE);
+
+            Name n = new Name(currentLA());
+            match(TokenType.ID);
+            match(TokenType.EQ);
+            Expression RHS = objectConstant();
+
+            return new AssignStmt(nodeToken(),new NameExpr(n),RHS,new AssignOp(AssignType.EQ),true);
+        }
+
         Expression e = logicalOrExpression();
         return new ExprStmt(nodeToken(),e);
     }
