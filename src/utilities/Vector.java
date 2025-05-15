@@ -49,6 +49,16 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
         return lst.remove(pos);
     }
 
+    public T pop() {
+        if(!lst.isEmpty()) { return lst.remove(lst.size()-1); }
+        else throw new RuntimeException("An element can't be popped since the vector is empty!");
+    }
+
+    public T top() {
+        if(!lst.isEmpty()) { return lst.get(lst.size()-1); }
+        else { return null; }
+    }
+
     public void merge(T item) { this.lst.add(item); }
     public void merge(Vector<T> lst) { this.lst.addAll(lst); }
 
