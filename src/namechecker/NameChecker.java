@@ -15,9 +15,8 @@ import java.util.HashSet;
 public class NameChecker extends Visitor {
 
     private SymbolTable currentScope;
-    private ClassDecl currentClass;
-    private ScopeErrorFactory generateScopeError;
-    private Vector<String> errors;
+    private final ScopeErrorFactory generateScopeError;
+    private final Vector<String> errors;
 
     public NameChecker() {
         this.currentScope = new SymbolTable();
@@ -32,13 +31,18 @@ public class NameChecker extends Visitor {
         this.errors = new Vector<>();
     }
 
-    /*
-    _________________________ Assignment Statements _________________________
-    We need to make sure the LHS of an assignment statement is either a name
-    expression or a field expression. It does not make sense to have any
-    construct here since we can only assign a value to a declared variable.
-    _________________________________________________________________________
-    */
+    /**
+     * Assignment Statements<br>
+     *
+     * We have 2 different types of assignment statements.
+     *
+     *      <ol>
+     *          <li>Set Statements</li>
+     *          <li>Retype Statements </li>
+     *      </ol>
+     *
+     * @param as
+     */
     public void visitAssignStmt(AssignStmt as) {
 
         // ERROR CHECK #1 : Make sure the LHS of an assignment is a name or field
@@ -54,6 +58,12 @@ public class NameChecker extends Visitor {
         super.visitAssignStmt(as);
     }
 
+    /*
+     ______________________ Binary Expressions ______________________
+     Here we need to do some name checking to make sure the correct
+     names are used in relation to a binary expression.
+     ________________________________________________________________
+     */
     public void visitBinaryExpr(BinaryExpr be) {
         be.LHS().visit(this);
 
@@ -202,14 +212,12 @@ public class NameChecker extends Visitor {
                     currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name));
                 }
                 if (name.contains("/")) { currentScope.addName(name,baseDecl.symbolTable.getAllNames().get(name)); }
-                else { currentScope.addName(name + "/" + baseDecl.toString(),baseDecl.symbolTable.getAllNames().get(name)); }
+                else { currentScope.addName(name + "/" + baseDecl,baseDecl.symbolTable.getAllNames().get(name)); }
             }
             for(String name: baseDecl.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
         }
 
-        currentClass = cd;
         for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
-        currentClass = null;
 
         currentScope = currentScope.closeScope();
     }
@@ -217,7 +225,7 @@ public class NameChecker extends Visitor {
     public void visitCompilation(Compilation c) {
         super.visitCompilation(c);
 
-        if(errors.size() > 0) {
+        if(!errors.isEmpty()) {
             for(String s : errors) { System.out.println(s); }
             System.exit(1);
         }
@@ -246,7 +254,7 @@ public class NameChecker extends Visitor {
     /*
     __________________________ Enum Declarations __________________________
     An EnumDecl will be the first construct a user can define in a C Minor
-    program. Thus, we want to check if the name binded to an Enum isn't
+    program. Thus, we want to check if the name bound to an Enum isn't
     already used by another Enum in the same file OR by some other construct
     located in an import file.
 
@@ -357,7 +365,7 @@ public class NameChecker extends Visitor {
                     .error());
         }
 
-        String funcSignature = fd.toString() + "/";
+        String funcSignature = fd + "/";
         if(fd.params() != null) { funcSignature += fd.paramSignature(); }
 
         // ERROR CHECK #2: Make sure the function signature does NOT already exist
@@ -372,9 +380,7 @@ public class NameChecker extends Visitor {
 
         currentScope.addName(funcSignature, fd);
         currentScope.addMethod(fd.toString());
-
-        SymbolTable newScope = currentScope.openNewScope();
-        currentScope = newScope;
+        currentScope = currentScope.openNewScope();
 
         // If we have any parameters, then we will visit them to ensure
         // their names do not produce any conflicts.
@@ -455,19 +461,16 @@ public class NameChecker extends Visitor {
     ___________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
-        // Function Invocation Case
-        if(in.target() == null) {
-            String funcName = in.toString();
-            // ERROR CHECK #1: Make sure the function was declared previously
-            if(!currentScope.hasMethodSomewhere(funcName)) {
-                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.SCOPE_ERROR_319)
-                        .addArgs(funcName)
-                        .error());
-            }
+        // At this point, only function invocations will be checked
+        String funcName = in.toString();
+        // ERROR CHECK #1: Make sure the function was declared previously
+        if(!currentScope.hasMethodSomewhere(funcName)) {
+            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(in)
+                    .addErrorType(MessageType.SCOPE_ERROR_319)
+                    .addArgs(funcName)
+                    .error());
         }
-        else { in.target().visit(this); }
 
         for(Expression e : in.arguments()) { e.visit(this); }
     }
@@ -478,7 +481,7 @@ public class NameChecker extends Visitor {
     name used by this local already exists in the current scope.
 
     We also are going to be pedantic and make sure the name is not already
-    binded to a TopLevelDecl node in order to avoid confusion.
+    bound to a TopLevelDecl node in order to avoid confusion.
 
     If we have any form of redeclaration, we are going to error out.
     ______________________________________________________________________
@@ -560,9 +563,7 @@ public class NameChecker extends Visitor {
 
         currentScope.addName(methodSignature,md);
         currentScope.addMethod(md.toString());
-
-        SymbolTable newScope = currentScope.openNewScope();
-        currentScope = newScope;
+        currentScope = currentScope.openNewScope();
 
         for(ParamDecl pd : md.params()) { pd.visit(this); }
 
@@ -635,7 +636,7 @@ public class NameChecker extends Visitor {
         SymbolTable classST = cd.decl().asTopLevelDecl().asClassDecl().symbolTable;
 
         Vector<Var> newArgs = ne.args();
-        HashSet<String> seen = new HashSet<String>();
+        HashSet<String> seen = new HashSet<>();
         for(int i = 0; i < newArgs.size(); i++) {
             Var v = newArgs.get(i);
             String fieldName = v.name().toString();
@@ -694,8 +695,7 @@ public class NameChecker extends Visitor {
     public void visitWhileStmt(WhileStmt ws) {
         ws.condition().visit(this);
 
-        if(ws.nextExpr() != null)
-            ws.nextExpr().visit(this);
+        if(ws.nextExpr() != null) { ws.nextExpr().visit(this); }
 
         ws.whileBlock().visit(this);
 
