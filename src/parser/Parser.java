@@ -54,15 +54,10 @@ public class Parser {
     }
 
     private String errorPosition(int start, int end) {
-        StringBuilder sb = new StringBuilder();
-
-        for(int i = -2; i < start; i++)
-            sb.append(' ');
-
-        for(int i = start; i < end; i++)
-            sb.append('^');
-
-        return sb.toString();
+        return PrettyPrint.RED
+                + " ".repeat(Math.max(0, start + 2))
+                + "^".repeat(Math.max(0, end - start))
+                + PrettyPrint.RESET;
     }
 
     private void consume() {
@@ -80,24 +75,8 @@ public class Parser {
         else {
             System.out.println(generateSyntaxError.createError().header());
             input.printSyntaxError(currentLA().getStartPos());
-            System.out.println(PrettyPrint.RED
-                    + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column)
-                    + PrettyPrint.RESET);
-            if(interpretMode) { throw new RuntimeException(); }
-            else { System.exit(1); }
-        }
-    }
+            System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
 
-    private void match(TokenType expectedTok, Token t) {
-        t.setEndLocation(currentLA().getLocation().end);
-        if(nextLA(expectedTok)) {
-            if(printToks) System.out.println(currentLA().toString());
-            consume();
-        }
-        else {
-            System.out.print(generateSyntaxError.createError().header());
-            input.printSyntaxError(currentLA().getStartPos());
-            System.out.print(PrettyPrint.RED + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column) + PrettyPrint.RESET);
             if(interpretMode) { throw new RuntimeException(); }
             else { System.exit(1); }
         }
@@ -227,15 +206,19 @@ public class Parser {
         if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)
                 && !(nextLA(TokenType.LT,2)
-                ||nextLA(TokenType.LPAREN,2)
-                || nextLA(TokenType.COLON,2)))
+                || nextLA(TokenType.LPAREN,2)
+                || nextLA(TokenType.COLON,2))) {
             return new Vector<>(enumType());
+
+        }
         // Parse GlobalDecl
-        else if(nextLA(TokenType.DEF) && ((nextLA(TokenType.CONST, 1) || nextLA(TokenType.GLOBAL, 1))))
+        else if(nextLA(TokenType.DEF) && ((nextLA(TokenType.CONST, 1) || nextLA(TokenType.GLOBAL, 1)))) {
             return globalVariable();
+        }
         // Parse ClassDecl
-        else if(nextLA(TokenType.ABSTR) || nextLA(TokenType.FINAL) || nextLA(TokenType.CLASS))
+        else if(nextLA(TokenType.ABSTR) || nextLA(TokenType.FINAL) || nextLA(TokenType.CLASS)) {
             return new Vector<>(classType());
+        }
         // Parse FuncDecl
         else if((nextLA(TokenType.DEF))
                 && (nextLA(TokenType.PURE,1)
@@ -243,15 +226,17 @@ public class Parser {
                 || ((nextLA(TokenType.ID,1)
                 && nextLA(TokenType.LPAREN,2))
                 && ((!nextLA(TokenType.MAIN,1))
-                && (!nextLA(TokenType.MAIN,2))))))
+                && (!nextLA(TokenType.MAIN,2)))))) {
             return new Vector<>(function());
+
+        }
         // Parse LocalDecl
         else if((nextLA(TokenType.DEF) && nextLA(TokenType.ID,1) && nextLA(TokenType.COLON,2))
-                || (nextLA(TokenType.DEF) && nextLA(TokenType.LOCAL,1)))
-           return declaration();
+                || (nextLA(TokenType.DEF) && nextLA(TokenType.LOCAL,1))) {
+            return declaration();
+        }
         // Parse Statement | Expression
-        else
-            return new Vector<>(statement());
+        else { return new Vector<>(statement()); }
     }
 
     /*
@@ -626,12 +611,12 @@ public class Parser {
 
         Modifier m = null;
         if(nextLA(TokenType.ABSTR)) {
+            m = new Modifier(currentLA(),Mods.ABSTR);
             match(TokenType.ABSTR);
-            m = new Modifier(tokenStack.top(),Mods.ABSTR);
         }
         else if(nextLA(TokenType.FINAL)) {
+            m = new Modifier(currentLA(),Mods.FINAL);
             match(TokenType.FINAL);
-            m = new Modifier(tokenStack.top(),Mods.FINAL);
         }
 
         match(TokenType.CLASS);
@@ -650,8 +635,6 @@ public class Parser {
 
     // 14. type_params ::= '<' type ( ',' type )* '>'
     private Vector<Type> typeParams() {
-        tokenStack.add(currentLA());
-
         match(TokenType.LT);
 
         Vector<Type> types = new Vector<>(type());
@@ -661,7 +644,6 @@ public class Parser {
         }
 
         match(TokenType.GT);
-
         return types;
     }
 
@@ -706,16 +688,16 @@ public class Parser {
 
         Modifier m;
         if(nextLA(TokenType.PROPERTY)) {
+            m = new Modifier(currentLA(),Mods.PROPERTY);
             match(TokenType.PROPERTY);
-            m = new Modifier(tokenStack.top(),Mods.PROPERTY);
         }
         else if(nextLA(TokenType.PROTECTED)) {
+            m = new Modifier(currentLA(),Mods.PROTECTED);
             match(TokenType.PROTECTED);
-            m = new Modifier(tokenStack.top(),Mods.PROTECTED);
         }
         else {
+            m = new Modifier(currentLA(),Mods.PUBLIC);
             match(TokenType.PUBLIC);
-            m = new Modifier(tokenStack.top(),Mods.PUBLIC);
         }
 
         Vector<Var> vars = variableDecl();
@@ -778,9 +760,10 @@ public class Parser {
             match(TokenType.PROTECTED);
             return new Modifier(nodeToken(), Mods.PROTECTED);
         }
-
-        match(TokenType.PUBLIC);
-        return new Modifier(nodeToken(), Mods.PUBLIC);
+        else {
+            match(TokenType.PUBLIC);
+            return new Modifier(nodeToken(), Mods.PUBLIC);
+        }
     }
 
     // 21. attribute ::= 'final' | 'pure' | 'recurs'
@@ -1350,7 +1333,7 @@ public class Parser {
         return new DoStmt(nodeToken(),b,nextE,e);
     }
 
-    // for_statement : 'for' '(' range_iterator | array_iterator')' block_statement
+    // 47. for_statement : 'for' '(' range_iterator | array_iterator')' block_statement
     private ForStmt forStatement() {
         tokenStack.add(currentLA());
 
@@ -1369,7 +1352,7 @@ public class Parser {
         return new ForStmt(nodeToken(),forVar,LHS,RHS,loopOp,b);
     }
 
-    // range_iterator : 'def' Name 'in' expression range_operator expression ;
+    // 48. range_iterator : 'def' Name 'in' expression range_operator expression ;
     private Vector<AST> rangeIterator() {
         tokenStack.add(currentLA());
         Vector<AST> forComponents = new Vector<>();
@@ -1386,7 +1369,7 @@ public class Parser {
         return forComponents;
     }
 
-    // range_operator : inclusive | exclusive_right | exclusive_left | exclusive ;
+    // 49. range_operator : inclusive | exclusive_right | exclusive_left | exclusive ;
     private LoopOp rangeOperator() {
         if(nextLA(TokenType.INC) && nextLA(TokenType.LT,1)) { return exclusiveRight(); }
         else if(nextLA(TokenType.INC)) { return inclusive(); }
@@ -1398,14 +1381,14 @@ public class Parser {
         else { return exclusiveLeft(); }
     }
 
-    // inclusive : '..' ;
+    // 50. inclusive : '..' ;
     private LoopOp inclusive() {
         tokenStack.add(currentLA());
         match(TokenType.INC);
         return new LoopOp(nodeToken(),LoopType.INCL);
     }
 
-    // exclusive_right : '..<' ;
+    // 51. exclusive_right : '..<' ;
     private LoopOp exclusiveRight() {
         tokenStack.add(currentLA());
         match(TokenType.INC);
@@ -1414,7 +1397,7 @@ public class Parser {
 
     }
 
-    // exclusive_left : '<..' ;
+    // 52. exclusive_left : '<..' ;
     private LoopOp exclusiveLeft() {
         tokenStack.add(currentLA());
         match(TokenType.LT);
@@ -1422,7 +1405,7 @@ public class Parser {
         return new LoopOp(nodeToken(),LoopType.EXCL_L);
     }
 
-    // exclusive : '<..<'
+    // 53. exclusive : '<..<'
     private LoopOp exclusive() {
         tokenStack.add(currentLA());
         match(TokenType.LT);
@@ -1431,7 +1414,7 @@ public class Parser {
         return new LoopOp(nodeToken(),LoopType.EXCL);
     }
 
-    // 48. choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}'
+    // 54. choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}'
     private ChoiceStmt choiceStatement() {
         tokenStack.add(currentLA());
 
@@ -1449,7 +1432,7 @@ public class Parser {
         return new ChoiceStmt(nodeToken(),e,cStmts,b);
     }
 
-    // 49. case_statement ::= 'on' label block_statement
+    // 55. case_statement ::= 'on' label block_statement
     private CaseStmt caseStatement() {
         tokenStack.add(currentLA());
 
@@ -1460,7 +1443,7 @@ public class Parser {
         return new CaseStmt(nodeToken(),l,b);
     }
 
-    // 50. label ::= scalar_constant ('..' scalar_constant)?
+    // 56. label ::= scalar_constant ('..' scalar_constant)?
     private Label label() {
         tokenStack.add(currentLA());
         Literal lConstant = scalarConstant();
@@ -1474,7 +1457,7 @@ public class Parser {
         return new Label(nodeToken(),lConstant);
     }
 
-    // 51. input_statement ::= 'cin' ( '>>' expression )+
+    // 57. input_statement ::= 'cin' ( '>>' expression )+
     private InStmt inputStatement() {
         tokenStack.add(currentLA());
 
@@ -1485,7 +1468,7 @@ public class Parser {
         return new InStmt(nodeToken(),inputExprs);
     }
 
-    // 52. output_statement ::= 'cout' ( '<<' expression )+
+    // 58. output_statement ::= 'cout' ( '<<' expression )+
     private OutStmt outputStatement() {
         tokenStack.add(currentLA());
 
@@ -1502,7 +1485,14 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 53. primary_expression ::= ID | constant | '(' expression ')' | input_statement | output_statement
+    // 59. primary_expression ::= ID
+    //                          | constant
+    //                          | '(' expression ')'
+    //                          | input_statement
+    //                          | output_statement
+    //                          | 'break'
+    //                          | 'continue'
+    //                          | 'endl'
     private Expression primaryExpression() {
         if(nextLA(TokenType.LPAREN)) {
             match(TokenType.LPAREN);
@@ -1513,6 +1503,7 @@ public class Parser {
         }
         else if(nextLA(TokenType.CIN)) { return inputStatement(); }
         else if(nextLA(TokenType.COUT)) { return outputStatement(); }
+        else if(inConstantFIRST()) { return constant(); }
 
         tokenStack.add(currentLA());
 
@@ -1530,16 +1521,15 @@ public class Parser {
             match(TokenType.CONTINUE);
             return new ContinueStmt(nodeToken());
         }
-        else if(nextLA(TokenType.ENDL)) {
+        else {
             match(TokenType.ENDL);
             return new Endl(nodeToken());
         }
-        else { return constant(); }
     }
 
-    // 54. postfix_expression ::= primary_expression ( '[' expression ']'
+    // 60. postfix_expression ::= primary_expression ( '[' expression ']'
     //                                               | '(' arguments? ')'
-    //                                               | ( '.' | '?.' ) expression )*
+    //                                               |  ( '.' | '?.' ) expression )*
     private Expression postfixExpression() {
         tokenStack.add(currentLA());
         Expression LHS = primaryExpression();
@@ -1588,7 +1578,7 @@ public class Parser {
         return LHS;
     }
 
-    // 55. arguments ::= expression ( ',' expression )*
+    // 61. arguments ::= expression ( ',' expression )*
     private Vector<Expression> arguments() {
         Vector<Expression> ex = new Vector<>();
         ex.add(expression());
@@ -1600,7 +1590,7 @@ public class Parser {
         return ex;
     }
 
-    // 56. unary_expression ::= unary_operator cast_expression | postfix_expression
+    // 62. unary_expression ::= unary_operator cast_expression | postfix_expression
     private Expression unaryExpression() {
         if(nextLA(TokenType.TILDE) || nextLA(TokenType.NOT)) {
             tokenStack.add(currentLA());
@@ -1613,7 +1603,7 @@ public class Parser {
         return postfixExpression();
     }
 
-    // 57. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
+    // 63. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
     private Expression castExpression() {
         if(inScalarTypeFIRST()) {
             tokenStack.add(currentLA());
@@ -1629,7 +1619,7 @@ public class Parser {
         return unaryExpression();
     }
 
-    // 58. power_expression ::= cast_expression ( '**' cast_expression )*
+    // 64. power_expression ::= cast_expression ( '**' cast_expression )*
     private Expression powerExpression() {
         tokenStack.add(currentLA());
         Expression left = castExpression();
@@ -1650,7 +1640,7 @@ public class Parser {
         return left;
     }
 
-    // 59. multiplication_expression ::= power_expression ( ( '*' | '/' | '%' ) power_expression )*
+    // 65. multiplication_expression ::= power_expression ( ( '*' | '/' | '%' ) power_expression )*
     private Expression multiplicationExpression() {
         tokenStack.add(currentLA());
         Expression left = powerExpression();
@@ -1683,7 +1673,7 @@ public class Parser {
         return left;
     }
 
-    // 60. additive_expression ::= multiplication_expression ( ( '+' | '-' ) multiplication_expression )*
+    // 66. additive_expression ::= multiplication_expression ( ( '+' | '-' ) multiplication_expression )*
     private Expression additiveExpression() {
         tokenStack.add(currentLA());
         Expression left = multiplicationExpression();
@@ -1713,7 +1703,7 @@ public class Parser {
         return left;
     }
 
-    // 61. shift_expression ::= additive_expression ( ( '<<' | '>>' ) additive_expression )*
+    // 67. shift_expression ::= additive_expression ( ( '<<' | '>>' ) additive_expression )*
     private Expression shiftExpression() {
         tokenStack.add(currentLA());
         Expression left = additiveExpression();
@@ -1741,7 +1731,7 @@ public class Parser {
         return left;
     }
 
-    // 62. relational_expression ::= shift_expression ( ( '<' | '>' | '<=' | '>=' ) shift_expression )*
+    // 68. relational_expression ::= shift_expression ( ( '<' | '>' | '<=' | '>=' ) shift_expression )*
     private Expression relationalExpression() {
         tokenStack.add(currentLA());
         Expression left = shiftExpression();
@@ -1778,7 +1768,7 @@ public class Parser {
         return left;
     }
 
-    // 63. instanceof_expression ::= relational_expression ( ( 'instanceof' | '!instanceof' | 'as?' ) relational_expression )*
+    // 69. instanceof_expression ::= relational_expression ( ( 'instanceof' | '!instanceof' | 'as?' ) relational_expression )*
     private Expression instanceOfExpression() {
         tokenStack.add(currentLA());
         Expression left = relationalExpression();
@@ -1811,7 +1801,7 @@ public class Parser {
         return left;
     }
 
-    // 64. equality_expression ::= instanceof_expression ( ( '==' | '!=' ) instanceof_expression )*
+    // 70. equality_expression ::= instanceof_expression ( ( '==' | '!=' ) instanceof_expression )*
     private Expression equalityExpression() {
         tokenStack.add(currentLA());
         Expression left = instanceOfExpression();
@@ -1839,7 +1829,7 @@ public class Parser {
         return left;
     }
 
-    // 65. and_expression ::= equality_expression ( '&' equality_expression )*
+    // 71. and_expression ::= equality_expression ( '&' equality_expression )*
     private Expression andExpression() {
         tokenStack.add(currentLA());
         Expression left = equalityExpression();
@@ -1860,7 +1850,7 @@ public class Parser {
         return left;
     }
 
-    // 66. exclusive_or_expression ::= and_expression ( '^' and_expression )*
+    // 72. exclusive_or_expression ::= and_expression ( '^' and_expression )*
     private Expression exclusiveOrExpression() {
         tokenStack.add(currentLA());
         Expression left = andExpression();
@@ -1881,7 +1871,7 @@ public class Parser {
         return left;
     }
 
-    // 67. inclusive_or_expression ::= exclusive_or_expression ( '|' exclusive_or_expression )*
+    // 73. inclusive_or_expression ::= exclusive_or_expression ( '|' exclusive_or_expression )*
     private Expression inclusiveOrExpression() {
         tokenStack.add(currentLA());
         Expression left = exclusiveOrExpression();
@@ -1902,7 +1892,7 @@ public class Parser {
         return left;
     }
 
-    // 68. logical_and_expression ::= inclusive_or_expression ( 'and' inclusive_or_expression )*
+    // 74. logical_and_expression ::= inclusive_or_expression ( 'and' inclusive_or_expression )*
     private Expression logicalAndExpression() {
         tokenStack.add(currentLA());
         Expression left = inclusiveOrExpression();
@@ -1923,7 +1913,7 @@ public class Parser {
         return left;
     }
 
-    // 69. logical_or_expression ::= logical_and_expression ( 'or' logical_and_expression )*
+    // 75. logical_or_expression ::= logical_and_expression ( 'or' logical_and_expression )*
     private Expression logicalOrExpression() {
         tokenStack.add(currentLA());
         Expression left = logicalAndExpression();
@@ -1947,7 +1937,7 @@ public class Parser {
         return left;
     }
 
-    // 70. expression ::= logical_or_expression
+    // 76. expression ::= logical_or_expression
     private Expression expression() { return logicalOrExpression(); }
 
     /*
@@ -1956,7 +1946,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 71. constant ::= object_constant | array_constant | list_constant | scalar_constant
+    // 77. constant ::= object_constant | array_constant | list_constant | scalar_constant
     private Expression constant() {
         if(nextLA(TokenType.NEW)) { return objectConstant(); }
         else if(nextLA(TokenType.ARRAY)) { return arrayConstant(); }
@@ -1964,7 +1954,7 @@ public class Parser {
         else { return scalarConstant(); }
     }
 
-    // 72. object_constant ::= 'new' ID '(' (object_field ( ',' object_field )* ')'
+    // 78. object_constant ::= 'new' ID '(' (object_field ( ',' object_field )* ')'
     private NewExpr objectConstant() {
         tokenStack.add(currentLA());
         match(TokenType.NEW);
@@ -1987,7 +1977,7 @@ public class Parser {
         return new NewExpr(nodeToken(),new ClassType(nameTok,n),vars);
     }
 
-    // 73. object_field ::= ID '=' expression
+    // 79. object_field ::= ID '=' expression
     private Var objectField() {
         tokenStack.add(currentLA());
 
@@ -2000,7 +1990,7 @@ public class Parser {
         return new Var(nodeToken(),n,e);
     }
 
-    // 74. array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')'
+    // 80. array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')'
     private ArrayLiteral arrayConstant() {
         tokenStack.add(currentLA());
         match(TokenType.ARRAY);
@@ -2019,7 +2009,7 @@ public class Parser {
         return new ArrayLiteral(nodeToken(),exprs,args);
     }
 
-    // 75. list_constant ::= 'List' '(' expression (',' expression)* ')'
+    // 81. list_constant ::= 'List' '(' expression (',' expression)* ')'
     private ListLiteral listConstant() {
         tokenStack.add(currentLA());
 
@@ -2039,7 +2029,7 @@ public class Parser {
         return new ListLiteral(nodeToken(),exprs);
     }
 
-    // 76. scalar_constant ::= discrete_constant | STRING_LITERAL | TEXT_LITERAL | REAL_LITERAL
+    // 82. scalar_constant ::= discrete_constant | STRING_LITERAL | TEXT_LITERAL | REAL_LITERAL
     private Literal scalarConstant() {
         if(nextLA(TokenType.STR_LIT)) {
             tokenStack.add(currentLA());
@@ -2059,7 +2049,7 @@ public class Parser {
         else { return discreteConstant(); }
     }
 
-    // 77. discrete_constant ::= INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL
+    // 83. discrete_constant ::= INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL
     private Literal discreteConstant() {
         tokenStack.add(currentLA());
 
