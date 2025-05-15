@@ -7,13 +7,14 @@ import utilities.Visitor;
 
 public class AssignStmt extends Statement {
 
-    private Expression LHS;
-    private Expression RHS;
-    private AssignOp op;
+    private final Expression LHS;
+    private final Expression RHS;
+    private final AssignOp op;
 
-    private boolean retyped = false;
+    public boolean retyped;
 
     public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op,false); }
+    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) { this(t,LHS,RHS,op,false); }
     public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op, boolean retyped) {
         super(t);
         this.LHS = LHS;
