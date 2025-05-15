@@ -310,13 +310,6 @@ public class Printer extends Visitor {
         spaces -= 2;
     }
 
-    public void visitVar(Var v) {
-        System.out.println(printSpaces() + "Var");
-        spaces += 2;
-        super.visitVar(v);
-        spaces -= 2;
-    }
-
     public void visitWhileStmt(WhileStmt ws) {
         System.out.println(printSpaces() + "WhileStmt");
         spaces += 2;
