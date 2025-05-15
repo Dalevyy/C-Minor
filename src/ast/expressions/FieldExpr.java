@@ -9,6 +9,7 @@ public class FieldExpr extends Expression {
     private final Expression name;
 
     private final boolean asCheck;
+    private final boolean isInvocation;
 
     public FieldExpr(Expression ft, Expression fn) { this(new Token(),ft,fn,false); }
     public FieldExpr(Token t, Expression ft, Expression fn, boolean ac) {
@@ -17,6 +18,7 @@ public class FieldExpr extends Expression {
         this.name = fn;
 
         this.asCheck = ac;
+        this.isInvocation = this.name.isInvocation();
 
         addChild(this.target);
         addChild(this.name);
@@ -27,6 +29,7 @@ public class FieldExpr extends Expression {
     public Expression name() { return name; }
 
     public boolean isAsCheck() { return asCheck; }
+    public boolean isMethodInvocation() { return isInvocation; }
     public boolean isFieldExpr() { return true; }
     public FieldExpr asFieldExpr() { return this; }
 
