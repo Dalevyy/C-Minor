@@ -35,7 +35,7 @@ public class Parser {
     private final Token[] lookaheads;       // Array of k lookaheads
     private final boolean printToks;        // Flag to print tokens to user
     private boolean interpretMode = false;
-    private Vector<Token> tokenStack;
+    private final Vector<Token> tokenStack;
     private final SyntaxErrorFactory generateSyntaxError;
 
     public Parser(Lexer input, boolean printTokens) {
@@ -1213,20 +1213,25 @@ public class Parser {
     }
 
     // 41. assignment_statement ::= 'set' expression assignment_operator expression
+    //                            | 'retype' Name '=' object_constant
     //                            |  logical_or_expression
     private Statement assignmentStatement() {
         tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.SET)) {
-            match(TokenType.SET);
+        if(nextLA(TokenType.SET) || nextLA(TokenType.RETYPE)) {
+            boolean retyped = false;
+            if(nextLA(TokenType.SET)) { match(TokenType.SET); }
+            else {
+                match(TokenType.RETYPE);
+                retyped = true;
+            }
 
             Expression LHS = expression();
             AssignOp op = assignmentOperator();
             Expression RHS = expression();
 
-            return new AssignStmt(nodeToken(),LHS,RHS,op);
+            return new AssignStmt(nodeToken(),LHS,RHS,op,retyped);
         }
-
         Expression e = logicalOrExpression();
         return new ExprStmt(nodeToken(),e);
     }
@@ -1280,7 +1285,7 @@ public class Parser {
             elifStmts.add(eIf);
         }
 
-        BlockStmt elseBlock = null;
+        BlockStmt elseBlock;
         if(nextLA(TokenType.ELSE)) {
             match(TokenType.ELSE);
             elseBlock = blockStatement();
@@ -1288,7 +1293,7 @@ public class Parser {
             return new IfStmt(nodeToken(),e,b,elifStmts,elseBlock);
         }
 
-        return new IfStmt(nodeToken(),e,b,elifStmts,elseBlock);
+        return new IfStmt(nodeToken(),e,b,elifStmts);
     }
 
     // 44. elseif_statement ::= 'else' 'if' expression block_statement
@@ -1501,6 +1506,8 @@ public class Parser {
 
             return e;
         }
+        else if(nextLA(TokenType.CIN)) { return inputStatement(); }
+        else if(nextLA(TokenType.COUT)) { return outputStatement(); }
 
         tokenStack.add(currentLA());
 
@@ -1510,8 +1517,6 @@ public class Parser {
 
             return new NameExpr(nodeToken(),n);
         }
-        else if(nextLA(TokenType.CIN)) { return inputStatement(); }
-        else if(nextLA(TokenType.COUT)) { return outputStatement(); }
         else if(nextLA(TokenType.BREAK)) {
             match(TokenType.BREAK);
             return new BreakStmt(nodeToken());
@@ -1553,7 +1558,7 @@ public class Parser {
 
                     Vector<Expression> args = new Vector<>();
                     if(!nextLA(TokenType.RPAREN)) { args = arguments(); }
-                    
+
                     match(TokenType.RPAREN);
 
                     RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),args);
