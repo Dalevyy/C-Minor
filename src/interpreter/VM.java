@@ -73,8 +73,8 @@ public class VM {
                 nodes = parser.nextNode();
 
                 for(AST node : nodes) {
-                    if(treePrint) { node.visit(treePrinter); }
                     node.visit(ioRewrite);
+                    if(treePrint) { node.visit(treePrinter); }
                     node.visit(generatePropertyMethods);
                     node.visit(nameChecker);
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
