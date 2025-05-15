@@ -5,10 +5,10 @@ import utilities.Visitor;
 
 public class FieldExpr extends Expression {
 
-    private Expression target;
-    private Expression name;
+    private final Expression target;
+    private final Expression name;
 
-    private boolean asCheck;
+    private final boolean asCheck;
 
     public FieldExpr(Expression ft, Expression fn) { this(new Token(),ft,fn,false); }
     public FieldExpr(Token t, Expression ft, Expression fn, boolean ac) {
