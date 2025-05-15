@@ -8,7 +8,7 @@ import utilities.Vector;
 import utilities.Visitor;
 
 /*
-    Micro pass #1: OutStmt and InStmt Rewriting
+    Micropass #1: OutStmt and InStmt Rewriting
 
     This micro pass will rewrite any OutStmt and InStmt
     nodes in the current AST. The parser will not generate

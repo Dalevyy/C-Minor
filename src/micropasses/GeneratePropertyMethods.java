@@ -12,6 +12,13 @@ import ast.types.VoidType;
 import utilities.Vector;
 import utilities.Visitor;
 
+/*
+    Micropass #2: Generating Class Property Methods
+
+    This micropass will create a getter and a setter for all fields
+    denoted with the `property` modifier. This will be done before
+    name checking to ensure we know a field has a valid getter/setter.
+*/
 public class GeneratePropertyMethods extends Visitor {
 
     // This method is responsible for creating a setter for the field
@@ -26,8 +33,8 @@ public class GeneratePropertyMethods extends Visitor {
 
         MethodDecl setter = new MethodDecl(mods,n,param,new VoidType(),b);
 
-        AssignStmt as = new AssignStmt(new FieldExpr(new NameExpr(new Name("this")), new NameExpr(new Name(fd.toString()))),
-                                       new NameExpr(new Name("param" + fd)),
+        AssignStmt as = new AssignStmt(new FieldExpr(new NameExpr("this"), new NameExpr(fd.toString())),
+                                       new NameExpr("param" + fd),
                                        new AssignOp(AssignOp.AssignType.EQ));
 
         b.addStmt(as);
@@ -43,8 +50,8 @@ public class GeneratePropertyMethods extends Visitor {
         Name n = new Name("get_"+fd);
         Vector<ParamDecl> param = new Vector<>();
 
-        ReturnStmt rs = new ReturnStmt(new FieldExpr(new NameExpr(new Name("this")),
-                                                     new NameExpr(new Name(fd.toString()))));
+        ReturnStmt rs = new ReturnStmt(new FieldExpr(new NameExpr("this"),
+                                                     new NameExpr(fd.toString())));
         Vector<Statement> stmt = new Vector<>();
         stmt.add(rs);
 
