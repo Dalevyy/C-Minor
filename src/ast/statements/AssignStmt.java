@@ -11,12 +11,15 @@ public class AssignStmt extends Statement {
     private Expression RHS;
     private AssignOp op;
 
-    public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op); }
-    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) {
+    private boolean retyped = false;
+
+    public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op,false); }
+    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op, boolean retyped) {
         super(t);
         this.LHS = LHS;
         this.RHS = RHS;
         this.op = op;
+        this.retyped = retyped;
 
         addChild(this.LHS);
         addChild(this.RHS);
