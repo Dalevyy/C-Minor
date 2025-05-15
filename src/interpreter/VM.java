@@ -8,6 +8,7 @@ import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
 import parser.Parser;
 import typechecker.TypeChecker;
+import utilities.Printer;
 import utilities.Vector;
 
 public class VM {
@@ -17,6 +18,7 @@ public class VM {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         Compilation compilationUnit = new Compilation();
 
+        var treePrinter = new Printer();
         var ioRewrite = new OutputInputRewrite(true);
         var generatePropertyMethods = new GeneratePropertyMethods();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
@@ -28,8 +30,10 @@ public class VM {
         var modChecker = new ModifierChecker(compilationUnit.globalTable);
         var interpreter = new Interpreter(compilationUnit.globalTable);
 
+        boolean treePrint = false;
+
         while(true) {
-            String input = "";
+            String input;
             StringBuilder program = new StringBuilder();
             System.out.print(">>> ");
             input = reader.readLine();
@@ -41,6 +45,10 @@ public class VM {
                 typeChecker = new TypeChecker(compilationUnit.globalTable);
                 modChecker = new ModifierChecker(compilationUnit.globalTable);
                 interpreter = new Interpreter(compilationUnit.globalTable);
+                continue;
+            }
+            else if(input.equals("#show-tree")) {
+                treePrint = !treePrint;
                 continue;
             }
             else if(input.isEmpty()) { continue; }
@@ -65,6 +73,7 @@ public class VM {
                 nodes = parser.nextNode();
 
                 for(AST node : nodes) {
+                    if(treePrint) { node.visit(treePrinter); }
                     node.visit(ioRewrite);
                     node.visit(generatePropertyMethods);
                     node.visit(nameChecker);
