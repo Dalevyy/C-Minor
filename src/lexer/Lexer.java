@@ -25,13 +25,16 @@ public class Lexer {
         this.lines = new Vector<>();
     }
 
+
     /*
         After a C Minor grammar rule is parsed, we will call this method to store
         the lines of the program associated with the AST node we created in the
         parser. This allows us to output error messages that shows the user where
         an error might have occurred during semantic analysis.
     */
-    public String getProgramInputForToken(Position start, Position end) {
+    public void setText(Token t) {
+        Position start = t.getStartPos();
+        Position end = t.getEndPos();
         StringBuilder sb = new StringBuilder();
 
         start.line--;
@@ -51,7 +54,8 @@ public class Lexer {
             for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
             startCol = 0;
         }
-        return sb.toString();
+
+        t.setText(sb.toString());
     }
 
     public void printSyntaxError(Position start) { System.out.println(start.line + "| " + lines.get(start.line-1)); }
