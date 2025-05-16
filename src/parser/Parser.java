@@ -48,9 +48,9 @@ public class Parser {
         this.generateSyntaxError = new SyntaxErrorFactory();
     }
 
-    public Parser(Lexer input) {
+    public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
         this(input,false);
-        this.interpretMode = true;
+        this.interpretMode = interpretMode;
     }
 
     private String errorPosition(int start, int end) {
