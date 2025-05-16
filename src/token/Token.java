@@ -30,6 +30,6 @@ public class Token {
     
     @Override
     public String toString() {
-        return "[ " + getTokenType() + ", " + getText() + " @ " + location.toString() + " ]";
+        return "[ " + getTokenType() + ", '" + getText() + "' @ " + location.toString() + " ]";
     }
 }
