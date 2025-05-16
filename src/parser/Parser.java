@@ -3,7 +3,7 @@ package parser;
 import ast.*;
 import ast.Typeifier.*;
 import ast.Modifier.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
 import ast.expressions.Literal.*;
 import ast.operators.*;
@@ -12,7 +12,7 @@ import ast.operators.BinaryOp.*;
 import ast.operators.LoopOp.*;
 import ast.operators.UnaryOp.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.*;
 import ast.types.ScalarType.*;
 import ast.types.DiscreteType.*;
@@ -202,22 +202,23 @@ public class Parser {
     // This will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
     public Vector<? extends AST> nextNode() {
+        Vector<? extends AST> nodes;
         // Parse EnumDecl
         if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)
                 && !(nextLA(TokenType.LT,2)
                 || nextLA(TokenType.LPAREN,2)
                 || nextLA(TokenType.COLON,2))) {
-            return new Vector<>(enumType());
+            nodes = new Vector<>(enumType());
 
         }
         // Parse GlobalDecl
         else if(nextLA(TokenType.DEF) && ((nextLA(TokenType.CONST, 1) || nextLA(TokenType.GLOBAL, 1)))) {
-            return globalVariable();
+            nodes = globalVariable();
         }
         // Parse ClassDecl
         else if(nextLA(TokenType.ABSTR) || nextLA(TokenType.FINAL) || nextLA(TokenType.CLASS)) {
-            return new Vector<>(classType());
+            nodes = new Vector<>(classType());
         }
         // Parse FuncDecl
         else if((nextLA(TokenType.DEF))
@@ -227,16 +228,24 @@ public class Parser {
                 && nextLA(TokenType.LPAREN,2))
                 && ((!nextLA(TokenType.MAIN,1))
                 && (!nextLA(TokenType.MAIN,2)))))) {
-            return new Vector<>(function());
+            nodes = new Vector<>(function());
 
         }
         // Parse LocalDecl
         else if((nextLA(TokenType.DEF) && nextLA(TokenType.ID,1) && nextLA(TokenType.COLON,2))
                 || (nextLA(TokenType.DEF) && nextLA(TokenType.LOCAL,1))) {
-            return declaration();
+            nodes = declaration();
         }
         // Parse Statement | Expression
-        else { return new Vector<>(statement()); }
+        else { nodes = new Vector<>(statement()); }
+
+        if(!nextLA(TokenType.EOF)) {
+            System.out.println(PrettyPrint.CYAN + "Syntax Error Detected. Please try again." + PrettyPrint.RESET);
+            input.printSyntaxError(currentLA().getStartPos());
+            System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
+            throw new RuntimeException("EOF Not Found");
+        }
+        return nodes;
     }
 
     /*

@@ -23,6 +23,7 @@ public class VM {
         var generatePropertyMethods = new GeneratePropertyMethods();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
         var fieldRewrite = new FieldRewrite();
+        var fieldCheck = new ValidFieldExprCheck(true);
         var classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
         var typeChecker = new TypeChecker(compilationUnit.globalTable);
         var generateConstructor = new GenerateConstructor();
@@ -30,7 +31,9 @@ public class VM {
         var modChecker = new ModifierChecker(compilationUnit.globalTable);
         var interpreter = new Interpreter(compilationUnit.globalTable);
 
+        boolean tokenPrint = false;
         boolean treePrint = false;
+        boolean tablePrint = false;
 
         while(true) {
             String input;
@@ -47,8 +50,16 @@ public class VM {
                 interpreter = new Interpreter(compilationUnit.globalTable);
                 continue;
             }
+            else if(input.equals("#show-tokens")) {
+                tokenPrint = !tokenPrint;
+                continue;
+            }
             else if(input.equals("#show-tree")) {
                 treePrint = !treePrint;
+                continue;
+            }
+            else if(input.equals("#show-table")) {
+                tablePrint = !tablePrint;
                 continue;
             }
             else if(input.isEmpty()) { continue; }
@@ -68,7 +79,7 @@ public class VM {
             Vector<? extends AST> nodes;
             try {
                 var lexer = new Lexer(program.toString());
-                var parser = new Parser(lexer);
+                var parser = new Parser(lexer,tokenPrint);
 
                 nodes = parser.nextNode();
 
@@ -77,7 +88,9 @@ public class VM {
                     if(treePrint) { node.visit(treePrinter); }
                     node.visit(generatePropertyMethods);
                     node.visit(nameChecker);
+                    if(tablePrint) { System.out.println(compilationUnit.globalTable.toString()); }
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
+                    node.visit(fieldCheck);
                     node.visit(loopKeywordCheck);
                     node.visit(classToEnum);
                     node.visit(typeChecker);
@@ -97,8 +110,10 @@ public class VM {
             }
             catch(Exception e) {
                 if(e.getMessage() != null) {
-                    try { compilationUnit.globalTable.removeName(e.getMessage()); }
-                    catch(Exception e2) { System.out.println(e.getMessage()); }
+                    if(!e.getMessage().equals("EOF Not Found")) {
+                        try { compilationUnit.globalTable.removeName(e.getMessage()); }
+                        catch(Exception e2) { System.out.println(e.getMessage()); }
+                    }
                 }
                 /* Do nothing */
             }
