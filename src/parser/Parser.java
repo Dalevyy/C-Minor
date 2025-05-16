@@ -1555,6 +1555,7 @@ public class Parser {
                         match(TokenType.RBRACK);
                     }
 
+                    input.setText(tokenStack.top());
                     RHS = new ArrayExpr(tokenStack.top(),LHS,indices);
                 }
                 else if(nextLA(TokenType.LPAREN)) {
@@ -1565,6 +1566,7 @@ public class Parser {
 
                     match(TokenType.RPAREN);
 
+                    input.setText(tokenStack.top());
                     RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),args);
                 }
                 else {
@@ -1577,10 +1579,11 @@ public class Parser {
                     }
 
                     Expression expr = expression();
+                    input.setText(tokenStack.top());
                     RHS = new FieldExpr(tokenStack.top(),LHS.asExpression(),expr.asExpression(),nullCheck);
                 }
             }
-            LHS = RHS.asExpression();
+            LHS = RHS;
         }
 
         nodeToken();
