@@ -869,10 +869,26 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-        //FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
+        if(fe.accessExpr().isInvocation()) {
+            fe.accessExpr().asInvocation().setTarget(fe.fieldTarget());
+            fe.accessExpr().visit(this);
+        }
+        else if(fe.accessExpr().isNameExpr()) {
+            ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
 
-        // fe.type = fd.type();
+            // Check if field was declared in class or not
+            if(!cd.symbolTable.hasNameSomewhere(fe.accessExpr().toString())) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(fe)
+                        .addErrorType(MessageType.SCOPE_ERROR_309)
+                        .addArgs(fe.accessExpr().toString(),cd.toString())
+                        .error());
+            }
+
+            FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+            fe.type = fd.type();
+        }
+        else { fe.accessExpr().visit(this); }
     }
 
     /*

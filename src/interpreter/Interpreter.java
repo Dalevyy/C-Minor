@@ -574,9 +574,12 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
-        String objName = fe.fieldTarget().toString();
-        HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
-        currValue = instance.get(fe.accessExpr().toString());
+        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
+            String objName = fe.fieldTarget().toString();
+            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+            currValue = instance.get(fe.accessExpr().toString());
+        }
+        else { fe.accessExpr().visit(this); }
     }
 
     /*
