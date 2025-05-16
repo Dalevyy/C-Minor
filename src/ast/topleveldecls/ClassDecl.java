@@ -1,7 +1,7 @@
-package ast.top_level_decls;
+package ast.topleveldecls;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.types.*;
 import token.*;
 import utilities.*;

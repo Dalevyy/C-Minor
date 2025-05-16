@@ -1,6 +1,6 @@
 package ast;
 
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import token.*;
 import utilities.SymbolTable;
 import utilities.Vector;

@@ -6,7 +6,7 @@ import utilities.Visitor;
 public class FieldExpr extends Expression {
 
     private final Expression target;
-    private final Expression name;
+    private final Expression accessExpr;
 
     private final boolean asCheck;
     private final boolean isInvocation;
@@ -15,18 +15,18 @@ public class FieldExpr extends Expression {
     public FieldExpr(Token t, Expression ft, Expression fn, boolean ac) {
         super(t);
         this.target = ft;
-        this.name = fn;
+        this.accessExpr = fn;
 
         this.asCheck = ac;
-        this.isInvocation = this.name.isInvocation();
+        this.isInvocation = this.accessExpr.isInvocation();
 
         addChild(this.target);
-        addChild(this.name);
+        addChild(this.accessExpr);
         setParent();
     }
 
     public Expression fieldTarget() { return target; }
-    public Expression name() { return name; }
+    public Expression accessExpr() { return accessExpr; }
 
     public boolean isAsCheck() { return asCheck; }
     public boolean isMethodInvocation() { return isInvocation; }
@@ -34,7 +34,7 @@ public class FieldExpr extends Expression {
     public FieldExpr asFieldExpr() { return this; }
 
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() { return accessExpr.toString(); }
 
     @Override
     public void visit(Visitor v) { v.visitFieldExpr(this); }

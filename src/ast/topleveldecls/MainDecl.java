@@ -1,4 +1,4 @@
-package ast.top_level_decls;
+package ast.topleveldecls;
 
 import ast.*;
 import ast.statements.*;

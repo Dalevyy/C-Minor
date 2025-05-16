@@ -1,4 +1,4 @@
-package ast.class_body;
+package ast.classbody;
 
 import ast.*;
 import ast.statements.AssignStmt;

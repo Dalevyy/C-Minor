@@ -19,7 +19,7 @@ public class EnumType extends DiscreteType {
 
     public Type constantType() { return constantType; }
 
-    public boolean isEnum() { return true; }
+    public boolean isEnumType() { return true; }
     public EnumType asEnumType() { return this; }
 
     public String typeName() { return "Enum"; }

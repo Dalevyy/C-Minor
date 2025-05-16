@@ -17,6 +17,7 @@ public class ClassType extends Type {
     private final Name name;
     private final Vector<Type> templateTypes;
 
+    public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
     public ClassType(Token t, Name n) { this(t,n,new Vector<>()); }
     public ClassType(Token t, Name n, Vector<Type> tt) {
