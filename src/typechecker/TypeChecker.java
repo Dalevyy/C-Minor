@@ -1,11 +1,11 @@
 package typechecker;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
 import ast.expressions.Literal.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.*;
 import ast.types.DiscreteType.*;
 import ast.types.ScalarType.*;
@@ -21,9 +21,9 @@ public class TypeChecker extends Visitor {
     private SymbolTable currentScope;
     private ClassDecl currentClass;
     private AST currentContext;
-    private TypeErrorFactory generateTypeError;
-    private ScopeErrorFactory generateScopeError;
-    private Vector<String> errors;
+    private final TypeErrorFactory generateTypeError;
+    private final ScopeErrorFactory generateScopeError;
+    private final Vector<String> errors;
 
     private boolean returnStatementFound = false;
 
@@ -856,7 +856,7 @@ public class TypeChecker extends Visitor {
     */
     public void visitFieldExpr(FieldExpr fe) {
         if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
-        else { fe.fieldTarget().type = new ClassType(new Name(currentClass.toString())); }
+        else { fe.fieldTarget().type = new ClassType(currentClass.toString()); }
         Type targetType = fe.fieldTarget().type;
 
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
@@ -870,9 +870,9 @@ public class TypeChecker extends Visitor {
         }
 
         ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-        FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
+        //FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
 
-        fe.type = fd.type();
+        // fe.type = fd.type();
     }
 
     /*
@@ -1125,18 +1125,18 @@ public class TypeChecker extends Visitor {
     _____________________________________________________________________
     */
     public void visitInvocation(Invocation in) {
-        String funcSignature = in.toString() + "/";
+        StringBuilder funcSignature = new StringBuilder(in.toString() + "/");
 
         for(Expression e : in.arguments()) { e.visit(this); }
 
         for(int i = 0; i < in.arguments().size(); i++)
-            funcSignature += in.arguments().get(i).type.typeSignature();
+            funcSignature.append(in.arguments().get(i).type.typeSignature());
 
         // Function Check
         if(in.target() == null && currentClass == null) {
             // ERROR CHECK #1: Make sure the function overload exists for the passed
             //                 argument types
-            if(!currentScope.hasNameSomewhere(funcSignature)) {
+            if(!currentScope.hasNameSomewhere(funcSignature.toString())) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(in)
                         .addErrorType(MessageType.TYPE_ERROR_428)
@@ -1144,7 +1144,7 @@ public class TypeChecker extends Visitor {
                         .error());
             }
             else {
-                FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
+                FuncDecl fd = currentScope.findName(funcSignature.toString()).decl().asTopLevelDecl().asFuncDecl();
                 in.type = fd.returnType();
                 in.targetType = new VoidType();
             }
@@ -1174,7 +1174,7 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #3: Make sure the method overload exists for the passed
             //                 argument types
-            while(!cd.symbolTable.hasName(funcSignature)) {
+            while(!cd.symbolTable.hasName(funcSignature.toString())) {
                 if(cd.superClass() == null) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(in)
@@ -1185,10 +1185,10 @@ public class TypeChecker extends Visitor {
                 cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             }
 
-            MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(funcSignature.toString()).decl().asMethodDecl();
             in.type = md.returnType();
         }
-        in.setInvokeSignature(funcSignature);
+        in.setInvokeSignature(funcSignature.toString());
     }
 
     /*
@@ -1208,11 +1208,7 @@ public class TypeChecker extends Visitor {
         else if(li.getConstantKind() == ConstantKind.ENUM) { li.type = new DiscreteType(Discretes.ENUM); }
     }
 
-    public void visitListLiteral(ListLiteral ll) {
-//        listAssignmentCompatibility();
-//        arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
-
-    }
+    public void visitListLiteral(ListLiteral ll) {}
 
     /*
     ________________________ Local Declarations ________________________
@@ -1233,21 +1229,19 @@ public class TypeChecker extends Visitor {
         Var localVar = ld.var();
 
         if(localVar.init() == null) {
-            Literal defaultValue;
-            if (ld.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            Expression defaultValue;
+            if(ld.type().isEnumType()) {
+                TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
+                defaultValue = new NameExpr(customType.asEnumDecl().enumVars().get(0).asVar().toString());
+            }
+            else if(ld.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
             else if(ld.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
             else if(ld.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
             else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
             else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
             else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
             else if(ld.type().isListType()) { defaultValue = new ListLiteral(); }
-            else {
-                TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
-                if(customType.isEnumDecl()) {
-                    defaultValue = new Literal(ConstantKind.ENUM, customType.asEnumDecl().enumVars().get(0).asVar().toString());
-                }
-                else { defaultValue = null; }
-            }
+            else { defaultValue = null; }
 
             localVar.setInit(defaultValue);
         }
@@ -1428,10 +1422,12 @@ public class TypeChecker extends Visitor {
 
         if(rs.expr() != null) { rs.expr().visit(this); }
 
-        Type declaredReturnType = null;
+        Type declaredReturnType;
         if(currentContext.isMethodDecl()) { declaredReturnType = currentContext.asMethodDecl().returnType(); }
         else {
-            if(currentContext.asTopLevelDecl().isFuncDecl()) { declaredReturnType = currentContext.asTopLevelDecl().asFuncDecl().returnType(); }
+            if(currentContext.asTopLevelDecl().isFuncDecl()) {
+                declaredReturnType = currentContext.asTopLevelDecl().asFuncDecl().returnType();
+            }
             else { declaredReturnType = currentContext.asTopLevelDecl().asMainDecl().returnType(); }
         }
 
@@ -1455,10 +1451,6 @@ public class TypeChecker extends Visitor {
                     .addArgs(rs.expr().type,currentContext.toString(),declaredReturnType)
                     .error());
         }
-
-        if(rs.expr() != null) { rs.type = rs.expr().type; }
-        else { rs.type = null; }
-
         returnStatementFound = true;
     }
 

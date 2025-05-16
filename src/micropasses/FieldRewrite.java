@@ -3,7 +3,7 @@ package micropasses;
 import ast.*;
 import ast.expressions.FieldExpr;
 import ast.expressions.NameExpr;
-import ast.top_level_decls.ClassDecl;
+import ast.topleveldecls.ClassDecl;
 import utilities.Visitor;
 
 public class FieldRewrite extends Visitor {
@@ -20,7 +20,7 @@ public class FieldRewrite extends Visitor {
         if(currClass.symbolTable.hasNameSomewhere(ne.toString())) {
             NameNode name = currClass.symbolTable.findName(ne.toString());
             if(name.decl().isFieldDecl()) {
-                FieldExpr fe = new FieldExpr(new NameExpr(new Name("this")), ne);
+                FieldExpr fe = new FieldExpr(new NameExpr("this"), ne);
                 fe.copy(ne);
                 fe.setParent();
             }

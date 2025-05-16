@@ -1,10 +1,10 @@
 package interpreter;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.Type;
 import messages.*;
 import messages.errors.ErrorBuilder;
@@ -576,7 +576,7 @@ public class Interpreter extends Visitor {
     public void visitFieldExpr(FieldExpr fe) {
         String objName = fe.fieldTarget().toString();
         HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
-        currValue = instance.get(fe.name().toString());
+        currValue = instance.get(fe.accessExpr().toString());
     }
 
     /*

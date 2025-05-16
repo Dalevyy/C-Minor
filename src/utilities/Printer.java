@@ -1,11 +1,11 @@
 package utilities;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
 import ast.operators.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.*;
 
 public class Printer extends Visitor {

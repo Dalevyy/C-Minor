@@ -1,10 +1,10 @@
 package micropasses;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.NameExpr;
 import ast.operators.AssignOp;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.statements.AssignStmt;
 import token.*;
 import utilities.*;

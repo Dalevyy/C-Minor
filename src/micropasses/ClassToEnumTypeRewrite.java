@@ -1,9 +1,10 @@
 package micropasses;
 
-import ast.class_body.FieldDecl;
+import ast.classbody.FieldDecl;
+import ast.statements.ForStmt;
 import ast.statements.LocalDecl;
-import ast.top_level_decls.GlobalDecl;
-import ast.top_level_decls.TopLevelDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.TopLevelDecl;
 import ast.types.DiscreteType;
 import ast.types.EnumType;
 import utilities.SymbolTable;

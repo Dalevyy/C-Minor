@@ -1,10 +1,10 @@
 package modifierchecker;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.*;
 import messages.*;
 
@@ -199,7 +199,7 @@ public class ModifierChecker extends Visitor {
     */
     public void visitFieldExpr(FieldExpr fe) {
         ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).decl().asTopLevelDecl().asClassDecl();
-        FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
+        FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
 
         // ERROR CHECK #1: A field is only accessible outside a class scope if it's public
         if(!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
