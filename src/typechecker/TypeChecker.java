@@ -732,7 +732,7 @@ public class TypeChecker extends Visitor {
     _________________________________________________________________________
     */
     public void visitEnumDecl(EnumDecl ed) {
-        Type eType = ed.constantType();
+        Type eType = ed.type();
 
         if(eType == null) {
             eType = new EnumType(ed.toString(),Discretes.INT);
@@ -752,7 +752,7 @@ public class TypeChecker extends Visitor {
             else { ed.setType(new EnumType(ed.toString(),Discretes.CHAR)); }
         }
 
-        Vector<Var> eFields = ed.enumVars();
+        Vector<Var> eFields = ed.constants();
         int initCount = 0;
         for(int i = 0; i < eFields.size(); i++) {
             Var enumVar = eFields.get(i).asVar();
@@ -869,10 +869,30 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-        //FieldDecl fd = cd.symbolTable.findName(fe.name().toString()).decl().asFieldDecl();
+        if(fe.accessExpr().isInvocation()) {
+            fe.accessExpr().asInvocation().setTarget(fe.fieldTarget());
+            fe.accessExpr().visit(this);
+        }
+        else  {
+            ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+            SymbolTable oldScope = currentScope;
+            currentScope = cd.symbolTable;
 
-        // fe.type = fd.type();
+            if(fe.accessExpr().isNameExpr()) {
+                // Check if field was declared in class or not
+                if(!cd.symbolTable.hasNameSomewhere(fe.accessExpr().toString())) {
+                    errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(fe)
+                            .addErrorType(MessageType.SCOPE_ERROR_309)
+                            .addArgs(fe.accessExpr().toString(),cd.toString())
+                            .error());
+                }
+                FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+                fe.type = fd.type();
+            }
+            fe.accessExpr().visit(this);
+            currentScope = oldScope;
+        }
     }
 
     /*
@@ -900,9 +920,9 @@ public class TypeChecker extends Visitor {
         }
 
         // ERROR CHECK #2: Make sure LHS of condition is a literal
-        if(!fs.condLHS().isLiteral()) {
+        if(!fs.condLHS().isLiteral() && !fs.condLHS().isNameExpr()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.loopVar())
+                    .addLocation(fs.condLHS())
                     .addErrorType(MessageType.TYPE_ERROR_437)
                     .addArgs()
                     .error());
@@ -910,7 +930,7 @@ public class TypeChecker extends Visitor {
         fs.condLHS().visit(this);
 
         // ERROR CHECK #3: Make sure RHS of condition is a literal
-        if(!fs.condRHS().isLiteral()) {
+        if(!fs.condRHS().isLiteral() && !fs.condRHS().isNameExpr()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.condRHS())
                     .addErrorType(MessageType.TYPE_ERROR_439)
@@ -958,7 +978,7 @@ public class TypeChecker extends Visitor {
         else {
             EnumDecl ed = currentScope.findName(fs.loopVar().type().toString()).decl().asTopLevelDecl().asEnumDecl();
             Var RHS = null;
-            for(Var v : ed.enumVars()) {
+            for(Var v : ed.constants()) {
               if(v.toString().equals(fs.condLHS().toString())) {
                   if(RHS != null) {
                       errors.add(new ErrorBuilder(generateTypeError,interpretMode)
@@ -1230,19 +1250,20 @@ public class TypeChecker extends Visitor {
 
         if(localVar.init() == null) {
             Expression defaultValue;
-            if(ld.type().isEnumType()) {
-                TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
-                defaultValue = new NameExpr(customType.asEnumDecl().enumVars().get(0).asVar().toString());
+            if(declaredType.isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(declaredType.isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(declaredType.isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(declaredType.isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(declaredType.isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(declaredType.isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(declaredType.isListType()) { defaultValue = new ListLiteral(); }
+            else {
+                if(declaredType.isEnumType()) {
+                    TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
+                    defaultValue = new NameExpr(customType.asEnumDecl().constants().get(0).asVar().toString());
+                }
+                else { defaultValue = new NewExpr(currentScope.findName(ld.type().toString()).decl().toString()); }
             }
-            else if(ld.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
-            else if(ld.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
-            else if(ld.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
-            else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
-            else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
-            else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
-            else if(ld.type().isListType()) { defaultValue = new ListLiteral(); }
-            else { defaultValue = null; }
-
             localVar.setInit(defaultValue);
         }
         AST oldContext = currentContext;
@@ -1250,7 +1271,7 @@ public class TypeChecker extends Visitor {
         localVar.init().visit(this);
 
         if(ld.type().isArrayType() || ld.type().isListType()) {
-            localVar.setType(ld.type());
+            localVar.setType(declaredType);
             currentContext = oldContext;
             return;
         }
@@ -1265,7 +1286,7 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        localVar.setType(ld.type());
+        localVar.setType(declaredType);
         currentContext = oldContext;
     }
 
@@ -1347,7 +1368,7 @@ public class TypeChecker extends Visitor {
             TopLevelDecl tDecl = name.decl().asTopLevelDecl();
 
             if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
-            else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().constantType(); }
+            else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
             else if(tDecl.isClassDecl()) { ne.type = new ClassType(tDecl.asClassDecl().name()); }
         }
     }
@@ -1533,7 +1554,6 @@ public class TypeChecker extends Visitor {
 
         currentScope = ws.symbolTable;
         ws.whileBlock().visit(this);
-
         currentScope = currentScope.closeScope();
     }
 }

@@ -278,8 +278,8 @@ public class NameChecker extends Visitor {
 
         // ERROR CHECK #2) Make sure each constant in the enum has a name
         //                 that hasn't been used elsewhere yet
-        for(int i = 0; i < ed.enumVars().size(); i++) {
-            String constantName = ed.enumVars().get(i).asVar().toString();
+        for(int i = 0; i < ed.constants().size(); i++) {
+            String constantName = ed.constants().get(i).asVar().toString();
             if(currentScope.hasName(constantName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ed)
@@ -322,6 +322,16 @@ public class NameChecker extends Visitor {
     */
     public void visitFieldExpr(FieldExpr fe) {
         if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
+
+        if(fe.accessExpr().isFieldExpr()) { fe.accessExpr().visit(this); }
+        else if(!(fe.accessExpr().isNameExpr()
+                || fe.accessExpr().isInvocation()
+                || fe.accessExpr().isArrayExpr())) {
+            new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(fe)
+                    .addErrorType(MessageType.SCOPE_ERROR_330)
+                    .error();
+        }
     }
 
     /*

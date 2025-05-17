@@ -560,8 +560,8 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitEnumDecl(EnumDecl ed) {
-        for(int i = 0; i < ed.enumVars().size(); i++) {
-            Var enumConstant = ed.enumVars().get(i);
+        for(int i = 0; i < ed.constants().size(); i++) {
+            Var enumConstant = ed.constants().get(i);
             enumConstant.init().visit(this);
             stack.addValue(enumConstant.toString(),currValue);
         }
@@ -574,9 +574,12 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
-        String objName = fe.fieldTarget().toString();
-        HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
-        currValue = instance.get(fe.accessExpr().toString());
+        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
+            String objName = fe.fieldTarget().toString();
+            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+            currValue = instance.get(fe.accessExpr().toString());
+        }
+        else { fe.accessExpr().visit(this); }
     }
 
     /*
@@ -588,7 +591,7 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
-        if(fs.condLHS().type.isInt()) {
+        if(fs.condLHS().type.isInt() || fs.condLHS().type.isEnumType()) {
             int LHS = 0, RHS = 0;
             fs.condLHS().visit(this);
             LHS = (int) currValue;
@@ -644,6 +647,9 @@ public class Interpreter extends Visitor {
                 fs.forBlock().visit(this);
             }
             stack = stack.destroyCallFrame();
+        }
+        else {
+
         }
     }
 
@@ -871,7 +877,7 @@ public class Interpreter extends Visitor {
     __________________________________________________________
     */
     public void visitLiteral(Literal li) {
-        if(li.type.isInt()) {
+        if(li.type.isInt() || li.type.isEnumType()) {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }

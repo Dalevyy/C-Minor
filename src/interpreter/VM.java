@@ -19,14 +19,13 @@ public class VM {
         Compilation compilationUnit = new Compilation();
 
         var treePrinter = new Printer();
-        var ioRewrite = new OutputInputRewrite(true);
-        var generatePropertyMethods = new GeneratePropertyMethods();
+        var ioRewrite = new InOutStmtRewrite(true);
+        var generatePropertyMethods = new PropertyMethodGeneration();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
         var fieldRewrite = new FieldRewrite();
-        var fieldCheck = new ValidFieldExprCheck(true);
         var classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
         var typeChecker = new TypeChecker(compilationUnit.globalTable);
-        var generateConstructor = new GenerateConstructor();
+        var generateConstructor = new ConstructorGeneration();
         var loopKeywordCheck = new LoopKeywordCheck(true);
         var modChecker = new ModifierChecker(compilationUnit.globalTable);
         var interpreter = new Interpreter(compilationUnit.globalTable);
@@ -90,7 +89,6 @@ public class VM {
                     node.visit(nameChecker);
                     if(tablePrint) { System.out.println(compilationUnit.globalTable.toString()); }
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
-                    node.visit(fieldCheck);
                     node.visit(loopKeywordCheck);
                     node.visit(classToEnum);
                     node.visit(typeChecker);
@@ -112,7 +110,10 @@ public class VM {
                 if(e.getMessage() != null) {
                     if(!e.getMessage().equals("EOF Not Found")) {
                         try { compilationUnit.globalTable.removeName(e.getMessage()); }
-                        catch(Exception e2) { System.out.println(e.getMessage()); }
+                        catch(Exception e2) {
+                            System.out.println(e.getMessage());
+                            e.printStackTrace();
+                        }
                     }
                 }
                 /* Do nothing */

@@ -69,13 +69,19 @@ public abstract class Type extends AST {
         Discrete Type Predicates
     */
     public boolean isBool() {
-        return this.isDiscreteType() && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.BOOL);
+        return this.isDiscreteType()
+                && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.BOOL)
+                && !this.isEnumType();
     }
     public boolean isInt() {
-        return this.isDiscreteType() && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.INT);
+        return this.isDiscreteType()
+                && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.INT)
+                && !this.isEnumType();
     }
     public boolean isChar() {
-        return this.isDiscreteType() && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.CHAR);
+        return this.isDiscreteType()
+                && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.CHAR)
+                && !this.isEnumType();
     }
 
     /*

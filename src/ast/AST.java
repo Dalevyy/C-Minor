@@ -152,7 +152,7 @@ public abstract class AST {
         }
         else if(this.isTopLevelDecl()) {
             if(this.asTopLevelDecl().isGlobalDecl()) { return this.asTopLevelDecl().asGlobalDecl().type(); }
-            else if(this.asTopLevelDecl().isEnumDecl()) { return this.asTopLevelDecl().asEnumDecl().constantType(); }
+            else if(this.asTopLevelDecl().isEnumDecl()) { return this.asTopLevelDecl().asEnumDecl().type(); }
             else { return null; }
         }
         else if(this.isFieldDecl()) { return this.asFieldDecl().type(); }

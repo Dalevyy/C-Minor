@@ -12,6 +12,7 @@ public class FieldExpr extends Expression {
     private final boolean isInvocation;
 
     public FieldExpr(Expression ft, Expression fn) { this(new Token(),ft,fn,false); }
+    public FieldExpr(Expression ft, Expression fn, boolean ac) { this(new Token(),ft,fn,ac); }
     public FieldExpr(Token t, Expression ft, Expression fn, boolean ac) {
         super(t);
         this.target = ft;
@@ -38,4 +39,27 @@ public class FieldExpr extends Expression {
 
     @Override
     public void visit(Visitor v) { v.visitFieldExpr(this); }
+
+    public static class FieldExprBuilder {
+        private Expression target;
+        private Expression accessExpr;
+        private boolean as;
+
+        public FieldExprBuilder setTarget(Expression target) {
+            this.target = target;
+            return this;
+        }
+
+        public FieldExprBuilder setAccessExpr(Expression accessExpr) {
+            this.accessExpr = accessExpr;
+            return this;
+        }
+
+        public FieldExprBuilder setAsOperator() {
+            this.as = true;
+            return this;
+        }
+
+        public FieldExpr createFieldExpr() { return new FieldExpr(target,accessExpr,as); }
+    }
 }

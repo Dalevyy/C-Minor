@@ -198,18 +198,20 @@ public class ModifierChecker extends Visitor {
     _______________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
-        ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).decl().asTopLevelDecl().asClassDecl();
-        FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
+            ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).decl().asTopLevelDecl().asClassDecl();
+            FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
 
-        // ERROR CHECK #1: A field is only accessible outside a class scope if it's public
-        if(!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
-            errors.add(new ErrorBuilder(generateModError,interpretMode)
-                    .addLocation(fe)
-                    .addErrorType(MessageType.MOD_ERROR_507)
-                    .addArgs(fe.fieldTarget().toString(),fd.toString())
-                    .addSuggestType(MessageType.MOD_SUGGEST_1507)
-                    .error());        }
-
+            // ERROR CHECK #1: A field is only accessible outside a class scope if it's public
+            if (!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
+                errors.add(new ErrorBuilder(generateModError, interpretMode)
+                        .addLocation(fe)
+                        .addErrorType(MessageType.MOD_ERROR_507)
+                        .addArgs(fe.fieldTarget().toString(), fd.toString())
+                        .addSuggestType(MessageType.MOD_SUGGEST_1507)
+                        .error());
+            }
+        }
         fe.fieldTarget().visit(this);
     }
 

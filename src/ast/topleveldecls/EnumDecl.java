@@ -17,33 +17,33 @@ __________________________________________________________________
 */
 public class EnumDecl extends TopLevelDecl implements NameNode {
 
+    private Type type;
+
     private final Name name;
-    public Type constantType;
-    private final Vector<Var> eVars;
+    private final Vector<Var> constants;
 
     public EnumDecl(Token t, Name name, Vector<Var> ef) { this(t,name, null, ef); }
-
     public EnumDecl(Token t, Name name, Type constantType, Vector<Var> ef) {
         super(t);
         this.name = name;
-        this.constantType = constantType;
-        this.eVars = ef;
+        this.type = constantType;
+        this.constants = ef;
 
         addChild(this.name);
-        addChild(this.constantType);
-        addChild(this.eVars);
+        addChild(this.type);
+        addChild(this.constants);
         setParent();
     }
 
     public Name name() { return name; }
-    public Type constantType() { return constantType; }
-    public Vector<Var> enumVars() { return eVars;}
+    public Type type() { return type; }
+    public Vector<Var> constants() { return constants;}
 
     public boolean isEnumDecl() { return true; }
     public EnumDecl asEnumDecl() { return this; }
 
     public AST decl() { return this; }
-    public void setType(Type t) { this.constantType = t; }
+    public void setType(Type t) { this.type = t; }
 
     @Override
     public String toString() { return name.toString(); }

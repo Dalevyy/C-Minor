@@ -9,24 +9,28 @@ import utilities.Visitor;
 
 import java.util.ArrayList;
 
-/*
-________________________________ Micropass #1 ________________________________
-This micropass is designed to check if the keywords 'break' and 'continue'
-were found in a C Minor program. This will occur after the name resolution
-pass is completed.
-
-
-If either keyword is used, then we are going to check to see if these keywords
-are found inside a C Minor's loop constructs (DoStmts, ForStmts, and
-WhileStmts). If these keywords were found, but not inside a loop construct,
-then we are going to create a ScopeError.
-______________________________________________________________________________
-*/
+/**
+ * Micropass #4
+ * <br><br>
+ *
+ * This pass is a continuation of name checking and concerns the usage of <code>break</code>
+ * and <code>continue</code> inside of a C Minor program. In order to use these keywords,
+ * they must be found inside a loop statement and if they are not, we have to generate a
+ * scoping error.
+ * <br><br>
+ * The following is a list of the loop statements we check during this pass.
+ * <ol>
+ *     <li><code>DoStmt</code></li>
+ *     <li><code>ForStmt</code></li>
+ *     <li><code>WhileStmt</code></li>
+ * </ol>
+ * @author Daniel Levy
+ */
 public class LoopKeywordCheck extends Visitor {
 
     private boolean insideLoop;
-    private ScopeErrorFactory generateScopeError;
-    private ArrayList<String> errors;
+    private final ScopeErrorFactory generateScopeError;
+    private final ArrayList<String> errors;
 
     public LoopKeywordCheck() {
         insideLoop = false;
@@ -42,19 +46,23 @@ public class LoopKeywordCheck extends Visitor {
 
     public void visitBreakStmt(BreakStmt bs) {
         if(!insideLoop) {
-            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
-                    .addLocation(bs)
-                    .addErrorType(MessageType.SCOPE_ERROR_323)
-                    .error());
+            errors.add(
+                new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(bs)
+                        .addErrorType(MessageType.SCOPE_ERROR_323)
+                        .error()
+            );
         }
     }
 
     public void visitContinueStmt(ContinueStmt cs) {
         if(!insideLoop) {
-            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
-                    .addLocation(cs)
-                    .addErrorType(MessageType.SCOPE_ERROR_324)
-                    .error());
+            errors.add(
+                new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(cs)
+                        .addErrorType(MessageType.SCOPE_ERROR_324)
+                        .error()
+            );
         }
     }
 
@@ -78,5 +86,4 @@ public class LoopKeywordCheck extends Visitor {
         super.visitWhileStmt(ws);
         insideLoop = prevInsideLoop;
     }
-
 }

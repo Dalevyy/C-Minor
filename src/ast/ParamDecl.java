@@ -1,5 +1,6 @@
 package ast;
 
+import ast.Modifier.Mods;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
@@ -44,4 +45,28 @@ public class ParamDecl extends AST implements NameNode {
 
     @Override
     public void visit(Visitor v) { v.visitParamDecl(this); }
+
+    public static class ParamDeclBuilder {
+        private Modifier mod;
+        private Name name;
+        private Type type;
+
+        public ParamDeclBuilder setModifier(Mods mod) {
+            this.mod = new Modifier(mod);
+            return this;
+        }
+
+        public ParamDeclBuilder setName(String s) {
+            this.name = new Name(s);
+            return this;
+        }
+
+        public ParamDeclBuilder setType(Type t) {
+            this.type = t;
+            return this;
+        }
+
+        public ParamDecl createParamDecl() { return new ParamDecl(mod,name,type); }
+
+    }
 }
