@@ -313,17 +313,13 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 3. enum_type ::= 'def' ID type? 'type' '=' '{' enum_field ( ',' , enum_field)* '}'
+    // 3. enum_type ::= 'def' ID 'type' '=' '{' enum_field ( ',' , enum_field)* '}'
     private EnumDecl enumType() {
         tokenStack.add(currentLA());
 
         match(TokenType.DEF);
         Name n = new Name(currentLA());
         match(TokenType.ID);
-
-        Type ty = null;
-        if(inTypeFIRST()) { ty = type(); }
-
         match(TokenType.TYPE);
         match(TokenType.EQ);
         match(TokenType.LBRACE);
@@ -337,7 +333,7 @@ public class Parser {
 
         match(TokenType.RBRACE);
         
-        return new EnumDecl(nodeToken(),n,ty,vars);
+        return new EnumDecl(nodeToken(),n,vars);
     }
 
     // 4. enum_field ::= ID ( '=' constant )?
