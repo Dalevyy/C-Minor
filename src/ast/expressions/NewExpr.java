@@ -11,6 +11,7 @@ public class NewExpr extends Expression {
     private final ClassType cType;
     private final Vector<Var> fields;
 
+    public NewExpr(String ct) { this(new Token(),new ClassType(ct),new Vector<>());}
     public NewExpr(Token t, ClassType ct, Vector<Var> f) {
         super(t);
         this.cType = ct;
