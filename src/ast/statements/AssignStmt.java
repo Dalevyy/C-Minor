@@ -1,7 +1,8 @@
 package ast.statements;
 
 import ast.expressions.*;
-import ast.operators.*;
+import ast.operators.AssignOp;
+import ast.operators.AssignOp.AssignType;
 import token.*;
 import utilities.Visitor;
 
@@ -55,8 +56,8 @@ public class AssignStmt extends Statement {
             return this;
         }
 
-        public AssignStmtBuilder setAssignOp(AssignOp op) {
-            this.op = op;
+        public AssignStmtBuilder setAssignOp(AssignType op) {
+            this.op = new AssignOp(op);
             return this;
         }
 
