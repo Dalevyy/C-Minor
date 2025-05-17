@@ -16,6 +16,8 @@ import utilities.Visitor;
  * The parser generates a <code>ClassType</code> node when a name is used for a <i>type</i> regardless
  * if the name represents a <i>Class</i> or <i>Enum</i>. This means we have to do a pass to change all
  * <code>ClassType</code> nodes to be <code>EnumType</code> nodes if the name represents an <i>Enum</i>.
+ * This pass needs to be completed before typechecking or else we can't properly run the assignment
+ * compatibility method.
  * <br><br>
  * The following is a list of declarations this micropass will run on.
  * <ol>
