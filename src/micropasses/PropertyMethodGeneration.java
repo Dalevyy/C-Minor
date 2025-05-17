@@ -62,24 +62,24 @@ public class PropertyMethodGeneration extends Visitor {
 
     public MethodDecl createGetter(FieldDecl fd) {
         return new MethodDeclBuilder()
-                        .setMods(new Vector<>(new Modifier(Mods.PUBLIC)))
-                        .setName("get_"+fd)
-                        .setParams(new Vector<>())
-                        .setReturnType(fd.type())
-                        .setBlockStmt(
-                            new BlockStmtBuilder()
-                                .addStmt(
-                                    new ReturnStmtBuilder()
-                                        .setReturnExpr(new FieldExprBuilder()
-                                                .setTarget(new NameExpr("this"))
-                                                .setAccessExpr(new NameExpr(fd.toString()))
-                                                .createFieldExpr()
-                                        )
-                                        .createReturnStmt()
+                .setMods(new Vector<>(new Modifier(Mods.PUBLIC)))
+                .setName("get_"+fd)
+                .setParams(new Vector<>())
+                .setReturnType(fd.type())
+                .setBlockStmt(
+                    new BlockStmtBuilder()
+                        .addStmt(
+                            new ReturnStmtBuilder()
+                                .setReturnExpr(new FieldExprBuilder()
+                                        .setTarget(new NameExpr("this"))
+                                        .setAccessExpr(new NameExpr(fd.toString()))
+                                        .createFieldExpr()
                                 )
-                                .createBlockStmt()
+                                .createReturnStmt()
                         )
-                        .createMethodDecl();
+                        .createBlockStmt()
+                )
+                .createMethodDecl();
     }
 
     public void visitClassDecl(ClassDecl cd) {
