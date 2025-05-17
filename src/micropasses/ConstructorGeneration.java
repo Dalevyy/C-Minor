@@ -1,6 +1,7 @@
 package micropasses;
 
-import ast.classbody.*;
+import ast.classbody.FieldDecl;
+import ast.classbody.InitDecl;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
 import ast.operators.AssignOp.AssignType;
