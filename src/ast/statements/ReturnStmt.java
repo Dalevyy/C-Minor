@@ -24,4 +24,16 @@ public class ReturnStmt extends Statement {
 
     @Override
     public void visit(Visitor v) { v.visitReturnStmt(this); }
+
+    public static class ReturnStmtBuilder {
+        private Expression expr;
+
+        public ReturnStmtBuilder setReturnExpr(Expression e) {
+            this.expr = e;
+            return this;
+        }
+
+        public ReturnStmt createReturnStmt() { return new ReturnStmt(expr); }
+
+    }
 }
