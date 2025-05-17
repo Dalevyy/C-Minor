@@ -25,7 +25,7 @@ import utilities.Visitor;
  * for all fields declared with the <code>property</code> modifier. This automatically
  * generates a setter,<code> set_x</code>, and a getter, <code>get_x</code> for a field
  * <i>x</i>. We need to make sure this is done prior to name checking or else we will
- * get incorrect scope errors which will cause confusion to the user.
+ * produce incorrect scope errors.
  * @author Daniel Levy
  */
 public class PropertyMethodGeneration extends Visitor {
