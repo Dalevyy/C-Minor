@@ -61,8 +61,8 @@ public class PropertyMethodGeneration extends Visitor {
     }
 
     public MethodDecl createGetter(FieldDecl fd) {
-        BlockStmt b = new BlockStmt();
-        b.addStmt(
+        BlockStmt getterBlock = new BlockStmt();
+        getterBlock.addStmt(
                 new ReturnStmtBuilder()
                         .setReturnExpr(new FieldExprBuilder()
                                 .setTarget(new NameExpr("this"))
@@ -77,7 +77,7 @@ public class PropertyMethodGeneration extends Visitor {
                         .setName("get_"+fd)
                         .setParams(new Vector<>())
                         .setReturnType(fd.type())
-                        .setBlockStmt(b)
+                        .setBlockStmt(getterBlock)
                         .createMethodDecl();
     }
 
