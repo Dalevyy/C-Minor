@@ -591,7 +591,7 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
-        if(fs.condLHS().type.isInt()) {
+        if(fs.condLHS().type.isInt() || fs.condLHS().type.isEnumType()) {
             int LHS = 0, RHS = 0;
             fs.condLHS().visit(this);
             LHS = (int) currValue;
@@ -647,6 +647,9 @@ public class Interpreter extends Visitor {
                 fs.forBlock().visit(this);
             }
             stack = stack.destroyCallFrame();
+        }
+        else {
+
         }
     }
 
@@ -874,7 +877,7 @@ public class Interpreter extends Visitor {
     __________________________________________________________
     */
     public void visitLiteral(Literal li) {
-        if(li.type.isInt()) {
+        if(li.type.isInt() || li.type.isEnumType()) {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
