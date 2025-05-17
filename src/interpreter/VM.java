@@ -112,7 +112,10 @@ public class VM {
                 if(e.getMessage() != null) {
                     if(!e.getMessage().equals("EOF Not Found")) {
                         try { compilationUnit.globalTable.removeName(e.getMessage()); }
-                        catch(Exception e2) { System.out.println(e.getMessage()); }
+                        catch(Exception e2) {
+                            System.out.println(e.getMessage());
+                            e.printStackTrace();
+                        }
                     }
                 }
                 /* Do nothing */
