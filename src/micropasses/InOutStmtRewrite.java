@@ -25,7 +25,7 @@ public class InOutStmtRewrite extends Visitor {
 
     private boolean insideIO = false;
     private final ScopeErrorFactory generateScopeError;
-    private Vector<Expression> exprs;
+    private Vector<Expression> ioExprs;
 
     public InOutStmtRewrite() { generateScopeError = new ScopeErrorFactory(); }
     public InOutStmtRewrite(boolean interpretMode) {
@@ -35,60 +35,52 @@ public class InOutStmtRewrite extends Visitor {
 
     public void visitBinaryExpr(BinaryExpr be) {
         if(insideIO) {
-            if(be.binaryOp().toString().equals("<<") || be.binaryOp().toString().equals(">>")) {
-                if(!be.toString().startsWith("(")) {
-                    be.LHS().visit(this);
-                    if(!be.LHS().isBinaryExpr())
-                        exprs.add(be.LHS());
-                }
-                else { exprs.add(be.LHS()); }
+            switch(be.binaryOp().toString()) {
+                case "<<":
+                case ">>":
+                    if(!be.toString().startsWith("(")) {
+                        be.LHS().visit(this);
+                        if(!be.LHS().isBinaryExpr()) { ioExprs.add(be.LHS()); }
+                    }
+                    else { ioExprs.add(be.LHS()); }
 
-                exprs.add(be.RHS());
+                    ioExprs.add(be.RHS());
+                    break;
+                default:
+                    ioExprs.add(be);
             }
-            else
-                exprs.add(be);
         }
     }
 
     public void visitOutStmt(OutStmt os) {
         insideIO = true;
-        exprs = new Vector<>();
+        ioExprs = new Vector<>();
+        
+        if(os.outExprs().get(0).isBinaryExpr()) {
+            os.removeChild(0);
+            for(Expression e : os.outExprs()) { e.visit(this); }
 
-        if(!os.outExprs().get(0).isBinaryExpr())
-            return;
+            os.setOutExprs(ioExprs);
+            os.addChild(ioExprs);
+        }
 
-        os.removeChild(0);
-        for(Expression e : os.outExprs()) { e.visit(this); }
-
-        os.setOutExprs(exprs);
-        os.addChild(exprs);
         insideIO = false;
     }
 
     public void visitInStmt(InStmt in) {
         insideIO = true;
-        exprs = new Vector<>();
+        ioExprs = new Vector<>();
+        
+        if(in.inExprs().get(0).isBinaryExpr()) {
+            in.removeChild(0);
+            for(Expression e : in.inExprs()) { e.visit(this); }
 
-        // ERROR CHECK #1: If we have a single input expression, then
-        //                 make sure it refers to some name
-        if(!in.inExprs().get(0).isBinaryExpr()) {
-            if(!in.inExprs().get(0).isNameExpr()) {
-                new ErrorBuilder(generateScopeError,this.interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.SCOPE_ERROR_327)
-                        .error();
-            }
-            return;
+            in.setInExprs(ioExprs);
+            in.addChild(ioExprs);
         }
 
-        in.removeChild(0);
-        for(Expression e : in.inExprs()) { e.visit(this); }
-
-        in.setInExprs(exprs);
-        in.addChild(exprs);
-
-        // ERROR CHECK #2: Same as error check #1, make sure each input
-        //                 expression represents a name
+        // ERROR CHECK #1: Each expression in an InStmt has to be a name or else
+        //                 we can not store any input values from the user
         for(Expression e : in.inExprs()) {
             if(!e.isNameExpr()) {
                 new ErrorBuilder(generateScopeError,this.interpretMode)
@@ -97,7 +89,7 @@ public class InOutStmtRewrite extends Visitor {
                         .error();
             }
         }
-
+        
         insideIO = false;
     }
 }
