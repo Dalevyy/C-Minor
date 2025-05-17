@@ -25,8 +25,8 @@ public class MethodDecl extends AST implements NameNode {
     public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         this(new Token(),m,n,null,p,rt,b,false);
     }
-
-    public MethodDecl(Token t, Vector<Modifier> m, Name n, Operator o, Vector<ParamDecl> p, Type rt, BlockStmt b, boolean override) {
+    public MethodDecl(Token t, Vector<Modifier> m, Name n, Operator o, Vector<ParamDecl> p,
+                      Type rt, BlockStmt b, boolean override) {
        super(t);
        this.mods = new Modifiers(m);
        this.methodName = n;
@@ -74,4 +74,39 @@ public class MethodDecl extends AST implements NameNode {
 
     @Override
     public void visit(Visitor v) { v.visitMethodDecl(this); }
+
+    public static class MethodDeclBuilder {
+        public Vector<Modifier> mods;
+        private Name methodName;
+        private Vector<ParamDecl> params;
+        private Type returnType;
+        private BlockStmt block;
+
+        public MethodDeclBuilder setMods(Vector<Modifier> mods) {
+            this.mods = mods;
+            return this;
+        }
+
+        public MethodDeclBuilder setName(String s) {
+            this.methodName = new Name(s);
+            return this;
+        }
+
+        public MethodDeclBuilder setParams(Vector<ParamDecl> pd) {
+            this.params = pd;
+            return this;
+        }
+
+        public MethodDeclBuilder setReturnType(Type rt) {
+            this.returnType = rt;
+            return this;
+        }
+
+        public MethodDeclBuilder setBlockStmt(BlockStmt bs) {
+            this.block = bs;
+            return this;
+        }
+
+        public MethodDecl createMethodDecl() { return new MethodDecl(mods,methodName,params,returnType,block); }
+    }
 }
