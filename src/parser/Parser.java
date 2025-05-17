@@ -50,7 +50,7 @@ public class Parser {
     }
 
     public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
-        this(input,false);
+        this(input,printTokens);
         this.interpretMode = interpretMode;
     }
 
