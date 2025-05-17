@@ -25,7 +25,7 @@ public class VM {
         var fieldRewrite = new FieldRewrite();
         var classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
         var typeChecker = new TypeChecker(compilationUnit.globalTable);
-        var generateConstructor = new GenerateConstructor();
+        var generateConstructor = new ConstructorGeneration();
         var loopKeywordCheck = new LoopKeywordCheck(true);
         var modChecker = new ModifierChecker(compilationUnit.globalTable);
         var interpreter = new Interpreter(compilationUnit.globalTable);

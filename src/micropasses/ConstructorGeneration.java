@@ -13,7 +13,7 @@ import java.util.HashMap;
 /*
 MICROPASS #2 : Constructor Generation after type checking
 */
-public class GenerateConstructor extends Visitor {
+public class ConstructorGeneration extends Visitor {
 
     public void visitClassDecl(ClassDecl cd) {
         SymbolTable declNames = cd.symbolTable;

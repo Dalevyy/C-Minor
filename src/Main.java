@@ -2,7 +2,7 @@
 import java.io.*;
 import ast.*;
 import interpreter.*;
-import micropasses.GenerateConstructor;
+import micropasses.ConstructorGeneration;
 import micropasses.InOutStmtRewrite;
 import parser.*;
 import lexer.*;
@@ -48,7 +48,7 @@ public class Main {
         root.asCompilation().visit(new NameChecker());
 
         root.visitChildren(new TypeChecker());
-        root.visit(new GenerateConstructor());
+        root.visit(new ConstructorGeneration());
 
         root.visitChildren(new ModifierChecker());
     }
