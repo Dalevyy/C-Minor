@@ -916,9 +916,9 @@ public class TypeChecker extends Visitor {
         }
 
         // ERROR CHECK #2: Make sure LHS of condition is a literal
-        if(!fs.condLHS().isLiteral()) {
+        if(!fs.condLHS().isLiteral() && !fs.condLHS().isNameExpr()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fs.loopVar())
+                    .addLocation(fs.condLHS())
                     .addErrorType(MessageType.TYPE_ERROR_437)
                     .addArgs()
                     .error());
@@ -926,7 +926,7 @@ public class TypeChecker extends Visitor {
         fs.condLHS().visit(this);
 
         // ERROR CHECK #3: Make sure RHS of condition is a literal
-        if(!fs.condRHS().isLiteral()) {
+        if(!fs.condRHS().isLiteral() && !fs.condRHS().isNameExpr()) {
             errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fs.condRHS())
                     .addErrorType(MessageType.TYPE_ERROR_439)
@@ -1246,18 +1246,18 @@ public class TypeChecker extends Visitor {
 
         if(localVar.init() == null) {
             Expression defaultValue;
-            if(ld.type().isEnumType()) {
+            if(declaredType.isEnumType()) {
                 TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
                 defaultValue = new NameExpr(customType.asEnumDecl().enumVars().get(0).asVar().toString());
             }
-            else if(ld.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
-            else if(ld.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
-            else if(ld.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
-            else if(ld.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
-            else if(ld.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
-            else if(ld.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
-            else if(ld.type().isListType()) { defaultValue = new ListLiteral(); }
-            else { defaultValue = null; }
+            else if(declaredType.isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(declaredType.isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(declaredType.isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(declaredType.isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(declaredType.isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(declaredType.isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(declaredType.isListType()) { defaultValue = new ListLiteral(); }
+            else { defaultValue = new NewExpr(currentScope.findName(ld.type().toString()).decl().toString()); }
 
             localVar.setInit(defaultValue);
         }
@@ -1266,7 +1266,7 @@ public class TypeChecker extends Visitor {
         localVar.init().visit(this);
 
         if(ld.type().isArrayType() || ld.type().isListType()) {
-            localVar.setType(ld.type());
+            localVar.setType(declaredType);
             currentContext = oldContext;
             return;
         }
@@ -1281,7 +1281,7 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        localVar.setType(ld.type());
+        localVar.setType(declaredType);
         currentContext = oldContext;
     }
 
