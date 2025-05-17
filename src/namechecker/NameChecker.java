@@ -322,6 +322,16 @@ public class NameChecker extends Visitor {
     */
     public void visitFieldExpr(FieldExpr fe) {
         if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
+
+        if(fe.accessExpr().isFieldExpr()) { fe.accessExpr().visit(this); }
+        else if(!(fe.accessExpr().isNameExpr()
+                || fe.accessExpr().isInvocation()
+                || fe.accessExpr().isArrayExpr())) {
+            new ErrorBuilder(generateScopeError,interpretMode)
+                    .addLocation(fe)
+                    .addErrorType(MessageType.SCOPE_ERROR_330)
+                    .error();
+        }
     }
 
     /*
