@@ -20,7 +20,7 @@ public class VM {
 
         var treePrinter = new Printer();
         var ioRewrite = new InOutStmtRewrite(true);
-        var generatePropertyMethods = new GeneratePropertyMethods();
+        var generatePropertyMethods = new PropertyMethodGeneration();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
         var fieldRewrite = new FieldRewrite();
         var fieldCheck = new ValidFieldExprCheck(true);

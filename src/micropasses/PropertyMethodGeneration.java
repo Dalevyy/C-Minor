@@ -19,7 +19,7 @@ import utilities.Visitor;
     denoted with the `property` modifier. This will be done before
     name checking to ensure we know a field has a valid getter/setter.
 */
-public class GeneratePropertyMethods extends Visitor {
+public class PropertyMethodGeneration extends Visitor {
 
     // This method is responsible for creating a setter for the field
     // A setter will just be a MethodDecl with an AssignStmt
