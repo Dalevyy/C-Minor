@@ -46,4 +46,21 @@ public class Literal extends Expression {
 
     @Override
     public void visit(Visitor v) { v.visitLiteral(this); }
+
+    public static class LiteralBuilder {
+        private ConstantKind kind;
+        private String value;
+
+        public LiteralBuilder setConstantKind(ConstantKind ck) {
+            this.kind = ck;
+            return this;
+        }
+
+        public LiteralBuilder setValue(String s) {
+            this.value = s;
+            return this;
+        }
+
+        public Literal createLiteral() { return new Literal(kind,value); }
+    }
 }
