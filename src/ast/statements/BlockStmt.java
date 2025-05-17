@@ -16,7 +16,7 @@ public class BlockStmt extends Statement {
     }
 
     public BlockStmt(Vector<Statement> s) { this(new Token(),new Vector<>(),s); }
-
+    public BlockStmt(Vector<LocalDecl> ld, Vector<Statement> s) { this(new Token(),ld,s); }
     public BlockStmt(Token t, Vector<LocalDecl> vd, Vector<Statement> s) {
         super(t);
         this.decls = vd;
@@ -38,4 +38,20 @@ public class BlockStmt extends Statement {
 
     @Override
     public void visit(Visitor v) { v.visitBlockStmt(this); }
+
+    public static class BlockStmtBuilder {
+        private final BlockStmt bs = new BlockStmt(new Vector<>(),new Vector());
+
+        public BlockStmtBuilder addDecl(LocalDecl ld) {
+            bs.addDecl(new Vector<>(ld));
+            return this;
+        }
+
+        public BlockStmtBuilder addStmt(Statement s) {
+            bs.addStmt(s);
+            return this;
+        }
+
+        public BlockStmt createBlockStmt() { return bs; }
+    }
 }
