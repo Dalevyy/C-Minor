@@ -3,7 +3,7 @@ import java.io.*;
 import ast.*;
 import interpreter.*;
 import micropasses.GenerateConstructor;
-import micropasses.OutputInputRewrite;
+import micropasses.InOutStmtRewrite;
 import parser.*;
 import lexer.*;
 import modifierchecker.ModifierChecker;
@@ -36,7 +36,7 @@ public class Main {
         Lexer lexer = new Lexer(program);
         Parser parser = new Parser(lexer,printTokens);
         AST root = parser.compilation();
-        root.visit(new OutputInputRewrite());
+        root.visit(new InOutStmtRewrite());
 
         if(printParseTree)
             root.visit(new Printer());

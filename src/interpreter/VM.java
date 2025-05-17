@@ -19,7 +19,7 @@ public class VM {
         Compilation compilationUnit = new Compilation();
 
         var treePrinter = new Printer();
-        var ioRewrite = new OutputInputRewrite(true);
+        var ioRewrite = new InOutStmtRewrite(true);
         var generatePropertyMethods = new GeneratePropertyMethods();
         var nameChecker = new NameChecker(compilationUnit.globalTable);
         var fieldRewrite = new FieldRewrite();

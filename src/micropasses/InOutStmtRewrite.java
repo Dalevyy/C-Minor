@@ -21,14 +21,14 @@ import utilities.Visitor;
 
 */
 
-public class OutputInputRewrite extends Visitor {
+public class InOutStmtRewrite extends Visitor {
 
     private boolean insideIO = false;
     private final ScopeErrorFactory generateScopeError;
     private Vector<Expression> exprs;
 
-    public OutputInputRewrite() { generateScopeError = new ScopeErrorFactory(); }
-    public OutputInputRewrite(boolean interpretMode) {
+    public InOutStmtRewrite() { generateScopeError = new ScopeErrorFactory(); }
+    public InOutStmtRewrite(boolean interpretMode) {
         this();
         this.interpretMode = interpretMode;
     }
