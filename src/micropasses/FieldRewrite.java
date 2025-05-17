@@ -17,7 +17,7 @@ import utilities.Visitor;
  * <code>NameExpr</code> refers to a field since during execution, we have to
  * be able to evaluate the value of the field based on the current object. This
  * will be done by setting the target to be <code>this</code> when we generate
- * the replacement <code>FieldExpr</code> node.
+ * the replacement <code>FieldExpr</code>
  * @author Daniel Levy
  */
 public class FieldRewrite extends Visitor {
