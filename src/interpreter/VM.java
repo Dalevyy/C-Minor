@@ -3,6 +3,8 @@ package interpreter;
 import java.io.*;
 import ast.*;
 import ast.misc.Compilation;
+import ast.misc.Var;
+import ast.topleveldecls.EnumDecl;
 import lexer.Lexer;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
@@ -10,6 +12,7 @@ import namechecker.NameChecker;
 import parser.Parser;
 import typechecker.TypeChecker;
 import utilities.Printer;
+import utilities.SymbolTable;
 import utilities.Vector;
 
 public class VM {
@@ -77,6 +80,7 @@ public class VM {
                 }
             }
             Vector<? extends AST> nodes;
+            AST currNode = null;
             try {
                 var lexer = new Lexer(program.toString());
                 var parser = new Parser(lexer,tokenPrint,true);
@@ -84,6 +88,7 @@ public class VM {
                 nodes = parser.nextNode();
 
                 for(AST node : nodes) {
+                    currNode = node;
                     node.visit(ioRewrite);
                     if(treePrint) { node.visit(treePrinter); }
                     node.visit(generatePropertyMethods);
@@ -110,15 +115,23 @@ public class VM {
             catch(Exception e) {
                 if(e.getMessage() != null) {
                     if(!e.getMessage().equals("EOF Not Found")) {
-                        try { compilationUnit.globalTable.removeName(e.getMessage()); }
+                        try {
+                            compilationUnit.globalTable.removeName(e.getMessage());
+                            if(currNode.isTopLevelDecl() && currNode.asTopLevelDecl().isEnumDecl()) {
+                                removeEnumDecl(currNode.asTopLevelDecl().asEnumDecl(), compilationUnit.globalTable);
+                            }
+                        }
                         catch(Exception e2) {
                             System.out.println(e.getMessage());
                             e.printStackTrace();
                         }
                     }
                 }
-                /* Do nothing */
             }
         }
+    }
+
+    private static void removeEnumDecl(EnumDecl ed, SymbolTable st) {
+        for(Var constant : ed.constants()) { st.removeName(constant.toString()); }
     }
 }
