@@ -1,6 +1,6 @@
 package ast.types;
 
-import ast.Name;
+import ast.misc.Name;
 import utilities.Visitor;
 
 public class EnumType extends DiscreteType {

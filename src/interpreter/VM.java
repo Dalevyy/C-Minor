@@ -2,6 +2,7 @@ package interpreter;
 
 import java.io.*;
 import ast.*;
+import ast.misc.Compilation;
 import lexer.Lexer;
 import micropasses.*;
 import modifierchecker.ModifierChecker;

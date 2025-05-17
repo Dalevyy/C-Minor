@@ -1,6 +1,7 @@
-package ast;
+package ast.misc;
 
-import ast.Modifier.Mods;
+import ast.*;
+import ast.misc.Modifier.Mods;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;

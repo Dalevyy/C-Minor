@@ -1,6 +1,6 @@
 package ast.topleveldecls;
 
-import ast.*;
+import ast.misc.ParamDecl;
 import ast.statements.*;
 import ast.types.*;
 import token.*;

@@ -1,6 +1,7 @@
 package utilities;
 
-import ast.*;
+import ast.misc.NameNode;
+
 import java.util.HashMap;
 import java.util.HashSet;
 

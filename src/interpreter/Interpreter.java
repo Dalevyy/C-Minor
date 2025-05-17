@@ -3,6 +3,8 @@ package interpreter;
 import ast.*;
 import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.Type;

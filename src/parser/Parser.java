@@ -1,8 +1,9 @@
 package parser;
 
 import ast.*;
-import ast.Typeifier.*;
-import ast.Modifier.*;
+import ast.misc.*;
+import ast.misc.Typeifier.*;
+import ast.misc.Modifier.*;
 import ast.classbody.*;
 import ast.expressions.*;
 import ast.expressions.Literal.*;

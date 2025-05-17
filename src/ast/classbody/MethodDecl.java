@@ -1,6 +1,7 @@
 package ast.classbody;
 
 import ast.*;
+import ast.misc.*;
 import ast.operators.*;
 import ast.statements.*;
 import ast.types.*;

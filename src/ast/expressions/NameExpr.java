@@ -1,6 +1,6 @@
 package ast.expressions;
 
-import ast.*;
+import ast.misc.Name;
 import token.*;
 import utilities.Visitor;
 

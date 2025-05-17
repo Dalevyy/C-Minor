@@ -1,6 +1,6 @@
 package ast.types;
 
-import ast.*;
+import ast.misc.Name;
 import token.*;
 import utilities.Vector;
 import utilities.Visitor;
