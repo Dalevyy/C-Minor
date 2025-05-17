@@ -1,26 +1,29 @@
 package micropasses;
 
-import ast.*;
 import ast.expressions.FieldExpr;
+import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
 import ast.topleveldecls.ClassDecl;
+import utilities.SymbolTable;
 import utilities.Visitor;
 
 public class FieldRewrite extends Visitor {
 
-    private ClassDecl currClass;
+    private SymbolTable currentScope;
 
     public void visitClassDecl(ClassDecl cd) {
-        currClass = cd;
+        currentScope = cd.symbolTable;
         super.visitClassDecl(cd);
-        currClass = null;
+        currentScope = currentScope.closeScope();
     }
 
     public void visitNameExpr(NameExpr ne) {
-        if(currClass.symbolTable.hasNameSomewhere(ne.toString())) {
-            NameNode name = currClass.symbolTable.findName(ne.toString());
-            if(name.decl().isFieldDecl()) {
-                FieldExpr fe = new FieldExpr(new NameExpr("this"), ne);
+        if(currentScope.hasNameSomewhere(ne.toString())) {
+            if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+                FieldExpr fe = new FieldExprBuilder()
+                                        .setTarget(new NameExpr("this"))
+                                        .setAccessExpr(ne)
+                                        .createFieldExpr();
                 fe.copy(ne);
                 fe.setParent();
             }
