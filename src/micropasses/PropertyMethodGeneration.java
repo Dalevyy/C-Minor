@@ -1,17 +1,16 @@
 package micropasses;
 
-import ast.ParamDecl;
-import ast.ParamDecl.ParamDeclBuilder;
-import ast.expressions.FieldExpr.FieldExprBuilder;
-import ast.expressions.NameExpr;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.classbody.MethodDecl.MethodDeclBuilder;
+import ast.expressions.FieldExpr.FieldExprBuilder;
+import ast.expressions.NameExpr;
 import ast.Modifier;
 import ast.Modifier.Mods;
 import ast.operators.AssignOp.AssignType;
+import ast.ParamDecl.ParamDeclBuilder;
 import ast.statements.AssignStmt.AssignStmtBuilder;
-import ast.statements.BlockStmt;
+import ast.statements.BlockStmt.BlockStmtBuilder;
 import ast.statements.ReturnStmt.ReturnStmtBuilder;
 import ast.topleveldecls.ClassDecl;
 import ast.types.VoidType;
@@ -31,53 +30,55 @@ import utilities.Visitor;
 public class PropertyMethodGeneration extends Visitor {
 
     public MethodDecl createSetter(FieldDecl fd) {
-        ParamDecl setterParam = new ParamDeclBuilder()
-                                        .setModifier(Mods.IN)
-                                        .setName("param"+fd)
-                                        .setType(fd.type())
-                                        .createParamDecl();
-
-        BlockStmt setterBlock = new BlockStmt();
-        setterBlock.addStmt(
-                new AssignStmtBuilder()
-                        .setLHS(
-                            new FieldExprBuilder()
-                                    .setTarget(new NameExpr("this"))
-                                    .setAccessExpr(new NameExpr(fd.toString()))
-                                    .createFieldExpr()
-                        )
-                        .setRHS(new NameExpr("param"+fd))
-                        .setAssignOp(AssignType.EQ)
-                        .createAssignStmt()
-        );
-
         return new MethodDeclBuilder()
-                        .setMods(new Vector<>(new Modifier(Mods.PUBLIC)))
-                        .setName("set_"+fd)
-                        .setParams(new Vector<>(setterParam))
-                        .setReturnType(new VoidType())
-                        .setBlockStmt(setterBlock)
-                        .createMethodDecl();
+                .setMods(new Vector<>(new Modifier(Mods.PUBLIC)))
+                .setName("set_"+fd)
+                .setParams(new Vector<>(
+                    new ParamDeclBuilder()
+                        .setModifier(Mods.IN)
+                        .setName("param"+fd)
+                        .setType(fd.type())
+                        .createParamDecl())
+                )
+                .setReturnType(new VoidType())
+                .setBlockStmt(
+                    new BlockStmtBuilder()
+                        .addStmt(
+                            new AssignStmtBuilder()
+                                .setLHS(
+                                    new FieldExprBuilder()
+                                            .setTarget(new NameExpr("this"))
+                                            .setAccessExpr(new NameExpr(fd.toString()))
+                                            .createFieldExpr()
+                                )
+                                .setRHS(new NameExpr("param"+fd))
+                                .setAssignOp(AssignType.EQ)
+                                .createAssignStmt()
+                        )
+                        .createBlockStmt()
+                )
+                .createMethodDecl();
     }
 
     public MethodDecl createGetter(FieldDecl fd) {
-        BlockStmt getterBlock = new BlockStmt();
-        getterBlock.addStmt(
-                new ReturnStmtBuilder()
-                        .setReturnExpr(new FieldExprBuilder()
-                                .setTarget(new NameExpr("this"))
-                                .setAccessExpr(new NameExpr(fd.toString()))
-                                .createFieldExpr()
-                        )
-                        .createReturnStmt()
-        );
-
         return new MethodDeclBuilder()
                         .setMods(new Vector<>(new Modifier(Mods.PUBLIC)))
                         .setName("get_"+fd)
                         .setParams(new Vector<>())
                         .setReturnType(fd.type())
-                        .setBlockStmt(getterBlock)
+                        .setBlockStmt(
+                            new BlockStmtBuilder()
+                                .addStmt(
+                                    new ReturnStmtBuilder()
+                                        .setReturnExpr(new FieldExprBuilder()
+                                                .setTarget(new NameExpr("this"))
+                                                .setAccessExpr(new NameExpr(fd.toString()))
+                                                .createFieldExpr()
+                                        )
+                                        .createReturnStmt()
+                                )
+                                .createBlockStmt()
+                        )
                         .createMethodDecl();
     }
 
