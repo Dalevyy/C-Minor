@@ -877,11 +877,11 @@ public class Interpreter extends Visitor {
     __________________________________________________________
     */
     public void visitLiteral(Literal li) {
-        if(li.type.isInt() || li.type.isEnumType()) {
+        if(li.type.isInt() || (li.type.isEnumType() && li.type.asEnumType().constantType().isInt())) {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) {
+        else if(li.type.isChar() || (li.type.isEnumType() && li.type.asEnumType().constantType().isChar())) {
             if(li.text.charAt(1) == '\\') { currValue = li.text.substring(1,3); }
             else { currValue = li.text.charAt(1); }
         }
