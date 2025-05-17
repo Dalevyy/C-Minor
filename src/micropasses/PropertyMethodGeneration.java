@@ -18,13 +18,16 @@ import ast.types.VoidType;
 import utilities.Vector;
 import utilities.Visitor;
 
-/*
-    Micropass #2: Generating Class Property Methods
-
-    This micropass will create a getter and a setter for all fields
-    denoted with the `property` modifier. This will be done before
-    name checking to ensure we know a field has a valid getter/setter.
-*/
+/**
+ * Micropass #2
+ * <br><br>
+ * Before we start name checking, we need to generate <code>MethodDecl</code> nodes
+ * for all fields declared with the <code>property</code> modifier. This automatically
+ * generates a setter,<code> set_x</code>, and a getter, <code>get_x</code> for a field
+ * <i>x</i>. We need to make sure this is done prior to name checking or else we will
+ * get incorrect scope errors which will cause confusion to the user.
+ * @author Daniel Levy
+ */
 public class PropertyMethodGeneration extends Visitor {
 
     public MethodDecl createSetter(FieldDecl fd) {
