@@ -24,15 +24,35 @@ public abstract class Error extends Message {
         System.out.println(sb);
 
         if(!interpretMode) { System.exit(1); }
-        else {
-            if(this.location().isStatement()) {
-                if(this.location().asStatement().isLocalDecl()) {
-                    throw new RuntimeException(this.location().asStatement().asLocalDecl().var().toString());
-                }
-            }
-            throw new RuntimeException();
+        // If we are running the interpreter and have an error with a statement, then we want to throw an exception
+        // with the statement's name. If the error is **NOT** related to redeclaration, then we want to remove the
+        // statement from our symbol table
+        if(this.location().isParamDecl() && this.errorType() != MessageType.SCOPE_ERROR_304) {
+            throw new RuntimeException(this.location().toString());
         }
-        return sb.toString();
+        else if(this.location().isTopLevelDecl()) {
+            if(this.location.asTopLevelDecl().isEnumDecl() && this.errorType() != MessageType.SCOPE_ERROR_305) {
+                throw new RuntimeException(this.location().toString());
+            }
+            else if(this.location.asTopLevelDecl().isClassDecl() && this.errorType() != MessageType.SCOPE_ERROR_316) {
+                throw new RuntimeException(this.location().toString());
+            }
+            else if(this.location.asTopLevelDecl().isGlobalDecl() && this.errorType() != MessageType.SCOPE_ERROR_302) {
+                throw new RuntimeException(this.location().asTopLevelDecl().asGlobalDecl().var().toString());
+            }
+            else if(this.location.asTopLevelDecl().isFuncDecl()
+                    && this.errorType() != MessageType.SCOPE_ERROR_311
+                    && this.errorType() != MessageType.SCOPE_ERROR_312) {
+                throw new RuntimeException(this.location().toString());
+            }
+        }
+        else if(this.location().isStatement()) {
+            if(this.location().asStatement().isLocalDecl() && this.errorType() != MessageType.SCOPE_ERROR_300) {
+                throw new RuntimeException(this.location().asStatement().asLocalDecl().var().toString());
+            }
+        }
+        
+        throw new RuntimeException();
     }
 
     private String buildError() {

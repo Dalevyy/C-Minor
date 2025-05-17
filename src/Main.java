@@ -2,13 +2,13 @@
 import java.io.*;
 import ast.*;
 import interpreter.*;
-import micropasses.GenerateConstructor;
-import micropasses.OutputInputRewrite;
+import micropasses.ConstructorGeneration;
+import micropasses.InOutStmtRewrite;
 import parser.*;
 import lexer.*;
-import modifier_checker.ModifierChecker;
-import name_checker.NameChecker;
-import type_checker.TypeChecker;
+import modifierchecker.ModifierChecker;
+import namechecker.NameChecker;
+import typechecker.TypeChecker;
 import utilities.*;
 
 public class Main {
@@ -36,7 +36,7 @@ public class Main {
         Lexer lexer = new Lexer(program);
         Parser parser = new Parser(lexer,printTokens);
         AST root = parser.compilation();
-        root.visit(new OutputInputRewrite());
+        root.visit(new InOutStmtRewrite());
 
         if(printParseTree)
             root.visit(new Printer());
@@ -48,7 +48,7 @@ public class Main {
         root.asCompilation().visit(new NameChecker());
 
         root.visitChildren(new TypeChecker());
-        root.visit(new GenerateConstructor());
+        root.visit(new ConstructorGeneration());
 
         root.visitChildren(new ModifierChecker());
     }

@@ -1,18 +1,19 @@
 package interpreter;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
+import ast.types.Type;
 import messages.*;
 import messages.errors.ErrorBuilder;
 import messages.errors.runtime_error.RuntimeErrorFactory;
 import utilities.*;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.math.BigDecimal;
 
@@ -21,7 +22,8 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
-    private RuntimeErrorFactory generateRuntimeError;
+    private final RuntimeErrorFactory generateRuntimeError;
+    private boolean inAssignStmt;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
@@ -63,7 +65,15 @@ public class Interpreter extends Visitor {
             index += currOffset;
         }
 
-        currValue = arr.get(index);
+        if(index < 0 || index >= arr.size()) {
+            new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ae)
+                    .addErrorType(MessageType.RUNTIME_ERROR_602)
+                    .error();
+        }
+
+        if(inAssignStmt) { currValue = new Vector<>(new Object[]{arr,index}); }
+        else { currValue = arr.get(index); }
     }
 
     /*
@@ -94,7 +104,6 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitAssignStmt(AssignStmt as) {
-        as.LHS().visit(this);
         String name = as.LHS().toString();
 
         as.RHS().visit(this);
@@ -102,7 +111,57 @@ public class Interpreter extends Visitor {
 
         String aOp = as.assignOp().toString();
 
-        if(as.LHS().isArrayExpr()) { return; }
+        if(as.LHS().isArrayExpr()) {
+            inAssignStmt = true;
+            as.LHS().visit(this);
+            Vector<Object> arr = (Vector) ((Vector)currValue).get(0);
+            int index = (int) ((Vector)currValue).get(1);
+            switch(aOp) {
+                case "=": {
+                    arr.set(index, newValue);
+                    break;
+                }
+                case "+=":
+                case "-=":
+                case "*=":
+                case "/=":
+                case "%=":
+                case "**=": {
+                    if (as.RHS().type.isInt()) {
+                        int oldVal = (int) arr.get(index);
+                        int val = (int) newValue;
+                        switch (aOp) {
+                            case "+=" -> arr.set(index, oldVal + val);
+                            case "-=" -> arr.set(index, oldVal - val);
+                            case "*=" -> arr.set(index, oldVal * val);
+                            case "/=" -> arr.set(index, oldVal / val);
+                            case "%=" -> arr.set(index, oldVal % val);
+                            case "**=" -> arr.set(index, Math.pow(oldVal, val));
+                        }
+                        break;
+                    } else if (as.RHS().type.isReal()) {
+                        BigDecimal oldVal = (BigDecimal) arr.get(index);
+                        BigDecimal val = (BigDecimal) newValue;
+                        switch (aOp) {
+                            case "+=" -> arr.set(index, oldVal.add(val));
+                            case "-=" -> arr.set(index, oldVal.subtract(val));
+                            case "*=" -> arr.set(index, oldVal.multiply(val));
+                            case "/=" -> arr.set(index, oldVal.divide(val));
+                            case "%=" -> arr.set(index, oldVal.remainder(val));
+                            case "**=" -> arr.set(index, oldVal.pow(val.toBigInteger().intValue()));
+                        }
+                        break;
+                    } else if (as.RHS().type.isString()) {
+                        String oldVal = (String) arr.get(index);
+                        String val = (String) newValue;
+                        arr.set(index, oldVal + val);
+                        break;
+                    }
+                }
+            }
+            inAssignStmt = false;
+            return;
+        }
 
         // TODO: Operator Overloads as well
 
@@ -328,10 +387,11 @@ public class Interpreter extends Visitor {
                 }
             }
             case "instanceof":
+                currValue = Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                break;
             case "!instanceof":
-            case "as?": {
-                //TODO: Check class name here
-            }
+                currValue = !Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                break;
         }
     }
 
@@ -495,17 +555,15 @@ public class Interpreter extends Visitor {
         } while ((boolean) currValue);
     }
 
-    /*
-    _________________________ Enum Declarations  _________________________
-    For each field inside an enumeration, we will evaluate its initial
-    value and then store the constant onto the runtime stack.
-    ______________________________________________________________________
-    */
+    /**
+     * When visiting an <code>EnumDecl</code>, we will evaluate each constant
+     * and store the constants into the runtime stack.
+     * @param ed Current enumeration
+     */
     public void visitEnumDecl(EnumDecl ed) {
-        for(int i = 0; i < ed.enumVars().size(); i++) {
-            Var enumConstant = ed.enumVars().get(i);
-            enumConstant.init().visit(this);
-            stack.addValue(enumConstant.toString(),currValue);
+        for(Var constant : ed.constants()) {
+            constant.init().visit(this);
+            stack.addValue(constant.toString(),currValue);
         }
     }
 
@@ -516,9 +574,12 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
-        String objName = fe.fieldTarget().toString();
-        HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
-        currValue = instance.get(fe.name().toString());
+        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
+            String objName = fe.fieldTarget().toString();
+            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+            currValue = instance.get(fe.accessExpr().toString());
+        }
+        else { fe.accessExpr().visit(this); }
     }
 
     /*
@@ -530,36 +591,65 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitForStmt(ForStmt fs) {
-        int LHS = 0, RHS = 0;
+        if(fs.condLHS().type.isInt() || fs.condLHS().type.isEnumType()) {
+            int LHS = 0, RHS = 0;
+            fs.condLHS().visit(this);
+            LHS = (int) currValue;
 
-        fs.condLHS().visit(this);
-        if(fs.condLHS().type.isChar()) {
+            fs.condRHS().visit(this);
+            RHS = (int) currValue;
+
+            switch(fs.loopOp().toString()) {
+                case "<..":
+                    LHS += 1;
+                    break;
+                case "..<":
+                    RHS -= 1;
+                    break;
+                case "<..<":
+                    LHS += 1;
+                    RHS -= 1;
+                    break;
+            }
+            stack = stack.createCallFrame();
+            stack.addValue(fs.loopVar().toString(),LHS);
+            for(int i = LHS; i <= RHS; i++) {
+                stack.setValue(fs.loopVar().toString(),i);
+                fs.forBlock().visit(this);
+            }
+            stack = stack.destroyCallFrame();
+        }
+        else if(fs.condRHS().type.isChar()) {
+            char LHS = 0, RHS = 0;
+            fs.condLHS().visit(this);
             LHS = (char) currValue;
+
+            fs.condRHS().visit(this);
+            RHS = (char) currValue;
+
+            switch(fs.loopOp().toString()) {
+                case "<..":
+                    LHS += 1;
+                    break;
+                case "..<":
+                    RHS -= 1;
+                    break;
+                case "<..<":
+                    LHS += 1;
+                    RHS -= 1;
+                    break;
+            }
+
+            stack = stack.createCallFrame();
+            stack.addValue(fs.loopVar().toString(),LHS);
+            for(char i = LHS; i <= RHS; i++) {
+                stack.setValue(fs.loopVar().toString(),i);
+                fs.forBlock().visit(this);
+            }
+            stack = stack.destroyCallFrame();
         }
-        else { LHS = (int) currValue; }
+        else {
 
-        fs.condRHS().visit(this);
-        if(fs.condRHS().type.isChar()) { RHS = (char) currValue; }
-        else { RHS = (int) currValue; }
-
-        switch(fs.loopOp().toString()) {
-            case "<..":
-                LHS += 1;
-                break;
-            case "..<":
-                RHS -= 1;
-                break;
-            case "<..<":
-                LHS += 1;
-                RHS -= 1;
-                break;
-        }
-
-        stack.addValue(fs.loopVar().toString(),(char)LHS);
-
-        for(int i = LHS; i <= RHS; i++) {
-            stack.setValue(fs.loopVar().toString(),i);
-            fs.forBlock().visit(this);
         }
     }
 
@@ -586,11 +676,15 @@ public class Interpreter extends Visitor {
         is.condition().visit(this);
         if((boolean)currValue) { is.ifBlock().visit(this); }
         else if(is.elifStmts().size() > 0){
-            for(IfStmt e : is.elifStmts()) {
+            for(int i = 0; i < is.elifStmts().size(); i++) {
+                IfStmt e = is.elifStmts().get(i);
                 e.condition().visit(this);
                 if ((boolean) currValue) {
                     e.ifBlock().visit(this);
                     break;
+                }
+                else if(i == is.elifStmts().size()-1 && is.elseBlock() != null) {
+                    is.elseBlock().visit(this);
                 }
             }
         }
@@ -783,17 +877,20 @@ public class Interpreter extends Visitor {
     __________________________________________________________
     */
     public void visitLiteral(Literal li) {
-        if(li.type.isInt()) {
+        if(li.type.isInt() || (li.type.isEnumType() && li.type.asEnumType().constantType().isInt())) {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) { currValue = li.asChar(); }
+        else if(li.type.isChar() || (li.type.isEnumType() && li.type.asEnumType().constantType().isChar())) {
+            if(li.text.charAt(1) == '\\') { currValue = li.text.substring(1,3); }
+            else { currValue = li.text.charAt(1); }
+        }
         else if(li.type.isBool()) { currValue = Boolean.parseBoolean(li.text); }
         else if(li.type.isReal()) {
             if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }
             else { currValue = new BigDecimal(li.text); }
         }
-        else if(li.type.isString()) { currValue = li.text.substring(1,li.text.length()-1); } // Removes quotes
+        else if(li.type.isString()) { currValue = li.text.substring(1,li.text.length()-1); } // Removes single quotes
     }
 
     /*
@@ -819,7 +916,6 @@ public class Interpreter extends Visitor {
         if (ne.getName().toString().equals("this")) { currValue = stack.getValue("this"); }
         else {
             currValue = stack.getValue(ne.toString());
-           // if(stack.getValue("this") )
         }
     }
 
@@ -850,17 +946,16 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitOutStmt(OutStmt os) {
+        boolean endlFound = false;
         for(int i = 0; i < os.outExprs().size(); i++) {
             Expression e = os.outExprs().get(i);
-            if(e.isEndl()) { System.out.println(); }
+            if(e.isEndl()) { System.out.println(); endlFound = true; }
             else {
                 e.visit(this);
-                if(currValue instanceof String && currValue.equals("' '")) // Guess I need this here?
-                    System.out.print(" ");
-                else
-                    System.out.print(currValue);
+                System.out.print(currValue);
             }
         }
+        if(!endlFound) System.out.println();
     }
 
     /*
@@ -929,7 +1024,7 @@ public class Interpreter extends Visitor {
         ws.condition().visit(this);
         while((boolean)currValue) {
             ws.whileBlock().visit(this);
-            if(breakFound) {
+            if(breakFound || returnFound) {
                 breakFound = false;
                 break;
             }

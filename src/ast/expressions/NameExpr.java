@@ -1,15 +1,15 @@
 package ast.expressions;
 
-import ast.*;
+import ast.misc.Name;
 import token.*;
 import utilities.Visitor;
 
 public class NameExpr extends Expression {
 
-    private Name name;
+    private final Name name;
 
+    public NameExpr(String s) { this(new Token(),new Name(s)); }
     public NameExpr(Name n) { this(new Token(),n); }
-
     public NameExpr(Token t, Name n) {
         super(t);
         this.name = n;

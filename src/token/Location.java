@@ -1,5 +1,6 @@
 package token;
 
+// Keeps track of a starting and ending position for a token
 public class Location {
 
     public Position start;

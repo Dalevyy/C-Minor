@@ -1,6 +1,5 @@
 package ast.statements;
 
-import ast.*;
 import ast.expressions.*;
 import ast.operators.LoopOp;
 import token.*;
@@ -11,11 +10,11 @@ public class ForStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private LocalDecl loopControlVar;
-    private Expression LHS;
-    private Expression RHS;
-    private LoopOp lOp;
-    private BlockStmt body;
+    private final LocalDecl loopControlVar;
+    private final Expression LHS;
+    private final Expression RHS;
+    private final LoopOp lOp;
+    private final BlockStmt body;
 
     public ForStmt(Token t, LocalDecl ld, Expression LHS, Expression RHS, LoopOp lOp, BlockStmt b) {
         super(t);

@@ -1,22 +1,28 @@
 package ast.statements;
 
 import ast.expressions.*;
-import ast.operators.*;
+import ast.operators.AssignOp;
+import ast.operators.AssignOp.AssignType;
 import token.*;
 import utilities.Visitor;
 
 public class AssignStmt extends Statement {
 
-    private Expression LHS;
-    private Expression RHS;
-    private AssignOp op;
+    private final Expression LHS;
+    private final Expression RHS;
+    private final AssignOp op;
 
-    public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op); }
-    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) {
+    public boolean retyped;
+
+    public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op,false); }
+    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) { this(t,LHS,RHS,op,false); }
+    public AssignStmt(Expression LHS, Expression RHS, AssignOp op, boolean rt) { this(new Token(),LHS,RHS,op,rt); }
+    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op, boolean rt) {
         super(t);
         this.LHS = LHS;
         this.RHS = RHS;
         this.op = op;
+        this.retyped = rt;
 
         addChild(this.LHS);
         addChild(this.RHS);
@@ -33,4 +39,33 @@ public class AssignStmt extends Statement {
 
     @Override
     public void visit(Visitor v) { v.visitAssignStmt(this); }
+
+    public static class AssignStmtBuilder {
+        private Expression LHS;
+        private Expression RHS;
+        private AssignOp op;
+        private boolean retyped = false;
+
+        public AssignStmtBuilder setLHS(Expression LHS) {
+            this.LHS = LHS;
+            return this;
+        }
+
+        public AssignStmtBuilder setRHS(Expression RHS) {
+            this.RHS = RHS;
+            return this;
+        }
+
+        public AssignStmtBuilder setAssignOp(AssignType op) {
+            this.op = new AssignOp(op);
+            return this;
+        }
+
+        public AssignStmtBuilder setRetype() {
+            this.retyped = true;
+            return this;
+        }
+
+        public AssignStmt createAssignStmt() { return new AssignStmt(LHS,RHS,op,retyped); }
+    }
 }

@@ -1,6 +1,6 @@
 package ast.expressions;
 
-import ast.*;
+import ast.misc.Name;
 import ast.types.*;
 import token.*;
 import utilities.Vector;
@@ -11,20 +11,16 @@ public class Invocation extends Expression {
     public Type targetType;
 
     private Expression target;
-    private Name name;
-    private Vector<Expression> args;
+    private final Name name;
+    private final Vector<Expression> args;
 
     private String invokeSignature;
 
-    public Invocation(Token t, Name fn, Vector<Expression> p) { this(t,null, fn, p); }
-
-    public Invocation(Token t, Expression e, Name fn, Vector<Expression> p) {
+    public Invocation(Token t, Name fn, Vector<Expression> p) {
         super(t);
-        this.target = e;
         this.name = fn;
         this.args = p;
 
-        addChild(this.target);
         addChild(this.name);
         addChild(this.args);
         setParent();
@@ -37,7 +33,13 @@ public class Invocation extends Expression {
     public boolean isInvocation() { return true; }
     public Invocation asInvocation() { return this; }
 
-    public void setTarget(Expression e) { if(this.target == null) { this.target = e;} }
+    public void setTarget(Expression e) {
+        if(this.target == null) {
+            this.target = e;
+            addChild(this.target());
+        }
+    }
+
     public void setInvokeSignature(String inSig) { this.invokeSignature = inSig; }
     public String invokeSignature() { return this.invokeSignature; }
 

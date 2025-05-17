@@ -1,6 +1,6 @@
 package ast.statements;
 
-import ast.*;
+import ast.misc.Label;
 import token.*;
 import utilities.*;
 

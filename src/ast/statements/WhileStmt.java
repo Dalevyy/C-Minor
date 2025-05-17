@@ -9,9 +9,9 @@ public class WhileStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private Expression cond;
-    private Statement nextExpr;
-    private BlockStmt whileBlock;
+    private final Expression cond;
+    private final Statement nextExpr;
+    private final BlockStmt whileBlock;
 
     public WhileStmt(Token t, Expression cond, BlockStmt whileBlock) { this(t,cond,null,whileBlock); }
 

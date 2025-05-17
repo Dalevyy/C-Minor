@@ -6,8 +6,8 @@ import utilities.Visitor;
 
 public class UnaryExpr extends Expression {
 
-    private Expression expr;
-    private UnaryOp op;
+    private final Expression expr;
+    private final UnaryOp op;
 
     public UnaryExpr(Token t, Expression expr, UnaryOp op) {
         super(t);

@@ -6,9 +6,9 @@ import utilities.*;
 // Leaf Node
 public class Literal extends Expression {
 
-    public enum ConstantKind { BOOL, INT, CHAR, STR, TEXT, REAL, LIST, ARR }
+    public enum ConstantKind { BOOL, INT, CHAR, STR, TEXT, REAL, LIST, ARR, ENUM }
 
-    private ConstantKind kind;
+    private final ConstantKind kind;
 
     public Literal(ConstantKind ck, String val) {
         this(new Token(), ck);
@@ -46,4 +46,21 @@ public class Literal extends Expression {
 
     @Override
     public void visit(Visitor v) { v.visitLiteral(this); }
+
+    public static class LiteralBuilder {
+        private ConstantKind kind;
+        private String value;
+
+        public LiteralBuilder setConstantKind(ConstantKind ck) {
+            this.kind = ck;
+            return this;
+        }
+
+        public LiteralBuilder setValue(String s) {
+            this.value = s;
+            return this;
+        }
+
+        public Literal createLiteral() { return new Literal(kind,value); }
+    }
 }

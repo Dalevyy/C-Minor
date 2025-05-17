@@ -11,10 +11,10 @@ public class IfStmt extends Statement {
     public SymbolTable symbolTableIfBlock;
     public SymbolTable symbolTableElseBlock;
 
-    private Expression cond;
-    private BlockStmt ifBlock;
-    private Vector<IfStmt> elifStmts;
-    private BlockStmt elseBlock;
+    private final Expression cond;
+    private final BlockStmt ifBlock;
+    private final Vector<IfStmt> elifStmts;
+    private final BlockStmt elseBlock;
 
     public IfStmt(Token t, Expression c, BlockStmt ib) { this(t,c,ib,new Vector<>(),null); }
     public IfStmt(Token t, Expression c, BlockStmt ib, Vector<IfStmt> es) { this(t,c,ib,es,null); }

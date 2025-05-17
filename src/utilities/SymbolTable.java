@@ -1,20 +1,21 @@
 package utilities;
 
-import ast.*;
+import ast.misc.NameNode;
+
 import java.util.HashMap;
 import java.util.HashSet;
 
 // SymbolTable needs to be fixed for imports
 public class SymbolTable {
 
-    private HashMap<String, NameNode> varNames;
-    private HashSet<String> methodNames;
+    private final HashMap<String, NameNode> varNames;
+    private final HashSet<String> methodNames;
     private SymbolTable parent;
     private SymbolTable importParent;
 
     public SymbolTable() {
-        varNames = new HashMap<String, NameNode>();
-        methodNames = new HashSet<String>();
+        varNames = new HashMap<>();
+        methodNames = new HashSet<>();
     }
 
     public SymbolTable(SymbolTable p) {
@@ -79,37 +80,56 @@ public class SymbolTable {
     public SymbolTable openNewScope() { return new SymbolTable(this); }
     public SymbolTable closeScope() { return parent; }
 
-    public String indent(int level) { return "|  ".repeat(level); }
+    public String indent(int level) { return "  ".repeat(level); }
 
     public void addEntries(StringBuilder sb, int level, HashSet<SymbolTable> visited) {
-        sb.append("\n" + level + ". Variable Names");
+        StringBuilder constructs = new StringBuilder();
+        constructs.append("\n" + indent(level+1) + "Top Level Names");
+        sb.append(indent(level+1) + "Variable Names");
         for(var entry : varNames.entrySet()) {
-            sb.append(indent(level+1));
-            sb.append("\nName: " + entry.getKey());
+            sb.append("\n" + indent(level + 1));
+            if (entry.getValue().decl().isStatement()) {
+                sb.append(indent(level + 2) + "Local: " + entry.getKey());
+            }
+            else if (entry.getValue().decl().isTopLevelDecl()) {
+                if (entry.getValue().decl().asTopLevelDecl().isEnumDecl()) {
+                    constructs.append("\n" + indent(level + 2) + "Enum: " + entry.getKey());
+                } else if (entry.getValue().decl().asTopLevelDecl().isGlobalDecl()) {
+                    sb.append("\n" + indent(level + 2) + "Global: " + entry.getKey());
+                } else if (entry.getValue().decl().asTopLevelDecl().isClassDecl()) {
+                    constructs.append("\n" + indent(level + 2) + "Class: " + entry.getKey());
+                } else if (entry.getValue().decl().asTopLevelDecl().isFuncDecl()) {
+                    constructs.append("\n" + indent(level + 2) + "Function: " + entry.getKey());
+                }
+            }
+            else if (entry.getValue().decl().isFieldDecl()) {
+                sb.append(indent(level + 2) + "Field: " + entry.getKey());
+            }
+            else if (entry.getValue().decl().isMethodDecl()) {
+                sb.append(indent(level + 2) + "Method: " + entry.getKey());
+            }
         }
-        sb.append("\n" + level + ". Construct Names");
+        sb.append(constructs);
     }
 
     public String symbolTableToString(HashSet<SymbolTable> visited, int level) {
         StringBuilder sb = new StringBuilder();
         visited.add(this);
-
+        sb.append(indent(level) + "Level " + (level+1) + "\n");
         addEntries(sb,level,visited);
 
-        if(parent != null && !visited.contains(parent))
-            parent.addEntries(sb,level+1,visited);
-        else if(importParent != null && !visited.contains(parent))
-            importParent.addEntries(sb,level+1,visited);
+        if(parent != null && !visited.contains(parent)) { parent.addEntries(sb,level+1,visited); }
+        else if(importParent != null && !visited.contains(parent)) { importParent.addEntries(sb,level+1,visited); }
         return sb.toString();
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        HashSet<SymbolTable> visited = new HashSet<SymbolTable>();
+        HashSet<SymbolTable> visited = new HashSet<>();
         sb.append("____________________________ SYMBOL TABLE ____________________________\n");
         sb.append(symbolTableToString(visited,0));
-        sb.append("______________________________________________________________________\n");
+        sb.append("\n______________________________________________________________________\n");
         return sb.toString();
     }
 }

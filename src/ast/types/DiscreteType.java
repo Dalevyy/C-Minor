@@ -16,7 +16,7 @@ public class DiscreteType extends Type {
     public enum Discretes { INT, CHAR, BOOL, ENUM }
     private static final Vector<String> names = new Vector<>(new String[]{ "Int", "Char", "Bool", "Enum" });
 
-    private final Discretes dType;
+    protected Discretes dType;
 
     public DiscreteType(Discretes d) { this(new Token(),d); }
     public DiscreteType(Token t, Discretes d) {

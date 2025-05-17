@@ -1,6 +1,6 @@
 package ast.types;
 
-import ast.*;
+import ast.misc.Name;
 import token.*;
 import utilities.Vector;
 import utilities.Visitor;
@@ -17,6 +17,7 @@ public class ClassType extends Type {
     private final Name name;
     private final Vector<Type> templateTypes;
 
+    public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
     public ClassType(Token t, Name n) { this(t,n,new Vector<>()); }
     public ClassType(Token t, Name n, Vector<Type> tt) {
@@ -50,7 +51,7 @@ public class ClassType extends Type {
         while(slashLocation != -1) {
             String subClassName = classHierarchy.substring(0,slashLocation);
             if(subClassName.equals(superClassName)) { return true; }
-            classHierarchy = classHierarchy.substring(slashLocation+1,classHierarchy.length());
+            classHierarchy = classHierarchy.substring(slashLocation+1);
         }
 
         return false;

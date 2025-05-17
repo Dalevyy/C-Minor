@@ -1,11 +1,12 @@
 package utilities;
 
 import ast.*;
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.*;
 import ast.operators.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.*;
 
 public class Printer extends Visitor {
@@ -257,7 +258,7 @@ public class Printer extends Visitor {
     }
 
     public void visitNameExpr(NameExpr ne) {
-        System.out.println(printSpaces() + "NameExpr" + debugInfo(ne));
+        System.out.println(printSpaces() + "NameExpr" + debugLines(ne));
         spaces += 2;
         super.visitNameExpr(ne);
         spaces -= 2;
@@ -307,13 +308,6 @@ public class Printer extends Visitor {
         System.out.println(printSpaces() + "UnaryExpr");
         spaces += 2;
         super.visitUnaryExpr(ue);
-        spaces -= 2;
-    }
-
-    public void visitVar(Var v) {
-        System.out.println(printSpaces() + "Var");
-        spaces += 2;
-        super.visitVar(v);
         spaces -= 2;
     }
 

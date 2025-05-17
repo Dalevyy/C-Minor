@@ -1,10 +1,14 @@
 package ast;
 
-import ast.class_body.*;
+import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.Compilation;
+import ast.misc.Name;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.operators.*;
 import ast.statements.*;
-import ast.top_level_decls.*;
+import ast.topleveldecls.*;
 import ast.types.*;
 import token.*;
 import utilities.*;
@@ -52,6 +56,8 @@ public abstract class AST {
         if(node != null) {
             this.text = node.text;
             this.location = node.location;
+            this.parent = node.parent;
+            this.children = node.children;
         }
     }
 
@@ -65,6 +71,13 @@ public abstract class AST {
         this.text = n.text;
         this.location = n.location;
         this.parent = n.parent;
+    }
+
+    public void updateNode(Token t) {
+        this.text = t.getText();
+        this.location = new Location();
+        this.location.start = t.getLocation().start;
+        this.location.end = t.getLocation().end;
     }
 
     public void setParent() {
@@ -93,11 +106,7 @@ public abstract class AST {
     }
 
     public String getStartPosition() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(this.location.start.line);
-        sb.append(".");
-        sb.append(this.location.start.column);
-        return sb.toString();
+        return this.location.start.line + "." + this.location.start.column;
     }
 
     public void printLine() {
@@ -105,7 +114,7 @@ public abstract class AST {
     }
     public String line() { return startLine() + "| " + this.text + "\n"; }
 
-    public boolean isCompliation() { return false; }
+    public boolean isCompilation() { return false; }
     public Compilation asCompilation() { throw new RuntimeException("Expression can not be casted into a Compilation Unit.\n"); }
 
     public boolean isExpression() { return false; }
@@ -147,7 +156,7 @@ public abstract class AST {
         }
         else if(this.isTopLevelDecl()) {
             if(this.asTopLevelDecl().isGlobalDecl()) { return this.asTopLevelDecl().asGlobalDecl().type(); }
-            else if(this.asTopLevelDecl().isEnumDecl()) { return this.asTopLevelDecl().asEnumDecl().constantType(); }
+            else if(this.asTopLevelDecl().isEnumDecl()) { return this.asTopLevelDecl().asEnumDecl().type(); }
             else { return null; }
         }
         else if(this.isFieldDecl()) { return this.asFieldDecl().type(); }
