@@ -560,8 +560,8 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitEnumDecl(EnumDecl ed) {
-        for(int i = 0; i < ed.enumVars().size(); i++) {
-            Var enumConstant = ed.enumVars().get(i);
+        for(int i = 0; i < ed.constants().size(); i++) {
+            Var enumConstant = ed.constants().get(i);
             enumConstant.init().visit(this);
             stack.addValue(enumConstant.toString(),currValue);
         }

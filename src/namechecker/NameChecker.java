@@ -278,8 +278,8 @@ public class NameChecker extends Visitor {
 
         // ERROR CHECK #2) Make sure each constant in the enum has a name
         //                 that hasn't been used elsewhere yet
-        for(int i = 0; i < ed.enumVars().size(); i++) {
-            String constantName = ed.enumVars().get(i).asVar().toString();
+        for(int i = 0; i < ed.constants().size(); i++) {
+            String constantName = ed.constants().get(i).asVar().toString();
             if(currentScope.hasName(constantName)) {
                 errors.add(new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ed)
