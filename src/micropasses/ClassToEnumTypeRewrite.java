@@ -11,7 +11,7 @@ import utilities.SymbolTable;
 import utilities.Visitor;
 
 /**
- * Micropass #6
+ * Micropass #5
  * <br><br>
  * The parser generates a <code>ClassType</code> node when a name is used for a <i>type</i> regardless
  * if the name represents a <i>Class</i> or <i>Enum</i>. This means we have to do a pass to change all
