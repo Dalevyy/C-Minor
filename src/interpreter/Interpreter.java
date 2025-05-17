@@ -554,11 +554,11 @@ public class Interpreter extends Visitor {
             ds.condition().visit(this);
         } while ((boolean) currValue);
     }
-    
+
     /**
      * When visiting an <code>EnumDecl</code>, we will evaluate each constant
      * and store the constants into the runtime stack.
-     * @param ed
+     * @param ed Current enumeration
      */
     public void visitEnumDecl(EnumDecl ed) {
         for(Var constant : ed.constants()) {

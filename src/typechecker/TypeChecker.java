@@ -733,7 +733,7 @@ public class TypeChecker extends Visitor {
      *   each constant. Additionally, we are going to be strict and require the
      *   user to initialize all values of the enumeration if at least one constant
      *   was initialized to a default value.
-     * @param ed
+     * @param ed EnumDecl
      */
     public void visitEnumDecl(EnumDecl ed) {
         // First, we will figure out how many constants were initialized and the first
