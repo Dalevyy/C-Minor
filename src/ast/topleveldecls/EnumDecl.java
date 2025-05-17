@@ -1,23 +1,19 @@
 package ast.topleveldecls;
 
-import ast.*;
+import ast.AST;
 import ast.misc.Name;
 import ast.misc.NameNode;
 import ast.misc.Var;
-import ast.types.*;
+import ast.types.EnumType;
 import token.*;
 import utilities.Vector;
 import utilities.Visitor;
 
-/*
-____________________________ EnumDecl ____________________________
-An EnumDecl is composed of 3 parts:
-    1. A name given to the Enum
-    2. An optional type denoting what type the Enum evaluates to
-    3. A vector of Vars that store the enum values. All Vars
-       will have a name, but have an optional expression.
-__________________________________________________________________
-*/
+/**
+ * This class represents the declaration of an enumeration inside C
+ * Minor
+ * @author Daniel Levy
+ */
 public class EnumDecl extends TopLevelDecl implements NameNode {
 
     private EnumType type;
