@@ -22,7 +22,7 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
-    private RuntimeErrorFactory generateRuntimeError;
+    private final RuntimeErrorFactory generateRuntimeError;
     private boolean inAssignStmt;
     private boolean returnFound;
     private boolean breakFound;
@@ -554,18 +554,16 @@ public class Interpreter extends Visitor {
             ds.condition().visit(this);
         } while ((boolean) currValue);
     }
-
-    /*
-    _________________________ Enum Declarations  _________________________
-    For each field inside an enumeration, we will evaluate its initial
-    value and then store the constant onto the runtime stack.
-    ______________________________________________________________________
-    */
+    
+    /**
+     * When visiting an <code>EnumDecl</code>, we will evaluate each constant
+     * and store the constants into the runtime stack.
+     * @param ed
+     */
     public void visitEnumDecl(EnumDecl ed) {
-        for(int i = 0; i < ed.constants().size(); i++) {
-            Var enumConstant = ed.constants().get(i);
-            enumConstant.init().visit(this);
-            stack.addValue(enumConstant.toString(),currValue);
+        for(Var constant : ed.constants()) {
+            constant.init().visit(this);
+            stack.addValue(constant.toString(),currValue);
         }
     }
 
