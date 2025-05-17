@@ -4,16 +4,21 @@ import ast.*;
 import ast.classbody.*;
 import ast.expressions.*;
 import ast.expressions.Literal.*;
+import ast.expressions.Literal.LiteralBuilder;
+import ast.misc.Name;
+import ast.misc.NameNode;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.*;
 import ast.types.DiscreteType.*;
+import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.ScalarType.*;
 import messages.MessageType;
 import messages.errors.*;
 import messages.errors.scope_error.ScopeErrorFactory;
 import messages.errors.type_error.TypeErrorFactory;
-import token.Token;
 import utilities.*;
 
 public class TypeChecker extends Visitor {
@@ -723,82 +728,94 @@ public class TypeChecker extends Visitor {
         if(ds.nextExpr() != null) { ds.nextExpr().visit(this); }
     }
 
-    /*
-    ___________________________ Enum Declarations ___________________________
-    In C Minor, an enumeration can only store values of type Int and Char for
-    each constant. Additionally, we are going to be strict and require the
-    user to initialize all values of the enumeration if at least one constant
-    was initialized to a default value.
-    _________________________________________________________________________
-    */
+    /**
+     *   In C Minor, an enumeration can only store values of type Int and Char for
+     *   each constant. Additionally, we are going to be strict and require the
+     *   user to initialize all values of the enumeration if at least one constant
+     *   was initialized to a default value.
+     * @param ed EnumDecl
+     */
     public void visitEnumDecl(EnumDecl ed) {
-        Type eType = ed.type();
+        // First, we will figure out how many constants were initialized and the first
+        // initial value of the constant will be used to determine the type of the Enum
+        int constantInitCount = 0;
+        for(Var constant : ed.constants()) {
+            if(constant.init() != null) {
+                constantInitCount++;
+                if(ed.type() == null) {
+                    constant.init().visit(this);
 
-        if(eType == null) {
-            eType = new EnumType(ed.toString(),Discretes.INT);
-            ed.setType(eType);
-        }
-        else {
-            // ERROR CHECK #1: An Enum can only assign values of type Int and Char
-            if(!eType.isInt() && !eType.isChar()) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ed)
-                        .addErrorType(MessageType.TYPE_ERROR_423)
-                        .addArgs(ed.toString(),eType.typeName())
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1411)
-                        .error());
-            }
-            if(eType.isInt()) { ed.setType(new EnumType(ed.toString(),Discretes.INT)); }
-            else { ed.setType(new EnumType(ed.toString(),Discretes.CHAR)); }
-        }
+                    // ERROR CHECK #1: A constant in an Enum can only be assigned Int or Char values
+                    if(!constant.init().type.isInt() && !constant.init().type.isChar()) {
+                        errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ed)
+                                    .addErrorType(MessageType.TYPE_ERROR_423)
+                                    .addArgs(ed.toString(),constant)
+                                    .addSuggestType(MessageType.TYPE_SUGGEST_1411)
+                                    .error()
+                        );
+                    }
 
-        Vector<Var> eFields = ed.constants();
-        int initCount = 0;
-        for(int i = 0; i < eFields.size(); i++) {
-            Var enumVar = eFields.get(i).asVar();
-            Expression varInit = enumVar.init();
-            if (varInit != null) {
-                initCount++;
+                    EnumTypeBuilder typeBuilder = new EnumTypeBuilder().setName(ed.toString());
 
-                // ERROR CHECK #2: Make sure the initial value given to a constant
-                //                 matches the type given to the Enum
-                varInit.visit(this);
-                if(!Type.assignmentCompatible(eType.asEnumType().constantType(),varInit.type)) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(ed)
-                            .addErrorType(MessageType.TYPE_ERROR_424)
-                            .addArgs(enumVar.toString(),varInit.type.typeName(),eType)
-                            .error());
+                    if(constant.init().type.isInt()) { typeBuilder.setConstantType(Discretes.INT); }
+                    else { typeBuilder.setConstantType(Discretes.CHAR); }
+
+                    ed.setType(typeBuilder.createEnumType());
                 }
-                varInit.type = eType;
             }
-            enumVar.setType(eType);
         }
 
-        // ERROR CHECK #3: Check to make sure each constant in the Enum was initialized
-        //                 If we found at least one constant that wasn't initialized, error out
-        if(initCount > 0 && initCount != eFields.size()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+        if(constantInitCount == 0) {
+            // By default, an Enum will have Int constants starting at [1,inf)
+            // if the user did not initialize any of the constant values.
+            ed.setType(
+                new EnumTypeBuilder()
+                        .setName(ed.toString())
+                        .setConstantType(Discretes.INT).
+                        createEnumType()
+            );
+
+            int currValue = 1;
+            for(Var constant : ed.constants()) {
+                constant.setInit(
+                    new LiteralBuilder()
+                            .setConstantKind(ConstantKind.INT)
+                            .setValue(String.valueOf(currValue))
+                            .createLiteral()
+                );
+                currValue++;
+                constant.init().type = ed.type();
+                constant.setType(ed.type());
+            }
+        }
+        // ERROR CHECK #2: Make sure each constant in the Enum was initialized
+        else if(constantInitCount != ed.constants().size()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ed)
                     .addErrorType(MessageType.TYPE_ERROR_425)
-                    .error());
+                    .error()
+            );
         }
+        else {
+            for(Var constant : ed.constants()) {
+                constant.init().visit(this);
 
-        if(initCount == 0) {
-            // ERROR CHECK #4: If the user didn't initialize any of the constants and the
-            //                 type was declared as a 'Char', we are going to output an
-            //                 error since there is no ordering that can be made from Chars.
-            if(eType.isChar()) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ed)
-                        .addErrorType(MessageType.TYPE_ERROR_431)
-                        .addArgs(ed.toString())
-                        .error());
-            }
-            for(int i = 0; i < eFields.size(); i++) {
-                Var v = eFields.get(i);
-                v.setInit(new Literal(new Token(token.TokenType.INT_LIT,String.valueOf(i+1),v.location),ConstantKind.INT));
-                v.init().visit(this);
+                // ERROR CHECK #3: Make sure the initial value given to a
+                //                 constant matches the enum's constant type
+                if(!Type.assignmentCompatible(ed.type().constantType(),constant.init().type)) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ed)
+                            .addErrorType(MessageType.TYPE_ERROR_424)
+                            .addArgs(constant,constant.init().type,ed.type().constantType())
+                            .error()
+                    );
+                }
+                constant.init().type = ed.type();
+                constant.setType(ed.type());
             }
         }
     }

@@ -1,6 +1,10 @@
 package ast.classbody;
 
 import ast.*;
+import ast.misc.Modifier;
+import ast.misc.Modifiers;
+import ast.misc.NameNode;
+import ast.misc.Var;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;

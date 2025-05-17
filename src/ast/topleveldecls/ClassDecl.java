@@ -2,6 +2,10 @@ package ast.topleveldecls;
 
 import ast.*;
 import ast.classbody.*;
+import ast.misc.Modifier;
+import ast.misc.Modifiers;
+import ast.misc.Name;
+import ast.misc.NameNode;
 import ast.types.*;
 import token.*;
 import utilities.*;

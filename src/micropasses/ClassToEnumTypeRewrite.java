@@ -7,6 +7,7 @@ import ast.topleveldecls.GlobalDecl;
 import ast.topleveldecls.TopLevelDecl;
 import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType;
+import ast.types.EnumType.EnumTypeBuilder;
 import utilities.SymbolTable;
 import utilities.Visitor;
 
@@ -33,33 +34,34 @@ public class ClassToEnumTypeRewrite extends Visitor {
 
     public ClassToEnumTypeRewrite(SymbolTable st) { this.currentScope = st; }
 
-    private Discretes findConstantType(EnumDecl ed) {
-        if(ed.type().asEnumType().constantType().isInt()) { return Discretes.INT; }
-        else if(ed.type().asEnumType().constantType().isChar()) { return Discretes.CHAR; }
-        else {
-            if(ed.constants().get(0).type().isInt()) { return Discretes.INT; }
-            else { return Discretes.CHAR; }
-        }
+    private EnumType buildEnumType(EnumDecl ed) {
+        EnumTypeBuilder typeBuilder = new EnumTypeBuilder();
+        if(ed.type().asEnumType().constantType().isInt()) { typeBuilder.setConstantType(Discretes.INT); }
+        else { typeBuilder.setConstantType(Discretes.CHAR); }
+
+        return typeBuilder
+                .setName(ed.toString())
+                .createEnumType();
     }
 
     public void visitFieldDecl(FieldDecl fd) {
         if(fd.type().isClassType()) {
             TopLevelDecl decl = currentScope.findName(fd.type().typeName()).decl().asTopLevelDecl();
-            if(decl.isEnumDecl()) { fd.setType(new EnumType(decl.toString(),findConstantType(decl.asEnumDecl()))); }
+            if(decl.isEnumDecl()) { fd.setType(buildEnumType(decl.asEnumDecl())); }
         }
     }
 
     public void visitGlobalDecl(GlobalDecl gd) {
         if(gd.type().isClassType()) {
             TopLevelDecl decl = currentScope.findName(gd.type().typeName()).decl().asTopLevelDecl();
-            if(decl.isEnumDecl()) { gd.setType(new EnumType(decl.toString(),findConstantType(decl.asEnumDecl()))); }
+            if(decl.isEnumDecl()) { gd.setType(buildEnumType(decl.asEnumDecl()));}
         }
     }
 
     public void visitLocalDecl(LocalDecl ld) {
         if(ld.type().isClassType()) {
             TopLevelDecl decl = currentScope.findName(ld.type().typeName()).decl().asTopLevelDecl();
-            if(decl.isEnumDecl()) { ld.setType(new EnumType(decl.toString(),findConstantType(decl.asEnumDecl()))); }
+            if(decl.isEnumDecl()) { ld.setType(buildEnumType(decl.asEnumDecl())); }
         }
     }
 }

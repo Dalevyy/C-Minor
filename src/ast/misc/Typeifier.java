@@ -1,5 +1,6 @@
-package ast;
+package ast.misc;
 
+import ast.AST;
 import token.*;
 import utilities.*;
 

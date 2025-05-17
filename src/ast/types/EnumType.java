@@ -1,6 +1,6 @@
 package ast.types;
 
-import ast.Name;
+import ast.misc.Name;
 import utilities.Visitor;
 
 public class EnumType extends DiscreteType {
@@ -29,4 +29,21 @@ public class EnumType extends DiscreteType {
 
     @Override
     public void visit(Visitor v) { v.visitEnumType(this); }
+
+    public static class EnumTypeBuilder {
+        private String name;
+        private Discretes constantType;
+
+        public EnumTypeBuilder setName(String s) {
+            this.name = s;
+            return this;
+        }
+
+        public EnumTypeBuilder setConstantType(Discretes d) {
+            this.constantType = d;
+            return this;
+        }
+
+        public EnumType createEnumType() { return new EnumType(name,constantType); }
+    }
 }

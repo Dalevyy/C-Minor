@@ -1,6 +1,8 @@
 package ast.topleveldecls;
 
 import ast.*;
+import ast.misc.NameNode;
+import ast.misc.Var;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;

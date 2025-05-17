@@ -3,6 +3,10 @@ package namechecker;
 import ast.*;
 import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.Compilation;
+import ast.misc.NameNode;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import messages.errors.ErrorBuilder;
@@ -40,8 +44,6 @@ public class NameChecker extends Visitor {
      *          <li>Set Statements</li>
      *          <li>Retype Statements </li>
      *      </ol>
-     *
-     * @param as
      */
     public void visitAssignStmt(AssignStmt as) {
 
@@ -251,43 +253,44 @@ public class NameChecker extends Visitor {
         ds.condition().visit(this);
     }
 
-    /*
-    __________________________ Enum Declarations __________________________
-    An EnumDecl will be the first construct a user can define in a C Minor
-    program. Thus, we want to check if the name bound to an Enum isn't
-    already used by another Enum in the same file OR by some other construct
-    located in an import file.
-
-    Additionally, every constant inside an Enum will become global. Thus,
-    if we have two or more Enums, all their constants need to have different
-    names in order for the program to compile.
-    _______________________________________________________________________
-    */
+    /**
+     * <p>
+     *     An EnumDecl will be the first construct a user can define in a C Minor
+     *     program. Thus, we want to check if the name bound to an Enum isn't
+     *     already used by another Enum in the same file OR by some other construct
+     *     located in an import file.
+     *     <br><br>
+     *     Additionally, every constant inside an Enum will become global. Thus,
+     *     if we have two or more Enums, all their constants need to have different
+     *     names in order for the program to compile.
+     * </p>
+     */
     public void visitEnumDecl(EnumDecl ed) {
-        String enumName = ed.name().toString();
-
         // ERROR CHECK #1) Make sure the Enum name has not been used yet
-        if(currentScope.hasName(enumName)) {
-            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+        if(currentScope.hasName(ed.toString())) {
+            errors.add(
+                new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(ed)
                     .addErrorType(MessageType.SCOPE_ERROR_305)
-                    .addArgs(enumName)
-                    .error());
+                    .addArgs(ed.toString())
+                    .error()
+            );
         }
-        currentScope.addName(enumName,ed);
+        currentScope.addName(ed.toString(),ed);
 
-        // ERROR CHECK #2) Make sure each constant in the enum has a name
-        //                 that hasn't been used elsewhere yet
-        for(int i = 0; i < ed.constants().size(); i++) {
-            String constantName = ed.constants().get(i).asVar().toString();
-            if(currentScope.hasName(constantName)) {
-                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+        // ERROR CHECK #2) Each constant name associated with the current Enum
+        //                 can not have already been used.
+        for(Var constant : ed.constants()) {
+            if(currentScope.hasName(constant.toString())) {
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
                         .addLocation(ed)
                         .addErrorType(MessageType.SCOPE_ERROR_306)
-                        .addArgs(constantName)
-                        .error());
+                        .addArgs(constant.toString())
+                        .error()
+                );
             }
-            currentScope.addName(constantName,ed);
+            currentScope.addName(constant.toString(),ed);
         }
     }
 

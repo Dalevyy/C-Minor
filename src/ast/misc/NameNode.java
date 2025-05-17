@@ -1,4 +1,6 @@
-package ast;
+package ast.misc;
+
+import ast.AST;
 
 /*
 ___________________________ NameNode ___________________________

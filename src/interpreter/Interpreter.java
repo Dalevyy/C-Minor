@@ -3,6 +3,8 @@ package interpreter;
 import ast.*;
 import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.Type;
@@ -20,7 +22,7 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
-    private RuntimeErrorFactory generateRuntimeError;
+    private final RuntimeErrorFactory generateRuntimeError;
     private boolean inAssignStmt;
     private boolean returnFound;
     private boolean breakFound;
@@ -553,17 +555,15 @@ public class Interpreter extends Visitor {
         } while ((boolean) currValue);
     }
 
-    /*
-    _________________________ Enum Declarations  _________________________
-    For each field inside an enumeration, we will evaluate its initial
-    value and then store the constant onto the runtime stack.
-    ______________________________________________________________________
-    */
+    /**
+     * When visiting an <code>EnumDecl</code>, we will evaluate each constant
+     * and store the constants into the runtime stack.
+     * @param ed Current enumeration
+     */
     public void visitEnumDecl(EnumDecl ed) {
-        for(int i = 0; i < ed.constants().size(); i++) {
-            Var enumConstant = ed.constants().get(i);
-            enumConstant.init().visit(this);
-            stack.addValue(enumConstant.toString(),currValue);
+        for(Var constant : ed.constants()) {
+            constant.init().visit(this);
+            stack.addValue(constant.toString(),currValue);
         }
     }
 
@@ -877,11 +877,11 @@ public class Interpreter extends Visitor {
     __________________________________________________________
     */
     public void visitLiteral(Literal li) {
-        if(li.type.isInt() || li.type.isEnumType()) {
+        if(li.type.isInt() || (li.type.isEnumType() && li.type.asEnumType().constantType().isInt())) {
             if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
             else { currValue = Integer.parseInt(li.text); }
         }
-        else if(li.type.isChar()) {
+        else if(li.type.isChar() || (li.type.isEnumType() && li.type.asEnumType().constantType().isChar())) {
             if(li.text.charAt(1) == '\\') { currValue = li.text.substring(1,3); }
             else { currValue = li.text.charAt(1); }
         }

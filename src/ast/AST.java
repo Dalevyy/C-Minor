@@ -2,6 +2,10 @@ package ast;
 
 import ast.classbody.*;
 import ast.expressions.*;
+import ast.misc.Compilation;
+import ast.misc.Name;
+import ast.misc.ParamDecl;
+import ast.misc.Var;
 import ast.operators.*;
 import ast.statements.*;
 import ast.topleveldecls.*;

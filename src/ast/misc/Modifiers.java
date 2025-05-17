@@ -1,4 +1,4 @@
-package ast;
+package ast.misc;
 
 import utilities.Vector;
 
