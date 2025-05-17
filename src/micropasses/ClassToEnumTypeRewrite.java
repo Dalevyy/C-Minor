@@ -10,6 +10,21 @@ import ast.types.EnumType;
 import utilities.SymbolTable;
 import utilities.Visitor;
 
+/**
+ * Micropass #6
+ * <br><br>
+ * The parser generates a <code>ClassType</code> node when a name is used for a <i>type</i> regardless
+ * if the name represents a <i>Class</i> or <i>Enum</i>. This means we have to do a pass to change all
+ * <code>ClassType</code> nodes to be <code>EnumType</code> nodes if the name represents an <i>Enum</i>.
+ * <br><br>
+ * The following is a list of declarations this micropass will run on.
+ * <ol>
+ *     <li><code>FieldDecl</code></li>
+ *     <li><code>GlobalDecl</code></li>
+ *     <li><code>LocalDecl</code></li>
+ * </ol>
+ * @author Daniel Levy
+ */
 public class ClassToEnumTypeRewrite extends Visitor {
 
     private final SymbolTable currentScope;
