@@ -728,14 +728,13 @@ public class TypeChecker extends Visitor {
         if(ds.nextExpr() != null) { ds.nextExpr().visit(this); }
     }
 
-    /*
-    ___________________________ Enum Declarations ___________________________
-    In C Minor, an enumeration can only store values of type Int and Char for
-    each constant. Additionally, we are going to be strict and require the
-    user to initialize all values of the enumeration if at least one constant
-    was initialized to a default value.
-    _________________________________________________________________________
-    */
+    /**
+     *   In C Minor, an enumeration can only store values of type Int and Char for
+     *   each constant. Additionally, we are going to be strict and require the
+     *   user to initialize all values of the enumeration if at least one constant
+     *   was initialized to a default value.
+     * @param ed
+     */
     public void visitEnumDecl(EnumDecl ed) {
         // First, we will figure out how many constants were initialized and the first
         // initial value of the constant will be used to determine the type of the Enum
