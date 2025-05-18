@@ -8,7 +8,7 @@ import utilities.SymbolTable;
 import utilities.Visitor;
 
 /**
- * Micropass #4
+ * Micropass #3
  * <br><br>
  * Once name checking is complete, we want to go back through each class
  * in a C Minor program and make sure all <code>NameExpr</code> nodes that
