@@ -61,6 +61,7 @@ public abstract class Visitor {
     public void visitReturnStmt(ReturnStmt rs) { rs.visitChildren(this); }
     public void visitScalarType(ScalarType st) { st.visitChildren(this); }
     public void visitStopStmt(StopStmt ss) { ss.visitChildren(this); }
+    public void visitThis(This t) { t.visitChildren(this); }
     public void visitTypeifier(Typeifier t) { t.visitChildren(this); }
     public void visitUnaryExpr(UnaryExpr ue) { ue.visitChildren(this); }
     public void visitUnaryOp(UnaryOp uo) { uo.visitChildren(this); }
