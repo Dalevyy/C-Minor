@@ -94,7 +94,7 @@ public class VM {
                     node.visit(generatePropertyMethods);
                     node.visit(nameChecker);
                     if(tablePrint) { System.out.println(compilationUnit.globalTable.toString()); }
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
+                    node.visit(fieldRewrite);
                     node.visit(loopKeywordCheck);
                     node.visit(classToEnum);
                     node.visit(typeChecker);

@@ -31,6 +31,29 @@ public class FieldRewrite extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    public void visitFieldExpr(FieldExpr fe) {
+        if(fe.accessExpr().isFieldExpr()) {
+            FieldExpr LHS = new FieldExprBuilder()
+                                    .setTarget(fe.fieldTarget())
+                                    .setAccessExpr(fe.accessExpr().asFieldExpr().fieldTarget())
+                                    .createFieldExpr();
+
+            FieldExpr curr = fe.accessExpr().asFieldExpr();
+            while(curr.accessExpr().isFieldExpr()) {
+                LHS = new FieldExprBuilder()
+                                        .setTarget(LHS)
+                                        .setAccessExpr(curr.accessExpr().asFieldExpr().fieldTarget())
+                                        .createFieldExpr();
+                curr = curr.accessExpr().asFieldExpr();
+            }
+
+            fe = new FieldExprBuilder()
+                    .setTarget(LHS)
+                    .setAccessExpr(curr.accessExpr())
+                    .createFieldExpr();
+        }
+    }
+
     public void visitNameExpr(NameExpr ne) {
         if(currentScope.hasNameSomewhere(ne.toString())) {
             if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
