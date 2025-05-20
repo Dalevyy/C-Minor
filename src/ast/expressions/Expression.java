@@ -58,6 +58,9 @@ public abstract class Expression extends AST {
     public boolean isOutStmt() { return false; }
     public OutStmt asOutStmt() { throw new RuntimeException("Expression can not be casted into an OutStmt.\n"); }
 
+    public boolean isThis() { return false; }
+    public This asThis() { throw new RuntimeException("Expression can not be casted into a This.\n"); }
+
     public boolean isUnaryExpr() { return false; }
     public UnaryExpr asUnaryExpr() { throw new RuntimeException("Expression can not be casted into a UnaryExpr.\n"); }
 
