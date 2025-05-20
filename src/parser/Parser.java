@@ -1541,7 +1541,7 @@ public class Parser {
         Expression LHS = primaryExpression();
 
         if(inPrimaryExpressionFOLLOW()) {
-            Expression RHS = null;
+            Expression RHS;
             while(inPrimaryExpressionFOLLOW()) {
                 if(nextLA(TokenType.LBRACK)) {
                     Vector<Expression> indices = new Vector<>();
@@ -1579,8 +1579,8 @@ public class Parser {
                     input.setText(tokenStack.top());
                     RHS = new FieldExpr(tokenStack.top(),LHS.asExpression(),expr.asExpression(),nullCheck);
                 }
+                LHS = RHS;
             }
-            LHS = RHS;
         }
 
         nodeToken();
