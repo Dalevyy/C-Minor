@@ -889,13 +889,14 @@ public class TypeChecker extends Visitor {
     */
 
     /**
-     * Evaluates the type of a field expression.
+     * Evaluates the type of a field expression.<br>
      * <p>
-     * The AST for a field expression will be right-leaning, so we have to evaluate
-     * the type of the current target first. We use an external variable called
-     * 'currentTarget' to keep track of the target type in case we have an invocation.
+     * For a field expression, we will first evaluate the target and make sure the
+     * type corresponds to some previously declared class. Then, we will type check
+     * the expression the target is trying to access. We will use <code>currentTarget</code>
+     * to keep track of the target's type if we're trying to perform method invocations.
      * </p>
-     * @param fe
+     * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
