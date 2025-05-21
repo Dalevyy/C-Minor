@@ -30,9 +30,11 @@ public class TypeChecker extends Visitor {
     private final TypeErrorFactory generateTypeError;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
-
     private boolean returnStatementFound = false;
 
+    /**
+     * Constructor for compilation mode
+     */
     public TypeChecker() {
         this.currentScope = null;
         this.currentContext = null;
@@ -42,10 +44,36 @@ public class TypeChecker extends Visitor {
         this.errors = new Vector<>();
     }
 
+    /**
+     * Constructor for interpretation mode
+     * @param st Symbol Table
+     */
     public TypeChecker(SymbolTable st) {
         this();
         this.currentScope = st;
         this.interpretMode = true;
+    }
+
+    /**
+     * Sets a default value for a variable if no initial value was given.
+     * @param varType Variable Type
+     * @return Expression
+     */
+    private Expression setDefaultValue(Type varType) {
+        Expression init;
+        if(varType.isInt()) { init = new Literal(ConstantKind.INT, "0"); }
+        else if(varType.isChar()) { init = new Literal(ConstantKind.CHAR, ""); }
+        else if(varType.isBool()) { init = new Literal(ConstantKind.BOOL, "False"); }
+        else if(varType.isReal()) { init = new Literal(ConstantKind.REAL, "0.0"); }
+        else if(varType.isString()) { init = new Literal(ConstantKind.STR, ""); }
+        else if(varType.isEnumType()){
+            EnumDecl ed = currentScope.findName(varType.toString()).decl().asTopLevelDecl().asEnumDecl();
+            init = new NameExpr(ed.constants().get(0).toString());
+        }
+        else { return null; }
+
+        init.visit(this);
+        return init;
     }
 
     /*
@@ -199,41 +227,53 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: Make sure the target represents an array
         if(!ae.arrayTarget().type.isArrayType()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(ae)
-                    .addErrorType(MessageType.TYPE_ERROR_434)
-                    .addArgs(ae.arrayTarget().toString())
-                    .error());
-        }
-
-        ArrayType targetType = currentScope.findName(ae.arrayTarget().toString()).decl().getType().asArrayType();
-
-        // ERROR CHECK #2: Make sure the number of indices matches the
-        //                 number of dimensions for the array
-        if(targetType.numOfDims != ae.arrayIndex().size()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(ae)
-                    .addErrorType(MessageType.TYPE_ERROR_448)
-                    .addArgs(ae.arrayTarget().toString(),targetType.numOfDims,ae.arrayIndex().size())
-                    .error());
-        }
-
-        for(int i = 0; i < ae.arrayIndex().size(); i++) {
-            Expression currIndex = ae.arrayIndex().get(i);
-            currIndex.visit(this);
-
-            // ERROR CHECK #3: For each index, make sure the value
-            //                 evaluates to be an Int
-            if(!currIndex.type.isInt()) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_430)
-                        .addArgs(currIndex.type)
-                        .error());
+                        .addErrorType(MessageType.TYPE_ERROR_434)
+                        .addArgs(ae.arrayTarget().toString())
+                        .error()
+            );
+        }
+
+        ArrayType at;
+        if(currentTarget != null) {
+            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            at = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
+        }
+        else {
+            at = currentScope.findName(ae.arrayTarget().toString()).decl().getType().asArrayType();
+        }
+
+
+        // ERROR CHECK #2: Make sure the number of indices matches
+        //                 the number of dimensions for the array
+        if(at.numOfDims != ae.arrayIndex().size()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ae)
+                        .addErrorType(MessageType.TYPE_ERROR_448)
+                        .addArgs(ae.arrayTarget().toString(),at.numOfDims,ae.arrayIndex().size())
+                        .error()
+            );
+        }
+
+        for(Expression e : ae.arrayIndex()) {
+            e.visit(this);
+
+            // ERROR CHECK #3: For each index, make sure the
+            //                 value evaluates to be an Int
+            if(!e.type.isInt()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.TYPE_ERROR_430)
+                            .addArgs(e.type)
+                            .error()
+                );
             }
         }
-
-        ae.type = targetType.baseType();
+        ae.type = at.baseType();
     }
 
     /*
@@ -668,7 +708,7 @@ public class TypeChecker extends Visitor {
 
             currentScope = oldScope;
         }
-        if(cs.choiceBlock() != null) { cs.choiceBlock().visit(this); }
+        if(cs.otherBlock() != null) { cs.otherBlock().visit(this); }
         currentScope = currentScope.closeScope();
     }
 
@@ -725,8 +765,6 @@ public class TypeChecker extends Visitor {
                     .addArgs(ds.condition().type)
                     .error());
         }
-
-        if(ds.nextExpr() != null) { ds.nextExpr().visit(this); }
     }
 
     /**
@@ -1269,21 +1307,9 @@ public class TypeChecker extends Visitor {
         Var localVar = ld.var();
 
         if(localVar.init() == null) {
-            Expression defaultValue;
-            if(declaredType.isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
-            else if(declaredType.isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
-            else if(declaredType.isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
-            else if(declaredType.isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
-            else if(declaredType.isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
-            else if(declaredType.isArrayType()) { defaultValue = new ArrayLiteral(); }
-            else if(declaredType.isListType()) { defaultValue = new ListLiteral(); }
-            else {
-                if(declaredType.isEnumType()) {
-                    TopLevelDecl customType = currentScope.findName(ld.type().toString()).decl().asTopLevelDecl();
-                    defaultValue = new NameExpr(customType.asEnumDecl().constants().get(0).asVar().toString());
-                }
-                else { defaultValue = new NewExpr(currentScope.findName(ld.type().toString()).decl().toString()); }
-            }
+            Expression init = setDefaultValue(ld.type());
+            // Do not type check if the user didn't instantiate
+            if(init == null) { return; }
             localVar.setInit(defaultValue);
         }
         AST oldContext = currentContext;
@@ -1601,8 +1627,6 @@ public class TypeChecker extends Visitor {
                     .addArgs(ws.condition().type)
                     .error());
         }
-
-        if(ws.nextExpr() != null) { ws.nextExpr().visit(this); }
 
         currentScope = ws.symbolTable;
         ws.whileBlock().visit(this);
