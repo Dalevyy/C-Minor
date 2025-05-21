@@ -13,7 +13,7 @@ public class ChoiceStmt extends Statement {
 
     private final Expression expr;
     private final Vector<CaseStmt> caseStmts;
-    private final BlockStmt block;
+    private final BlockStmt otherBlock;
 
     public ChoiceStmt(Token t, Expression e, BlockStmt b) { this(t,e,null,b); }
 
@@ -21,17 +21,17 @@ public class ChoiceStmt extends Statement {
         super(t);
         this.expr = e;
         this.caseStmts = cs;
-        this.block = b;
+        this.otherBlock = b;
 
         addChild(this.expr);
         addChild(this.caseStmts);
-        addChild(this.block);
+        addChild(this.otherBlock);
         setParent();
     }
 
     public Expression choiceExpr() { return expr; }
     public Vector<CaseStmt> caseStmts() { return caseStmts; }
-    public BlockStmt choiceBlock() { return block; }
+    public BlockStmt otherBlock() { return otherBlock; }
 
     public boolean isChoiceStmt() { return true; }
     public ChoiceStmt asChoiceStmt() { return this; }
