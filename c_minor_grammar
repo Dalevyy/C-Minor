@@ -119,7 +119,7 @@ type_params : '<' typefier (',' typefier)* '>' ;
 
 typefier : ('discr' | 'scalar' | 'class')? Name ;
 
-// interpreter.Main function
+// Main function
 // -------------
 
 main : 'def' 'main' args? '=>' return_type block_statement ;
