@@ -26,6 +26,7 @@ public class TypeChecker extends Visitor {
     private SymbolTable currentScope;
     private ClassDecl currentClass;
     private AST currentContext;
+    private Type currentTarget;
     private final TypeErrorFactory generateTypeError;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
@@ -243,7 +244,8 @@ public class TypeChecker extends Visitor {
     ______________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
-        arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
+        if(currentContext.isType())
+            arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
     }
 
     /*
@@ -416,7 +418,7 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #1: Make sure both types are the same
                 if(!Type.assignmentCompatible(lType,rType)) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(be)
+                            .addLocation(be.getParent())
                             .addErrorType(MessageType.TYPE_ERROR_404)
                             .addArgs(lType,rType)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1400)
@@ -832,22 +834,36 @@ public class TypeChecker extends Visitor {
     ________________________________________________________________________
     */
     public void visitFieldDecl(FieldDecl fd) {
+        Type declaredType = fd.type();
         Var fieldVar = fd.var();
 
         if(fieldVar.init() == null) {
-            Literal defaultValue;
-            if (fd.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
-            else if(fd.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
-            else if(fd.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
-            else if(fd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
-            else if(fd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
-            else if(fd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
-            else if(fd.type().isListType()) { defaultValue = new ListLiteral(); }
-            else { defaultValue = null; }
+            Expression defaultValue;
+            if(declaredType.isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
+            else if(declaredType.isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
+            else if(declaredType.isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
+            else if(declaredType.isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
+            else if(declaredType.isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
+            else if(declaredType.isArrayType()) { defaultValue = new ArrayLiteral(); }
+            else if(declaredType.isListType()) { defaultValue = new ListLiteral(); }
+            else {
+                if(declaredType.isEnumType()) {
+                    TopLevelDecl customType = currentScope.findName(fd.type().toString()).decl().asTopLevelDecl();
+                    defaultValue = new NameExpr(customType.asEnumDecl().constants().get(0).asVar().toString());
+                }
+                else { defaultValue = new NewExpr(currentScope.findName(fd.type().toString()).decl().toString()); }
+            }
             fieldVar.setInit(defaultValue);
         }
+        AST oldContext = currentContext;
+        currentContext = fd.type();
+        fieldVar.init().visit(this);
 
-        if(fieldVar.init() != null) { fieldVar.init().visit(this); }
+        if(fd.type().isArrayType() || fd.type().isListType()) {
+            fieldVar.setType(declaredType);
+            currentContext = oldContext;
+            return;
+        }
 
         // ERROR CHECK #1: Check if the field's declared type
         //                 matches the type of the initial value
@@ -871,45 +887,38 @@ public class TypeChecker extends Visitor {
     of whatever the corresponding field declaration is.
     _________________________________________________________________________
     */
+
+    /**
+     * Evaluates the type of a field expression.
+     * <p>
+     * The AST for a field expression will be right-leaning, so we have to evaluate
+     * the type of the current target first. We use an external variable called
+     * 'currentTarget' to keep track of the target type in case we have an invocation.
+     * </p>
+     * @param fe
+     */
     public void visitFieldExpr(FieldExpr fe) {
-        if(!fe.fieldTarget().toString().equals("this")) { fe.fieldTarget().visit(this); }
-        else { fe.fieldTarget().type = new ClassType(currentClass.toString()); }
-        Type targetType = fe.fieldTarget().type;
+        fe.fieldTarget().visit(this);
+        currentTarget = fe.fieldTarget().type;
 
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
         //                 so make sure it's assigned a class type
-        if(!targetType.isClassType()) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+        if(!currentTarget.isClassType()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fe)
                     .addErrorType(MessageType.TYPE_ERROR_416)
-                    .addArgs(fe.fieldTarget().toString(),targetType)
-                    .error());
+                    .addArgs(fe.fieldTarget().toString(),currentTarget)
+                    .error()
+            );
         }
 
-        if(fe.accessExpr().isInvocation()) {
-            fe.accessExpr().asInvocation().setTarget(fe.fieldTarget());
-            fe.accessExpr().visit(this);
-        }
-        else  {
-            ClassDecl cd = currentScope.findName(targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-            SymbolTable oldScope = currentScope;
-            currentScope = cd.symbolTable;
+        Type oldTarget = currentTarget;
 
-            if(fe.accessExpr().isNameExpr()) {
-                // Check if field was declared in class or not
-                if(!cd.symbolTable.hasNameSomewhere(fe.accessExpr().toString())) {
-                    errors.add(new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(fe)
-                            .addErrorType(MessageType.SCOPE_ERROR_309)
-                            .addArgs(fe.accessExpr().toString(),cd.toString())
-                            .error());
-                }
-                FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
-                fe.type = fd.type();
-            }
-            fe.accessExpr().visit(this);
-            currentScope = oldScope;
-        }
+        fe.accessExpr().visit(this);
+
+        fe.type = currentTarget;
+        currentTarget = oldTarget;
     }
 
     /*
@@ -1170,7 +1179,7 @@ public class TypeChecker extends Visitor {
             funcSignature.append(in.arguments().get(i).type.typeSignature());
 
         // Function Check
-        if(in.target() == null && currentClass == null) {
+        if(currentTarget == null && currentClass == null) {
             // ERROR CHECK #1: Make sure the function overload exists for the passed
             //                 argument types
             if(!currentScope.hasNameSomewhere(funcSignature.toString())) {
@@ -1188,13 +1197,7 @@ public class TypeChecker extends Visitor {
         }
         // Method Check
         else {
-            if(in.target() != null) { in.target().visit(this); }
-            else {
-                in.setTarget(new NameExpr(new Name("this")));
-                in.target().type = new ClassType(currentClass.name());
-            }
-
-            in.targetType = in.target().type;
+            in.targetType = currentTarget;
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
 
             String methodName = in.toString();
@@ -1375,18 +1378,39 @@ public class TypeChecker extends Visitor {
     */
     public void visitNameExpr(NameExpr ne) {
         NameNode name = currentScope.findName(ne.toString());
+        if(name != null) {
+            if (name.decl().isStatement()) {
+                ne.type = name.decl().asStatement().asLocalDecl().type();
+            } else if (name.decl().isParamDecl()) {
+                ne.type = name.decl().asParamDecl().type();
+            } else if (name.decl().isFieldDecl()) {
+                ne.type = name.decl().asFieldDecl().type();
+            } else if (name.decl().isTopLevelDecl()) {
+                TopLevelDecl tDecl = name.decl().asTopLevelDecl();
 
-        if(name.decl().isStatement()) { ne.type = name.decl().asStatement().asLocalDecl().type(); }
-        else if(name.decl().isParamDecl()) { ne.type = name.decl().asParamDecl().type(); }
-        else if(name.decl().isFieldDecl()) {
-            ne.type = name.decl().asFieldDecl().type();
+                if (tDecl.isGlobalDecl()) {
+                    ne.type = tDecl.asGlobalDecl().type();
+                } else if (tDecl.isEnumDecl()) {
+                    ne.type = tDecl.asEnumDecl().type();
+                } else if (tDecl.isClassDecl()) {
+                    ne.type = new ClassType(tDecl.asClassDecl().name());
+                }
+            }
         }
-        else if(name.decl().isTopLevelDecl()) {
-            TopLevelDecl tDecl = name.decl().asTopLevelDecl();
-
-            if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type();}
-            else if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
-            else if(tDecl.isClassDecl()) { ne.type = new ClassType(tDecl.asClassDecl().name()); }
+        else {
+            if(currentTarget != null && currentTarget.isClassType()) {
+                ClassDecl cd = currentScope.findName(currentTarget.asClassType().toString()).decl().asTopLevelDecl().asClassDecl();
+                if(!cd.symbolTable.hasName(ne.toString())) {
+                    errors.add(
+                            new ErrorBuilder(generateScopeError,interpretMode)
+                                    .addLocation(ne)
+                                    .addErrorType(MessageType.SCOPE_ERROR_309)
+                                    .addArgs(ne.toString(),currentTarget.toString())
+                                    .error()
+                    );
+                }
+                ne.type = cd.symbolTable.findName(ne.toString()).decl().asFieldDecl().type();
+            }
         }
     }
 
@@ -1490,6 +1514,10 @@ public class TypeChecker extends Visitor {
                     .error());
         }
         returnStatementFound = true;
+    }
+
+    public void visitThis(This t) {
+        t.type = new ClassType(currentClass.toString());
     }
 
     /*
