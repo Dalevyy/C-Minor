@@ -10,7 +10,6 @@ public class Invocation extends Expression {
 
     public Type targetType;
 
-    private Expression target;
     private final Name name;
     private final Vector<Expression> args;
 
@@ -26,19 +25,11 @@ public class Invocation extends Expression {
         setParent();
     }
 
-    public Expression target() { return target; }
     public Name name() { return name; }
     public Vector<Expression> arguments() { return args; }
 
     public boolean isInvocation() { return true; }
     public Invocation asInvocation() { return this; }
-
-    public void setTarget(Expression e) {
-        if(this.target == null) {
-            this.target = e;
-            addChild(this.target());
-        }
-    }
 
     public void setInvokeSignature(String inSig) { this.invokeSignature = inSig; }
     public String invokeSignature() { return this.invokeSignature; }
