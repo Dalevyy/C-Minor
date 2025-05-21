@@ -15,6 +15,7 @@ public class ArrayType extends Type {
     private final Type baseType;
     public int numOfDims;
 
+    public ArrayType() { this(new Token(),null,0); }
     public ArrayType(Token t, Type bt, int num) {
         super(t);
         this.baseType = bt;
@@ -26,10 +27,13 @@ public class ArrayType extends Type {
 
     public Type baseType() { return baseType; }
 
-    public String typeName() { return "ArrayType"; }
+    public String typeName() { return "Array"; }
 
     public boolean isArrayType() { return true; }
     public ArrayType asArrayType() { return this; }
+
+    @Override
+    public String toString() { return "Array"; }
 
     @Override
     public void visit(Visitor v) { v.visitArrayType(this); }
