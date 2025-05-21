@@ -33,7 +33,7 @@ public class TypeChecker extends Visitor {
     private boolean returnStatementFound = false;
 
     /**
-     * Constructor for compilation mode
+     * Creates type checker in compilation mode
      */
     public TypeChecker() {
         this.currentScope = null;
@@ -45,7 +45,7 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Constructor for interpretation mode
+     * Creates type checker in interpretation mode
      * @param st Symbol Table
      */
     public TypeChecker(SymbolTable st) {

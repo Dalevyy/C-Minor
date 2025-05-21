@@ -26,7 +26,7 @@ public class NameChecker extends Visitor {
     private final Vector<String> errors;
 
     /**
-     * Constructor for compilation mode
+     * Creates name checker in compilation mode
      */
     public NameChecker() {
         this.currentScope = new SymbolTable();
@@ -35,7 +35,7 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Constructor for interpreter mode.
+     * Creates name checker in interpretation mode
      * @param st Compilation Unit Symbol Table
      */
     public NameChecker(SymbolTable st) {
