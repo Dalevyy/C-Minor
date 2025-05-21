@@ -26,5 +26,8 @@ public class ArrayExpr extends Expression {
     public ArrayExpr asArrayExpr() { return this; }
 
     @Override
+    public String toString() { return target.toString(); }
+
+    @Override
     public void visit(Visitor v) { v.visitArrayExpr(this); }
 }
