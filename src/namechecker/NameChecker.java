@@ -8,6 +8,7 @@ import ast.misc.ParamDecl;
 import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
+import ast.types.ClassType;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.scope_error.ScopeErrorFactory;
@@ -238,6 +239,22 @@ public class NameChecker extends Visitor {
 
         for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
         currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Checks to see if the name used for the class type was used
+     * @param ct Class Type
+     */
+    public void visitClassType(ClassType ct) {
+        if(!currentScope.hasNameSomewhere(ct.toString())) {
+            errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(ct)
+                            .addErrorType(MessageType.SCOPE_ERROR_329)
+                            .addArgs(ct.toString())
+                            .error()
+            );
+        }
     }
 
     /**
@@ -519,6 +536,7 @@ public class NameChecker extends Visitor {
             );
         }
 
+        ld.type().visit(this);
         if(ld.var().init() != null) {
             // ERROR CHECK #2: Do not allow a local variable to be initialized to itself
             if(ld.var().init().toString().equals(ld.toString())) {
