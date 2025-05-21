@@ -2,6 +2,7 @@ package micropasses;
 
 import ast.expressions.BinaryExpr;
 import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
 import ast.expressions.InStmt;
 import ast.expressions.OutStmt;
 import messages.errors.ErrorBuilder;
@@ -47,7 +48,8 @@ public class InOutStmtRewrite extends Visitor {
                     }
                     else { ioExprs.add(be.LHS()); }
 
-                    ioExprs.add(be.RHS());
+                    if(be.RHS().isBinaryExpr() || be.RHS().isFieldExpr()) { be.RHS().visit(this); }
+                    else { ioExprs.add(be.RHS()); }
                     break;
                 default:
                     ioExprs.add(be);
@@ -55,14 +57,25 @@ public class InOutStmtRewrite extends Visitor {
         }
     }
 
+    public void visitFieldExpr(FieldExpr fe) {
+       if(insideIO) {
+            if(fe.accessExpr().isBinaryExpr()) {
+                fe.accessExpr().visit(this);
+                Expression e = ioExprs.remove(ioExprs.size()-1);
+                fe.set(ioExprs.remove(ioExprs.size()-1));
+                ioExprs.add(fe);
+                ioExprs.add(e);
+            }
+        }
+    }
+
     public void visitOutStmt(OutStmt os) {
         insideIO = true;
         ioExprs = new Vector<>();
-        
+
         if(os.outExprs().get(0).isBinaryExpr()) {
             os.removeChild(0);
-            for(Expression e : os.outExprs()) { e.visit(this); }
-
+            os.outExprs().get(0).visit(this);
             os.setOutExprs(ioExprs);
             os.addChild(ioExprs);
         }
