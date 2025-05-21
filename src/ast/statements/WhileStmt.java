@@ -10,25 +10,19 @@ public class WhileStmt extends Statement {
     public SymbolTable symbolTable;
 
     private final Expression cond;
-    private final Statement nextExpr;
     private final BlockStmt whileBlock;
 
-    public WhileStmt(Token t, Expression cond, BlockStmt whileBlock) { this(t,cond,null,whileBlock); }
-
-    public WhileStmt(Token t, Expression cond, Statement nextExpr, BlockStmt whileBlock) {
+    public WhileStmt(Token t, Expression cond, BlockStmt whileBlock) {
         super(t);
         this.cond = cond;
-        this.nextExpr = nextExpr;
         this.whileBlock = whileBlock;
 
         addChild(this.cond);
-        addChild(this.nextExpr);
         addChild(this.whileBlock);
         setParent();
     }
 
     public Expression condition() { return cond; }
-    public Statement nextExpr() { return nextExpr; }
     public BlockStmt whileBlock() { return whileBlock; }
 
     public boolean isWhileStmt() { return true; }

@@ -1303,40 +1303,28 @@ public class Parser {
         return new IfStmt(nodeToken(),e,b);
     }
 
-    // 45. while_statement ::= 'while' expression ( 'next' assignmentStatement )? block_statement
+    // 45. while_statement ::= 'while' expression block_statement
     private WhileStmt whileStatement() {
         tokenStack.add(currentLA());
 
         match(TokenType.WHILE);
         Expression e = expression();
-
-        Statement nextE = null;
-        if(nextLA(TokenType.NEXT)) {
-            match(TokenType.NEXT);
-            nextE = assignmentStatement();
-        }
         BlockStmt b = blockStatement();
 
-        return new WhileStmt(nodeToken(),e,nextE,b);
+        return new WhileStmt(nodeToken(),e,b);
     }
 
-    // 46. do_while_statement ::= 'do' block_statement ( 'next' assignmentStatement )? 'while' expression
+    // 46. do_while_statement ::= 'do' block_statement 'while' expression
     private DoStmt doWhileStatement() {
         tokenStack.add(currentLA());
 
         match(TokenType.DO);
         BlockStmt b = blockStatement();
 
-        Statement nextE = null;
-        if(nextLA(TokenType.NEXT)) {
-            match(TokenType.NEXT);
-            nextE = assignmentStatement();
-        }
-
         match(TokenType.WHILE);
         Expression e = expression();
 
-        return new DoStmt(nodeToken(),b,nextE,e);
+        return new DoStmt(nodeToken(),b,e);
     }
 
     // 47. for_statement : 'for' '(' range_iterator | array_iterator')' block_statement
