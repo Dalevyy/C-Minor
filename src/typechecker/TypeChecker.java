@@ -244,8 +244,7 @@ public class TypeChecker extends Visitor {
     ______________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
-        if(currentContext.isType())
-            arrayAssignmentCompatibility(currentContext.asType().asArrayType().numOfDims, currentContext.asType().asArrayType().baseType(),al.arrayDims(),al);
+        arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims, currentTarget.asArrayType().baseType(),al.arrayDims(),al);
     }
 
     /*
@@ -855,13 +854,13 @@ public class TypeChecker extends Visitor {
             }
             fieldVar.setInit(defaultValue);
         }
-        AST oldContext = currentContext;
-        currentContext = fd.type();
+        Type oldContext = currentTarget;
+        currentTarget = fd.type();
         fieldVar.init().visit(this);
 
         if(fd.type().isArrayType() || fd.type().isListType()) {
             fieldVar.setType(declaredType);
-            currentContext = oldContext;
+            currentTarget = oldContext;
             return;
         }
 
@@ -1415,36 +1414,43 @@ public class TypeChecker extends Visitor {
         }
     }
 
-    /*
-    ___________________________ New Expressions ___________________________
-    Since we generate a constructor automatically for the user, we only
-    have to check whether an initial value given to an object matches the
-    type of its corresponding field declaration.
-    _______________________________________________________________________
-    */
+    /**
+     * <p>
+     * In C Minor, a constructor is automatically generated for the user. Thus,
+     * we do need to check if a new expression can be called for the class we are
+     * trying to instantiate. Instead, we only need to check if for each argument,
+     * the type of the value corresponds to the type of the field declaration we're
+     * saving the argument into.
+     * </p>
+     * @param ne New Expression
+     */
     public void visitNewExpr(NewExpr ne) {
-        String className = ne.classType().typeName();
-
-        // Find the ClassDecl node for the corresponding new expression
-        ClassDecl cd = currentScope.findName(className).decl().asTopLevelDecl().asClassDecl();
-        InitDecl currConstructor = cd.constructor();
+        ClassDecl cd = currentScope.findName(ne.classType().toString()).decl().asTopLevelDecl().asClassDecl();
 
         Vector<Var> args = ne.args();
+        for(Var v : ne.args()) {
+            Type fType = cd.symbolTable.findName(v.toString()).decl().asFieldDecl().type();
 
-        for(int i = 0; i < args.size(); i++) {
-            Expression currArg = args.get(i).init();
-            currArg.visit(this);
+            if(fType.isArrayType() || fType.isListType()) {
+                Type oldTarget = currentTarget;
+                currentTarget = fType;
+                v.init().visit(this);
+                currentTarget = oldTarget;
+            }
+            else {
+                v.init().visit(this);
 
-            String argName = args.get(i).name().toString();
-            Type fieldDeclType = cd.symbolTable.findName(argName).decl().asFieldDecl().type();
-
-            // ERROR CHECK #1: Make sure the type of argument value matches type of field declaration
-            if(!Type.assignmentCompatible(currArg.type,fieldDeclType)) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ne)
-                        .addErrorType(MessageType.TYPE_ERROR_412)
-                        .addArgs(argName,fieldDeclType,currArg.type)
-                        .error());
+                // ERROR CHECK #1: Make sure the type of the argument matches
+                //                 the type of the field declaration
+                if(!Type.assignmentCompatible(v.init().type,fType)) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.TYPE_ERROR_412)
+                                .addArgs(v.toString(),fType,v.init().type)
+                                .error()
+                    );
+                }
             }
         }
         ne.type = cd.classHierarchy();
