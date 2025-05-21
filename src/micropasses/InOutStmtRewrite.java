@@ -62,7 +62,7 @@ public class InOutStmtRewrite extends Visitor {
             if(fe.accessExpr().isBinaryExpr()) {
                 fe.accessExpr().visit(this);
                 Expression e = ioExprs.remove(ioExprs.size()-1);
-                fe.set(ioExprs.remove(ioExprs.size()-1));
+                fe.setFieldAccess(ioExprs.remove(ioExprs.size()-1));
                 ioExprs.add(fe);
                 ioExprs.add(e);
             }
