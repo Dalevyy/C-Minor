@@ -55,7 +55,12 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Sets a default value for a variable if no initial value was given.
+     * Creates a default value for a variable
+     * <p>
+     *     When we visit any variable declaration, we will check to see if
+     *     the variable was initialized. If it wasn't, then we will call this
+     *     method to assign a default value to be used during runtime.
+     * </p>
      * @param varType Variable Type
      * @return Expression
      */
@@ -284,7 +289,18 @@ public class TypeChecker extends Visitor {
     ______________________________________________________
     */
     public void visitArrayLiteral(ArrayLiteral al) {
-        arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims, currentTarget.asArrayType().baseType(),al.arrayDims(),al);
+        // If current target doesn't represent an array type, then we'll set the
+        // array literal to be some arbitrary array type to prevent type assignment
+        // compatibility from leading to an exception
+        if(currentTarget == null || !currentTarget.isArrayType())
+            al.type = new ArrayType();
+        else {
+            arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims,
+                    currentTarget.asArrayType().baseType(),
+                    al.arrayDims(), al);
+            al.type = currentTarget.asArrayType();
+        }
+
     }
 
     /*
@@ -859,60 +875,51 @@ public class TypeChecker extends Visitor {
         }
     }
 
-    /*
-    __________________________ Field Declarations __________________________
-    When we visit a field declaration, we want to check if the user assigned
-    an initial value to the field prior to calling the class constructor. If
-    this is true, then we have to make sure the initial type of the value
-    matches the type of the declaration.
-
-    Additionally, if the value is set to the keyword "uninit", we will give
-    a default value based on the type specified.
-    ________________________________________________________________________
-    */
+    /**
+     * Evaluates the type of a field
+     * <p>
+     *     If a user initialized a field to a initial value, we will check
+     *     to make sure the value and the variable are assignment compatible.
+     *     C Minor does NOT support type coercion, so this means the value must
+     *     be the same type as the declaration.
+     *     <br><br>
+     *     For any uninitialized values, we will call {@link #setDefaultValue}
+     *     to generate a default value for this field.
+     * </p>
+     * @param fd Field Declaration
+     */
     public void visitFieldDecl(FieldDecl fd) {
-        Type declaredType = fd.type();
-        Var fieldVar = fd.var();
-
-        if(fieldVar.init() == null) {
-            Expression defaultValue;
-            if(declaredType.isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
-            else if(declaredType.isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
-            else if(declaredType.isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
-            else if(declaredType.isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
-            else if(declaredType.isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
-            else if(declaredType.isArrayType()) { defaultValue = new ArrayLiteral(); }
-            else if(declaredType.isListType()) { defaultValue = new ListLiteral(); }
-            else {
-                if(declaredType.isEnumType()) {
-                    TopLevelDecl customType = currentScope.findName(fd.type().toString()).decl().asTopLevelDecl();
-                    defaultValue = new NameExpr(customType.asEnumDecl().constants().get(0).asVar().toString());
-                }
-                else { defaultValue = new NewExpr(currentScope.findName(fd.type().toString()).decl().toString()); }
-            }
-            fieldVar.setInit(defaultValue);
-        }
-        Type oldContext = currentTarget;
-        currentTarget = fd.type();
-        fieldVar.init().visit(this);
-
-        if(fd.type().isArrayType() || fd.type().isListType()) {
-            fieldVar.setType(declaredType);
-            currentTarget = oldContext;
+        // An uninitialized field will be given a default value
+        if(fd.var().init() == null) {
+            Expression defaultValue = setDefaultValue(fd.type());
+            if(defaultValue != null)
+                fd.var().setInit(defaultValue);
             return;
         }
 
-        // ERROR CHECK #1: Check if the field's declared type
-        //                 matches the type of the initial value
-        if(!Type.assignmentCompatible(fd.type(),fieldVar.init().type)) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fd)
-                    .addErrorType(MessageType.TYPE_ERROR_415)
-                    .addArgs(fd.toString(),fd.type(),fieldVar.init().type)
-                    .error());
-        }
+        if(fd.type().isArrayType() && fd.var().init().isArrayLiteral()) {
+            Type oldTarget = currentTarget;
+            currentTarget = fd.type();
 
-        fieldVar.setType(fd.type());
+            fd.var().init().visit(this);
+            currentTarget = oldTarget;
+        }
+        else {
+            fd.var().init().visit(this);
+
+            // ERROR CHECK #1: Check if the field's declared type
+            //                 matches the type of the initial value
+            if(!Type.assignmentCompatible(fd.type(),fd.var().init().type)) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(fd)
+                            .addErrorType(MessageType.TYPE_ERROR_415)
+                            .addArgs(fd.toString(),fd.type(),fd.var().init().type)
+                            .error()
+                );
+            }
+        }
+        fd.var().setType(fd.type());
     }
 
     /*
@@ -1101,44 +1108,52 @@ public class TypeChecker extends Visitor {
         returnStatementFound = false;
     }
 
-    /*
-    ________________________ Global Declarations ________________________
-    Global declarations are handled in the exact same way that local
-    declarations are.
-
-    We are checking if the global variable's declared type matches the
-    type of the initial value it is assigned to. Additionally, we will
-    provide default values if the user assigns the global to 'uninit'.
-    _____________________________________________________________________
-    */
+    /**
+     * Evaluates the type of a global variable
+     * <p>
+     *     If a user initialized a global to a initial value, we will check
+     *     to make sure the value and the variable are assignment compatible.
+     *     C Minor does NOT support type coercion, so this means the value must
+     *     be the same type as the declaration.
+     *     <br><br>
+     *     For any uninitialized values, we will call {@link #setDefaultValue}
+     *     to generate a default value for this global variable.
+     * </p>
+     * @param gd Global Declaration
+     */
     public void visitGlobalDecl(GlobalDecl gd) {
-        Var globalVar = gd.var();
-
-        if(globalVar.init() == null) {
-            Literal defaultValue;
-            if (gd.type().isInt()) { defaultValue = new Literal(ConstantKind.INT, "0"); }
-            else if(gd.type().isChar()) { defaultValue = new Literal(ConstantKind.CHAR, ""); }
-            else if(gd.type().isBool()) { defaultValue = new Literal(ConstantKind.BOOL, "False"); }
-            else if(gd.type().isReal()) { defaultValue = new Literal(ConstantKind.REAL, "0.0"); }
-            else if(gd.type().isString()) { defaultValue = new Literal(ConstantKind.STR, ""); }
-            else if(gd.type().isArrayType()) { defaultValue = new ArrayLiteral(); }
-            else if(gd.type().isListType()) { defaultValue = new ListLiteral(); }
-            else { defaultValue = null; }
-            globalVar.setInit(defaultValue);
-        }
-        else { globalVar.init().visit(this); }
-
-        // ERROR CHECK #1: Check if the global variable's declared type
-        //                 matches the type of the initial value
-        if(!Type.assignmentCompatible(gd.type(),globalVar.init().type)) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(gd)
-                    .addErrorType(MessageType.TYPE_ERROR_401)
-                    .addArgs(gd.toString(),gd.type(),globalVar.init().type)
-                    .error());
+        // An uninitialized global variable will be given a default value
+        if(gd.var().init() == null) {
+            Expression defaultValue = setDefaultValue(gd.type());
+            if(defaultValue != null)
+                gd.var().setInit(defaultValue);
+            return;
         }
 
-        globalVar.setType(gd.type());
+        if(gd.type().isArrayType() && gd.var().init().isArrayLiteral()) {
+            Type oldTarget = currentTarget;
+            currentTarget = gd.type();
+
+            gd.var().init().visit(this);
+            currentTarget = oldTarget;
+        }
+        else {
+            gd.var().init().visit(this);
+
+            // ERROR CHECK #1: Check if the global variable's declared type
+            //                 matches the type of the initial value
+            if(!Type.assignmentCompatible(gd.type(),gd.var().init().type)) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(gd)
+                            .addErrorType(MessageType.TYPE_ERROR_401)
+                            .addArgs(gd.toString(),gd.type(),gd.var().init().type)
+                            .error()
+                );
+            }
+
+        }
+        gd.var().setType(gd.type());
     }
 
     /*
@@ -1288,52 +1303,52 @@ public class TypeChecker extends Visitor {
 
     public void visitListLiteral(ListLiteral ll) {}
 
-    /*
-    ________________________ Local Declarations ________________________
-    We need to ensure that if a user initializes a local variable to a
-    value, the value needs to match the type of the declaration.
-
-    Remember, C Minor does NOT support type coercion. This means the
-    value MUST be the same type as the declaration. The only way around
-    this is through a valid cast expression.
-
-    Also, if the user initially assigns a local variable to store
-    `uninit`, we will automatically set the default value based on
-    the type.
-    ____________________________________________________________________
-    */
+    /**
+     * Evaluates the type of a local variable
+     * <p>
+     *     If a user initialized a local to a initial value, we will check
+     *     to make sure the value and the variable are assignment compatible.
+     *     C Minor does NOT support type coercion, so this means the value must
+     *     be the same type as the declaration.
+     *     <br><br>
+     *     For any uninitialized values, we will call {@link #setDefaultValue}
+     *     to generate a default value for this local variable.
+     * </p>
+     * @param ld Local Declaration
+     */
     public void visitLocalDecl(LocalDecl ld) {
-        Type declaredType = ld.type();
-        Var localVar = ld.var();
-
-        if(localVar.init() == null) {
-            Expression init = setDefaultValue(ld.type());
-            // Do not type check if the user didn't instantiate
-            if(init == null) { return; }
-            localVar.setInit(defaultValue);
-        }
-        AST oldContext = currentContext;
-        currentContext = ld.type();
-        localVar.init().visit(this);
-
-        if(ld.type().isArrayType() || ld.type().isListType()) {
-            localVar.setType(declaredType);
-            currentContext = oldContext;
+        // An uninitialized local variable will be given a default value
+        if(ld.var().init() == null) {
+            Expression defaultValue = setDefaultValue(ld.type());
+            if(defaultValue != null)
+                ld.var().setInit(defaultValue);
             return;
         }
 
-        // ERROR CHECK #1: Check if the local variable's declared type
-        //                 matches the type of the initial value
-        if(!Type.assignmentCompatible(declaredType,localVar.init().type)) {
-            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(ld)
-                    .addErrorType(MessageType.TYPE_ERROR_400)
-                    .addArgs(ld.toString(),ld.type(),localVar.init().type)
-                    .error());
-        }
+        if(ld.type().isArrayType() && ld.var().init().isArrayLiteral()) {
+            Type oldTarget = currentTarget;
+            currentTarget = ld.type();
 
-        localVar.setType(declaredType);
-        currentContext = oldContext;
+            ld.var().init().visit(this);
+            currentTarget = oldTarget;
+        }
+        else {
+            ld.var().init().visit(this);
+
+            // ERROR CHECK #1: Check if the local variable's declared type
+            //                 matches the type of the initial value
+            if(!Type.assignmentCompatible(ld.type(),ld.var().init().type)) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ld)
+                            .addErrorType(MessageType.TYPE_ERROR_400)
+                            .addArgs(ld.toString(),ld.type(),ld.var().init().type)
+                            .error()
+                );
+            }
+
+        }
+        ld.var().setType(ld.type());
     }
 
     /*
