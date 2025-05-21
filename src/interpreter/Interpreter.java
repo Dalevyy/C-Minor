@@ -574,9 +574,10 @@ public class Interpreter extends Visitor {
     _________________________________________________________________________
     */
     public void visitFieldExpr(FieldExpr fe) {
+        fe.fieldTarget().visit(this);
         if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
             String objName = fe.fieldTarget().toString();
-            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+            HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
             currValue = instance.get(fe.accessExpr().toString());
         }
         else { fe.accessExpr().visit(this); }
@@ -788,7 +789,7 @@ public class Interpreter extends Visitor {
         stack = stack.createCallFrame();
 
         // Function Invocation
-        if(in.target() == null && !in.targetType.isClassType()) {
+        if(!in.targetType.isClassType()) {
             FuncDecl fd = currentScope.findName(in.invokeSignature()).decl().asTopLevelDecl().asFuncDecl();
             currentScope = fd.symbolTable;
 
@@ -812,10 +813,7 @@ public class Interpreter extends Visitor {
         }
         // Method Invocation
         else {
-            in.target().visit(this);
             HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
-
-            if(!in.target().asNameExpr().getName().toString().equals("this")) { stack.addValue("this",obj); }
 
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
