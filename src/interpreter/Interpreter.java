@@ -22,6 +22,7 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
+    private Type currTarget;
     private final RuntimeErrorFactory generateRuntimeError;
     private boolean inAssignStmt;
     private boolean returnFound;
@@ -50,11 +51,26 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitArrayExpr(ArrayExpr ae) {
-        LocalDecl arrayDecl = currentScope.findName(ae.arrayTarget().toString()).decl().asStatement().asLocalDecl();
-        Vector<Object> arr = (Vector<Object>) stack.getValue(ae.arrayTarget().toString());
+        Vector<Object> arr;
+        Vector<Expression> dims;
+
+        if(currValue instanceof HashMap) {
+            arr = (Vector<Object>) ((HashMap<String,Object>) currValue).get(ae.arrayTarget().toString());
+            ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            FieldDecl fd = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl();
+            dims = fd.var().init().asArrayLiteral().arrayDims();
+        }
+        else {
+            arr = (Vector<Object>) stack.getValue(ae.arrayTarget().toString());
+
+            AST varDecl = currentScope.findName(ae.arrayTarget().toString()).decl();
+            if(varDecl.isTopLevelDecl())
+                dims = varDecl.asTopLevelDecl().asGlobalDecl().var().init().asArrayLiteral().arrayDims();
+            else
+                dims = varDecl.asStatement().asLocalDecl().var().init().asArrayLiteral().arrayDims();
+        }
 
         int index = 0;
-        Vector<Expression> dims = arrayDecl.var().init().asArrayLiteral().arrayDims();
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
             ae.arrayIndex().get(i).visit(this);
             int currOffset = (int) currValue-1;
@@ -465,7 +481,7 @@ public class Interpreter extends Visitor {
         for(int i = 0; i <= cs.caseStmts().size(); i++) {
             // Default Case Execution
             if(i == cs.caseStmts().size()) {
-                cs.choiceBlock().visit(this);
+                cs.otherBlock().visit(this);
                 break;
             }
             CaseStmt currCase = cs.caseStmts().get(i);
@@ -573,14 +589,29 @@ public class Interpreter extends Visitor {
     the appropriate field's value with a lookup.
     _________________________________________________________________________
     */
+
+    /**
+     * We will evaluate the target for the field expression first. From there, the
+     * next evaluation will be based on what the target is trying to access
+     * <ul>
+     *     <li>Name Expression: Evaluate access expresssion here.</li>
+     *     <li>Everything Else: Evaluate at a different visit</li>
+     * </ul>
+     * @param fe Field Expression
+     */
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
-        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
-            String objName = fe.fieldTarget().toString();
+
+        if(fe.accessExpr().isNameExpr()) {
             HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
             currValue = instance.get(fe.accessExpr().toString());
         }
-        else { fe.accessExpr().visit(this); }
+        else {
+            Type oldTarget = currTarget;
+            currTarget = fe.fieldTarget().type;
+            fe.accessExpr().visit(this);
+            currTarget = oldTarget;
+        }
     }
 
     /*
@@ -662,7 +693,9 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitGlobalDecl(GlobalDecl gd) {
-        gd.var().init().visit(this);
+        if(gd.var().init() == null) { currValue = null; }
+        else { gd.var().init().visit(this); }
+
         stack.addValue(gd.var().toString(),currValue);
     }
 
@@ -900,7 +933,9 @@ public class Interpreter extends Visitor {
     ____________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
-        ld.var().init().visit(this);
+        if(ld.var().init() == null) { currValue = null; }
+        else { ld.var().init().visit(this); }
+
         stack.addValue(ld.var().toString(),currValue);
     }
 
