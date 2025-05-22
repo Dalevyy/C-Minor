@@ -116,6 +116,10 @@ public class VM {
                 }
             }
             catch(Exception e) {
+                if(currNode.isTopLevelDecl()) {
+                    if (currNode.asTopLevelDecl().isClassDecl())
+                        compilationUnit.globalTable.removeName(currNode.toString());
+                }
                 if(e.getMessage() != null) {
                     if(!e.getMessage().equals("EOF Not Found")) {
                         try {
