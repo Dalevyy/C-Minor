@@ -51,24 +51,15 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitArrayExpr(ArrayExpr ae) {
-        Vector<Object> arr;
-        Vector<Expression> dims;
+        Vector<Expression> dims = new Vector<>();
 
-        if(currValue instanceof HashMap) {
-            arr = (Vector<Object>) ((HashMap<String,Object>) currValue).get(ae.arrayTarget().toString());
-            ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            FieldDecl fd = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl();
-            dims = fd.var().init().asArrayLiteral().arrayDims();
-        }
-        else {
-            arr = (Vector<Object>) stack.getValue(ae.arrayTarget().toString());
+        ae.arrayTarget().visit(this);
+        Vector<Object> arr = (Vector<Object>) currValue;
 
-            AST varDecl = currentScope.findName(ae.arrayTarget().toString()).decl();
-            if(varDecl.isTopLevelDecl())
-                dims = varDecl.asTopLevelDecl().asGlobalDecl().var().init().asArrayLiteral().arrayDims();
-            else
-                dims = varDecl.asStatement().asLocalDecl().var().init().asArrayLiteral().arrayDims();
-        }
+//        AST varDecl = currentScope.findName(ae.arrayTarget().toString()).decl();
+//        if(varDecl.isTopLevelDecl()) { dims = varDecl.asTopLevelDecl().asGlobalDecl().var().init().asArrayLiteral().arrayDims(); }
+//        else if(varDecl.isFieldDecl()) { dims = varDecl.asFieldDecl().var().init().asArrayLiteral().arrayDims(); }
+//        else { dims = varDecl.asStatement().asLocalDecl().var().init().asArrayLiteral().arrayDims(); }
 
         int index = 0;
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
@@ -594,7 +585,7 @@ public class Interpreter extends Visitor {
      * We will evaluate the target for the field expression first. From there, the
      * next evaluation will be based on what the target is trying to access
      * <ul>
-     *     <li>Name Expression: Evaluate access expresssion here.</li>
+     *     <li>Name Expression: Evaluate access expression here.</li>
      *     <li>Everything Else: Evaluate at a different visit</li>
      * </ul>
      * @param fe Field Expression
@@ -974,21 +965,24 @@ public class Interpreter extends Visitor {
         if(cd.constructor() != null) { cd.constructor().visit(this); }
     }
 
-    /*
-    ___________________________ Out Statements ___________________________
-    ______________________________________________________________________
-    */
+    /**
+     * Prints expressions that appear in the VM
+     * <p>
+     *     We will print out every expression that appears in the current
+     *     output statement during this visit.
+     * </p>
+     * @param os Output Statement
+     */
     public void visitOutStmt(OutStmt os) {
         boolean endlFound = false;
-        for(int i = 0; i < os.outExprs().size(); i++) {
-            Expression e = os.outExprs().get(i);
-            if(e.isEndl()) { System.out.println(); endlFound = true; }
-            else {
-                e.visit(this);
+        for(Expression e : os.outExprs()) {
+            e.visit(this);
+            if(e.isEndl())
+                System.out.println();
+            else
                 System.out.print(currValue);
-            }
         }
-        if(!endlFound) System.out.println();
+        System.out.println();
     }
 
     /*
@@ -1009,6 +1003,8 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitStopStmt(StopStmt ss) { System.exit(1); }
+
+    public void visitThis(This t) { currValue = stack.getValue("this"); }
 
     /*
     __________________________ Unary Expressions  __________________________
