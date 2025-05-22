@@ -38,8 +38,7 @@ public class FieldRewrite extends Visitor {
                                         .setTarget(new This())
                                         .setAccessExpr(ne)
                                         .createFieldExpr();
-                fe.copy(ne);
-                fe.setParent();
+                fe.copyAndRemove(ne);
             }
         }
     }
