@@ -311,13 +311,28 @@ public class TypeChecker extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-
         as.LHS().visit(this);
         Type lType = as.LHS().type;
 
-        as.RHS().visit(this);
-        Type rType = as.RHS().type;
 
+        if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
+            errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(as)
+                            .addErrorType(MessageType.TYPE_ERROR_450)
+                            .error()
+            );
+        }
+        else if(as.RHS().isArrayLiteral()) {
+            Type oldTarget = currentTarget;
+            currentTarget = lType;
+
+            as.RHS().visit(this);
+            currentTarget = oldTarget;
+        }
+        else { as.RHS().visit(this); }
+
+        Type rType = as.RHS().type;
         String aOp = as.assignOp().toString();
 
         // ERROR CHECK #1: Make sure both the variable and value type are the same
