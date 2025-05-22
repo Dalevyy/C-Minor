@@ -335,6 +335,8 @@ public class NameChecker extends Visitor {
                         .error()
             );
         }
+        fd.type().visit(this);
+
         if(fd.var().init() != null) {
             // ERROR CHECK #2: Do not allow a field to be initialized to itself
             if(fd.var().init().toString().equals(fd.toString())) {
@@ -452,6 +454,7 @@ public class NameChecker extends Visitor {
                     .error()
             );
         }
+        gd.type().visit(this);
 
         if(gd.var().init() != null) {
             // ERROR CHECK #2: Do not allow a global variable to be initialized to itself
@@ -535,8 +538,8 @@ public class NameChecker extends Visitor {
                         .error()
             );
         }
-
         ld.type().visit(this);
+
         if(ld.var().init() != null) {
             // ERROR CHECK #2: Do not allow a local variable to be initialized to itself
             if(ld.var().init().toString().equals(ld.toString())) {
@@ -737,6 +740,8 @@ public class NameChecker extends Visitor {
                     .error()
             );
         }
+        pd.type().visit(this);
+        
         currentScope.addName(pd.toString(),pd);
     }
 
