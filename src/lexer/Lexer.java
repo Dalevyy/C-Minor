@@ -324,14 +324,11 @@ public class Lexer {
             consume();
         }
 
-        if(match('.')) {
-            if(isDigit()) {
+        // Only tokenize a real number when we don't have a loop operator :)
+        if(lookChar == '.' && currPos+1 < file.length() && file.charAt(currPos+1) != '.') {
+                match('.');
                 newNum.append('.');
                 return realLit(newNum);
-            }
-            // This is technically a Pedersen hack, but it's needed to make sure
-            // `..` is scanned correctly when a user writes a For Loop
-            else { currPos -= 1; }
         }
         return new Token(TokenType.INT_LIT, newNum.toString(), currLoc.copy());
     }
