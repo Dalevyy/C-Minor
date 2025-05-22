@@ -1,6 +1,7 @@
 package micropasses;
 
 import ast.classbody.FieldDecl;
+import ast.misc.ParamDecl;
 import ast.statements.LocalDecl;
 import ast.topleveldecls.EnumDecl;
 import ast.topleveldecls.GlobalDecl;
@@ -62,6 +63,13 @@ public class ClassToEnumTypeRewrite extends Visitor {
         if(ld.type().isClassType()) {
             TopLevelDecl decl = currentScope.findName(ld.type().typeName()).decl().asTopLevelDecl();
             if(decl.isEnumDecl()) { ld.setType(buildEnumType(decl.asEnumDecl())); }
+        }
+    }
+
+    public void visitParamDecl(ParamDecl pd) {
+        if(pd.type().isClassType()) {
+            TopLevelDecl decl = currentScope.findName(pd.type().typeName()).decl().asTopLevelDecl();
+            if(decl.isEnumDecl()) { pd.setType(buildEnumType(decl.asEnumDecl())); }
         }
     }
 }
