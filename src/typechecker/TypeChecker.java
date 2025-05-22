@@ -1002,7 +1002,7 @@ public class TypeChecker extends Visitor {
         Type oldTarget = currentTarget;
         currentTarget = fe.fieldTarget().type;
         fe.accessExpr().visit(this);
-        
+
         fe.type = currentTarget;
         currentTarget = oldTarget;
     }
@@ -1323,10 +1323,11 @@ public class TypeChecker extends Visitor {
             }
 
             MethodDecl md = cd.symbolTable.findName(funcSignature.toString()).decl().asMethodDecl();
+            in.targetType = currentTarget;
             in.type = md.returnType();
+            currentTarget = md.returnType();
         }
         in.setInvokeSignature(funcSignature.toString());
-        in.targetType = currentTarget;
     }
 
     /**
@@ -1503,16 +1504,17 @@ public class TypeChecker extends Visitor {
             }
             ne.type = cd.symbolTable.findName(ne.toString()).decl().asFieldDecl().type();
         }
-
-        AST decl = currentScope.findName(ne.toString()).decl();
-        if(decl.isStatement()) { ne.type = decl.asStatement().asLocalDecl().type(); }
-        else if(decl.isParamDecl()) { ne.type = decl.asParamDecl().type(); }
-        else if(decl.isFieldDecl()) { ne.type = decl.asFieldDecl().type(); }
         else {
-            TopLevelDecl tDecl = decl.asTopLevelDecl();
-            if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
-            else if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type(); }
-            else { ne.type = new ClassType(tDecl.asClassDecl().name()); }
+            AST decl = currentScope.findName(ne.toString()).decl();
+            if(decl.isStatement()) { ne.type = decl.asStatement().asLocalDecl().type(); }
+            else if(decl.isParamDecl()) { ne.type = decl.asParamDecl().type(); }
+            else if(decl.isFieldDecl()) { ne.type = decl.asFieldDecl().type(); }
+            else {
+                TopLevelDecl tDecl = decl.asTopLevelDecl();
+                if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
+                else if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type(); }
+                else { ne.type = new ClassType(tDecl.asClassDecl().name()); }
+            }
         }
     }
 
