@@ -68,6 +68,15 @@ public class SymbolTable {
 
     public void removeName(String name) {
         if(varNames.remove(name) == null) { parent.removeName(name); }
+        // Gets the job done :)
+        if(name.contains("/") && methodNames.contains(name.substring(0,name.indexOf("/")))) {
+             for(String n : varNames.keySet()) {
+                 if(n.contains("/") && n.substring(0,n.indexOf("/")).equals(name.substring(0,name.indexOf("/")))) {
+                     return;
+                 }
+             }
+             methodNames.remove(name.substring(0,name.indexOf("/")));
+        }
     }
 
     public HashMap<String,NameNode> getAllNames() { return varNames; }

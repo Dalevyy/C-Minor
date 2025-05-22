@@ -5,6 +5,7 @@ import ast.*;
 import ast.misc.Compilation;
 import ast.misc.Var;
 import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
 import lexer.Lexer;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
@@ -116,9 +117,14 @@ public class VM {
                 if(e.getMessage() != null) {
                     if(!e.getMessage().equals("EOF Not Found")) {
                         try {
-                            compilationUnit.globalTable.removeName(e.getMessage());
-                            if(currNode.isTopLevelDecl() && currNode.asTopLevelDecl().isEnumDecl()) {
+                            if(currNode.isTopLevelDecl() && currNode.asTopLevelDecl().isFuncDecl()) {
+                                removeFuncDecl(currNode.asTopLevelDecl().asFuncDecl(),compilationUnit.globalTable);
+                            }
+                            else if(currNode.isTopLevelDecl() && currNode.asTopLevelDecl().isEnumDecl()) {
                                 removeEnumDecl(currNode.asTopLevelDecl().asEnumDecl(), compilationUnit.globalTable);
+                            }
+                            else {
+                                compilationUnit.globalTable.removeName(e.getMessage());
                             }
                         }
                         catch(Exception e2) {
@@ -133,5 +139,9 @@ public class VM {
 
     private static void removeEnumDecl(EnumDecl ed, SymbolTable st) {
         for(Var constant : ed.constants()) { st.removeName(constant.toString()); }
+    }
+
+    private static void removeFuncDecl(FuncDecl fd, SymbolTable st) {
+        st.removeName(fd.funcSignature());
     }
 }
