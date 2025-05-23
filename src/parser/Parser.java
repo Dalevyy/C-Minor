@@ -1590,6 +1590,7 @@ public class Parser {
     // 62. factor_expression ::= 'length' '(' arguments ')' | postfix_expression
     private Expression factorExpression() {
         if(nextLA(TokenType.LENGTH)) {
+            tokenStack.add(currentLA());
             match(TokenType.LENGTH);
             match(TokenType.LPAREN);
 
