@@ -215,13 +215,13 @@ primary_expression
     ;
 
 postfix_expression
-    : primary_expression ('[' expression ']' | '(' arguments ')' | ('.' | '?.') expression)*
+    : primary_expression ('[' expression ']' | '(' arguments? ')' | ('.' | '?.') expression)*
     ;
 
 arguments : expression (',' expression)* ;
 
 factor_expression : postfix_expression
-                  | 'length' '(' arguments ')'
+                  | 'length' '(' arguments? ')'
                   ;
 
 unary_expression : unary_operator cast_expression
