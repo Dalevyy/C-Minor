@@ -22,6 +22,7 @@ public class Interpreter extends Visitor {
     private RuntimeStack stack;
     private SymbolTable currentScope;
     private Object currValue;
+    private Type currTarget;
     private final RuntimeErrorFactory generateRuntimeError;
     private boolean inAssignStmt;
     private boolean returnFound;
@@ -50,20 +51,33 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitArrayExpr(ArrayExpr ae) {
-        LocalDecl arrayDecl = currentScope.findName(ae.arrayTarget().toString()).decl().asStatement().asLocalDecl();
-        Vector<Object> arr = (Vector<Object>) stack.getValue(ae.arrayTarget().toString());
+        Vector<Object> arr;
+        if(currValue instanceof HashMap)
+            arr = (Vector<Object>) ((HashMap<String,Object>) currValue).get(ae.toString());
+        else {
+            ae.arrayTarget().visit(this);
+            arr = (Vector<Object>) currValue;
+        }
+        Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
 
         int index = 0;
-        Vector<Expression> dims = arrayDecl.var().init().asArrayLiteral().arrayDims();
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
             ae.arrayIndex().get(i).visit(this);
             int currOffset = (int) currValue-1;
+            if(currOffset == -1) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ae)
+                        .addErrorType(MessageType.RUNTIME_ERROR_603)
+                        .error();
+            }
             for(int j = i+1; j < dims.size(); j++) {
                 dims.get(j).visit(this);
                 currOffset *= (int) currValue;
             }
             index += currOffset;
         }
+        // Add 1 to index to account for array literal stored at index 0 internally
+        index += 1;
 
         if(index < 0 || index >= arr.size()) {
             new ErrorBuilder(generateRuntimeError,interpretMode)
@@ -76,22 +90,33 @@ public class Interpreter extends Visitor {
         else { currValue = arr.get(index); }
     }
 
-    /*
-    _________________________ Array Literals _________________________
-    Arrays are static in C Minor which means we will have to create an
-    array for the user and then evaluate/store each initial expression
-    into the array.
-    __________________________________________________________________
-    */
+    /**
+     * Evaluates an array literal.
+     * <p>
+     *     Arrays are static in C Minor, so a user can not change its size
+     *     once an array literal is declared. We will evaluate every expression
+     *     for the current array literal and store it in a <code>Vector</code>.
+     *     This will emulate the array during runtime.
+     * </p>
+     * @param al Array Literal
+     */
     public void visitArrayLiteral(ArrayLiteral al) {
         Vector<Object> arr = new Vector<>();
 
         for(Expression e : al.arrayInits()) {
             e.visit(this);
-            if(currValue instanceof Vector) { arr.addAll((Vector<Object>)currValue); }
-            else { arr.add(currValue); }
+            if(currValue instanceof Vector) {
+                for(Object val : (Vector<Object>)currValue) {
+                    if(!(val instanceof ArrayLiteral)) { arr.add(val); }
+                }
+            }
+            else
+                arr.add(currValue);
         }
 
+        // Add the array literal to the Vector, so its
+        // dimensions can be used during a visit to ArrayExpr
+        arr.add(0,al);
         currValue = arr;
     }
 
@@ -419,12 +444,14 @@ public class Interpreter extends Visitor {
         stack = stack.destroyCallFrame();
     }
 
-    /*
-    _____________________ Break Statements _____________________
-    We set the breakFound flag to be true, and we continue
-    interpreting the C Minor program.
-    ____________________________________________________________
-    */
+    /**
+     * Terminates the current loop
+     * <p>
+     *     When a break statement is found, we will set the breakFound
+     *     flag to be true in order to exit the current executing loop.
+     * </p>
+     * @param bs Break Statement
+     */
     public void visitBreakStmt(BreakStmt bs) { breakFound = true; }
 
     /*
@@ -465,7 +492,7 @@ public class Interpreter extends Visitor {
         for(int i = 0; i <= cs.caseStmts().size(); i++) {
             // Default Case Execution
             if(i == cs.caseStmts().size()) {
-                cs.choiceBlock().visit(this);
+                cs.otherBlock().visit(this);
                 break;
             }
             CaseStmt currCase = cs.caseStmts().get(i);
@@ -547,7 +574,7 @@ public class Interpreter extends Visitor {
     public void visitDoStmt(DoStmt ds) {
         do {
             ds.doBlock().visit(this);
-            if(breakFound) {
+            if(breakFound || returnFound) {
                 breakFound = false;
                 break;
             }
@@ -567,19 +594,24 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /*
-    ___________________________ Field Expressions ___________________________
-    For a field expression, we just access the object from the stack and get
-    the appropriate field's value with a lookup.
-    _________________________________________________________________________
-    */
+
+    /**
+     * We will evaluate the target for the field expression first. From there, the
+     * next evaluation will be based on what the target is trying to access
+     * <ul>
+     *     <li>Name Expression: Evaluate access expression here.</li>
+     *     <li>Everything Else: Evaluate at a different visit</li>
+     * </ul>
+     * @param fe Field Expression
+     */
     public void visitFieldExpr(FieldExpr fe) {
-        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
-            String objName = fe.fieldTarget().toString();
-            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
+        fe.fieldTarget().visit(this);
+        HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
+
+        if(fe.accessExpr().isNameExpr())
             currValue = instance.get(fe.accessExpr().toString());
-        }
-        else { fe.accessExpr().visit(this); }
+        else
+            fe.accessExpr().visit(this);
     }
 
     /*
@@ -661,7 +693,9 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitGlobalDecl(GlobalDecl gd) {
-        gd.var().init().visit(this);
+        if(gd.var().init() == null) { currValue = null; }
+        else { gd.var().init().visit(this); }
+
         stack.addValue(gd.var().toString(),currValue);
     }
 
@@ -788,7 +822,7 @@ public class Interpreter extends Visitor {
         stack = stack.createCallFrame();
 
         // Function Invocation
-        if(in.target() == null && !in.targetType.isClassType()) {
+        if(!in.targetType.isClassType()) {
             FuncDecl fd = currentScope.findName(in.invokeSignature()).decl().asTopLevelDecl().asFuncDecl();
             currentScope = fd.symbolTable;
 
@@ -812,10 +846,7 @@ public class Interpreter extends Visitor {
         }
         // Method Invocation
         else {
-            in.target().visit(this);
             HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
-
-            if(!in.target().asNameExpr().getName().toString().equals("this")) { stack.addValue("this",obj); }
 
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
@@ -902,7 +933,9 @@ public class Interpreter extends Visitor {
     ____________________________________________________________________
     */
     public void visitLocalDecl(LocalDecl ld) {
-        ld.var().init().visit(this);
+        if(ld.var().init() == null) { currValue = null; }
+        else { ld.var().init().visit(this); }
+
         stack.addValue(ld.var().toString(),currValue);
     }
 
@@ -941,21 +974,23 @@ public class Interpreter extends Visitor {
         if(cd.constructor() != null) { cd.constructor().visit(this); }
     }
 
-    /*
-    ___________________________ Out Statements ___________________________
-    ______________________________________________________________________
-    */
+    /**
+     * Prints expressions that appear in the VM
+     * <p>
+     *     We will print out every expression that appears in the current
+     *     output statement during this visit.
+     * </p>
+     * @param os Output Statement
+     */
     public void visitOutStmt(OutStmt os) {
-        boolean endlFound = false;
-        for(int i = 0; i < os.outExprs().size(); i++) {
-            Expression e = os.outExprs().get(i);
-            if(e.isEndl()) { System.out.println(); endlFound = true; }
-            else {
-                e.visit(this);
+        for(Expression e : os.outExprs()) {
+            e.visit(this);
+            if(e.isEndl())
+                System.out.println();
+            else
                 System.out.print(currValue);
-            }
         }
-        if(!endlFound) System.out.println();
+        System.out.println();
     }
 
     /*
@@ -976,6 +1011,8 @@ public class Interpreter extends Visitor {
     ______________________________________________________________________
     */
     public void visitStopStmt(StopStmt ss) { System.exit(1); }
+
+    public void visitThis(This t) { currValue = stack.getValue("this"); }
 
     /*
     __________________________ Unary Expressions  __________________________

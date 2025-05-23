@@ -9,10 +9,6 @@ import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
-/*
-____________________________ FunDecl ____________________________
-_________________________________________________________________
-*/
 public class FuncDecl extends TopLevelDecl implements NameNode {
 
     public SymbolTable symbolTable;
@@ -52,7 +48,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public boolean isFuncDecl() { return true; }
     public FuncDecl asFuncDecl() { return this; }
 
-    public String funcSignature() { return this + this.paramSignature(); }
+    public String funcSignature() { return this + "/" + this.paramSignature(); }
 
     public String paramSignature() {
         StringBuilder sb = new StringBuilder();

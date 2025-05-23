@@ -73,6 +73,15 @@ public abstract class AST {
         this.parent = n.parent;
     }
 
+    public void copyAndRemove(AST n) {
+        this.copy(n);
+        for(AST c : n.children) {
+            this.addChild(c);
+            c.parent = this;
+        }
+        n.parent = null;
+    }
+
     public void updateNode(Token t) {
         this.text = t.getText();
         this.location = new Location();

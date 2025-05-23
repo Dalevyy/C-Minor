@@ -166,9 +166,9 @@ if_statement : 'if' expression block_statement (elif_statement)* ('else' block_s
 
 elif_statement : 'else' 'if' expression block_statement ;
 
-while_statement : 'while' expression ('next' expression)? block_statement ;
+while_statement : 'while' expression block_statement ;
 
-do_while_statement : 'do' block_statement ('next' expression)? 'while' expression ;
+do_while_statement : 'do' block_statement 'while' expression ;
 
 for_statement : 'for' '(' range_iterator | array_iterator')' block_statement ;
 

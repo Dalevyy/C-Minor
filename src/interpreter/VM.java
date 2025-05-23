@@ -5,6 +5,7 @@ import ast.*;
 import ast.misc.Compilation;
 import ast.misc.Var;
 import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
 import lexer.Lexer;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
@@ -110,16 +111,28 @@ public class VM {
                         node.visit(interpreter);
                         if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
                     }
+
+                    if(node.isExpression() && node.asExpression().isOutStmt()) { System.out.println(); }
                 }
             }
             catch(Exception e) {
+                if(currNode != null && currNode.isTopLevelDecl()) {
+                    if (currNode.asTopLevelDecl().isClassDecl())
+                        compilationUnit.globalTable.removeName(currNode.toString());
+                }
                 if(e.getMessage() != null) {
                     if(!e.getMessage().equals("EOF Not Found")) {
                         try {
-                            compilationUnit.globalTable.removeName(e.getMessage());
-                            if(currNode.isTopLevelDecl() && currNode.asTopLevelDecl().isEnumDecl()) {
-                                removeEnumDecl(currNode.asTopLevelDecl().asEnumDecl(), compilationUnit.globalTable);
+                            if(currNode.isTopLevelDecl()) {
+                                if(currNode.asTopLevelDecl().isEnumDecl())
+                                    removeEnumDecl(currNode.asTopLevelDecl().asEnumDecl(), compilationUnit.globalTable);
+                                else if(currNode.asTopLevelDecl().isClassDecl())
+                                    compilationUnit.globalTable.removeName(currNode.toString());
+                                else if(currNode.asTopLevelDecl().isFuncDecl())
+                                    removeFuncDecl(currNode.asTopLevelDecl().asFuncDecl(),compilationUnit.globalTable);
                             }
+                            else
+                                compilationUnit.globalTable.removeName(e.getMessage());
                         }
                         catch(Exception e2) {
                             System.out.println(e.getMessage());
@@ -133,5 +146,9 @@ public class VM {
 
     private static void removeEnumDecl(EnumDecl ed, SymbolTable st) {
         for(Var constant : ed.constants()) { st.removeName(constant.toString()); }
+    }
+
+    private static void removeFuncDecl(FuncDecl fd, SymbolTable st) {
+        st.removeName(fd.funcSignature());
     }
 }

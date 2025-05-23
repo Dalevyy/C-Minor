@@ -6,7 +6,7 @@ import utilities.Visitor;
 public class FieldExpr extends Expression {
 
     private final Expression target;
-    private final Expression accessExpr;
+    private Expression accessExpr;
 
     private final boolean asCheck;
     private final boolean isInvocation;
@@ -28,6 +28,7 @@ public class FieldExpr extends Expression {
 
     public Expression fieldTarget() { return target; }
     public Expression accessExpr() { return accessExpr; }
+    public void setFieldAccess(Expression e) { this.accessExpr = e; }
 
     public boolean isAsCheck() { return asCheck; }
     public boolean isMethodInvocation() { return isInvocation; }

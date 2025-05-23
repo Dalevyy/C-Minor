@@ -2,6 +2,7 @@ package micropasses;
 
 import ast.expressions.BinaryExpr;
 import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
 import ast.expressions.InStmt;
 import ast.expressions.OutStmt;
 import messages.errors.ErrorBuilder;
@@ -12,16 +13,18 @@ import utilities.Visitor;
 
 /**
  * Micropass #1
- * <br><br>
+ * <p>
  * Due to the nature of the C Minor grammar, <code>InStmt</code> and <code>OutStmt</code> nodes
  * within the <code>AST</code> will not be written correctly. This is because the parser will
  * treat the <code>'<<'</code> and <code>'>>'</code> operators as binary shift operators instead
  * of the stream insertion and extraction operators. Thus, after we finish parsing, we need to
  * do a pass to rewrite these statements to ensure the <code>AST</code> is correctly written.
- * <br><br>
+ * </p>
+ * <p>
  * Additionally, for <code>InStmt</code> nodes, we will also check to make sure each expression
  * in the <code>InStmt</code> represents a <code>NameExpr</code> since data needs to be stored
  * in a memory location that the name points to.
+ * </p>
  * @author Daniel Levy
  */
 public class InOutStmtRewrite extends Visitor {
@@ -47,22 +50,40 @@ public class InOutStmtRewrite extends Visitor {
                     }
                     else { ioExprs.add(be.LHS()); }
 
-                    ioExprs.add(be.RHS());
+                    if(be.RHS().isBinaryExpr()) { be.RHS().visit(this); }
+                    else { ioExprs.add(be.RHS()); }
                     break;
                 default:
                     ioExprs.add(be);
+                    if(be.RHS().isFieldExpr()) { be.RHS().visit(this); }
             }
+        }
+    }
+
+    public void visitFieldExpr(FieldExpr fe) {
+       if(insideIO) {
+            if(fe.accessExpr().isBinaryExpr()) {
+                ioExprs.add(fe.accessExpr().asBinaryExpr().RHS());
+                fe.setFieldAccess(fe.accessExpr().asBinaryExpr().LHS());
+            }
+            else { super.visitFieldExpr(fe); }
         }
     }
 
     public void visitOutStmt(OutStmt os) {
         insideIO = true;
         ioExprs = new Vector<>();
-        
-        if(os.outExprs().get(0).isBinaryExpr()) {
-            os.removeChild(0);
-            for(Expression e : os.outExprs()) { e.visit(this); }
 
+        if(os.outExprs().get(0).isFieldExpr()) {
+            os.removeChild(0);
+            ioExprs.add(os.outExprs().get(0));
+            os.outExprs().get(0).visit(this);
+            os.setOutExprs(ioExprs);
+            os.addChild(ioExprs);
+        }
+        else if(os.outExprs().get(0).isBinaryExpr()) {
+            os.removeChild(0);
+            os.outExprs().get(0).visit(this);
             os.setOutExprs(ioExprs);
             os.addChild(ioExprs);
         }

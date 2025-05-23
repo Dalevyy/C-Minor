@@ -3,12 +3,13 @@ package micropasses;
 import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
+import ast.expressions.This;
 import ast.topleveldecls.ClassDecl;
 import utilities.SymbolTable;
 import utilities.Visitor;
 
 /**
- * Micropass #4
+ * Micropass #3
  * <br><br>
  * Once name checking is complete, we want to go back through each class
  * in a C Minor program and make sure all <code>NameExpr</code> nodes that
@@ -34,11 +35,10 @@ public class FieldRewrite extends Visitor {
         if(currentScope.hasNameSomewhere(ne.toString())) {
             if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
                 FieldExpr fe = new FieldExprBuilder()
-                                        .setTarget(new NameExpr("this"))
+                                        .setTarget(new This())
                                         .setAccessExpr(ne)
                                         .createFieldExpr();
-                fe.copy(ne);
-                fe.setParent();
+                fe.copyAndRemove(ne);
             }
         }
     }
