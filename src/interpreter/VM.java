@@ -116,7 +116,7 @@ public class VM {
                 }
             }
             catch(Exception e) {
-                if(currNode.isTopLevelDecl()) {
+                if(currNode != null && currNode.isTopLevelDecl()) {
                     if (currNode.asTopLevelDecl().isClassDecl())
                         compilationUnit.globalTable.removeName(currNode.toString());
                 }
