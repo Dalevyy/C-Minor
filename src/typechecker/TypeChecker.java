@@ -6,7 +6,6 @@ import ast.expressions.*;
 import ast.expressions.Literal.*;
 import ast.expressions.Literal.LiteralBuilder;
 import ast.misc.Name;
-import ast.misc.NameNode;
 import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
@@ -16,8 +15,8 @@ import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.ScalarType.*;
 import messages.MessageType;
 import messages.errors.*;
-import messages.errors.scope_error.ScopeErrorFactory;
-import messages.errors.type_error.TypeErrorFactory;
+import messages.errors.scope.ScopeErrorFactory;
+import messages.errors.type.TypeErrorFactory;
 import utilities.*;
 
 public class TypeChecker extends Visitor {
@@ -216,16 +215,18 @@ public class TypeChecker extends Visitor {
 //
 //    }
 
-    /*
-    ______________________ Array Expressions ______________________
-    Array expressions are how users can access memory from array.
-    First, we make sure the target is an array (or a list) since it
-    does not make sense to dereference a non-array type. Then, we
-    will make sure the index evaluates to an integer. We will not
-    check if the integer is a valid index or not since this needs
-    to be done at runtime.
-    _______________________________________________________________
-    */
+
+    /**
+     * <p>
+     *     Array expressions are how users can access memory from array.
+     *     First, we make sure the target is an array (or a list) since it
+     *     does not make sense to dereference a non-array type. Then, we
+     *     will make sure the index evaluates to an integer. We will not
+     *     check if the integer is a valid index or not since this needs
+     *     to be done at runtime.
+     * </p>
+     * @param ae Array Expression
+     */
     public void visitArrayExpr(ArrayExpr ae) {
         ae.arrayTarget().visit(this);
 
@@ -1293,7 +1294,32 @@ public class TypeChecker extends Visitor {
 
         // Function Invocation
         if(currentTarget == null && currentClass == null) {
-            // ERROR CHECK #1: Check if function overload exists
+            in.targetType = new VoidType();
+
+            if(in.toString().equals("length")) {
+                // ERROR CHECK #1: Make sure 'length' call only has one argument
+                if(in.arguments().size() != 1) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(in)
+                                .addErrorType(MessageType.TYPE_ERROR_451)
+                                .error()
+                    );
+                }
+                // ERROR CHECK #2: Make sure argument evaluates to an array or list
+                if(!(in.arguments().get(0).type.isArrayType() || in.arguments().get(0).type.isListType())) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(in)
+                                    .addErrorType(MessageType.TYPE_ERROR_452)
+                                    .error()
+                    );
+                }
+                in.type = new DiscreteType(Discretes.INT);
+                return;
+            }
+
+            // ERROR CHECK #3: Check if function overload exists
             if(!currentScope.hasNameSomewhere(funcSignature.toString())) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
@@ -1306,13 +1332,12 @@ public class TypeChecker extends Visitor {
 
             FuncDecl fd = currentScope.findName(funcSignature.toString()).decl().asTopLevelDecl().asFuncDecl();
             in.type = fd.returnType();
-            in.targetType = new VoidType();
         }
         // Method Invocation
         else {
             ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
 
-            // ERROR CHECK #2: Make sure the method was declared in the class
+            // ERROR CHECK #4: Make sure the method was declared in the class
             if(!cd.symbolTable.hasMethod(in.toString())) {
                 errors.add(
                     new ErrorBuilder(generateScopeError, interpretMode)
@@ -1323,7 +1348,7 @@ public class TypeChecker extends Visitor {
                 );
             }
 
-            // ERROR CHECK #3: Check if the method overload exists
+            // ERROR CHECK #5: Check if the method overload exists
             while(!cd.symbolTable.hasName(funcSignature.toString())) {
                 if(cd.superClass() == null) {
                     errors.add(

@@ -10,7 +10,7 @@ import ast.topleveldecls.*;
 import ast.types.Type;
 import messages.*;
 import messages.errors.ErrorBuilder;
-import messages.errors.runtime_error.RuntimeErrorFactory;
+import messages.errors.runtime.RuntimeErrorFactory;
 import utilities.*;
 
 import java.io.*;
@@ -816,6 +816,12 @@ public class Interpreter extends Visitor {
         for(int i = 0; i < in.arguments().size(); i++) {
             in.arguments().get(i).visit(this);
             args.add(currValue);
+        }
+
+        if(in.toString().equals("length")) {
+            Vector<Object> arr = (Vector<Object>) currValue;
+            currValue = arr.size() - 1;
+            return;
         }
 
         SymbolTable oldScope = currentScope;

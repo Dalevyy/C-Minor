@@ -11,7 +11,7 @@ import ast.topleveldecls.*;
 import ast.types.ClassType;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
-import messages.errors.scope_error.ScopeErrorFactory;
+import messages.errors.scope.ScopeErrorFactory;
 import utilities.*;
 
 import java.util.HashSet;
@@ -507,16 +507,16 @@ public class NameChecker extends Visitor {
      * @param in Invocation
      */
     public void visitInvocation(Invocation in) {
-        String funcName = in.toString();
         // ERROR CHECK #1: Make sure the function was declared previously
         if(!currentScope.hasMethodSomewhere(in.toString())) {
-            errors.add(new ErrorBuilder(generateScopeError,interpretMode)
-                    .addLocation(in)
-                    .addErrorType(MessageType.SCOPE_ERROR_319)
-                    .addArgs(funcName)
-                    .error());
+            if(!in.toString().equals("length")) {
+                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_319)
+                        .addArgs(in.toString())
+                        .error());
+            }
         }
-
         for(Expression e : in.arguments()) { e.visit(this); }
     }
 

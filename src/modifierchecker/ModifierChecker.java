@@ -1,34 +1,50 @@
 package modifierchecker;
 
-import ast.*;
-import ast.classbody.*;
-import ast.expressions.*;
-import ast.statements.*;
-import ast.topleveldecls.*;
-import ast.types.*;
-import messages.*;
-
+import ast.AST;
+import ast.classbody.FieldDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.FieldExpr;
+import ast.expressions.Invocation;
+import ast.expressions.NewExpr;
+import ast.statements.AssignStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.MainDecl;
+import ast.types.ClassType;
 import java.util.HashSet;
-
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
-import messages.errors.mod_error.ModErrorFactory;
-import utilities.*;
+import messages.errors.mod.ModErrorFactory;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 
 public class ModifierChecker extends Visitor {
 
-    private Message msg;
     private SymbolTable currentScope;
     private AST currentContext;
-    private ModErrorFactory generateModError;
-    private Vector<String> errors;
+    private final ModErrorFactory generateModError;
+    private final Vector<String> errors;
 
+    /**
+     * Creates modifier checker in compilation mode
+     */
     public ModifierChecker() {
         this.currentScope = null;
         this.generateModError = new ModErrorFactory();
         this.errors = new Vector<>();
     }
 
+    /**
+     * Creates modifier checker in interpretation mode
+     * @param st Symbol Table
+     */
     public ModifierChecker(SymbolTable st) {
         this();
         this.currentScope = st;
@@ -61,8 +77,8 @@ public class ModifierChecker extends Visitor {
     }
 
     public void abstractClassImplementation(ClassDecl subClass, ClassDecl superClass) {
-        HashSet<String> concretes = new HashSet<String>();
-        HashSet<String> abstracts = new HashSet<String>();
+        HashSet<String> concretes = new HashSet<>();
+        HashSet<String> abstracts = new HashSet<>();
         sortClassMethods(abstracts,concretes,subClass);
 
         if(abstracts.size() > 0) {
@@ -107,6 +123,10 @@ public class ModifierChecker extends Visitor {
         }
     }
 
+    /**
+     * Sets current scope inside case block
+     * @param cs Case Statement
+     */
     public void visitCaseStmt(CaseStmt cs) {
         SymbolTable oldScope = currentScope;
         currentScope = cs.symbolTable;
@@ -114,10 +134,17 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
+    /**
+     * Sets current scope inside choice's other block
+     * @param cs Choice Statement
+     */
     public void visitChoiceStmt(ChoiceStmt cs) {
+        for(CaseStmt c : cs.caseStmts())
+            c.visit(this);
+
         SymbolTable oldScope = currentScope;
         currentScope = cs.symbolTable;
-        super.visitChoiceStmt(cs);
+        cs.otherBlock().visit(this);
         currentScope = oldScope;
     }
 
@@ -179,16 +206,6 @@ public class ModifierChecker extends Visitor {
     */
     public void visitFieldDecl(FieldDecl fd) {
         super.visitFieldDecl(fd);
-
-
-        /*
-            If a field was marked as a property, then this means
-            the user would like us to generate a getter and setter
-            for this field. We will do this during ModifierChecker.
-        */
-        if(fd.mod.isProperty()) {
-
-        }
     }
 
     /*
@@ -215,6 +232,10 @@ public class ModifierChecker extends Visitor {
         fe.fieldTarget().visit(this);
     }
 
+    /**
+     * Sets current scope inside for block
+     * @param fs For Statement
+     */
     public void visitForStmt(ForStmt fs) {
         SymbolTable oldScope = currentScope;
         currentScope = fs.symbolTable;
@@ -261,8 +282,11 @@ public class ModifierChecker extends Visitor {
     public void visitInvocation(Invocation in) {
         String funcSignature = in.invokeSignature();
 
+        if(in.toString().equals("length")) {
+            ;
+        }
         // Function Invocation Case
-        if(in.target() == null && !in.targetType.isClassType()) {
+        else if(!in.targetType.isClassType()) {
             FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
@@ -302,11 +326,12 @@ public class ModifierChecker extends Visitor {
                     errors.add(new ErrorBuilder(generateModError,interpretMode)
                             .addLocation(in)
                             .addErrorType(MessageType.MOD_ERROR_504)
-                            .addArgs(in.target().toString())
+                            .addArgs(in.toString())
                             .addSuggestType(MessageType.MOD_SUGGEST_1504)
                             .error());
             }
         }
+        super.visitInvocation(in);
     }
 
     public void visitMainDecl(MainDecl md) {
@@ -323,28 +348,31 @@ public class ModifierChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
-    /*
-    __________________________ New Expressions __________________________
-    We are not allowed to instantiate objects from abstract classes, so
-    this is the only check that is needed when visiting a new expression.
-    _____________________________________________________________________
-    */
+    /**
+     * Checks to make sure new expression can instantiate a valid class
+     * @param ne New Expression
+     */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.typeName()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.toString()).decl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: Class must be concrete
         if(cd.mod.isAbstract()) {
-            errors.add(new ErrorBuilder(generateModError,interpretMode)
-                    .addLocation(ne)
-                    .addErrorType(MessageType.MOD_ERROR_506)
-                    .addArgs(ne.getParent().getParent().asStatement().asLocalDecl().var().toString())
-                    .addSuggestType(MessageType.MOD_SUGGEST_1506)
-                    .error());
+            errors.add(
+                new ErrorBuilder(generateModError,interpretMode)
+                        .addLocation(ne)
+                        .addErrorType(MessageType.MOD_ERROR_506)
+                        .addArgs(ne.getParent().getParent().asStatement().asLocalDecl().var().toString())
+                        .addSuggestType(MessageType.MOD_SUGGEST_1506)
+                        .error()
+            );
         }
-
         super.visitNewExpr(ne);
     }
 
+    /**
+     * Sets current scope inside while block
+     * @param ws While Statement
+     */
     public void visitWhileStmt(WhileStmt ws) {
         SymbolTable oldScope = currentScope;
         currentScope = ws.symbolTable;
