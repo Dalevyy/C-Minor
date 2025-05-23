@@ -51,8 +51,13 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitArrayExpr(ArrayExpr ae) {
-        ae.arrayTarget().visit(this);
-        Vector<Object> arr = (Vector<Object>) currValue;
+        Vector<Object> arr;
+        if(currValue instanceof HashMap)
+            arr = (Vector<Object>) ((HashMap<String,Object>) currValue).get(ae.toString());
+        else {
+            ae.arrayTarget().visit(this);
+            arr = (Vector<Object>) currValue;
+        }
         Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
 
         int index = 0;
@@ -569,7 +574,7 @@ public class Interpreter extends Visitor {
     public void visitDoStmt(DoStmt ds) {
         do {
             ds.doBlock().visit(this);
-            if(breakFound) {
+            if(breakFound || returnFound) {
                 breakFound = false;
                 break;
             }
@@ -589,12 +594,6 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /*
-    ___________________________ Field Expressions ___________________________
-    For a field expression, we just access the object from the stack and get
-    the appropriate field's value with a lookup.
-    _________________________________________________________________________
-    */
 
     /**
      * We will evaluate the target for the field expression first. From there, the
@@ -607,17 +606,12 @@ public class Interpreter extends Visitor {
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
+        HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
 
-        if(fe.accessExpr().isNameExpr()) {
-            HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
+        if(fe.accessExpr().isNameExpr())
             currValue = instance.get(fe.accessExpr().toString());
-        }
-        else {
-            Type oldTarget = currTarget;
-            currTarget = fe.fieldTarget().type;
+        else
             fe.accessExpr().visit(this);
-            currTarget = oldTarget;
-        }
     }
 
     /*
