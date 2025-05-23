@@ -1,4 +1,4 @@
-package messages.errors.runtime_error;
+package messages.errors.runtime;
 
 import messages.errors.Error;
 import messages.errors.ErrorFactory;
