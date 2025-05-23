@@ -30,10 +30,10 @@ public abstract class Type extends AST {
         else if(this.isChar()) return "C";
         else if(this.isString()) return "S";
         else if(this.isReal()) return "R";
-        else if(this.isEnumType()) return "E";
+        else if(this.isEnumType()) return this.toString();
         else if(this.isListType()) return "L";
         else if(this.isArrayType()) return "A";
-        else if(this.isClassType()) return "O";
+        else if(this.isClassType()) return this.toString();
         else return "V";
     }
 
