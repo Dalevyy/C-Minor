@@ -220,10 +220,13 @@ postfix_expression
 
 arguments : expression (',' expression)* ;
 
-unary_expression
-    : unary_operator cast_expression
-    | postfix_expression
-    ;
+factor_expression : postfix_expression
+                  | 'length' '(' arguments ')'
+                  ;
+
+unary_expression : unary_operator cast_expression
+                 | factor_expression
+                 ;
 
 cast_expression
     : scalar_type '(' cast_expression ')'
