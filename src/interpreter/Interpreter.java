@@ -51,26 +51,28 @@ public class Interpreter extends Visitor {
     _____________________________________________________________________
     */
     public void visitArrayExpr(ArrayExpr ae) {
-        Vector<Expression> dims = new Vector<>();
-
         ae.arrayTarget().visit(this);
         Vector<Object> arr = (Vector<Object>) currValue;
-
-//        AST varDecl = currentScope.findName(ae.arrayTarget().toString()).decl();
-//        if(varDecl.isTopLevelDecl()) { dims = varDecl.asTopLevelDecl().asGlobalDecl().var().init().asArrayLiteral().arrayDims(); }
-//        else if(varDecl.isFieldDecl()) { dims = varDecl.asFieldDecl().var().init().asArrayLiteral().arrayDims(); }
-//        else { dims = varDecl.asStatement().asLocalDecl().var().init().asArrayLiteral().arrayDims(); }
+        Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
 
         int index = 0;
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
             ae.arrayIndex().get(i).visit(this);
             int currOffset = (int) currValue-1;
+            if(currOffset == -1) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ae)
+                        .addErrorType(MessageType.RUNTIME_ERROR_603)
+                        .error();
+            }
             for(int j = i+1; j < dims.size(); j++) {
                 dims.get(j).visit(this);
                 currOffset *= (int) currValue;
             }
             index += currOffset;
         }
+        // Add 1 to index to account for array literal stored at index 0 internally
+        index += 1;
 
         if(index < 0 || index >= arr.size()) {
             new ErrorBuilder(generateRuntimeError,interpretMode)
@@ -83,22 +85,33 @@ public class Interpreter extends Visitor {
         else { currValue = arr.get(index); }
     }
 
-    /*
-    _________________________ Array Literals _________________________
-    Arrays are static in C Minor which means we will have to create an
-    array for the user and then evaluate/store each initial expression
-    into the array.
-    __________________________________________________________________
-    */
+    /**
+     * Evaluates an array literal.
+     * <p>
+     *     Arrays are static in C Minor, so a user can not change its size
+     *     once an array literal is declared. We will evaluate every expression
+     *     for the current array literal and store it in a <code>Vector</code>.
+     *     This will emulate the array during runtime.
+     * </p>
+     * @param al Array Literal
+     */
     public void visitArrayLiteral(ArrayLiteral al) {
         Vector<Object> arr = new Vector<>();
 
         for(Expression e : al.arrayInits()) {
             e.visit(this);
-            if(currValue instanceof Vector) { arr.addAll((Vector<Object>)currValue); }
-            else { arr.add(currValue); }
+            if(currValue instanceof Vector) {
+                for(Object val : (Vector<Object>)currValue) {
+                    if(!(val instanceof ArrayLiteral)) { arr.add(val); }
+                }
+            }
+            else
+                arr.add(currValue);
         }
 
+        // Add the array literal to the Vector, so its
+        // dimensions can be used during a visit to ArrayExpr
+        arr.add(0,al);
         currValue = arr;
     }
 
@@ -426,12 +439,14 @@ public class Interpreter extends Visitor {
         stack = stack.destroyCallFrame();
     }
 
-    /*
-    _____________________ Break Statements _____________________
-    We set the breakFound flag to be true, and we continue
-    interpreting the C Minor program.
-    ____________________________________________________________
-    */
+    /**
+     * Terminates the current loop
+     * <p>
+     *     When a break statement is found, we will set the breakFound
+     *     flag to be true in order to exit the current executing loop.
+     * </p>
+     * @param bs Break Statement
+     */
     public void visitBreakStmt(BreakStmt bs) { breakFound = true; }
 
     /*
@@ -974,7 +989,6 @@ public class Interpreter extends Visitor {
      * @param os Output Statement
      */
     public void visitOutStmt(OutStmt os) {
-        boolean endlFound = false;
         for(Expression e : os.outExprs()) {
             e.visit(this);
             if(e.isEndl())
