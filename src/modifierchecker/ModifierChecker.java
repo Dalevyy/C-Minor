@@ -353,7 +353,7 @@ public class ModifierChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.typeName()).decl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: Class must be concrete
         if(cd.mod.isAbstract()) {
