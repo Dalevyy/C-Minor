@@ -15,6 +15,7 @@ _________________________________________________________________
 */
 public class ClassType extends Type {
     private final Name name;
+    private final Vector<ClassType> inheritedTypes;
     private final Vector<Type> templateTypes;
 
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
@@ -23,6 +24,7 @@ public class ClassType extends Type {
     public ClassType(Token t, Name n, Vector<Type> tt) {
         super(t);
         this.name = n;
+        this.inheritedTypes = new Vector<>();
         this.templateTypes = tt;
 
         addChild(this.name);
@@ -40,6 +42,13 @@ public class ClassType extends Type {
 
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
+
+    public static boolean classAssignmentCompatibility(ClassType ct1, ClassType ct2) {
+        if(ct1.toString().length() > ct2.toString().length())
+            return ClassType.isSuperClass(ct1,ct2);
+        else
+            return ClassType.isSuperClass(ct2,ct1);
+    }
 
     public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
         if(subClass.toString().equals(superClass.toString())) { return true; }
