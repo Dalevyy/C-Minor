@@ -172,6 +172,7 @@ public class Parser {
                 || nextLA(TokenType.INT_LIT)
                 || nextLA(TokenType.CHAR_LIT)
                 || nextLA(TokenType.ARRAY)
+                || nextLA(TokenType.LIST)
                 || nextLA(TokenType.NEW);
     }
 
