@@ -245,8 +245,10 @@ public class NameChecker extends Visitor {
                     }
                     currentScope.addName(name,decl.asFieldDecl());
                 }
-                if (name.contains("/")) { currentScope.addName(name,decl.asMethodDecl()); }
-                else { currentScope.addName(name + "/" + base,decl.asMethodDecl()); }
+                else {
+                    if (name.contains("/")) { currentScope.addName(name,decl.asMethodDecl()); }
+                    else { currentScope.addName(name + "/" + base,decl.asMethodDecl()); }
+                }
             }
 
             for(String name: base.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
