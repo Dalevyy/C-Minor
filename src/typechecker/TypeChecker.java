@@ -87,6 +87,20 @@ public class TypeChecker extends Visitor {
             3. Evaluate how many arguments Array(...) is (same as columns)
                 Recursion
     */
+
+    /**
+     * Checks if an array literal is assignment compatible with an array type
+     * <p>
+     *     This is a recursive algorithm to verify whether an array literal can
+     *     be assigned to an array type in C Minor. This algorithm was based off
+     *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
+     * </p>
+     * @param currDepth Current level of recursion (final depth is 1)
+     * @param t Array type
+     * @param dims Expressions representing the dimensions for the array
+     * @param curr Array Literal aka the current array literal we are checking
+     * @return Boolean - True if assignment compatible and False otherwise
+     */
     private boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
         if(currDepth == 1) {
             // ERROR CHECK #1: If we are checking a single dimension array, then we
@@ -155,7 +169,7 @@ public class TypeChecker extends Visitor {
             }
             return true;
         }
-        if(currDepth > 1) {
+        else if(currDepth > 1) {
             ArrayLiteral al = curr.asArrayLiteral();
 
             // ERROR CHECK #1: For all n-dimensional array literals (where n>1), we need to make sure the user
@@ -209,13 +223,9 @@ public class TypeChecker extends Visitor {
             }
             return true;
         }
-        return false;
+        else
+            return false;
     }
-
-//    private boolean listAssignmentCompatibility(int currDepth, Type lt, ListLiteral curr) {
-//
-//    }
-
 
     /**
      * <p>
