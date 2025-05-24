@@ -46,22 +46,20 @@ public abstract class Type extends AST {
     }
 
     public static boolean assignmentCompatible(Type LHS, Type RHS) {
-        if(Type.typeEqual(LHS,RHS)) { return true; }
-        else if(LHS.isClassType() && RHS.isClassType()) {
-            if (LHS.asClassType().toString().length() > RHS.asClassType().toString().length()) {
-                return ClassType.isSuperClass(LHS.asClassType(), RHS.asClassType());
-            } else { return ClassType.isSuperClass(RHS.asClassType(), LHS.asClassType()); }
-        }
-        else if(LHS.isEnumType() && RHS.isEnumType()) {
+        if(Type.typeEqual(LHS,RHS))
+            return true;
+        else if(LHS.isClassType() && RHS.isClassType())
+            return LHS.asClassType().toString().equals(RHS.asClassType().toString());
+        else if(LHS.isEnumType() && RHS.isEnumType())
             return LHS.asEnumType().toString().equals(RHS.asEnumType().toString());
-        }
         else if(LHS.isListType() && RHS.isListType()) { return true; }
         else if(LHS.isArrayType() && RHS.isArrayType()) {
             ArrayType lType = LHS.asArrayType();
             ArrayType rType = RHS.asArrayType();
             return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
         }
-        return false;
+        else
+            return false;
     }
 
 
