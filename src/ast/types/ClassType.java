@@ -14,18 +14,23 @@ ClassType as well.
 _________________________________________________________________
 */
 public class ClassType extends Type {
-    private final Name name;
+    private final Name name;        // Only for single type
     private final Vector<ClassType> inheritedTypes;
     private final Vector<Type> templateTypes;
 
+    public boolean multiType;
+
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
-    public ClassType(Token t, Name n) { this(t,n,new Vector<>()); }
-    public ClassType(Token t, Name n, Vector<Type> tt) {
+    public ClassType(Token t, Name n) { this(t,n,new Vector<>(),new Vector<>()); }
+    public ClassType(Name n, Vector<ClassType> it) { this(new Token(),n,it,new Vector<>()); }
+    public ClassType(Token t, Name n, Vector<Type> tt) { this(t,n,new Vector<>(),tt); }
+    public ClassType(Token t, Name n, Vector<ClassType> it, Vector<Type> tt) {
         super(t);
         this.name = n;
-        this.inheritedTypes = new Vector<>();
+        this.inheritedTypes = it;
         this.templateTypes = tt;
+        this.multiType = false;
 
         addChild(this.name);
         addChild(this.templateTypes);
@@ -60,14 +65,19 @@ public class ClassType extends Type {
         while(slashLocation != -1) {
             String subClassName = classHierarchy.substring(0,slashLocation);
             if(subClassName.equals(superClassName)) { return true; }
+            if(classHierarchy.length() == 1) { return false; }
             classHierarchy = classHierarchy.substring(slashLocation+1);
         }
 
         return false;
     }
 
+//    public ClassType createMultiType(ClassType inheritedType) {
+//        return new ClassType(inheritedType.toString(),)
+//    }
+
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() { return this.typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitClassType(this); }
