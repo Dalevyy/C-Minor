@@ -1171,6 +1171,7 @@ public class Parser {
                        | do_while_statement
                        | for_statement
                        | choice_statement
+                       | list_command_statement
      */
     private Statement statement() {
         if(nextLA(TokenType.STOP)) {
@@ -1178,14 +1179,24 @@ public class Parser {
             match(TokenType.STOP);
             return new StopStmt(nodeToken());
         }
-        else if(nextLA(TokenType.RETURN)) { return returnStatement(); }
-        else if(nextLA(TokenType.LBRACE)) { return blockStatement(); }
-        else if(nextLA(TokenType.IF)) { return ifStatement(); }
-        else if(nextLA(TokenType.WHILE)) { return whileStatement(); }
-        else if(nextLA(TokenType.DO)) { return doWhileStatement(); }
-        else if(nextLA(TokenType.FOR)) { return forStatement(); }
-        else if(nextLA(TokenType.CHOICE)) { return choiceStatement(); }
-        else { return assignmentStatement(); }
+        else if(nextLA(TokenType.RETURN))
+            return returnStatement();
+        else if(nextLA(TokenType.LBRACE))
+            return blockStatement();
+        else if(nextLA(TokenType.IF))
+            return ifStatement();
+        else if(nextLA(TokenType.WHILE))
+            return whileStatement();
+        else if(nextLA(TokenType.DO))
+            return doWhileStatement();
+        else if(nextLA(TokenType.FOR))
+            return forStatement();
+        else if(nextLA(TokenType.CHOICE))
+            return choiceStatement();
+        else if(nextLA(TokenType.APPEND) || nextLA(TokenType.REMOVE) || nextLA(TokenType.INSERT))
+            return listCommandStatement();
+        else
+            return assignmentStatement();
     }
 
     // 40. return_statement ::= expression?
@@ -1450,7 +1461,33 @@ public class Parser {
         return new Label(nodeToken(),lConstant);
     }
 
-    // 57. input_statement ::= 'cin' ( '>>' expression )+
+    // 57. list_command_statement ::= 'append' '(' arguments ')'
+    //                              | 'remove' '(' arguments ')'
+    //                              | 'insert' '(' arguments ')'
+    private ListStmt listCommandStatement() {
+        tokenStack.add(currentLA());
+        ListStmt.Commands command;
+
+        if(nextLA(TokenType.APPEND)) {
+            match(TokenType.APPEND);
+            command = ListStmt.Commands.APPEND;
+        }
+        else if(nextLA(TokenType.REMOVE)) {
+            match(TokenType.REMOVE);
+            command = ListStmt.Commands.REMOVE;
+        }
+        else {
+            match(TokenType.INSERT);
+            command = ListStmt.Commands.INSERT;
+        }
+
+        match(TokenType.LPAREN);
+        Vector<Expression> args = arguments();
+        match(TokenType.RPAREN);
+        return new ListStmt(nodeToken(),command,args);
+    }
+
+    // 58. input_statement ::= 'cin' ( '>>' expression )+
     private InStmt inputStatement() {
         tokenStack.add(currentLA());
 
@@ -1461,7 +1498,7 @@ public class Parser {
         return new InStmt(nodeToken(),inputExprs);
     }
 
-    // 58. output_statement ::= 'cout' ( '<<' expression )+
+    // 59. output_statement ::= 'cout' ( '<<' expression )+
     private OutStmt outputStatement() {
         tokenStack.add(currentLA());
 
@@ -1478,7 +1515,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 59. primary_expression ::= ID
+    // 60. primary_expression ::= ID
     //                          | constant
     //                          | '(' expression ')'
     //                          | input_statement
@@ -1520,7 +1557,7 @@ public class Parser {
         }
     }
 
-    // 60. postfix_expression ::= primary_expression ( '[' expression ']'
+    // 61. postfix_expression ::= primary_expression ( '[' expression ']'
     //                                               | '(' arguments? ')'
     //                                               |  ( '.' | '?.' ) expression )*
     private Expression postfixExpression() {
@@ -1574,7 +1611,7 @@ public class Parser {
         return LHS;
     }
 
-    // 61. arguments ::= expression ( ',' expression )*
+    // 62. arguments ::= expression ( ',' expression )*
     private Vector<Expression> arguments() {
         Vector<Expression> ex = new Vector<>();
         ex.add(expression());
@@ -1586,7 +1623,7 @@ public class Parser {
         return ex;
     }
 
-    // 62. factor_expression ::= 'length' '(' arguments ')' | postfix_expression
+    // 63. factor_expression ::= 'length' '(' arguments ')' | postfix_expression
     private Expression factorExpression() {
         if(nextLA(TokenType.LENGTH)) {
             tokenStack.add(currentLA());
@@ -1602,7 +1639,7 @@ public class Parser {
         return postfixExpression();
     }
 
-    // 63. unary_expression ::= unary_operator cast_expression | factor_expression
+    // 64. unary_expression ::= unary_operator cast_expression | factor_expression
     private Expression unaryExpression() {
         if(nextLA(TokenType.TILDE) || nextLA(TokenType.NOT)) {
             tokenStack.add(currentLA());
@@ -1615,7 +1652,7 @@ public class Parser {
         return factorExpression();
     }
 
-    // 64. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
+    // 65. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
     private Expression castExpression() {
         if(inScalarTypeFIRST()) {
             tokenStack.add(currentLA());
@@ -1631,7 +1668,7 @@ public class Parser {
         return unaryExpression();
     }
 
-    // 65. power_expression ::= cast_expression ( '**' cast_expression )*
+    // 66. power_expression ::= cast_expression ( '**' cast_expression )*
     private Expression powerExpression() {
         tokenStack.add(currentLA());
         Expression left = castExpression();
@@ -1652,7 +1689,7 @@ public class Parser {
         return left;
     }
 
-    // 66. multiplication_expression ::= power_expression ( ( '*' | '/' | '%' ) power_expression )*
+    // 67. multiplication_expression ::= power_expression ( ( '*' | '/' | '%' ) power_expression )*
     private Expression multiplicationExpression() {
         tokenStack.add(currentLA());
         Expression left = powerExpression();
@@ -1685,7 +1722,7 @@ public class Parser {
         return left;
     }
 
-    // 67. additive_expression ::= multiplication_expression ( ( '+' | '-' ) multiplication_expression )*
+    // 68. additive_expression ::= multiplication_expression ( ( '+' | '-' ) multiplication_expression )*
     private Expression additiveExpression() {
         tokenStack.add(currentLA());
         Expression left = multiplicationExpression();
@@ -1715,7 +1752,7 @@ public class Parser {
         return left;
     }
 
-    // 68. shift_expression ::= additive_expression ( ( '<<' | '>>' ) additive_expression )*
+    // 69. shift_expression ::= additive_expression ( ( '<<' | '>>' ) additive_expression )*
     private Expression shiftExpression() {
         tokenStack.add(currentLA());
         Expression left = additiveExpression();
@@ -1743,7 +1780,7 @@ public class Parser {
         return left;
     }
 
-    // 69. relational_expression ::= shift_expression ( ( '<' | '>' | '<=' | '>=' ) shift_expression )*
+    // 70. relational_expression ::= shift_expression ( ( '<' | '>' | '<=' | '>=' ) shift_expression )*
     private Expression relationalExpression() {
         tokenStack.add(currentLA());
         Expression left = shiftExpression();
@@ -1780,7 +1817,7 @@ public class Parser {
         return left;
     }
 
-    // 70. instanceof_expression ::= relational_expression ( ( 'instanceof' | '!instanceof' | 'as?' ) relational_expression )*
+    // 71. instanceof_expression ::= relational_expression ( ( 'instanceof' | '!instanceof' | 'as?' ) relational_expression )*
     private Expression instanceOfExpression() {
         tokenStack.add(currentLA());
         Expression left = relationalExpression();
@@ -1813,7 +1850,7 @@ public class Parser {
         return left;
     }
 
-    // 71. equality_expression ::= instanceof_expression ( ( '==' | '!=' ) instanceof_expression )*
+    // 72. equality_expression ::= instanceof_expression ( ( '==' | '!=' ) instanceof_expression )*
     private Expression equalityExpression() {
         tokenStack.add(currentLA());
         Expression left = instanceOfExpression();
@@ -1841,7 +1878,7 @@ public class Parser {
         return left;
     }
 
-    // 72. and_expression ::= equality_expression ( '&' equality_expression )*
+    // 73. and_expression ::= equality_expression ( '&' equality_expression )*
     private Expression andExpression() {
         tokenStack.add(currentLA());
         Expression left = equalityExpression();
@@ -1862,7 +1899,7 @@ public class Parser {
         return left;
     }
 
-    // 73. exclusive_or_expression ::= and_expression ( '^' and_expression )*
+    // 74. exclusive_or_expression ::= and_expression ( '^' and_expression )*
     private Expression exclusiveOrExpression() {
         tokenStack.add(currentLA());
         Expression left = andExpression();
@@ -1883,7 +1920,7 @@ public class Parser {
         return left;
     }
 
-    // 74. inclusive_or_expression ::= exclusive_or_expression ( '|' exclusive_or_expression )*
+    // 75. inclusive_or_expression ::= exclusive_or_expression ( '|' exclusive_or_expression )*
     private Expression inclusiveOrExpression() {
         tokenStack.add(currentLA());
         Expression left = exclusiveOrExpression();
@@ -1904,7 +1941,7 @@ public class Parser {
         return left;
     }
 
-    // 75. logical_and_expression ::= inclusive_or_expression ( 'and' inclusive_or_expression )*
+    // 76. logical_and_expression ::= inclusive_or_expression ( 'and' inclusive_or_expression )*
     private Expression logicalAndExpression() {
         tokenStack.add(currentLA());
         Expression left = inclusiveOrExpression();
@@ -1925,7 +1962,7 @@ public class Parser {
         return left;
     }
 
-    // 76. logical_or_expression ::= logical_and_expression ( 'or' logical_and_expression )*
+    // 77. logical_or_expression ::= logical_and_expression ( 'or' logical_and_expression )*
     private Expression logicalOrExpression() {
         tokenStack.add(currentLA());
         Expression left = logicalAndExpression();
@@ -1949,7 +1986,7 @@ public class Parser {
         return left;
     }
 
-    // 77. expression ::= logical_or_expression
+    // 78. expression ::= logical_or_expression
     private Expression expression() { return logicalOrExpression(); }
 
     /*
@@ -1958,7 +1995,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 78. constant ::= object_constant | array_constant | list_constant | scalar_constant
+    // 79. constant ::= object_constant | array_constant | list_constant | scalar_constant
     private Expression constant() {
         if(nextLA(TokenType.NEW)) { return objectConstant(); }
         else if(nextLA(TokenType.ARRAY)) { return arrayConstant(); }
@@ -1966,7 +2003,7 @@ public class Parser {
         else { return scalarConstant(); }
     }
 
-    // 79. object_constant ::= 'new' ID '(' (object_field ( ',' object_field )* ')'
+    // 80. object_constant ::= 'new' ID '(' (object_field ( ',' object_field )* ')'
     private NewExpr objectConstant() {
         tokenStack.add(currentLA());
         match(TokenType.NEW);
@@ -1989,7 +2026,7 @@ public class Parser {
         return new NewExpr(nodeToken(),new ClassType(nameTok,n),vars);
     }
 
-    // 80. object_field ::= ID '=' expression
+    // 81. object_field ::= ID '=' expression
     private Var objectField() {
         tokenStack.add(currentLA());
 
@@ -2002,7 +2039,7 @@ public class Parser {
         return new Var(nodeToken(),n,e);
     }
 
-    // 81. array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')'
+    // 82. array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')'
     private ArrayLiteral arrayConstant() {
         tokenStack.add(currentLA());
         match(TokenType.ARRAY);
@@ -2021,7 +2058,7 @@ public class Parser {
         return new ArrayLiteral(nodeToken(),exprs,args);
     }
 
-    // 82. list_constant ::= 'List' '(' expression (',' expression)* ')'
+    // 83. list_constant ::= 'List' '(' expression (',' expression)* ')'
     private ListLiteral listConstant() {
         tokenStack.add(currentLA());
 
@@ -2041,7 +2078,7 @@ public class Parser {
         return new ListLiteral(nodeToken(),exprs);
     }
 
-    // 83. scalar_constant ::= discrete_constant | STRING_LITERAL | TEXT_LITERAL | REAL_LITERAL
+    // 84. scalar_constant ::= discrete_constant | STRING_LITERAL | TEXT_LITERAL | REAL_LITERAL
     private Literal scalarConstant() {
         if(nextLA(TokenType.STR_LIT)) {
             tokenStack.add(currentLA());
@@ -2061,7 +2098,7 @@ public class Parser {
         else { return discreteConstant(); }
     }
 
-    // 84. discrete_constant ::= INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL
+    // 85. discrete_constant ::= INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL
     private Literal discreteConstant() {
         tokenStack.add(currentLA());
 
