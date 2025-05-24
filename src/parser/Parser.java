@@ -1221,9 +1221,9 @@ public class Parser {
             Name n = new Name(currentLA());
             match(TokenType.ID);
             match(TokenType.EQ);
-            Expression RHS = objectConstant();
+            NewExpr RHS = objectConstant();
 
-            return new AssignStmt(nodeToken(),new NameExpr(n),RHS,new AssignOp(AssignType.EQ),true);
+            return new RetypeStmt(nodeToken(),new NameExpr(n),RHS);
         }
 
         Expression e = logicalOrExpression();

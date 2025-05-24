@@ -59,6 +59,7 @@ public abstract class Visitor {
     public void visitOutStmt(OutStmt os) { os.visitChildren(this); }
     public void visitParamDecl(ParamDecl pd) { pd.visitChildren(this); }
     public void visitReturnStmt(ReturnStmt rs) { rs.visitChildren(this); }
+    public void visitRetypeStmt(RetypeStmt rs) { rs.visitChildren(this); }
     public void visitScalarType(ScalarType st) { st.visitChildren(this); }
     public void visitStopStmt(StopStmt ss) { ss.visitChildren(this); }
     public void visitThis(This t) { t.visitChildren(this); }
