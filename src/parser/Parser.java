@@ -1202,7 +1202,7 @@ public class Parser {
     }
 
     // 41. assignment_statement ::= 'set' expression assignment_operator expression
-    //                            | 'retype' Name '=' object_constant
+    //                            | 'retype' expression '=' object_constant
     //                            |  logical_or_expression
     private Statement assignmentStatement() {
         tokenStack.add(currentLA());
@@ -1218,12 +1218,11 @@ public class Parser {
         else if(nextLA(TokenType.RETYPE)) {
             match(TokenType.RETYPE);
 
-            Name n = new Name(currentLA());
-            match(TokenType.ID);
+            Expression e = expression();
             match(TokenType.EQ);
             NewExpr RHS = objectConstant();
 
-            return new RetypeStmt(nodeToken(),new NameExpr(n),RHS);
+            return new RetypeStmt(nodeToken(),e,RHS);
         }
 
         Expression e = logicalOrExpression();

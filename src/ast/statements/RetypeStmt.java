@@ -1,15 +1,15 @@
 package ast.statements;
 
-import ast.expressions.NameExpr;
+import ast.expressions.Expression;
 import ast.expressions.NewExpr;
 import token.Token;
 import utilities.Visitor;
 
 public class RetypeStmt extends Statement {
-    private final NameExpr objName;
+    private final Expression objName;
     private final NewExpr objStatement;
 
-    public RetypeStmt(Token t, NameExpr n, NewExpr ne) {
+    public RetypeStmt(Token t, Expression n, NewExpr ne) {
         super(t);
         this.objName = n;
         this.objStatement = ne;
@@ -19,7 +19,7 @@ public class RetypeStmt extends Statement {
         this.setParent();
     }
 
-    public NameExpr getName() { return this.objName; }
+    public Expression getName() { return this.objName; }
     public NewExpr getNewObject() { return this.objStatement; }
 
     public boolean isRetypeStmt() { return true; }
