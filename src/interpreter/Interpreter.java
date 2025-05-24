@@ -7,6 +7,7 @@ import ast.misc.ParamDecl;
 import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
+import ast.types.ClassType;
 import ast.types.Type;
 import messages.*;
 import messages.errors.ErrorBuilder;
@@ -29,17 +30,17 @@ public class Interpreter extends Visitor {
     private boolean breakFound;
     private boolean continueFound;
 
-    public Interpreter() {
+    /**
+     * Creates interpreter for the VM
+     * @param st Symbol Table
+     */
+    public Interpreter(SymbolTable st) {
         stack = new RuntimeStack();
         generateRuntimeError = new RuntimeErrorFactory();
         this.interpretMode = true;
         returnFound = false;
         breakFound = false;
         continueFound = false;
-    }
-
-    public Interpreter(SymbolTable st) {
-        this();
         this.currentScope = st;
     }
 
@@ -412,10 +413,12 @@ public class Interpreter extends Visitor {
                 }
             }
             case "instanceof":
-                currValue = Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                currValue = ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
+                                                                   be.RHS().type.asClassType());
                 break;
             case "!instanceof":
-                currValue = !Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                currValue = !ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
+                                                                    be.RHS().type.asClassType());
                 break;
         }
     }
@@ -1009,6 +1012,11 @@ public class Interpreter extends Visitor {
     public void visitReturnStmt(ReturnStmt rs) {
         if(rs.expr() != null) { rs.expr().visit(this); }
         returnFound = true;
+    }
+
+    public void visitRetypeStmt(RetypeStmt rs) {
+        rs.getNewObject().visit(this);
+        stack.addValue(rs.getName().toString(),currValue);
     }
 
     /*
