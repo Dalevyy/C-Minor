@@ -7,6 +7,7 @@ import ast.expressions.Literal.*;
 import ast.expressions.Literal.LiteralBuilder;
 import ast.misc.Name;
 import ast.misc.Var;
+import ast.operators.AssignOp.AssignType;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.*;
@@ -291,12 +292,14 @@ public class TypeChecker extends Visitor {
         // If current target doesn't represent an array type, then we'll set the
         // array literal to be some arbitrary array type to prevent type assignment
         // compatibility from leading to an exception
-        if(currentTarget == null || !currentTarget.isArrayType())
+        if(currentTarget == null || !currentTarget.isArrayType()) {
+            super.visitArrayLiteral(al);
             al.type = new ArrayType();
+        }
         else {
             arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims,
-                    currentTarget.asArrayType().baseType(),
-                    al.arrayDims(), al);
+                                         currentTarget.asArrayType().baseType(),
+                                         al.arrayDims(), al);
             al.type = currentTarget.asArrayType();
         }
 
@@ -315,7 +318,8 @@ public class TypeChecker extends Visitor {
         as.LHS().visit(this);
         Type lType = as.LHS().type;
 
-
+        // ERROR CHECK #1: An array literal can only be assigned to
+        //                 a variable storing an array
         if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
             errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
@@ -324,17 +328,18 @@ public class TypeChecker extends Visitor {
                             .error()
             );
         }
-        else if(as.RHS().isArrayLiteral()) {
+
+        if(as.RHS().isArrayLiteral() || as.RHS().isListLiteral()) {
             Type oldTarget = currentTarget;
             currentTarget = lType;
 
             as.RHS().visit(this);
             currentTarget = oldTarget;
         }
-        else { as.RHS().visit(this); }
+        else
+            as.RHS().visit(this);
 
         Type rType = as.RHS().type;
-        String aOp = as.assignOp().toString();
 
         // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
@@ -345,35 +350,25 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        switch(aOp) {
-            case "+=": {
-                // ERROR CHECK #2: For a '+=' operation, the only allowed types
-                //                 are Int, Real, String, and Object
-                if(lType.isBool() || lType.isChar()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(aOp,lType)
-                            .error());
-                }
-                break;
-            }
-            case "-=":
-            case "*=":
-            case "/=":
-            case "%=":
-            case "**=": {
-                // ERROR CHECK #3: For all other assignment operators, the types
-                //                 Int, Real, and Object have to be used
-                if(lType.isBool() || lType.isChar() || lType.isString()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(aOp,lType)
-                            .error());
-                }
-                break;
-            }
+        if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
+            // ERROR CHECK #2: For a '+=' operation, the only allowed types
+            //                 are Int, Real, String, and Object
+            if (lType.isBool() || lType.isChar())
+                errors.add(new ErrorBuilder(generateTypeError, interpretMode)
+                        .addLocation(as)
+                        .addErrorType(MessageType.TYPE_ERROR_403)
+                        .addArgs(as.assignOp().toString(), lType)
+                        .error());
+        }
+        else {
+            // ERROR CHECK #3: For all other assignment operators, the types
+            //                 Int, Real, and Object have to be used
+            if(lType.isBool() || lType.isChar() || lType.isString())
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(as)
+                        .addErrorType(MessageType.TYPE_ERROR_403)
+                        .addArgs(as.assignOp().toString(),lType)
+                        .error());
         }
     }
 
@@ -1644,6 +1639,46 @@ public class TypeChecker extends Visitor {
             }
         }
         returnFound = true;
+    }
+
+    public void visitRetypeStmt(RetypeStmt rs) {
+        rs.getName().visit(this);
+        Type lType = rs.getName().type;
+
+        rs.getNewObject().visit(this);
+        ClassType rType = rs.getNewObject().type.asClassType();
+
+        // ERROR CHECK #1: Make sure the LHS does represent an object
+        if(!lType.isClassType()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(rs)
+                        .addErrorType(MessageType.TYPE_ERROR_453)
+                        .addArgs(lType)
+                        .error()
+            );
+        }
+
+        // ERROR CHECK #2: Make sure the types are class assignment compatible
+        if(!ClassType.classAssignmentCompatibility(lType.asClassType(),rType)) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(rs)
+                        .addErrorType(MessageType.TYPE_ERROR_454)
+                        .addArgs(rs.getName().toString(),rType)
+                        .error()
+            );
+        }
+
+        AST decl = currentScope.findName(rs.getName().toString()).decl();
+        if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
+            decl.asTopLevelDecl().asGlobalDecl().setType(rType);
+        else if(decl.isParamDecl())
+            decl.asParamDecl().setType(rType);
+        else if(decl.isFieldDecl())
+            decl.asFieldDecl().setType(rType);
+        else
+            decl.asStatement().asLocalDecl().setType(rType);
     }
 
     /**

@@ -1,20 +1,41 @@
 package namechecker;
 
-import ast.*;
-import ast.classbody.*;
-import ast.expressions.*;
+import ast.AST;
+import ast.classbody.FieldDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.BinaryExpr;
+import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
+import ast.expressions.Invocation;
+import ast.expressions.NameExpr;
+import ast.expressions.NewExpr;
 import ast.misc.NameNode;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
-import ast.statements.*;
-import ast.topleveldecls.*;
+import ast.statements.AssignStmt;
+import ast.statements.BlockStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.LocalDecl;
+import ast.statements.RetypeStmt;
+import ast.statements.Statement;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.MainDecl;
 import ast.types.ClassType;
+import java.util.HashSet;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.scope.ScopeErrorFactory;
-import utilities.*;
-
-import java.util.HashSet;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 
 /**
  * C Minor - Scope Resolution Pass
@@ -46,14 +67,8 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Assignment Statements<br>
-     *
-     * We have 2 different types of assignment statements.
-     *
-     *      <ol>
-     *          <li>Set Statements</li>
-     *          <li>Retype Statements </li>
-     *      </ol>
+     * Name checks the assignment statement
+     * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
         // ERROR CHECK #1: Make sure the LHS of an assignment is a name, field, or array expression
@@ -743,6 +758,23 @@ public class NameChecker extends Visitor {
         pd.type().visit(this);
         
         currentScope.addName(pd.toString(),pd);
+    }
+
+    /**
+     * Checks if retype statement has valid names.
+     * @param rs Retype Statement
+     */
+    public void visitRetypeStmt(RetypeStmt rs) {
+        if(!(rs.getName().isNameExpr() || rs.getName().isFieldExpr() || rs.getName().isArrayExpr()))
+            errors.add(
+                new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(rs)
+                        .addErrorType(MessageType.SCOPE_ERROR_332)
+                        .error()
+            );
+
+        rs.getName().visit(this);
+        rs.getNewObject().visit(this);
     }
 
     /**
