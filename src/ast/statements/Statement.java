@@ -35,6 +35,9 @@ public abstract class Statement extends AST {
     public boolean isIfStmt() { return false; }
     public IfStmt asIfStmt() { throw new RuntimeException("Expression can not be casted into an IfStmt.\n"); }
 
+    public boolean isListStmt() { return false; }
+    public ListStmt asListStmt() { throw new RuntimeException("Expression can not be casted into a ListStmt.\n"); }
+
     public boolean isLocalDecl() { return false; }
     public LocalDecl asLocalDecl() { throw new RuntimeException("Expression can not be casted into a LocalDecl.\n"); }
 

@@ -46,6 +46,7 @@ public abstract class Visitor {
     public void visitInStmt(InStmt ins) { ins.visitChildren(this); }
     public void visitInvocation(Invocation i) { i.visitChildren(this); }
     public void visitListLiteral(ListLiteral ll) { ll.visitChildren(this); }
+    public void visitListStmt(ListStmt ls) { ls.visitChildren(this); }
     public void visitListType(ListType lt) { lt.visitChildren(this); }
     public void visitLiteral(Literal l) { l.visitChildren(this); }
     public void visitLocalDecl(LocalDecl ld) { ld.visitChildren(this); }
