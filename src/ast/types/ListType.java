@@ -30,6 +30,8 @@ public class ListType extends Type {
 
     public Type baseType() { return baseType; }
 
+    public boolean baseTypeCompatible(Type t) { return Type.assignmentCompatible(baseType,t); }
+
     public String typeName() { return "List: " + baseType.typeName(); }
 
     @Override
