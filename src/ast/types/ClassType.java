@@ -40,7 +40,7 @@ public class ClassType extends Type {
         return name.toString();
     }
 
-    public String getClassHiearchy() { return name.toString(); }
+    public String getClassHierarchy() { return name.toString(); }
 
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
@@ -55,8 +55,8 @@ public class ClassType extends Type {
     public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
         if(subClass.toString().equals(superClass.toString())) { return true; }
 
-        String classHierarchy = subClass.getClassHiearchy();
-        String superClassName = superClass.getClassHiearchy();
+        String classHierarchy = subClass.getClassHierarchy();
+        String superClassName = superClass.getClassHierarchy();
         int slashLocation = classHierarchy.indexOf('/');
 
         while(slashLocation != -1) {
