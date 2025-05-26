@@ -54,6 +54,7 @@ public abstract class Visitor {
     public void visitMainDecl(MainDecl md) { md.visitChildren(this); }
     public void visitMethodDecl(MethodDecl med) { med.visitChildren(this); }
     public void visitModifier(Modifier m) { m.visitChildren(this); }
+    public void visitMultiType(MultiType mt) { mt.visitChildren(this); }
     public void visitName(Name n) { n.visitChildren(this); }
     public void visitNameExpr(NameExpr ne) { ne.visitChildren(this); }
     public void visitNewExpr(NewExpr nwe) { nwe.visitChildren(this); }
