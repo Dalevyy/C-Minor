@@ -15,10 +15,7 @@ _________________________________________________________________
 */
 public class ClassType extends Type {
     private final Name name;        // Only for single type
-    private final Vector<ClassType> inheritedTypes;
     private final Vector<Type> templateTypes;
-
-    public boolean multiType;
 
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
@@ -28,9 +25,7 @@ public class ClassType extends Type {
     public ClassType(Token t, Name n, Vector<ClassType> it, Vector<Type> tt) {
         super(t);
         this.name = n;
-        this.inheritedTypes = it;
         this.templateTypes = tt;
-        this.multiType = false;
 
         addChild(this.name);
         addChild(this.templateTypes);
@@ -45,6 +40,8 @@ public class ClassType extends Type {
         return name.toString();
     }
 
+    public String getClassHiearchy() { return name.toString(); }
+
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
 
@@ -58,8 +55,8 @@ public class ClassType extends Type {
     public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
         if(subClass.toString().equals(superClass.toString())) { return true; }
 
-        String classHierarchy = subClass.toString();
-        String superClassName = superClass.toString();
+        String classHierarchy = subClass.getClassHiearchy();
+        String superClassName = superClass.getClassHiearchy();
         int slashLocation = classHierarchy.indexOf('/');
 
         while(slashLocation != -1) {
@@ -71,10 +68,6 @@ public class ClassType extends Type {
 
         return false;
     }
-
-//    public ClassType createMultiType(ClassType inheritedType) {
-//        return new ClassType(inheritedType.toString(),)
-//    }
 
     @Override
     public String toString() { return this.typeName(); }
