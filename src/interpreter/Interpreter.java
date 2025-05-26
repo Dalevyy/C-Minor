@@ -60,46 +60,42 @@ public class Interpreter extends Visitor {
             ae.arrayTarget().visit(this);
             arr = (Vector<Object>) currValue;
         }
+                   Vector<Object> curr = arr;
 
-        int index = 0;
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
             ae.arrayIndex().get(i).visit(this);
-            int currOffset = (int) currValue-1;
-
-            if(currOffset <= -1) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(ae)
-                        .addErrorType(MessageType.RUNTIME_ERROR_603)
-                        .error();
-            }
+            int offset = (int) currValue;
 
             if(arr.get(0) instanceof ArrayLiteral) {
-                Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
-                for(int j = i+1; j < dims.size(); j++) {
-                    dims.get(j).visit(this);
-                    currOffset *= (int) currValue;
-                }
+                ArrayLiteral al = (ArrayLiteral)arr.get(0);
+                if(!al.arrayDims().isEmpty())
+                    al.arrayDims().get(i).visit(this);
+                else if(i == 0)
+                    currValue = arr.size() -1;
+                else
+                    currValue = arr.size()-1;
             }
+            else if(i==0)
+                currValue = arr.size()-1;
+            else
+                currValue = arr.size()-1;
+
+            if (offset <= 0 || offset > (int)currValue) {
+                    new ErrorBuilder(generateRuntimeError, interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.RUNTIME_ERROR_603)
+                            .error();
+            }
+
+
+            Object v = curr.get(offset);
+            if(v instanceof Vector)
+                curr = (Vector) v;
             else {
-                Vector<Integer> dims = (Vector<Integer>)arr.get(0);
-                for(int j = i+1; j < dims.size(); j++)
-                    currOffset *= dims.get(j);
+                currValue = v;
+                if(inAssignStmt) { currValue = new Vector<>(new Object[]{curr,offset}); }
             }
-
-            index += currOffset;
         }
-        // Add 1 to index to account for array literal stored at index 0 internally
-        index += 1;
-
-        if(index < 0 || index >= arr.size()) {
-            new ErrorBuilder(generateRuntimeError,interpretMode)
-                    .addLocation(ae)
-                    .addErrorType(MessageType.RUNTIME_ERROR_602)
-                    .error();
-        }
-
-        if(inAssignStmt) { currValue = new Vector<>(new Object[]{arr,index}); }
-        else { currValue = arr.get(index); }
     }
 
     /**
@@ -117,13 +113,7 @@ public class Interpreter extends Visitor {
 
         for(Expression e : al.arrayInits()) {
             e.visit(this);
-            if(currValue instanceof Vector) {
-                for(Object val : (Vector<Object>)currValue) {
-                    if(!(val instanceof ArrayLiteral)) { arr.add(val); }
-                }
-            }
-            else
-                arr.add(currValue);
+            arr.add(currValue);
         }
 
         // Add the array literal to the Vector, so its
@@ -927,19 +917,13 @@ public class Interpreter extends Visitor {
 
     public void visitListLiteral(ListLiteral ll) {
         Vector<Object> lst = new Vector<>();
-        Vector<Integer> sizes = new Vector<>();
+
         for(Expression e : ll.inits()) {
             e.visit(this);
-            if(currValue instanceof Vector) {
-                for(Object val : (Vector<Object>)currValue)
-                    if(!(val instanceof ListLiteral))
-                        lst.add(val);
-            }
-            else
-                lst.add(currValue);
+            lst.add(currValue);
         }
 
-        lst.add(0,sizes.add(lst.size()));
+        lst.add(0,ll);
         currValue = lst;
     }
 
