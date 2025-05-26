@@ -2070,7 +2070,7 @@ public class Parser {
         match(TokenType.LIST);
         match(TokenType.LPAREN);
 
-        Vector<Expression> exprs = null;
+        Vector<Expression> exprs = new Vector<>();
         if(inPrimaryExpressionFIRST()) {
             exprs = new Vector<>(expression());
             while(nextLA(TokenType.COMMA)) {
