@@ -964,6 +964,11 @@ public class Interpreter extends Visitor {
                 int index = (int) currValue;
                 ls.getAllArgs().get(2).visit(this);
                 lst.add(index,currValue);
+                break;
+            case REMOVE:
+                ls.getAllArgs().get(1).visit(this);
+                lst.removeAll(currValue);
+                break;
         }
     }
 

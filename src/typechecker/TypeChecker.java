@@ -1564,13 +1564,14 @@ public class TypeChecker extends Visitor {
                                     .error()
                     );
                 }
-
+                //  Type.assignmentCompatible(ls.getListName().type,ls.getAllArgs().get(1).type)
                 ls.getAllArgs().get(1).visit(this);
                 if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(1).type)) {
                     errors.add(
                             new ErrorBuilder(generateTypeError,interpretMode)
                                     .addLocation(ls)
                                     .addErrorType(MessageType.TYPE_ERROR_459)
+                                    .addArgs("append")
                                     .error()
                     );
                 }
@@ -1617,6 +1618,41 @@ public class TypeChecker extends Visitor {
                                     .error()
                     );
                 }
+                break;
+            case REMOVE:
+                // ERROR CHECK #1: Make sure append only takes in 2 arguments.
+                if(ls.getAllArgs().size() != 2) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_457)
+                                    .addArgs("remove",2,ls.getAllArgs().size())
+                                    .error()
+                    );
+                }
+                ls.getListName().visit(this);
+                // ERROR CHECK #2: Make sure a valid list type is given for the 1st argument
+                if(!ls.getListName().type.isListType()) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_458)
+                                    .addArgs("remove")
+                                    .error()
+                    );
+                }
+                //  Type.assignmentCompatible(ls.getListName().type,ls.getAllArgs().get(1).type)
+                ls.getAllArgs().get(1).visit(this);
+                if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(1).type)) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_459)
+                                    .addArgs("remove")
+                                    .error()
+                    );
+                }
+                break;
 
         }
     }
