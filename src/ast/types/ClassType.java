@@ -45,11 +45,13 @@ public class ClassType extends Type {
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
 
-    public static boolean classAssignmentCompatibility(ClassType ct1, ClassType ct2) {
-        if(ct1.toString().length() > ct2.toString().length())
-            return ClassType.isSuperClass(ct1,ct2);
+    public static boolean classAssignmentCompatibility(Type ct1, ClassType ct2) {
+        if(ct1.isMultiType())
+            return ClassType.isSuperClass(ct2,ct1.asMultiType().getInitialType());
+        else if(ct1.toString().length() > ct2.toString().length())
+            return ClassType.isSuperClass(ct1.asClassType(),ct2);
         else
-            return ClassType.isSuperClass(ct2,ct1);
+            return ClassType.isSuperClass(ct2,ct1.asClassType());
     }
 
     public static boolean isSuperClass(ClassType subClass, ClassType superClass) {

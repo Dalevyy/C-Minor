@@ -2,6 +2,7 @@ package ast.types;
 
 import ast.*;
 import token.*;
+import utilities.Vector;
 
 /*
 __________________________ Type __________________________
@@ -15,7 +16,6 @@ Primitive types.
 __________________________________________________________
 */
 public abstract class Type extends AST {
-
     public Type(Token t) { super(t); }
     public Type(AST node) { super(node); }
 
@@ -58,6 +58,24 @@ public abstract class Type extends AST {
             ArrayType rType = RHS.asArrayType();
             return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
         }
+        else if((LHS.isMultiType() || RHS.isMultiType()) && (LHS.isClassType() || RHS.isClassType())) {
+            Vector<ClassType> possibleTypes;
+            if(LHS.isMultiType()) {
+                possibleTypes = LHS.asMultiType().getAllTypes();
+                for(ClassType ct : possibleTypes) {
+                    if(ct.toString().equals(RHS.asClassType().toString()))
+                        return true;
+                }
+            }
+            else {
+                possibleTypes = RHS.asMultiType().getAllTypes();
+                for(ClassType ct : possibleTypes) {
+                    if(ct.toString().equals(LHS.asClassType().toString()))
+                        return true;
+                }
+            }
+            return false;
+        }
         else
             return false;
     }
@@ -99,6 +117,7 @@ public abstract class Type extends AST {
     public boolean isScalarType() { return false; }
     public boolean isDiscreteType() { return false; }
     public boolean isClassType() { return false; }
+    public boolean isMultiType() { return false; }
     public boolean isListType() { return false; }
     public boolean isArrayType() { return false; }
     public boolean isVoidType() { return false; }
@@ -106,6 +125,7 @@ public abstract class Type extends AST {
     public ScalarType asScalarType() { throw new RuntimeException("Expression can not be casted into a ScalarType.\n"); }
     public DiscreteType asDiscreteType() { throw new RuntimeException("Expression can not be casted into a DiscreteType.\n"); }
     public ClassType asClassType() { throw new RuntimeException("Expression can not be casted into a ClassType.\n"); }
+    public MultiType asMultiType() { throw new RuntimeException("Expression can not be casted into a MultiType.\n"); }
     public ListType asListType() { throw new RuntimeException("Expression can not be casted into a ListType.\n"); }
     public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
     public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
