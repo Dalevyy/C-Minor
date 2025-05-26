@@ -80,14 +80,6 @@ public class TypeChecker extends Visitor {
         return init;
     }
 
-    /*
-        For Array Literals Type Checking
-            1. Check rows (Count # of arguments and check if it matches first index)
-            2. Make sure it's an array if it's multidimensional
-            3. Evaluate how many arguments Array(...) is (same as columns)
-                Recursion
-    */
-
     /**
      * Checks if an array literal is assignment compatible with an array type
      * <p>
@@ -228,6 +220,49 @@ public class TypeChecker extends Visitor {
     }
 
     /**
+     *
+     * @param currDepth
+     * @param baseType
+     * @param curr
+     * @return
+     */
+    private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
+        if(currDepth == 1) {
+            for(Expression e : curr.inits()) {
+                e.visit(this);
+                if(!Type.assignmentCompatible(baseType,e.type)) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(curr)
+                                .addErrorType(MessageType.TYPE_ERROR_445)
+                                .addArgs(baseType,e.type)
+                                .error()
+                    );
+                    return false;
+                }
+            }
+            return true;
+        }
+        else if(currDepth > 1) {
+            for(Expression e : curr.inits()) {
+                if(!e.isListLiteral()) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(curr)
+                                .addErrorType(MessageType.TYPE_ERROR_455)
+                                .error()
+                    );
+                    return false;
+                }
+                listAssignmentCompatibility(currDepth-1,baseType,e.asListLiteral());
+            }
+            return true;
+        }
+        else
+            return false;
+    }
+
+    /**
      * <p>
      *     Array expressions are how users can access memory from array.
      *     First, we make sure the target is an array (or a list) since it
@@ -241,8 +276,8 @@ public class TypeChecker extends Visitor {
     public void visitArrayExpr(ArrayExpr ae) {
         ae.arrayTarget().visit(this);
 
-        // ERROR CHECK #1: Make sure the target represents an array
-        if(!ae.arrayTarget().type.isArrayType()) {
+        // ERROR CHECK #1: Make sure the target represents an array or list
+        if(!ae.arrayTarget().type.isArrayType() && !ae.arrayTarget().type.isListType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ae)
@@ -252,27 +287,47 @@ public class TypeChecker extends Visitor {
             );
         }
 
-        ArrayType at;
+        if(ae.arrayTarget().type.isArrayType()) {
+
+        }
+
+        Type currType;
         if(currentTarget != null) {
             ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            at = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
+            currType = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
         }
         else {
-            at = currentScope.findName(ae.arrayTarget().toString()).decl().getType().asArrayType();
+            currType = currentScope.findName(ae.arrayTarget().toString()).decl().getType();
+        }
+
+        if(currType.isArrayType()) {
+            // ERROR CHECK #2: Make sure the number of indices matches
+            //                 the number of dimensions for the array
+            if(currType.asArrayType().numOfDims != ae.arrayIndex().size()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.TYPE_ERROR_448)
+                            .addArgs(ae.arrayTarget().toString(),currType.asArrayType().numOfDims,ae.arrayIndex().size())
+                            .error()
+                );
+            }
+        }
+        else {
+            // ERROR CHECK #3: Make sure the number of indices matches
+            //                 the number of dimensions for the list
+            if(currType.asListType().numOfDims != ae.arrayIndex().size()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.TYPE_ERROR_448)
+                            .addArgs(ae.arrayTarget().toString(),currType.asListType().numOfDims,ae.arrayIndex().size())
+                            .error()
+                );
+            }
         }
 
 
-        // ERROR CHECK #2: Make sure the number of indices matches
-        //                 the number of dimensions for the array
-        if(at.numOfDims != ae.arrayIndex().size()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.arrayTarget().toString(),at.numOfDims,ae.arrayIndex().size())
-                        .error()
-            );
-        }
 
         for(Expression e : ae.arrayIndex()) {
             e.visit(this);
@@ -289,7 +344,10 @@ public class TypeChecker extends Visitor {
                 );
             }
         }
-        ae.type = at.baseType();
+        if(currType.isArrayType())
+            ae.type = currType.asArrayType().baseType();
+        else
+            ae.type = currType.asListType().baseType();
     }
 
     /**
@@ -1010,7 +1068,7 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
         //                 so make sure it's assigned a class type
-        if(!fe.fieldTarget().type.isClassType()) {
+        if(!fe.fieldTarget().type.isClassType() && !fe.fieldTarget().type.isMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fe)
@@ -1024,7 +1082,7 @@ public class TypeChecker extends Visitor {
         currentTarget = fe.fieldTarget().type;
         fe.accessExpr().visit(this);
 
-        fe.type = currentTarget;
+        fe.type = fe.accessExpr().type;
         currentTarget = oldTarget;
     }
 
@@ -1340,7 +1398,16 @@ public class TypeChecker extends Visitor {
         }
         // Method Invocation
         else {
-            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = null;
+            if(currentTarget.isMultiType()) {
+                for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasMethod(in.toString()))
+                        break;
+                }
+            }
+            else
+                cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
 
             // ERROR CHECK #4: Make sure the method was declared in the class
             if(!cd.symbolTable.hasMethod(in.toString())) {
@@ -1368,7 +1435,7 @@ public class TypeChecker extends Visitor {
             }
 
             MethodDecl md = cd.symbolTable.findName(funcSignature.toString()).decl().asMethodDecl();
-            in.targetType = currentTarget;
+            in.targetType = new ClassType(cd.toString());
             in.type = md.returnType();
             currentTarget = md.returnType();
         }
@@ -1407,7 +1474,26 @@ public class TypeChecker extends Visitor {
         }
     }
 
-    public void visitListLiteral(ListLiteral ll) {}
+    /**
+     * Evaluates the type of a list literal.
+     * <p>
+     *     We will call listAssignmentCompatibility to check if the
+     *     current list literal can indeed be stored into whatever
+     *     variable we are trying to store the list into.
+     * </p>
+     * @param ll List Literal
+     */
+    public void visitListLiteral(ListLiteral ll) {
+        if(currentTarget == null || !currentTarget.isListType()) {
+            super.visitListLiteral(ll);
+            ll.type = new ListType();
+        }
+        else {
+            listAssignmentCompatibility(currentTarget.asListType().numOfDims,
+                                        currentTarget.asListType().baseType(), ll);
+            ll.type = currentTarget.asListType();
+        }
+    }
 
     /**
      * Evaluates the type of a local variable
@@ -1431,7 +1517,8 @@ public class TypeChecker extends Visitor {
             return;
         }
 
-        if(ld.type().isArrayType() && ld.var().init().isArrayLiteral()) {
+        if((ld.type().isArrayType() && ld.var().init().isArrayLiteral())
+                || (ld.type().isListType() && ld.var().init().isListLiteral())) {
             Type oldTarget = currentTarget;
             currentTarget = ld.type();
 
@@ -1659,7 +1746,7 @@ public class TypeChecker extends Visitor {
         ClassType rType = rs.getNewObject().type.asClassType();
 
         // ERROR CHECK #1: Make sure the LHS does represent an object
-        if(!lType.isClassType()) {
+        if(!lType.isClassType() && !lType.isMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(rs)
@@ -1670,7 +1757,7 @@ public class TypeChecker extends Visitor {
         }
 
         // ERROR CHECK #2: Make sure the types are class assignment compatible
-        if(!ClassType.classAssignmentCompatibility(lType.asClassType(),rType)) {
+        if(!ClassType.classAssignmentCompatibility(lType,rType)) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(rs)
@@ -1680,15 +1767,24 @@ public class TypeChecker extends Visitor {
             );
         }
 
-        AST decl = currentScope.findName(rs.getName().toString()).decl();
-        if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
-            decl.asTopLevelDecl().asGlobalDecl().setType(rType);
-        else if(decl.isParamDecl())
-            decl.asParamDecl().setType(rType);
-        else if(decl.isFieldDecl())
-            decl.asFieldDecl().setType(rType);
+        if(!lType.isMultiType()) {
+            Vector<ClassType> types = new Vector<>();
+            types.add(lType.asClassType());
+            types.add(rType.asClassType());
+            MultiType mt = new MultiType(lType.asClassType(),types);
+
+            AST decl = currentScope.findName(rs.getName().toString()).decl();
+            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
+                decl.asTopLevelDecl().asGlobalDecl().setType(mt);
+            else if(decl.isParamDecl())
+                decl.asParamDecl().setType(mt);
+            else if(decl.isFieldDecl())
+                decl.asFieldDecl().setType(mt);
+            else
+                decl.asStatement().asLocalDecl().setType(mt);
+        }
         else
-            decl.asStatement().asLocalDecl().setType(rType);
+            lType.asMultiType().addType(rType.asClassType());
     }
 
     /**
