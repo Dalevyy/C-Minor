@@ -69,7 +69,6 @@ public class Interpreter extends Visitor {
         sb.append("]");
     }
 
-
     /*
     _________________________ Array Expressions _________________________
     For an array expression, we want to retrieve the array from the stack
@@ -950,6 +949,16 @@ public class Interpreter extends Visitor {
 
         lst.add(0,ll);
         currValue = lst;
+    }
+
+    public void visitListStmt(ListStmt ls) {
+        ls.getListName().visit(this);
+        Vector<Object> lst = (Vector<Object>) currValue;
+        switch(ls.getCommand()) {
+            case APPEND:
+                ls.getAllArgs().get(1).visit(this);
+                lst.add(currValue);
+        }
     }
 
     /*

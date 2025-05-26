@@ -1,24 +1,62 @@
 package typechecker;
 
-import ast.*;
-import ast.classbody.*;
-import ast.expressions.*;
-import ast.expressions.Literal.*;
+import ast.AST;
+import ast.classbody.FieldDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.ArrayExpr;
+import ast.expressions.ArrayLiteral;
+import ast.expressions.BinaryExpr;
+import ast.expressions.CastExpr;
+import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
+import ast.expressions.InStmt;
+import ast.expressions.Invocation;
+import ast.expressions.ListLiteral;
+import ast.expressions.Literal;
+import ast.expressions.Literal.ConstantKind;
 import ast.expressions.Literal.LiteralBuilder;
+import ast.expressions.NameExpr;
+import ast.expressions.NewExpr;
+import ast.expressions.This;
+import ast.expressions.UnaryExpr;
 import ast.misc.Name;
 import ast.misc.Var;
 import ast.operators.AssignOp.AssignType;
-import ast.statements.*;
-import ast.topleveldecls.*;
-import ast.types.*;
-import ast.types.DiscreteType.*;
+import ast.statements.AssignStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.ListStmt;
+import ast.statements.LocalDecl;
+import ast.statements.ReturnStmt;
+import ast.statements.RetypeStmt;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.MainDecl;
+import ast.topleveldecls.TopLevelDecl;
+import ast.types.Type;
+import ast.types.ArrayType;
+import ast.types.ClassType;
+import ast.types.DiscreteType;
+import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType.EnumTypeBuilder;
-import ast.types.ScalarType.*;
+import ast.types.ListType;
+import ast.types.MultiType;
+import ast.types.ScalarType;
+import ast.types.ScalarType.Scalars;
+import ast.types.VoidType;
 import messages.MessageType;
-import messages.errors.*;
+import messages.errors.ErrorBuilder;
 import messages.errors.scope.ScopeErrorFactory;
 import messages.errors.type.TypeErrorFactory;
-import utilities.*;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 
 public class TypeChecker extends Visitor {
 
@@ -81,7 +119,7 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Checks if an array literal is assignment compatible with an array type
+     * Checks if an array literal is assignment compatible with an array type.<br><br>
      * <p>
      *     This is a recursive algorithm to verify whether an array literal can
      *     be assigned to an array type in C Minor. This algorithm was based off
@@ -220,16 +258,22 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     *
-     * @param currDepth
-     * @param baseType
-     * @param curr
-     * @return
+     * Checks if a list literal is assignment compatible with a list type.<br><br>
+     * <p>
+     *     This is a recursive algorithm to check if a list literal can be assigned
+     *     to a list type in C Minor. This algorithm is based on the algorithm used
+     *     for array assignment compatibility albeit it's simpler and has less error checks.
+     * </p>
+     * @param currDepth Current level of recursion (final depth is 10
+     * @param baseType Base type of the list
+     * @param curr List literal aka the current list literal we are checking
+     * @return Boolean - True if assignment compatible and False otherwise
      */
     private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
         if(currDepth == 1) {
             for(Expression e : curr.inits()) {
                 e.visit(this);
+                // ERROR CHECK #1: Make sure the current expression matches the type of the list
                 if(!Type.assignmentCompatible(baseType,e.type)) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
@@ -246,6 +290,7 @@ public class TypeChecker extends Visitor {
         else if(currDepth > 1) {
             for(Expression e : curr.inits()) {
                 if(!e.isListLiteral()) {
+                    // ERROR CHECK #2: Make sure everything is a list if we're not at depth = 1
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(curr)
@@ -1477,8 +1522,8 @@ public class TypeChecker extends Visitor {
     /**
      * Evaluates the type of a list literal.
      * <p>
-     *     We will call listAssignmentCompatibility to check if the
-     *     current list literal can indeed be stored into whatever
+     *     We will call {@link #listAssignmentCompatibility} to check
+     *     if the current list literal can indeed be stored into the
      *     variable we are trying to store the list into.
      * </p>
      * @param ll List Literal
@@ -1492,6 +1537,43 @@ public class TypeChecker extends Visitor {
             listAssignmentCompatibility(currentTarget.asListType().numOfDims,
                                         currentTarget.asListType().baseType(), ll);
             ll.type = currentTarget.asListType();
+        }
+    }
+
+    public void visitListStmt(ListStmt ls) {
+        switch(ls.getCommand()) {
+            case APPEND:
+                // ERROR CHECK #1: Make sure append only takes in 2 arguments.
+                if(ls.getAllArgs().size() != 2) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(ls)
+                                .addErrorType(MessageType.TYPE_ERROR_457)
+                                .addArgs(ls.getAllArgs().size())
+                                .error()
+                    );
+                }
+                ls.getListName().visit(this);
+                // ERROR CHECK #2: Make sure a valid list type is given for the 1st argument
+                if(!ls.getListName().type.isListType()) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_458)
+                                    .error()
+                    );
+                }
+
+                ls.getAllArgs().get(1).visit(this);
+                if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(1).type)) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_459)
+                                    .error()
+                    );
+                }
+                break;
         }
     }
 
