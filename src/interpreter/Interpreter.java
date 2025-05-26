@@ -958,6 +958,12 @@ public class Interpreter extends Visitor {
             case APPEND:
                 ls.getAllArgs().get(1).visit(this);
                 lst.add(currValue);
+                break;
+            case INSERT:
+                ls.getAllArgs().get(1).visit(this);
+                int index = (int) currValue;
+                ls.getAllArgs().get(2).visit(this);
+                lst.add(index,currValue);
         }
     }
 

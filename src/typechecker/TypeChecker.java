@@ -1549,7 +1549,7 @@ public class TypeChecker extends Visitor {
                         new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(ls)
                                 .addErrorType(MessageType.TYPE_ERROR_457)
-                                .addArgs(ls.getAllArgs().size())
+                                .addArgs("append",2,ls.getAllArgs().size())
                                 .error()
                     );
                 }
@@ -1560,6 +1560,7 @@ public class TypeChecker extends Visitor {
                             new ErrorBuilder(generateTypeError,interpretMode)
                                     .addLocation(ls)
                                     .addErrorType(MessageType.TYPE_ERROR_458)
+                                    .addArgs("append")
                                     .error()
                     );
                 }
@@ -1574,6 +1575,49 @@ public class TypeChecker extends Visitor {
                     );
                 }
                 break;
+            case INSERT:
+                // ERROR CHECK #1: Make sure append only takes in 3 arguments.
+                if(ls.getAllArgs().size() != 3) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_457)
+                                    .addArgs("insert",3,ls.getAllArgs().size())
+                                    .error()
+                    );
+                }
+                ls.getListName().visit(this);
+                // ERROR CHECK #2: Make sure a valid list type is given for the 1st argument
+                if(!ls.getListName().type.isListType()) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_458)
+                                    .addArgs("insert")
+                                    .error()
+                    );
+                }
+
+                ls.getAllArgs().get(1).visit(this);
+                if(!ls.getAllArgs().get(1).type.isInt()) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_460)
+                                    .error()
+                    );
+                }
+
+                ls.getAllArgs().get(2).visit(this);
+                if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(2).type)) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(ls)
+                                    .addErrorType(MessageType.TYPE_ERROR_461)
+                                    .error()
+                    );
+                }
+
         }
     }
 
