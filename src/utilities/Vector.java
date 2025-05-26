@@ -49,10 +49,7 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
         return lst.remove(pos);
     }
 
-    public void removeAll(T item) {
-        lst.removeIf(n -> n.equals(item));
-    }
-
+    public void removeAll(T item) { lst.removeIf(n -> n.equals(item)); }
 
     public T pop() {
         if(!lst.isEmpty()) { return lst.remove(lst.size()-1); }
