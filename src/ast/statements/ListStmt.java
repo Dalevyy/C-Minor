@@ -1,6 +1,7 @@
 package ast.statements;
 
 import ast.expressions.Expression;
+import ast.expressions.NameExpr;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
@@ -25,6 +26,7 @@ public class ListStmt extends Statement {
     public Commands getCommand() { return this.commandType; }
     public Vector<Expression> getAllArgs() { return this.args; }
 
+    public NameExpr getListName() { return this.args.get(0).asNameExpr(); }
 
     public boolean isListStmt() { return true; }
     public ListStmt asListStmt() { return this;}
