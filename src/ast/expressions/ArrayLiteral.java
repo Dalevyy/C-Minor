@@ -1,14 +1,16 @@
 package ast.expressions;
 
-import ast.*;
-import token.*;
+import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
 
+/**
+ * Array Literal
+ */
 public class ArrayLiteral extends Literal {
 
-    private Vector<Expression> dimExprs;
-    private Vector<Expression> inits;
+    private final Vector<Expression> dims;
+    private final Vector<Expression> inits;
 
     public final int numOfDims;
 
@@ -16,18 +18,20 @@ public class ArrayLiteral extends Literal {
 
     public ArrayLiteral(Token t, Vector<Expression> de, Vector<Expression> al) {
         super(t,ConstantKind.ARR);
-        this.dimExprs = de;
+        this.dims = de;
         this.inits = al;
 
-        if(de.size() == 0) { this.numOfDims = 1; }
-        else { this.numOfDims = de.size(); }
+        if(de.isEmpty())
+            this.numOfDims = 1;
+        else
+            this.numOfDims = de.size();
 
-        addChild(this.dimExprs);
+        addChild(this.dims);
         addChild(this.inits);
         setParent();
     }
 
-    public Vector<Expression> arrayDims() { return dimExprs; }
+    public Vector<Expression> arrayDims() { return dims; }
     public Vector<Expression> arrayInits() { return inits; }
 
     public boolean isArrayLiteral() { return true; }
