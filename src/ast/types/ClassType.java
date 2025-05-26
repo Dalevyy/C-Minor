@@ -14,13 +14,15 @@ ClassType as well.
 _________________________________________________________________
 */
 public class ClassType extends Type {
-    private final Name name;
+    private final Name name;        // Only for single type
     private final Vector<Type> templateTypes;
 
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
-    public ClassType(Token t, Name n) { this(t,n,new Vector<>()); }
-    public ClassType(Token t, Name n, Vector<Type> tt) {
+    public ClassType(Token t, Name n) { this(t,n,new Vector<>(),new Vector<>()); }
+    public ClassType(Name n, Vector<ClassType> it) { this(new Token(),n,it,new Vector<>()); }
+    public ClassType(Token t, Name n, Vector<Type> tt) { this(t,n,new Vector<>(),tt); }
+    public ClassType(Token t, Name n, Vector<ClassType> it, Vector<Type> tt) {
         super(t);
         this.name = n;
         this.templateTypes = tt;
@@ -38,19 +40,31 @@ public class ClassType extends Type {
         return name.toString();
     }
 
+    public String getClassHierarchy() { return name.toString(); }
+
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
+
+    public static boolean classAssignmentCompatibility(Type ct1, ClassType ct2) {
+        if(ct1.isMultiType())
+            return ClassType.isSuperClass(ct2,ct1.asMultiType().getInitialType());
+        else if(ct1.toString().length() > ct2.toString().length())
+            return ClassType.isSuperClass(ct1.asClassType(),ct2);
+        else
+            return ClassType.isSuperClass(ct2,ct1.asClassType());
+    }
 
     public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
         if(subClass.toString().equals(superClass.toString())) { return true; }
 
-        String classHierarchy = subClass.toString();
-        String superClassName = superClass.toString();
+        String classHierarchy = subClass.getClassHierarchy();
+        String superClassName = superClass.getClassHierarchy();
         int slashLocation = classHierarchy.indexOf('/');
 
         while(slashLocation != -1) {
             String subClassName = classHierarchy.substring(0,slashLocation);
             if(subClassName.equals(superClassName)) { return true; }
+            if(classHierarchy.length() == 1) { return false; }
             classHierarchy = classHierarchy.substring(slashLocation+1);
         }
 
@@ -58,7 +72,7 @@ public class ClassType extends Type {
     }
 
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() { return this.typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitClassType(this); }

@@ -49,6 +49,7 @@ public class VM {
             else if(input.equals("#clear")) {
                 compilationUnit = new Compilation();
                 nameChecker = new NameChecker(compilationUnit.globalTable);
+                classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
                 typeChecker = new TypeChecker(compilationUnit.globalTable);
                 modChecker = new ModifierChecker(compilationUnit.globalTable);
                 interpreter = new Interpreter(compilationUnit.globalTable);

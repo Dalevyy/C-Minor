@@ -6,8 +6,8 @@ import ast.expressions.*;
 import ast.expressions.Literal.*;
 import ast.expressions.Literal.LiteralBuilder;
 import ast.misc.Name;
-import ast.misc.NameNode;
 import ast.misc.Var;
+import ast.operators.AssignOp.AssignType;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.*;
@@ -16,8 +16,8 @@ import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.ScalarType.*;
 import messages.MessageType;
 import messages.errors.*;
-import messages.errors.scope_error.ScopeErrorFactory;
-import messages.errors.type_error.TypeErrorFactory;
+import messages.errors.scope.ScopeErrorFactory;
+import messages.errors.type.TypeErrorFactory;
 import utilities.*;
 
 public class TypeChecker extends Visitor {
@@ -80,13 +80,19 @@ public class TypeChecker extends Visitor {
         return init;
     }
 
-    /*
-        For Array Literals Type Checking
-            1. Check rows (Count # of arguments and check if it matches first index)
-            2. Make sure it's an array if it's multidimensional
-            3. Evaluate how many arguments Array(...) is (same as columns)
-                Recursion
-    */
+    /**
+     * Checks if an array literal is assignment compatible with an array type
+     * <p>
+     *     This is a recursive algorithm to verify whether an array literal can
+     *     be assigned to an array type in C Minor. This algorithm was based off
+     *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
+     * </p>
+     * @param currDepth Current level of recursion (final depth is 1)
+     * @param t Array type
+     * @param dims Expressions representing the dimensions for the array
+     * @param curr Array Literal aka the current array literal we are checking
+     * @return Boolean - True if assignment compatible and False otherwise
+     */
     private boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
         if(currDepth == 1) {
             // ERROR CHECK #1: If we are checking a single dimension array, then we
@@ -155,7 +161,7 @@ public class TypeChecker extends Visitor {
             }
             return true;
         }
-        if(currDepth > 1) {
+        else if(currDepth > 1) {
             ArrayLiteral al = curr.asArrayLiteral();
 
             // ERROR CHECK #1: For all n-dimensional array literals (where n>1), we need to make sure the user
@@ -209,28 +215,69 @@ public class TypeChecker extends Visitor {
             }
             return true;
         }
-        return false;
+        else
+            return false;
     }
 
-//    private boolean listAssignmentCompatibility(int currDepth, Type lt, ListLiteral curr) {
-//
-//    }
+    /**
+     *
+     * @param currDepth
+     * @param baseType
+     * @param curr
+     * @return
+     */
+    private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
+        if(currDepth == 1) {
+            for(Expression e : curr.inits()) {
+                e.visit(this);
+                if(!Type.assignmentCompatible(baseType,e.type)) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(curr)
+                                .addErrorType(MessageType.TYPE_ERROR_445)
+                                .addArgs(baseType,e.type)
+                                .error()
+                    );
+                    return false;
+                }
+            }
+            return true;
+        }
+        else if(currDepth > 1) {
+            for(Expression e : curr.inits()) {
+                if(!e.isListLiteral()) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(curr)
+                                .addErrorType(MessageType.TYPE_ERROR_455)
+                                .error()
+                    );
+                    return false;
+                }
+                listAssignmentCompatibility(currDepth-1,baseType,e.asListLiteral());
+            }
+            return true;
+        }
+        else
+            return false;
+    }
 
-    /*
-    ______________________ Array Expressions ______________________
-    Array expressions are how users can access memory from array.
-    First, we make sure the target is an array (or a list) since it
-    does not make sense to dereference a non-array type. Then, we
-    will make sure the index evaluates to an integer. We will not
-    check if the integer is a valid index or not since this needs
-    to be done at runtime.
-    _______________________________________________________________
-    */
+    /**
+     * <p>
+     *     Array expressions are how users can access memory from array.
+     *     First, we make sure the target is an array (or a list) since it
+     *     does not make sense to dereference a non-array type. Then, we
+     *     will make sure the index evaluates to an integer. We will not
+     *     check if the integer is a valid index or not since this needs
+     *     to be done at runtime.
+     * </p>
+     * @param ae Array Expression
+     */
     public void visitArrayExpr(ArrayExpr ae) {
         ae.arrayTarget().visit(this);
 
-        // ERROR CHECK #1: Make sure the target represents an array
-        if(!ae.arrayTarget().type.isArrayType()) {
+        // ERROR CHECK #1: Make sure the target represents an array or list
+        if(!ae.arrayTarget().type.isArrayType() && !ae.arrayTarget().type.isListType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ae)
@@ -240,27 +287,47 @@ public class TypeChecker extends Visitor {
             );
         }
 
-        ArrayType at;
+        if(ae.arrayTarget().type.isArrayType()) {
+
+        }
+
+        Type currType;
         if(currentTarget != null) {
             ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            at = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
+            currType = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
         }
         else {
-            at = currentScope.findName(ae.arrayTarget().toString()).decl().getType().asArrayType();
+            currType = currentScope.findName(ae.arrayTarget().toString()).decl().getType();
+        }
+
+        if(currType.isArrayType()) {
+            // ERROR CHECK #2: Make sure the number of indices matches
+            //                 the number of dimensions for the array
+            if(currType.asArrayType().numOfDims != ae.arrayIndex().size()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.TYPE_ERROR_448)
+                            .addArgs(ae.arrayTarget().toString(),currType.asArrayType().numOfDims,ae.arrayIndex().size())
+                            .error()
+                );
+            }
+        }
+        else {
+            // ERROR CHECK #3: Make sure the number of indices matches
+            //                 the number of dimensions for the list
+            if(currType.asListType().numOfDims != ae.arrayIndex().size()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.TYPE_ERROR_448)
+                            .addArgs(ae.arrayTarget().toString(),currType.asListType().numOfDims,ae.arrayIndex().size())
+                            .error()
+                );
+            }
         }
 
 
-        // ERROR CHECK #2: Make sure the number of indices matches
-        //                 the number of dimensions for the array
-        if(at.numOfDims != ae.arrayIndex().size()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.arrayTarget().toString(),at.numOfDims,ae.arrayIndex().size())
-                        .error()
-            );
-        }
 
         for(Expression e : ae.arrayIndex()) {
             e.visit(this);
@@ -277,7 +344,10 @@ public class TypeChecker extends Visitor {
                 );
             }
         }
-        ae.type = at.baseType();
+        if(currType.isArrayType())
+            ae.type = currType.asArrayType().baseType();
+        else
+            ae.type = currType.asListType().baseType();
     }
 
     /**
@@ -290,12 +360,14 @@ public class TypeChecker extends Visitor {
         // If current target doesn't represent an array type, then we'll set the
         // array literal to be some arbitrary array type to prevent type assignment
         // compatibility from leading to an exception
-        if(currentTarget == null || !currentTarget.isArrayType())
+        if(currentTarget == null || !currentTarget.isArrayType()) {
+            super.visitArrayLiteral(al);
             al.type = new ArrayType();
+        }
         else {
             arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims,
-                    currentTarget.asArrayType().baseType(),
-                    al.arrayDims(), al);
+                                         currentTarget.asArrayType().baseType(),
+                                         al.arrayDims(), al);
             al.type = currentTarget.asArrayType();
         }
 
@@ -314,7 +386,8 @@ public class TypeChecker extends Visitor {
         as.LHS().visit(this);
         Type lType = as.LHS().type;
 
-
+        // ERROR CHECK #1: An array literal can only be assigned to
+        //                 a variable storing an array
         if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
             errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
@@ -323,17 +396,18 @@ public class TypeChecker extends Visitor {
                             .error()
             );
         }
-        else if(as.RHS().isArrayLiteral()) {
+
+        if(as.RHS().isArrayLiteral() || as.RHS().isListLiteral()) {
             Type oldTarget = currentTarget;
             currentTarget = lType;
 
             as.RHS().visit(this);
             currentTarget = oldTarget;
         }
-        else { as.RHS().visit(this); }
+        else
+            as.RHS().visit(this);
 
         Type rType = as.RHS().type;
-        String aOp = as.assignOp().toString();
 
         // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
@@ -344,35 +418,25 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        switch(aOp) {
-            case "+=": {
-                // ERROR CHECK #2: For a '+=' operation, the only allowed types
-                //                 are Int, Real, String, and Object
-                if(lType.isBool() || lType.isChar()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(aOp,lType)
-                            .error());
-                }
-                break;
-            }
-            case "-=":
-            case "*=":
-            case "/=":
-            case "%=":
-            case "**=": {
-                // ERROR CHECK #3: For all other assignment operators, the types
-                //                 Int, Real, and Object have to be used
-                if(lType.isBool() || lType.isChar() || lType.isString()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(aOp,lType)
-                            .error());
-                }
-                break;
-            }
+        if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
+            // ERROR CHECK #2: For a '+=' operation, the only allowed types
+            //                 are Int, Real, String, and Object
+            if (lType.isBool() || lType.isChar())
+                errors.add(new ErrorBuilder(generateTypeError, interpretMode)
+                        .addLocation(as)
+                        .addErrorType(MessageType.TYPE_ERROR_403)
+                        .addArgs(as.assignOp().toString(), lType)
+                        .error());
+        }
+        else {
+            // ERROR CHECK #3: For all other assignment operators, the types
+            //                 Int, Real, and Object have to be used
+            if(lType.isBool() || lType.isChar() || lType.isString())
+                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(as)
+                        .addErrorType(MessageType.TYPE_ERROR_403)
+                        .addArgs(as.assignOp().toString(),lType)
+                        .error());
         }
     }
 
@@ -1004,7 +1068,7 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
         //                 so make sure it's assigned a class type
-        if(!fe.fieldTarget().type.isClassType()) {
+        if(!fe.fieldTarget().type.isClassType() && !fe.fieldTarget().type.isMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fe)
@@ -1018,7 +1082,7 @@ public class TypeChecker extends Visitor {
         currentTarget = fe.fieldTarget().type;
         fe.accessExpr().visit(this);
 
-        fe.type = currentTarget;
+        fe.type = fe.accessExpr().type;
         currentTarget = oldTarget;
     }
 
@@ -1293,7 +1357,32 @@ public class TypeChecker extends Visitor {
 
         // Function Invocation
         if(currentTarget == null && currentClass == null) {
-            // ERROR CHECK #1: Check if function overload exists
+            in.targetType = new VoidType();
+
+            if(in.toString().equals("length")) {
+                // ERROR CHECK #1: Make sure 'length' call only has one argument
+                if(in.arguments().size() != 1) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(in)
+                                .addErrorType(MessageType.TYPE_ERROR_451)
+                                .error()
+                    );
+                }
+                // ERROR CHECK #2: Make sure argument evaluates to an array or list
+                if(!(in.arguments().get(0).type.isArrayType() || in.arguments().get(0).type.isListType())) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(in)
+                                    .addErrorType(MessageType.TYPE_ERROR_452)
+                                    .error()
+                    );
+                }
+                in.type = new DiscreteType(Discretes.INT);
+                return;
+            }
+
+            // ERROR CHECK #3: Check if function overload exists
             if(!currentScope.hasNameSomewhere(funcSignature.toString())) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
@@ -1306,13 +1395,21 @@ public class TypeChecker extends Visitor {
 
             FuncDecl fd = currentScope.findName(funcSignature.toString()).decl().asTopLevelDecl().asFuncDecl();
             in.type = fd.returnType();
-            in.targetType = new VoidType();
         }
         // Method Invocation
         else {
-            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = null;
+            if(currentTarget.isMultiType()) {
+                for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasMethod(in.toString()))
+                        break;
+                }
+            }
+            else
+                cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
 
-            // ERROR CHECK #2: Make sure the method was declared in the class
+            // ERROR CHECK #4: Make sure the method was declared in the class
             if(!cd.symbolTable.hasMethod(in.toString())) {
                 errors.add(
                     new ErrorBuilder(generateScopeError, interpretMode)
@@ -1323,7 +1420,7 @@ public class TypeChecker extends Visitor {
                 );
             }
 
-            // ERROR CHECK #3: Check if the method overload exists
+            // ERROR CHECK #5: Check if the method overload exists
             while(!cd.symbolTable.hasName(funcSignature.toString())) {
                 if(cd.superClass() == null) {
                     errors.add(
@@ -1338,7 +1435,7 @@ public class TypeChecker extends Visitor {
             }
 
             MethodDecl md = cd.symbolTable.findName(funcSignature.toString()).decl().asMethodDecl();
-            in.targetType = currentTarget;
+            in.targetType = new ClassType(cd.toString());
             in.type = md.returnType();
             currentTarget = md.returnType();
         }
@@ -1377,7 +1474,26 @@ public class TypeChecker extends Visitor {
         }
     }
 
-    public void visitListLiteral(ListLiteral ll) {}
+    /**
+     * Evaluates the type of a list literal.
+     * <p>
+     *     We will call listAssignmentCompatibility to check if the
+     *     current list literal can indeed be stored into whatever
+     *     variable we are trying to store the list into.
+     * </p>
+     * @param ll List Literal
+     */
+    public void visitListLiteral(ListLiteral ll) {
+        if(currentTarget == null || !currentTarget.isListType()) {
+            super.visitListLiteral(ll);
+            ll.type = new ListType();
+        }
+        else {
+            listAssignmentCompatibility(currentTarget.asListType().numOfDims,
+                                        currentTarget.asListType().baseType(), ll);
+            ll.type = currentTarget.asListType();
+        }
+    }
 
     /**
      * Evaluates the type of a local variable
@@ -1401,7 +1517,8 @@ public class TypeChecker extends Visitor {
             return;
         }
 
-        if(ld.type().isArrayType() && ld.var().init().isArrayLiteral()) {
+        if((ld.type().isArrayType() && ld.var().init().isArrayLiteral())
+                || (ld.type().isListType() && ld.var().init().isListLiteral())) {
             Type oldTarget = currentTarget;
             currentTarget = ld.type();
 
@@ -1619,6 +1736,55 @@ public class TypeChecker extends Visitor {
             }
         }
         returnFound = true;
+    }
+
+    public void visitRetypeStmt(RetypeStmt rs) {
+        rs.getName().visit(this);
+        Type lType = rs.getName().type;
+
+        rs.getNewObject().visit(this);
+        ClassType rType = rs.getNewObject().type.asClassType();
+
+        // ERROR CHECK #1: Make sure the LHS does represent an object
+        if(!lType.isClassType() && !lType.isMultiType()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(rs)
+                        .addErrorType(MessageType.TYPE_ERROR_453)
+                        .addArgs(lType)
+                        .error()
+            );
+        }
+
+        // ERROR CHECK #2: Make sure the types are class assignment compatible
+        if(!ClassType.classAssignmentCompatibility(lType,rType)) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(rs)
+                        .addErrorType(MessageType.TYPE_ERROR_454)
+                        .addArgs(rs.getName().toString(),rType)
+                        .error()
+            );
+        }
+
+        if(!lType.isMultiType()) {
+            Vector<ClassType> types = new Vector<>();
+            types.add(lType.asClassType());
+            types.add(rType.asClassType());
+            MultiType mt = new MultiType(lType.asClassType(),types);
+
+            AST decl = currentScope.findName(rs.getName().toString()).decl();
+            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
+                decl.asTopLevelDecl().asGlobalDecl().setType(mt);
+            else if(decl.isParamDecl())
+                decl.asParamDecl().setType(mt);
+            else if(decl.isFieldDecl())
+                decl.asFieldDecl().setType(mt);
+            else
+                decl.asStatement().asLocalDecl().setType(mt);
+        }
+        else
+            lType.asMultiType().addType(rType.asClassType());
     }
 
     /**

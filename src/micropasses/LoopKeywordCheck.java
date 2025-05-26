@@ -4,7 +4,7 @@ import ast.expressions.*;
 import ast.statements.*;
 import messages.MessageType;
 import messages.errors.ErrorBuilder;
-import messages.errors.scope_error.ScopeErrorFactory;
+import messages.errors.scope.ScopeErrorFactory;
 import utilities.Visitor;
 
 import java.util.ArrayList;

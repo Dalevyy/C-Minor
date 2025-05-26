@@ -1,4 +1,4 @@
-package messages.errors.scope_error;
+package messages.errors.scope;
 
 import messages.errors.Error;
 import messages.errors.ErrorFactory;

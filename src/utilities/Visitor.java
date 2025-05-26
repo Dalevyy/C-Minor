@@ -46,6 +46,7 @@ public abstract class Visitor {
     public void visitInStmt(InStmt ins) { ins.visitChildren(this); }
     public void visitInvocation(Invocation i) { i.visitChildren(this); }
     public void visitListLiteral(ListLiteral ll) { ll.visitChildren(this); }
+    public void visitListStmt(ListStmt ls) { ls.visitChildren(this); }
     public void visitListType(ListType lt) { lt.visitChildren(this); }
     public void visitLiteral(Literal l) { l.visitChildren(this); }
     public void visitLocalDecl(LocalDecl ld) { ld.visitChildren(this); }
@@ -53,12 +54,14 @@ public abstract class Visitor {
     public void visitMainDecl(MainDecl md) { md.visitChildren(this); }
     public void visitMethodDecl(MethodDecl med) { med.visitChildren(this); }
     public void visitModifier(Modifier m) { m.visitChildren(this); }
+    public void visitMultiType(MultiType mt) { mt.visitChildren(this); }
     public void visitName(Name n) { n.visitChildren(this); }
     public void visitNameExpr(NameExpr ne) { ne.visitChildren(this); }
     public void visitNewExpr(NewExpr nwe) { nwe.visitChildren(this); }
     public void visitOutStmt(OutStmt os) { os.visitChildren(this); }
     public void visitParamDecl(ParamDecl pd) { pd.visitChildren(this); }
     public void visitReturnStmt(ReturnStmt rs) { rs.visitChildren(this); }
+    public void visitRetypeStmt(RetypeStmt rs) { rs.visitChildren(this); }
     public void visitScalarType(ScalarType st) { st.visitChildren(this); }
     public void visitStopStmt(StopStmt ss) { ss.visitChildren(this); }
     public void visitThis(This t) { t.visitChildren(this); }

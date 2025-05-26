@@ -1,4 +1,4 @@
-package messages.errors.syntax_error;
+package messages.errors.syntax;
 
 import messages.errors.Error;
 import messages.errors.ErrorFactory;

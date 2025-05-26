@@ -7,10 +7,12 @@ import ast.misc.ParamDecl;
 import ast.misc.Var;
 import ast.statements.*;
 import ast.topleveldecls.*;
+import ast.types.ClassType;
+import ast.types.DiscreteType;
 import ast.types.Type;
 import messages.*;
 import messages.errors.ErrorBuilder;
-import messages.errors.runtime_error.RuntimeErrorFactory;
+import messages.errors.runtime.RuntimeErrorFactory;
 import utilities.*;
 
 import java.io.*;
@@ -29,17 +31,17 @@ public class Interpreter extends Visitor {
     private boolean breakFound;
     private boolean continueFound;
 
-    public Interpreter() {
+    /**
+     * Creates interpreter for the VM
+     * @param st Symbol Table
+     */
+    public Interpreter(SymbolTable st) {
         stack = new RuntimeStack();
         generateRuntimeError = new RuntimeErrorFactory();
         this.interpretMode = true;
         returnFound = false;
         breakFound = false;
         continueFound = false;
-    }
-
-    public Interpreter(SymbolTable st) {
-        this();
         this.currentScope = st;
     }
 
@@ -58,22 +60,32 @@ public class Interpreter extends Visitor {
             ae.arrayTarget().visit(this);
             arr = (Vector<Object>) currValue;
         }
-        Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
 
         int index = 0;
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
             ae.arrayIndex().get(i).visit(this);
             int currOffset = (int) currValue-1;
-            if(currOffset == -1) {
+
+            if(currOffset <= -1) {
                 new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.RUNTIME_ERROR_603)
                         .error();
             }
-            for(int j = i+1; j < dims.size(); j++) {
-                dims.get(j).visit(this);
-                currOffset *= (int) currValue;
+
+            if(arr.get(0) instanceof ArrayLiteral) {
+                Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
+                for(int j = i+1; j < dims.size(); j++) {
+                    dims.get(j).visit(this);
+                    currOffset *= (int) currValue;
+                }
             }
+            else {
+                Vector<Integer> dims = (Vector<Integer>)arr.get(0);
+                for(int j = i+1; j < dims.size(); j++)
+                    currOffset *= dims.get(j);
+            }
+
             index += currOffset;
         }
         // Add 1 to index to account for array literal stored at index 0 internally
@@ -412,10 +424,12 @@ public class Interpreter extends Visitor {
                 }
             }
             case "instanceof":
-                currValue = Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                currValue = ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
+                                                                   be.RHS().type.asClassType());
                 break;
             case "!instanceof":
-                currValue = !Type.assignmentCompatible(be.LHS().type,be.RHS().type);
+                currValue = !ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
+                                                                    be.RHS().type.asClassType());
                 break;
         }
     }
@@ -610,8 +624,15 @@ public class Interpreter extends Visitor {
 
         if(fe.accessExpr().isNameExpr())
             currValue = instance.get(fe.accessExpr().toString());
-        else
+        else {
+            Type oldTarget = currTarget;
+            if(fe.fieldTarget().type.isClassType())
+                currTarget = fe.fieldTarget().type;
+            else
+                currTarget = fe.fieldTarget().type.asMultiType().getRuntimeType();
             fe.accessExpr().visit(this);
+            currTarget = oldTarget;
+        }
     }
 
     /*
@@ -812,10 +833,19 @@ public class Interpreter extends Visitor {
     public void visitInvocation(Invocation in) {
         Vector<Object> args = new Vector<>();
         HashMap<String,Object> vals = new HashMap<>();
+        HashMap<String,Object> obj = null;
+        if(in.targetType.isClassType())
+           obj = (HashMap<String,Object>) currValue;
+
 
         for(int i = 0; i < in.arguments().size(); i++) {
             in.arguments().get(i).visit(this);
             args.add(currValue);
+        }
+        if(in.toString().equals("length")) {
+            Vector<Object> arr = (Vector<Object>) currValue;
+            currValue = arr.size() - 1;
+            return;
         }
 
         SymbolTable oldScope = currentScope;
@@ -846,8 +876,13 @@ public class Interpreter extends Visitor {
         }
         // Method Invocation
         else {
-            HashMap<String,Object> obj = (HashMap<String,Object>) currValue;
-
+            if(!currTarget.toString().equals(in.targetType.toString())) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.RUNTIME_ERROR_604)
+                        .addArgs(in.toString(),currTarget,in.targetType)
+                        .error();
+            }
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
 
@@ -862,7 +897,8 @@ public class Interpreter extends Visitor {
             MethodDecl md = cd.symbolTable.findName(methodName).decl().asMethodDecl();
             currentScope = md.symbolTable;
 
-            for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
+            if(obj != null)
+                for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -889,15 +925,21 @@ public class Interpreter extends Visitor {
         for(String s : vals.keySet()) { stack.setValue(s,vals.get(s)); }
     }
 
-    public void visitListLiteral(ListLiteral li) {
-
+    public void visitListLiteral(ListLiteral ll) {
         Vector<Object> lst = new Vector<>();
-
-        for(int i = 0; i < li.inits().size(); i++) {
-            li.inits().get(i).visit(this);
-            lst.add(currValue);
+        Vector<Integer> sizes = new Vector<>();
+        for(Expression e : ll.inits()) {
+            e.visit(this);
+            if(currValue instanceof Vector) {
+                for(Object val : (Vector<Object>)currValue)
+                    if(!(val instanceof ListLiteral))
+                        lst.add(val);
+            }
+            else
+                lst.add(currValue);
         }
 
+        lst.add(0,sizes.add(lst.size()));
         currValue = lst;
     }
 
@@ -962,13 +1004,11 @@ public class Interpreter extends Visitor {
     public void visitNewExpr(NewExpr ne) {
         ClassDecl cd = currentScope.findName(ne.classType().typeName()).decl().asTopLevelDecl().asClassDecl();
 
-        HashMap<String,Object> instance = new HashMap<String,Object>();
-        for(int i = 0; i < ne.args().size(); i++) {
-            Var currArg = ne.args().get(i);
-            currArg.init().visit(this);
-            instance.put(currArg.toString(),currValue);
+        HashMap<String,Object> instance = new HashMap<>();
+        for(Var v : ne.args()) {
+            v.init().visit(this);
+            instance.put(v.toString(),currValue);
         }
-
         currValue = instance;
 
         if(cd.constructor() != null) { cd.constructor().visit(this); }
@@ -1003,6 +1043,19 @@ public class Interpreter extends Visitor {
     public void visitReturnStmt(ReturnStmt rs) {
         if(rs.expr() != null) { rs.expr().visit(this); }
         returnFound = true;
+    }
+
+    public void visitRetypeStmt(RetypeStmt rs) {
+        rs.getNewObject().visit(this);
+        stack.addValue(rs.getName().toString(),currValue);
+
+        AST decl = currentScope.findName(rs.getName().toString()).decl();
+        if(decl.isTopLevelDecl())
+            decl.asTopLevelDecl().asGlobalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        else if(decl.isFieldDecl())
+            decl.asFieldDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        else
+            decl.asStatement().asLocalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
     }
 
     /*

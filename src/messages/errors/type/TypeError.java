@@ -1,4 +1,4 @@
-package messages.errors.type_error;
+package messages.errors.type;
 
 import messages.errors.Error;
 import utilities.PrettyPrint;

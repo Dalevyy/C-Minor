@@ -1,44 +1,44 @@
 package ast;
 
-import ast.classbody.*;
-import ast.expressions.*;
+import ast.classbody.FieldDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.Expression;
 import ast.misc.Compilation;
 import ast.misc.Name;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
-import ast.operators.*;
-import ast.statements.*;
-import ast.topleveldecls.*;
-import ast.types.*;
-import token.*;
-import utilities.*;
+import ast.operators.Operator;
+import ast.statements.Statement;
+import ast.topleveldecls.TopLevelDecl;
+import ast.types.Type;
+import token.Location;
+import token.Position;
+import token.Token;
+import utilities.Vector;
+import utilities.Visitor;
 
-/*
-____________________________ AST ____________________________
-This is the superclass for all C Minor parse tree nodes.
-
-Total Unique C Minor AST Nodes: 49
-_____________________________________________________________
-*/
+/**
+ * Superclass for all C Minor parse tree nodes
+ */
 public abstract class AST {
 
-    /*
-        Each node will contain its textual representation
-        alongside its location in the program. This info
-        is copied from the tokens in the Parser whenever we
-        create a new AST node.
-    */
+    /**
+     * The textual representation of the current AST node
+     */
     public String text;
+    /**
+     * The location of the AST node in the program
+     * */
     public Location location;
-
-    /*
-        AST Structure:
-            Each node in the AST will have a reference to its
-            parent alongside references to all of its children.
-    */
+    /**
+     * List of child nodes that the current AST is a parent of
+     */
+    public Vector<AST> children = new Vector<>();
+    /**
+     * Reference to current AST node's parent
+     */
     private AST parent;
 
-    public Vector<AST> children = new Vector<>();
 
     public AST() {
         this.text = "";

@@ -6,7 +6,7 @@ import ast.expressions.FieldExpr;
 import ast.expressions.InStmt;
 import ast.expressions.OutStmt;
 import messages.errors.ErrorBuilder;
-import messages.errors.scope_error.ScopeErrorFactory;
+import messages.errors.scope.ScopeErrorFactory;
 import messages.MessageType;
 import utilities.Vector;
 import utilities.Visitor;

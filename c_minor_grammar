@@ -143,13 +143,14 @@ statement
     | do_while_statement
     | for_statement
     | choice_statement
+    | list_command_statement
     ;
 
 return_statement : 'return' expression? ;
 
 expression_statement
     : 'set' expression assignment_operator '=' expression
-    | 'retype' Name '=' object_constant
+    | 'retype' expression '=' object_constant
     |  logical_or_expression
     ;
 
@@ -196,6 +197,11 @@ case_statement : 'on' label block_statement ;
 
 label : constant ('..' constant)?
 
+list_command_statement : 'append' '(' arguments ')'
+                       | 'remove' '(' arguments ')'
+                       | 'insert' '(' arguments ')'
+                       ;
+
 input_statement : 'cin' ('>>' expression)+ ;
 
 output_statement : 'cout' ('<<' expression)+ ;
@@ -203,27 +209,27 @@ output_statement : 'cout' ('<<' expression)+ ;
 // Expressions
 // -----------
 
-primary_expression
-    : Identifier
-    | Constant
-    | '(' expression ')'
-    | input_statement
-    | output_statement
-    | 'break'
-    | 'continue'
-    | 'endl'
-    ;
+primary_expression : Identifier
+                   | Constant
+                   | '(' expression ')'
+                   | input_statement
+                   | output_statement
+                   | 'break'
+                   | 'continue'
+                   | 'endl'
+                   ;
 
-postfix_expression
-    : primary_expression ('[' expression ']' | '(' arguments ')' | ('.' | '?.') expression)*
-    ;
+postfix_expression: primary_expression ('[' expression ']' | '(' arguments? ')' | ('.' | '?.') expression)* ;
 
 arguments : expression (',' expression)* ;
 
-unary_expression
-    : unary_operator cast_expression
-    | postfix_expression
-    ;
+factor_expression : postfix_expression
+                  | 'length' '(' arguments? ')'
+                  ;
+
+unary_expression : unary_operator cast_expression
+                 | factor_expression
+                 ;
 
 cast_expression
     : scalar_type '(' cast_expression ')'
