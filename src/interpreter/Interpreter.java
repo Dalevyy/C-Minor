@@ -45,6 +45,31 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
     }
 
+    /**
+     * Build string that will output the contents of an array or list.<br><br>
+     * <p>
+     *     To avoid users needing to create for loops to view individual contents
+     *     of an array or list, C Minor will allow a user to output the array or
+     *     list directly in order to see what they are storing. This method aids
+     *     in generating the output for the user.
+     * </p>
+     * @param arr Current array we are building the output for
+     * @param sb String builder
+     */
+    private void printList(Vector<Object> arr,StringBuilder sb) {
+        sb.append("[");
+        for(int i = 1; i < arr.size(); i++) {
+            if(arr.get(i) instanceof Vector)
+                printList((Vector<Object>)arr.get(i),sb);
+            else
+                sb.append(arr.get(i));
+            if(i != arr.size()-1)
+                sb.append(", ");
+        }
+        sb.append("]");
+    }
+
+
     /*
     _________________________ Array Expressions _________________________
     For an array expression, we want to retrieve the array from the stack
@@ -999,7 +1024,7 @@ public class Interpreter extends Visitor {
     }
 
     /**
-     * Prints expressions that appear in the VM
+     * Evaluates and prints out expressions in the VM
      * <p>
      *     We will print out every expression that appears in the current
      *     output statement during this visit.
@@ -1011,8 +1036,16 @@ public class Interpreter extends Visitor {
             e.visit(this);
             if(e.isEndl())
                 System.out.println();
-            else
-                System.out.print(currValue);
+            else {
+                if(e.type.isArrayType() || e.type.isListType()) {
+                    Vector<Object> arr = (Vector<Object>) currValue;
+                    StringBuilder sb = new StringBuilder();
+                    printList(arr,sb);
+                    System.out.print(sb);
+                }
+                else
+                    System.out.print(currValue);
+            }
         }
         System.out.println();
     }
