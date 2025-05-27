@@ -15,10 +15,10 @@ public class ListType extends Type {
     private final Type baseType;
     public int numOfDims;
 
-    public ListType() { this(new Token(),null,0); }
-    public ListType(Token t, Type mt, int num) {
+    public ListType(Type bt, int num) { this(new Token(),bt,num); }
+    public ListType(Token t, Type bt, int num) {
         super(t);
-        this.baseType = mt;
+        this.baseType = bt;
         this.numOfDims = num;
 
         addChild(this.baseType);
