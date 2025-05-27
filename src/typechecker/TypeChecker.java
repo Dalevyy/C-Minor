@@ -172,7 +172,7 @@ public class TypeChecker extends Visitor {
                     return false;
                 }
             }
-            else if(dims.size() != 0) {
+            else if(!dims.isEmpty()) {
                 if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
@@ -1530,8 +1530,22 @@ public class TypeChecker extends Visitor {
      */
     public void visitListLiteral(ListLiteral ll) {
         if(currentTarget == null || !currentTarget.isListType()) {
-            super.visitListLiteral(ll);
-            ll.type = new ListType();
+            int numOfDims = 0;
+            Expression curr = ll;
+            while(curr.isListLiteral()) {
+                numOfDims += 1;
+                if(!curr.asListLiteral().inits().isEmpty())
+                    curr = curr.asListLiteral().inits().get(0);
+                else
+                    break;
+            }
+            if(curr.isListLiteral())
+                listAssignmentCompatibility(numOfDims, new VoidType(), ll);
+            else {
+                curr.visit(this);
+                listAssignmentCompatibility(numOfDims, curr.type, ll);
+            }
+            ll.type = new ListType(curr.type,numOfDims);
         }
         else {
             listAssignmentCompatibility(currentTarget.asListType().numOfDims,
@@ -1541,119 +1555,76 @@ public class TypeChecker extends Visitor {
     }
 
     public void visitListStmt(ListStmt ls) {
-        switch(ls.getCommand()) {
-            case APPEND:
-                // ERROR CHECK #1: Make sure append only takes in 2 arguments.
-                if(ls.getAllArgs().size() != 2) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(ls)
-                                .addErrorType(MessageType.TYPE_ERROR_457)
-                                .addArgs("append",2,ls.getAllArgs().size())
-                                .error()
-                    );
-                }
-                ls.getListName().visit(this);
-                // ERROR CHECK #2: Make sure a valid list type is given for the 1st argument
-                if(!ls.getListName().type.isListType()) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_458)
-                                    .addArgs("append")
-                                    .error()
-                    );
-                }
-                //  Type.assignmentCompatible(ls.getListName().type,ls.getAllArgs().get(1).type)
-                ls.getAllArgs().get(1).visit(this);
-                if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(1).type)) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_459)
-                                    .addArgs("append")
-                                    .error()
-                    );
-                }
-                break;
-            case INSERT:
-                // ERROR CHECK #1: Make sure append only takes in 3 arguments.
-                if(ls.getAllArgs().size() != 3) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_457)
-                                    .addArgs("insert",3,ls.getAllArgs().size())
-                                    .error()
-                    );
-                }
-                ls.getListName().visit(this);
-                // ERROR CHECK #2: Make sure a valid list type is given for the 1st argument
-                if(!ls.getListName().type.isListType()) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_458)
-                                    .addArgs("insert")
-                                    .error()
-                    );
-                }
+        int argSize;
+        String func;
 
-                ls.getAllArgs().get(1).visit(this);
-                if(!ls.getAllArgs().get(1).type.isInt()) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_460)
-                                    .error()
-                    );
-                }
+        argSize = switch (ls.getCommand()) {
+            case APPEND -> {
+                func = "append";
+                yield 2;
+            }
+            case INSERT -> {
+                func = "insert";
+                yield 3;
+            }
+            case REMOVE -> {
+                func = "remove";
+                yield 2;
+            }
+        };
 
-                ls.getAllArgs().get(2).visit(this);
-                if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(2).type)) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_461)
-                                    .error()
-                    );
-                }
-                break;
-            case REMOVE:
-                // ERROR CHECK #1: Make sure append only takes in 2 arguments.
-                if(ls.getAllArgs().size() != 2) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_457)
-                                    .addArgs("remove",2,ls.getAllArgs().size())
-                                    .error()
-                    );
-                }
-                ls.getListName().visit(this);
-                // ERROR CHECK #2: Make sure a valid list type is given for the 1st argument
-                if(!ls.getListName().type.isListType()) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_458)
-                                    .addArgs("remove")
-                                    .error()
-                    );
-                }
-                //  Type.assignmentCompatible(ls.getListName().type,ls.getAllArgs().get(1).type)
-                ls.getAllArgs().get(1).visit(this);
-                if(!ls.getListName().type.asListType().baseTypeCompatible(ls.getAllArgs().get(1).type)) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(ls)
-                                    .addErrorType(MessageType.TYPE_ERROR_459)
-                                    .addArgs("remove")
-                                    .error()
-                    );
-                }
-                break;
+        // ERROR CHECK #1: Make sure list function has the right amount of arguments
+        if(ls.getAllArgs().size() != argSize) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_457)
+                        .addArgs(func,argSize,ls.getAllArgs().size())
+                        .error()
+            );
+        }
 
+        ls.getListName().visit(this);
+        Type lstType = ls.getListName().type;
+        // ERROR CHECK #2: Make sure the variable name represents a list
+        if(!lstType.isListType()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_458)
+                        .addArgs(func)
+                        .error()
+            );
+        }
+
+        Type itemType;
+        ls.getSecondArg().visit(this);
+        if(func.equals("insert")) {
+            // ERROR CHECK #3: Make sure the insert position is an Int
+            if(!ls.getAllArgs().get(1).type.isInt()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ls)
+                            .addErrorType(MessageType.TYPE_ERROR_460)
+                            .error()
+                );
+            }
+            ls.getThirdArg().visit(this);
+            itemType = ls.getThirdArg().type;
+        }
+        else
+            itemType = ls.getSecondArg().type;
+
+        // ERROR CHECK #4: Make sure the item we are trying to add/delete
+        //                 represents a sublist for the current list
+        if(!lstType.asListType().isSubList(itemType)) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_459)
+                        .addArgs(func)
+                        .error()
+            );
         }
     }
 
