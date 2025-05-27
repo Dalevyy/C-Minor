@@ -27,6 +27,8 @@ public class ListStmt extends Statement {
     public Vector<Expression> getAllArgs() { return this.args; }
 
     public NameExpr getListName() { return this.args.get(0).asNameExpr(); }
+    public Expression getSecondArg() { return this.args.get(1); }
+    public Expression getThirdArg() { return this.args.get(2); }
 
     public boolean isListStmt() { return true; }
     public ListStmt asListStmt() { return this;}
