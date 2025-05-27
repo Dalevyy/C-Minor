@@ -29,8 +29,21 @@ public class ListType extends Type {
     public ListType asListType() { return this; }
 
     public Type baseType() { return baseType; }
+    public int getDims() { return numOfDims; }
 
     public boolean baseTypeCompatible(Type t) { return Type.assignmentCompatible(baseType,t); }
+
+    public boolean isSubList(Type ct) {
+        if(!ct.isListType()) {
+            if(this.numOfDims == 1)
+                return this.baseTypeCompatible(ct);
+            return false;
+        }
+        else if(this.numOfDims-ct.asListType().numOfDims < 0 || this.numOfDims-ct.asListType().numOfDims > 1)
+            return false;
+        else
+            return this.baseTypeCompatible(ct.asListType().baseType);
+    }
 
     public String typeName() { return "List: " + baseType.typeName(); }
 
