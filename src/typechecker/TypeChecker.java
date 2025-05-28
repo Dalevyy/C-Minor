@@ -1445,10 +1445,14 @@ public class TypeChecker extends Visitor {
         else {
             ClassDecl cd = null;
             if(currentTarget.isMultiType()) {
+                ClassDecl curr;
+                ClassType superClass = null;
                 for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
-                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
-                    if(cd.symbolTable.hasMethod(in.toString()))
-                        break;
+                    curr = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd == null || ClassType.isSuperClass(ct,superClass)) {
+                        cd = curr;
+                        superClass = ct;
+                    }
                 }
             }
             else
@@ -1554,6 +1558,15 @@ public class TypeChecker extends Visitor {
         }
     }
 
+    /**
+     * Checks the type of a list statement.<br><br>
+     * <p>
+     *     In C Minor, there are 3 list statments: append, insert, and remove.
+     *     For each statement, we will ensure that a list was passed as an argument
+     *     an
+     * </p>
+     * @param ls List Statement
+     */
     public void visitListStmt(ListStmt ls) {
         int argSize;
         String func;
@@ -1915,6 +1928,17 @@ public class TypeChecker extends Visitor {
                 decl.asFieldDecl().setType(mt);
             else
                 decl.asStatement().asLocalDecl().setType(mt);
+        }
+        else if(lType.asMultiType().getInitialType().toString().equals(rType.toString())) {
+            AST decl = currentScope.findName(rs.getName().toString()).decl();
+            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
+                decl.asTopLevelDecl().asGlobalDecl().setType(lType.asMultiType().getInitialType());
+            else if(decl.isParamDecl())
+                decl.asParamDecl().setType(lType.asMultiType().getInitialType());
+            else if(decl.isFieldDecl())
+                decl.asFieldDecl().setType(lType.asMultiType().getInitialType());
+            else
+                decl.asStatement().asLocalDecl().setType(lType.asMultiType().getInitialType());
         }
         else
             lType.asMultiType().addType(rType.asClassType());

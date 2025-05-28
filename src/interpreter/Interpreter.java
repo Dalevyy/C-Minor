@@ -891,11 +891,12 @@ public class Interpreter extends Visitor {
         // Method Invocation
         else {
             if(!currTarget.toString().equals(in.targetType.toString())) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.RUNTIME_ERROR_604)
-                        .addArgs(in.toString(),currTarget,in.targetType)
-                        .error();
+                if(!currentScope.hasName(in.targetType.typeName()))
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                            .addLocation(in)
+                            .addErrorType(MessageType.RUNTIME_ERROR_604)
+                            .addArgs(in.toString(),currTarget,in.targetType)
+                            .error();
             }
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
             String methodName = in.invokeSignature();
@@ -954,20 +955,40 @@ public class Interpreter extends Visitor {
     public void visitListStmt(ListStmt ls) {
         ls.getListName().visit(this);
         Vector<Object> lst = (Vector<Object>) currValue;
+
+        ls.getAllArgs().get(1).visit(this);
+        int index = lst.size();
+
         switch(ls.getCommand()) {
-            case APPEND:
-                ls.getAllArgs().get(1).visit(this);
-                lst.add(currValue);
-                break;
             case INSERT:
-                ls.getAllArgs().get(1).visit(this);
-                int index = (int) currValue;
+                index = (int) currValue;
                 ls.getAllArgs().get(2).visit(this);
-                lst.add(index,currValue);
+            case APPEND:
+                if(currValue instanceof Vector) {
+                    Vector<Object> sublist = (Vector<Object>) currValue;
+                    if(ls.getListType().numOfDims - ((ListLiteral)sublist.get(0)).type.asListType().numOfDims > 0)
+                        lst.add(index,currValue);
+                    else {
+                        for(int i = 1; i < ((Vector)currValue).size();i++) {
+                            lst.add(index,((Vector)currValue).get(i));
+                            index += 1;
+                        }
+                    }
+                }
+                else
+                    lst.add(index,currValue);
                 break;
             case REMOVE:
-                ls.getAllArgs().get(1).visit(this);
-                lst.removeAll(currValue);
+                if(currValue instanceof Vector) {
+                    Vector<Object> removeElements = (Vector) currValue;
+                    if(ls.getListType().numOfDims - ((ListLiteral)removeElements.get(0)).type.asListType().numOfDims > 0)
+                        lst.removeAll(currValue);
+                    else
+                        for(Object o : removeElements)
+                            lst.removeAll(o);
+                }
+                else
+                    lst.removeAll(currValue);
                 break;
         }
     }
@@ -1087,12 +1108,18 @@ public class Interpreter extends Visitor {
         stack.addValue(rs.getName().toString(),currValue);
 
         AST decl = currentScope.findName(rs.getName().toString()).decl();
-        if(decl.isTopLevelDecl())
-            decl.asTopLevelDecl().asGlobalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        else if(decl.isFieldDecl())
-            decl.asFieldDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        else
-            decl.asStatement().asLocalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        if(decl.isTopLevelDecl()) {
+            if (decl.asTopLevelDecl().asGlobalDecl().type().isMultiType())
+                decl.asTopLevelDecl().asGlobalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        }
+        else if(decl.isFieldDecl()) {
+            if(decl.asFieldDecl().type().isMultiType())
+                decl.asFieldDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        }
+        else {
+            if(decl.asStatement().asLocalDecl().type().isMultiType())
+                decl.asStatement().asLocalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        }
     }
 
     /*
