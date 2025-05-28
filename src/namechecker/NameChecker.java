@@ -43,6 +43,7 @@ import utilities.Visitor;
 public class NameChecker extends Visitor {
 
     private SymbolTable currentScope;
+    private ClassDecl currentClass;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
 
@@ -223,7 +224,7 @@ public class NameChecker extends Visitor {
 
         currentScope = currentScope.openNewScope();
         cd.symbolTable = currentScope;
-
+        currentClass = cd;
         for(FieldDecl fd : cd.classBlock().fieldDecls()) { fd.visit(this); }
 
         if(cd.superClass() != null) {
@@ -256,6 +257,7 @@ public class NameChecker extends Visitor {
 
         for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
         currentScope = currentScope.closeScope();
+        currentClass = null;
     }
 
     /**
@@ -617,13 +619,15 @@ public class NameChecker extends Visitor {
 
         // ERROR CHECK #2: Make sure method signature is unique to support overloading
         if(currentScope.hasName(methodSignature)) {
-            errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(md)
-                        .addErrorType(MessageType.SCOPE_ERROR_314)
-                        .addArgs(md.toString())
-                        .error()
-            );
+            // Make sure to not error out if we are overriding a base class method
+            if(!currentClass.symbolTable.hasName(methodSignature))
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(md)
+                            .addErrorType(MessageType.SCOPE_ERROR_314)
+                            .addArgs(md.toString())
+                            .error()
+                );
         }
         currentScope.addName(methodSignature, md);
         currentScope.addMethod(md.toString());
