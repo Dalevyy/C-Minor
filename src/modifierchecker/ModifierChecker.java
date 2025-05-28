@@ -336,7 +336,7 @@ public class ModifierChecker extends Visitor {
             funcSignature = null;
         }
         // Function Invocation
-        else if(!in.targetType.isClassType()) {
+        else if(!in.targetType.isClassType() && !in.targetType.isMultiType()) {
             FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
