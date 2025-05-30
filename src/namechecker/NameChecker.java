@@ -175,13 +175,11 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Checks the scope of a class.<br><br>
      * <p>
-     *     A class opens a scope to store its field and method declarations.
-     *     Most of the name checking done here relates to inheritance. We need
-     *     to make sure the class doesn't inherit itself, and the class we are
-     *     trying to inherit from exists. From there, we are going to add every
-     *     field and method declaration from the base class into the subclass,
-     *     so these nodes can be accessed by the subclass.
+     *     A class will open a scope to store its fields and methods. During
+     *     this visit, we are primarily focused on checking for the correct
+     *     usage of inheritance.
      * </p>
      * @param cd Class Declaration
      */
@@ -229,7 +227,7 @@ public class NameChecker extends Visitor {
 
         if(cd.superClass() != null) {
             ClassDecl base = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-            // Go through each declaration in the base class
+            // Go through each declaration in the base class and add it to the subclass symbol table
             for(String name : base.symbolTable.getAllNames().keySet()) {
                 AST decl = base.symbolTable.findName(name).decl();
                 if(decl.isFieldDecl()) {
@@ -247,8 +245,12 @@ public class NameChecker extends Visitor {
                     currentScope.addName(name,decl.asFieldDecl());
                 }
                 else {
-                    if (name.contains("/")) { currentScope.addName(name,decl.asMethodDecl()); }
-                    else { currentScope.addName(name + "/" + base,decl.asMethodDecl()); }
+                    // For methods, insert "<baseName>." to denote
+                    // which class the method was initially declared in
+                    if(name.startsWith(base + "."))
+                        currentScope.addName(name,decl.asMethodDecl());
+                    else
+                        currentScope.addName(base + "." + name,decl.asMethodDecl());
                 }
             }
 
