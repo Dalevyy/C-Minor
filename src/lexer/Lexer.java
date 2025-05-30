@@ -102,6 +102,14 @@ public class Lexer {
         else { lookChar = EOF; }
     }
 
+    /** Updates the lookahead character without updating the program buffer. */
+    private void update() {
+        currPos += 1;
+        currLoc.addCol();
+        if(currPos < file.length()) { lookChar = file.charAt(currPos); }
+        else { lookChar = EOF; }
+    }
+
     /** Checks if the lookahead character matches the expected character we need to see.*/
     private boolean match(char expectedChar) {
         if(lookChar != expectedChar)
@@ -154,48 +162,51 @@ public class Lexer {
      * @param sb This represents the current Character/String literal we are tokenizing.
      */
     private void escapeSequence(StringBuilder sb) {
+        update();
         switch(lookChar) {
             case '\'':
-                match('\'');
                 sb.append('\'');
+                currText += '\'';
                 break;
             case '\"':
-                match('\"');
                 sb.append('\"');
+                currText += '\"';
                 break;
             case '\\':
-                match('\\');
                 sb.append('\\');
+                currText += '\\';
                 break;
             case 'b':
-                match('b');
                 sb.append('\b');
+                currText += '\b';
                 break;
             case 'f':
-                match('f');
                 sb.append('\f');
+                currText += '\f';
                 break;
             case 'n':
-                match('n');
                 sb.append('\n');
+                currText += '\n';
                 break;
             case 'r':
-                match('r');
                 sb.append('\r');
+                currText += '\r';
                 break;
             case 't':
-                match('t');
                 sb.append('\t');
+                currText += '\t';
                 break;
             case '0':
-                match('0');
                 sb.append('\0');
+                currText += '\0';
                 break;
             default:
                 System.out.println(PrettyPrint.RED + "Error! Invalid escape sequence written at positions "
                                                    + currLoc.toString() + ".");
                 System.exit(1);
         }
+        update();
+        currLoc.removeCol();
     }
 
     /**
@@ -206,7 +217,8 @@ public class Lexer {
         StringBuilder newChar = new StringBuilder();
         newChar.append('\'');
 
-        if(match('\\')) { escapeSequence(newChar); }
+        if(lookChar == '\\')
+            escapeSequence(newChar);
         else {
             newChar.append(lookChar);
             consume();
@@ -225,7 +237,8 @@ public class Lexer {
      */
     private Token strLit(StringBuilder newStr) {
         while(!match('\'') && !isEOF()) {
-            if(match('\\')) { escapeSequence(newStr); }
+            if(lookChar == '\\')
+                escapeSequence(newStr);
             else {
                 newStr.append(lookChar);
                 consume();
@@ -392,7 +405,7 @@ public class Lexer {
         }
         return new Token(TokenType.INT_LIT, newNum.toString(), currLoc.copy());
     }
-    
+
     /**
      * This is the main method for the C Minor lexer.<br><br>
      * <p>
