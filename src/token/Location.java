@@ -18,6 +18,7 @@ public class Location {
 
     public void addLine()   { end.addToLine(); }
     public void addCol()    { end.addToCol(); }
+    public void removeCol() { end.column -= 1; }
 
     public void resetStart() {
         start.line = end.line;
