@@ -952,16 +952,33 @@ public class Interpreter extends Visitor {
         currValue = lst;
     }
 
+    /**
+     * Executes a list statement command.<br><br>
+     * <p>
+     *     This method will execute the current list command based on the
+     *     provided arguments. If there are any issues, then we will produce
+     *     an exception for the user.
+     * </p>
+     * @param ls The current list statement we will be executing.
+     */
     public void visitListStmt(ListStmt ls) {
+        // Obtain the list from the stack
         ls.getListName().visit(this);
         Vector<Object> lst = (Vector<Object>) currValue;
-
-        ls.getAllArgs().get(1).visit(this);
         int index = lst.size();
 
+        ls.getAllArgs().get(1).visit(this);
         switch(ls.getCommand()) {
             case INSERT:
                 index = (int) currValue;
+                // ERROR CHECK #1: Make sure a valid position was given for an element to be inserted at
+                if(index+1 <= 1 || index > lst.size()-1) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                            .addLocation(ls)
+                            .addErrorType(MessageType.RUNTIME_ERROR_605)
+                            .addArgs(ls.getListName(),lst.size()-1,index)
+                            .error();
+                }
                 ls.getAllArgs().get(2).visit(this);
             case APPEND:
                 if(currValue instanceof Vector) {
@@ -988,7 +1005,7 @@ public class Interpreter extends Visitor {
                             lst.removeAll(o);
                 }
                 else
-                    lst.removeAll(currValue);
+                    lst.remove((int)currValue);
                 break;
         }
     }
