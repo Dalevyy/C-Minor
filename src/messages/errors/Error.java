@@ -23,36 +23,22 @@ public abstract class Error extends Message {
         }
         System.out.println(sb);
 
-        if(!interpretMode) { System.exit(1); }
-        // If we are running the interpreter and have an error with a statement, then we want to throw an exception
-        // with the statement's name. If the error is **NOT** related to redeclaration, then we want to remove the
-        // statement from our symbol table
-        if(this.location().isParamDecl() && this.errorType() != MessageType.SCOPE_ERROR_304) {
-            throw new RuntimeException(this.location().toString());
-        }
-        else if(this.location().isTopLevelDecl()) {
-            if(this.location.asTopLevelDecl().isEnumDecl() && this.errorType() != MessageType.SCOPE_ERROR_305) {
-                throw new RuntimeException(this.location().toString());
-            }
-            else if(this.location.asTopLevelDecl().isClassDecl() && this.errorType() != MessageType.SCOPE_ERROR_316) {
-                throw new RuntimeException(this.location().toString());
-            }
-            else if(this.location.asTopLevelDecl().isGlobalDecl() && this.errorType() != MessageType.SCOPE_ERROR_302) {
-                throw new RuntimeException(this.location().asTopLevelDecl().asGlobalDecl().var().toString());
-            }
-            else if(this.location.asTopLevelDecl().isFuncDecl()
-                    && this.errorType() != MessageType.SCOPE_ERROR_311
-                    && this.errorType() != MessageType.SCOPE_ERROR_312) {
-                throw new RuntimeException(this.location().toString());
-            }
-        }
-        else if(this.location().isStatement()) {
-            if(this.location().asStatement().isLocalDecl() && this.errorType() != MessageType.SCOPE_ERROR_300) {
-                throw new RuntimeException(this.location().asStatement().asLocalDecl().var().toString());
-            }
-        }
+        if(!interpretMode)
+            System.exit(1);
+        // If we have a redeclaration error, then throw an exception indicating
+        // we had a redeclaration in order to prevent the removal of the name
+        else if(this.errorType() == MessageType.SCOPE_ERROR_300
+                || this.errorType() == MessageType.SCOPE_ERROR_302
+                || this.errorType() == MessageType.SCOPE_ERROR_304
+                || this.errorType() == MessageType.SCOPE_ERROR_305
+                || this.errorType() == MessageType.SCOPE_ERROR_311
+                || this.errorType() == MessageType.SCOPE_ERROR_312
+                || this.errorType() == MessageType.SCOPE_ERROR_316)
+            throw new RuntimeException("Redeclaration");
+        else
+            throw new RuntimeException("Error");
         
-        throw new RuntimeException();
+        return sb.toString();
     }
 
     private String buildError() {
