@@ -25,7 +25,7 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     private final ClassBody body;
     private InitDecl constructor;
 
-    private ClassType classHierarchy;
+    private Vector<Name> inheritedClasses;
 
     public ClassDecl(Token t, Modifier m, Name n, ClassBody b) { this(t,m,n,null,null,b); }
 
@@ -36,6 +36,7 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
         this.typeParams = tp;
         this.superClass = sc;
         this.body = b;
+        this.inheritedClasses = new Vector<>();
 
         addChild(this.name);
         addChild(this.typeParams);
@@ -54,8 +55,8 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     public void setConstructor(InitDecl ind) { this.constructor = ind; }
     public InitDecl constructor() { return this.constructor; }
 
-    public void setClassHierarchy(ClassType ct) { this.classHierarchy = ct; }
-    public ClassType classHierarchy() { return this.classHierarchy; }
+    public void addBaseClass(Name n) { this.inheritedClasses.add(n); }
+    public Vector<Name> getInheritedClasses() { return this.inheritedClasses; }
 
     public boolean isClassDecl() { return true; }
     public ClassDecl asClassDecl() { return this; }
