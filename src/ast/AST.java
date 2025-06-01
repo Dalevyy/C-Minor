@@ -100,7 +100,9 @@ public abstract class AST {
             children.add(node);
     }
 
-    public <T extends AST> void addChild(Vector<T> nodes) { for(AST node : nodes) { this.addChild(node); } }
+    public <T extends AST> void addChild(Vector<T> nodes) {
+        for(AST node : nodes) { this.addChild(node); }
+    }
 
     public AST removeChild() {
         if(!children.isEmpty())

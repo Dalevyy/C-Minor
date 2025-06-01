@@ -43,6 +43,7 @@ import utilities.Visitor;
 public class NameChecker extends Visitor {
 
     private SymbolTable currentScope;
+    private ClassDecl currentClass;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
 
@@ -174,13 +175,11 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Checks the scope of a class.<br><br>
      * <p>
-     *     A class opens a scope to store its field and method declarations.
-     *     Most of the name checking done here relates to inheritance. We need
-     *     to make sure the class doesn't inherit itself, and the class we are
-     *     trying to inherit from exists. From there, we are going to add every
-     *     field and method declaration from the base class into the subclass,
-     *     so these nodes can be accessed by the subclass.
+     *     A class will open a scope to store its fields and methods. During
+     *     this visit, we are primarily focused on checking for the correct
+     *     usage of inheritance.
      * </p>
      * @param cd Class Declaration
      */
@@ -223,14 +222,15 @@ public class NameChecker extends Visitor {
 
         currentScope = currentScope.openNewScope();
         cd.symbolTable = currentScope;
-
+        currentClass = cd;
         for(FieldDecl fd : cd.classBlock().fieldDecls()) { fd.visit(this); }
 
         if(cd.superClass() != null) {
             ClassDecl base = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-            // Go through each declaration in the base class
+            // Go through each declaration in the base class and add it to the subclass symbol table
             for(String name : base.symbolTable.getAllNames().keySet()) {
                 AST decl = base.symbolTable.findName(name).decl();
+                // Fields
                 if(decl.isFieldDecl()) {
                     // ERROR CHECK #3: Each field name in a subclass needs to be unique
                     //                 from the fields declared in the base class
@@ -245,10 +245,15 @@ public class NameChecker extends Visitor {
                     }
                     currentScope.addName(name,decl.asFieldDecl());
                 }
-                else {
-                    if (name.contains("/")) { currentScope.addName(name,decl.asMethodDecl()); }
-                    else { currentScope.addName(name + "/" + base,decl.asMethodDecl()); }
-                }
+//                // Methods
+//                else {
+//                    // For methods, insert "<baseName>." to denote
+//                    // which class the method was initially declared in
+//                    if(name.startsWith(base + "."))
+//                        currentScope.addName(name,decl.asMethodDecl());
+//                    else
+//                        currentScope.addName(base + "." + name,decl.asMethodDecl());
+//                }
             }
 
             for(String name: base.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
@@ -256,6 +261,7 @@ public class NameChecker extends Visitor {
 
         for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
         currentScope = currentScope.closeScope();
+        currentClass = null;
     }
 
     /**
@@ -617,13 +623,15 @@ public class NameChecker extends Visitor {
 
         // ERROR CHECK #2: Make sure method signature is unique to support overloading
         if(currentScope.hasName(methodSignature)) {
-            errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(md)
-                        .addErrorType(MessageType.SCOPE_ERROR_314)
-                        .addArgs(md.toString())
-                        .error()
-            );
+            // Make sure to not error out if we are overriding a base class method
+            if(!currentClass.symbolTable.hasName(methodSignature))
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(md)
+                            .addErrorType(MessageType.SCOPE_ERROR_314)
+                            .addArgs(md.toString())
+                            .error()
+                );
         }
         currentScope.addName(methodSignature, md);
         currentScope.addMethod(md.toString());

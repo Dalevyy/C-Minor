@@ -50,7 +50,7 @@ public class Literal extends Expression {
     public static class LiteralBuilder {
         private ConstantKind kind;
         private String value;
-        
+
         public LiteralBuilder setConstantKind(ConstantKind ck) {
             this.kind = ck;
             return this;

@@ -1,13 +1,19 @@
 package interpreter;
 
-import java.io.*;
-import ast.*;
+import ast.AST;
 import ast.misc.Compilation;
 import ast.misc.Var;
 import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
 import lexer.Lexer;
-import micropasses.*;
+import micropasses.ClassToEnumTypeRewrite;
+import micropasses.ConstructorGeneration;
+import micropasses.FieldRewrite;
+import micropasses.InOutStmtRewrite;
+import micropasses.LoopKeywordCheck;
+import micropasses.PropertyMethodGeneration;
 import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
 import parser.Parser;
@@ -23,21 +29,24 @@ public class VM {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         Compilation compilationUnit = new Compilation();
 
-        var treePrinter = new Printer();
-        var ioRewrite = new InOutStmtRewrite(true);
-        var generatePropertyMethods = new PropertyMethodGeneration();
-        var nameChecker = new NameChecker(compilationUnit.globalTable);
-        var fieldRewrite = new FieldRewrite();
-        var classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
-        var typeChecker = new TypeChecker(compilationUnit.globalTable);
-        var generateConstructor = new ConstructorGeneration();
-        var loopKeywordCheck = new LoopKeywordCheck(true);
-        var modChecker = new ModifierChecker(compilationUnit.globalTable);
-        var interpreter = new Interpreter(compilationUnit.globalTable);
+        // Phases
+        NameChecker nameChecker = new NameChecker(compilationUnit.globalTable);
+        TypeChecker typeChecker = new TypeChecker(compilationUnit.globalTable);
+        ModifierChecker modChecker = new ModifierChecker(compilationUnit.globalTable);
+        Interpreter interpreter = new Interpreter(compilationUnit.globalTable);
 
-        boolean tokenPrint = false;
-        boolean treePrint = false;
-        boolean tablePrint = false;
+        // Micropasses
+        Printer treePrinter = new Printer();
+        InOutStmtRewrite ioRewritePass = new InOutStmtRewrite(true);
+        PropertyMethodGeneration generatePropertyPass = new PropertyMethodGeneration();
+        FieldRewrite fieldRewritePass = new FieldRewrite();
+        LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
+        ClassToEnumTypeRewrite classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
+        ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
+
+        boolean printTokens = false;
+        boolean printAST = false;
+        boolean printST = false;
 
         while(true) {
             String input;
@@ -45,26 +54,27 @@ public class VM {
             System.out.print(">>> ");
             input = reader.readLine();
 
-            if(input.equals("#quit")) { System.exit(1); }
+            if(input.equals("#quit"))
+                System.exit(1);
             else if(input.equals("#clear")) {
                 compilationUnit = new Compilation();
                 nameChecker = new NameChecker(compilationUnit.globalTable);
-                classToEnum = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
+                classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
                 typeChecker = new TypeChecker(compilationUnit.globalTable);
                 modChecker = new ModifierChecker(compilationUnit.globalTable);
                 interpreter = new Interpreter(compilationUnit.globalTable);
                 continue;
             }
             else if(input.equals("#show-tokens")) {
-                tokenPrint = !tokenPrint;
+                printTokens = !printTokens;
                 continue;
             }
             else if(input.equals("#show-tree")) {
-                treePrint = !treePrint;
+                printAST = !printAST;
                 continue;
             }
             else if(input.equals("#show-table")) {
-                tablePrint = !tablePrint;
+                printST = !printST;
                 continue;
             }
             else if(input.isEmpty()) { continue; }
@@ -85,22 +95,22 @@ public class VM {
             AST currNode = null;
             try {
                 var lexer = new Lexer(program.toString());
-                var parser = new Parser(lexer,tokenPrint,true);
+                var parser = new Parser(lexer,printTokens,true);
 
                 nodes = parser.nextNode();
 
                 for(AST node : nodes) {
                     currNode = node;
-                    node.visit(ioRewrite);
-                    if(treePrint) { node.visit(treePrinter); }
-                    node.visit(generatePropertyMethods);
+                    node.visit(ioRewritePass);
+                    if(printAST) { node.visit(treePrinter); }
+                    node.visit(generatePropertyPass);
                     node.visit(nameChecker);
-                    if(tablePrint) { System.out.println(compilationUnit.globalTable.toString()); }
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewrite); }
-                    node.visit(loopKeywordCheck);
-                    node.visit(classToEnum);
+                    if(printST) { System.out.println(compilationUnit.globalTable.toString()); }
+                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewritePass); }
+                    node.visit(loopCheckPass);
+                    node.visit(classToEnumPass);
                     node.visit(typeChecker);
-                    node.visit(generateConstructor);
+                    node.visit(generateConstructorPass);
                     node.visit(modChecker);
 
                     if(node.isTopLevelDecl()) {
@@ -117,39 +127,28 @@ public class VM {
                 }
             }
             catch(Exception e) {
-                if(currNode != null && currNode.isTopLevelDecl()) {
-                    if (currNode.asTopLevelDecl().isClassDecl())
-                        compilationUnit.globalTable.removeName(currNode.toString());
-                }
-                if(e.getMessage() != null) {
-                    if(!e.getMessage().equals("EOF Not Found")) {
-                        try {
-                            if(currNode.isTopLevelDecl()) {
-                                if(currNode.asTopLevelDecl().isEnumDecl())
-                                    removeEnumDecl(currNode.asTopLevelDecl().asEnumDecl(), compilationUnit.globalTable);
-                                else if(currNode.asTopLevelDecl().isClassDecl())
-                                    compilationUnit.globalTable.removeName(currNode.toString());
-                                else if(currNode.asTopLevelDecl().isFuncDecl())
-                                    removeFuncDecl(currNode.asTopLevelDecl().asFuncDecl(),compilationUnit.globalTable);
-                            }
-                            else
-                                compilationUnit.globalTable.removeName(e.getMessage());
-                        }
-                        catch(Exception e2) {
-                            System.out.println(e.getMessage());
-                            e.printStackTrace();
-                        }
-                    }
-                }
+                generateError(e,currNode,compilationUnit.globalTable);
             }
         }
     }
 
-    private static void removeEnumDecl(EnumDecl ed, SymbolTable st) {
-        for(Var constant : ed.constants()) { st.removeName(constant.toString()); }
-    }
-
-    private static void removeFuncDecl(FuncDecl fd, SymbolTable st) {
-        st.removeName(fd.funcSignature());
+    private static void generateError(Exception e, AST location, SymbolTable st) {
+        // If a lexer/parser error occurs, do not remove anything from the symbol table.
+        if(location == null || e.getMessage().equals("EOF Not Found") || e.getMessage().equals("Redeclaration"))
+            return;
+        else if(location.isTopLevelDecl()) {
+            if(location.asTopLevelDecl().isEnumDecl()) {
+                EnumDecl ed = location.asTopLevelDecl().asEnumDecl();
+                for(Var constant : ed.constants())
+                    st.removeName(constant.toString());
+                st.removeName(ed.toString());
+            }
+            else if(location.asTopLevelDecl().isClassDecl() || location.asTopLevelDecl().isGlobalDecl())
+                st.removeName(location.toString());
+            else if(location.asTopLevelDecl().isFuncDecl())
+                st.removeName(location.asTopLevelDecl().asFuncDecl().funcSignature());
+        }
+        else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
+            st.removeName(location.toString());
     }
 }

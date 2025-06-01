@@ -14,15 +14,16 @@ ClassType as well.
 _________________________________________________________________
 */
 public class ClassType extends Type {
-    private final Name name;        // Only for single type
+    private final Name name;                        // Only for single type
+    private Vector<Name> inheritedTypes;
     private final Vector<Type> templateTypes;
 
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
     public ClassType(Token t, Name n) { this(t,n,new Vector<>(),new Vector<>()); }
-    public ClassType(Name n, Vector<ClassType> it) { this(new Token(),n,it,new Vector<>()); }
+    public ClassType(Name n, Vector<Type> ct) { this(new Token(),n,new Vector<>(),ct); }
     public ClassType(Token t, Name n, Vector<Type> tt) { this(t,n,new Vector<>(),tt); }
-    public ClassType(Token t, Name n, Vector<ClassType> it, Vector<Type> tt) {
+    public ClassType(Token t, Name n, Vector<Name> it, Vector<Type> tt) {
         super(t);
         this.name = n;
         this.templateTypes = tt;
@@ -36,11 +37,17 @@ public class ClassType extends Type {
     public Vector<Type> templateTypes() { return templateTypes; }
 
     public String typeName() {
-        if(name.toString().contains("/")) { return name.toString().substring(0,name.toString().indexOf("/")); }
+        if(inheritedTypes != null) {
+            StringBuilder classHierarchy = new StringBuilder();
+            for(Name n : inheritedTypes)
+                classHierarchy.append(n.toString()).append("/");
+            return classHierarchy + name.toString();
+        }
         return name.toString();
     }
 
-    public String getClassHierarchy() { return name.toString(); }
+    public void setInheritedTypes(Vector<Name> it) { this.inheritedTypes = it; }
+    public Vector<Name> getInheritedTypes() { return this.inheritedTypes; }
 
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
@@ -55,24 +62,18 @@ public class ClassType extends Type {
     }
 
     public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
-        if(subClass.toString().equals(superClass.toString())) { return true; }
+        if(subClass.toString().equals(superClass.toString()))
+            return true;
 
-        String classHierarchy = subClass.getClassHierarchy();
-        String superClassName = superClass.getClassHierarchy();
-        int slashLocation = classHierarchy.indexOf('/');
-
-        while(slashLocation != -1) {
-            String subClassName = classHierarchy.substring(0,slashLocation);
-            if(subClassName.equals(superClassName)) { return true; }
-            if(classHierarchy.length() == 1) { return false; }
-            classHierarchy = classHierarchy.substring(slashLocation+1);
+        for(Name n : subClass.getInheritedTypes()) {
+            if(n.toString().equals(superClass.toString()))
+                return true;
         }
-
         return false;
     }
 
     @Override
-    public String toString() { return this.typeName(); }
+    public String toString() { return name.toString(); }
 
     @Override
     public void visit(Visitor v) { v.visitClassType(this); }

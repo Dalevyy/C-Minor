@@ -45,6 +45,30 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
     }
 
+    /**
+     * Build string that will output the contents of an array or list.<br><br>
+     * <p>
+     *     To avoid users needing to create for loops to view individual contents
+     *     of an array or list, C Minor will allow a user to output the array or
+     *     list directly in order to see what they are storing. This method aids
+     *     in generating the output for the user.
+     * </p>
+     * @param arr Current array we are building the output for
+     * @param sb String builder
+     */
+    private void printList(Vector<Object> arr,StringBuilder sb) {
+        sb.append("[");
+        for(int i = 1; i < arr.size(); i++) {
+            if(arr.get(i) instanceof Vector)
+                printList((Vector<Object>)arr.get(i),sb);
+            else
+                sb.append(arr.get(i));
+            if(i != arr.size()-1)
+                sb.append(", ");
+        }
+        sb.append("]");
+    }
+
     /*
     _________________________ Array Expressions _________________________
     For an array expression, we want to retrieve the array from the stack
@@ -60,46 +84,42 @@ public class Interpreter extends Visitor {
             ae.arrayTarget().visit(this);
             arr = (Vector<Object>) currValue;
         }
+                   Vector<Object> curr = arr;
 
-        int index = 0;
         for(int i = 0; i < ae.arrayIndex().size(); i++) {
             ae.arrayIndex().get(i).visit(this);
-            int currOffset = (int) currValue-1;
-
-            if(currOffset <= -1) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(ae)
-                        .addErrorType(MessageType.RUNTIME_ERROR_603)
-                        .error();
-            }
+            int offset = (int) currValue;
 
             if(arr.get(0) instanceof ArrayLiteral) {
-                Vector<Expression> dims = ((ArrayLiteral)arr.get(0)).arrayDims();
-                for(int j = i+1; j < dims.size(); j++) {
-                    dims.get(j).visit(this);
-                    currOffset *= (int) currValue;
-                }
+                ArrayLiteral al = (ArrayLiteral)arr.get(0);
+                if(!al.arrayDims().isEmpty())
+                    al.arrayDims().get(i).visit(this);
+                else if(i == 0)
+                    currValue = arr.size() -1;
+                else
+                    currValue = arr.size()-1;
             }
+            else if(i==0)
+                currValue = arr.size()-1;
+            else
+                currValue = arr.size()-1;
+
+            if (offset <= 0 || offset > (int)currValue) {
+                    new ErrorBuilder(generateRuntimeError, interpretMode)
+                            .addLocation(ae)
+                            .addErrorType(MessageType.RUNTIME_ERROR_603)
+                            .error();
+            }
+
+
+            Object v = curr.get(offset);
+            if(v instanceof Vector)
+                curr = (Vector) v;
             else {
-                Vector<Integer> dims = (Vector<Integer>)arr.get(0);
-                for(int j = i+1; j < dims.size(); j++)
-                    currOffset *= dims.get(j);
+                currValue = v;
+                if(inAssignStmt) { currValue = new Vector<>(new Object[]{curr,offset}); }
             }
-
-            index += currOffset;
         }
-        // Add 1 to index to account for array literal stored at index 0 internally
-        index += 1;
-
-        if(index < 0 || index >= arr.size()) {
-            new ErrorBuilder(generateRuntimeError,interpretMode)
-                    .addLocation(ae)
-                    .addErrorType(MessageType.RUNTIME_ERROR_602)
-                    .error();
-        }
-
-        if(inAssignStmt) { currValue = new Vector<>(new Object[]{arr,index}); }
-        else { currValue = arr.get(index); }
     }
 
     /**
@@ -117,13 +137,7 @@ public class Interpreter extends Visitor {
 
         for(Expression e : al.arrayInits()) {
             e.visit(this);
-            if(currValue instanceof Vector) {
-                for(Object val : (Vector<Object>)currValue) {
-                    if(!(val instanceof ArrayLiteral)) { arr.add(val); }
-                }
-            }
-            else
-                arr.add(currValue);
+            arr.add(currValue);
         }
 
         // Add the array literal to the Vector, so its
@@ -876,25 +890,29 @@ public class Interpreter extends Visitor {
         }
         // Method Invocation
         else {
+            // ERROR CHECK #1: Generate an exception if the current object
+            //                 does not match the expected target type
             if(!currTarget.toString().equals(in.targetType.toString())) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.RUNTIME_ERROR_604)
-                        .addArgs(in.toString(),currTarget,in.targetType)
-                        .error();
+                if(!currentScope.hasName(in.targetType.typeName()))
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                            .addLocation(in)
+                            .addErrorType(MessageType.RUNTIME_ERROR_604)
+                            .addArgs(in.toString(),currTarget,in.targetType)
+                            .error();
             }
+
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-            String methodName = in.invokeSignature();
+//            String methodName = in.invokeSignature();
+//
+//            String searchMethod = methodName;
+//            ClassDecl startClass = cd;
+//            while(!cd.symbolTable.hasName(searchMethod)) {
+//                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+//                searchMethod = methodName + "/" + startClass.toString();
+//            }
+//            methodName = searchMethod;
 
-            String searchMethod = methodName;
-            ClassDecl startClass = cd;
-            while(!cd.symbolTable.hasName(searchMethod)) {
-                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-                searchMethod = methodName + "/" + startClass.toString();
-            }
-            methodName = searchMethod;
-
-            MethodDecl md = cd.symbolTable.findName(methodName).decl().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
             currentScope = md.symbolTable;
 
             if(obj != null)
@@ -927,20 +945,72 @@ public class Interpreter extends Visitor {
 
     public void visitListLiteral(ListLiteral ll) {
         Vector<Object> lst = new Vector<>();
-        Vector<Integer> sizes = new Vector<>();
+
         for(Expression e : ll.inits()) {
             e.visit(this);
-            if(currValue instanceof Vector) {
-                for(Object val : (Vector<Object>)currValue)
-                    if(!(val instanceof ListLiteral))
-                        lst.add(val);
-            }
-            else
-                lst.add(currValue);
+            lst.add(currValue);
         }
 
-        lst.add(0,sizes.add(lst.size()));
+        lst.add(0,ll);
         currValue = lst;
+    }
+
+    /**
+     * Executes a list statement command.<br><br>
+     * <p>
+     *     This method will execute the current list command based on the
+     *     provided arguments. If there are any issues, then we will produce
+     *     an exception for the user.
+     * </p>
+     * @param ls The current list statement we will be executing.
+     */
+    public void visitListStmt(ListStmt ls) {
+        // Obtain the list from the stack
+        ls.getListName().visit(this);
+        Vector<Object> lst = (Vector<Object>) currValue;
+        int index = lst.size();
+
+        ls.getAllArgs().get(1).visit(this);
+        switch(ls.getCommand()) {
+            case INSERT:
+                index = (int) currValue;
+                // ERROR CHECK #1: Make sure a valid position was given for an element to be inserted at
+                if(index+1 <= 1 || index > lst.size()-1) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                            .addLocation(ls)
+                            .addErrorType(MessageType.RUNTIME_ERROR_605)
+                            .addArgs(ls.getListName(),lst.size()-1,index)
+                            .error();
+                }
+                ls.getAllArgs().get(2).visit(this);
+            case APPEND:
+                if(currValue instanceof Vector) {
+                    Vector<Object> sublist = (Vector<Object>) currValue;
+                    if(ls.getListType().numOfDims - ((ListLiteral)sublist.get(0)).type.asListType().numOfDims > 0)
+                        lst.add(index,currValue);
+                    else {
+                        for(int i = 1; i < ((Vector)currValue).size();i++) {
+                            lst.add(index,((Vector)currValue).get(i));
+                            index += 1;
+                        }
+                    }
+                }
+                else
+                    lst.add(index,currValue);
+                break;
+            case REMOVE:
+                if(currValue instanceof Vector) {
+                    Vector<Object> removeElements = (Vector) currValue;
+                    if(ls.getListType().numOfDims - ((ListLiteral)removeElements.get(0)).type.asListType().numOfDims > 0)
+                        lst.removeAll(currValue);
+                    else
+                        for(Object o : removeElements)
+                            lst.removeAll(o);
+                }
+                else
+                    lst.remove((int)currValue);
+                break;
+        }
     }
 
     /*
@@ -1015,7 +1085,7 @@ public class Interpreter extends Visitor {
     }
 
     /**
-     * Prints expressions that appear in the VM
+     * Evaluates and prints out expressions in the VM
      * <p>
      *     We will print out every expression that appears in the current
      *     output statement during this visit.
@@ -1027,8 +1097,16 @@ public class Interpreter extends Visitor {
             e.visit(this);
             if(e.isEndl())
                 System.out.println();
-            else
-                System.out.print(currValue);
+            else {
+                if(e.type.isArrayType() || e.type.isListType()) {
+                    Vector<Object> arr = (Vector<Object>) currValue;
+                    StringBuilder sb = new StringBuilder();
+                    printList(arr,sb);
+                    System.out.print(sb);
+                }
+                else
+                    System.out.print(currValue);
+            }
         }
         System.out.println();
     }
@@ -1050,12 +1128,18 @@ public class Interpreter extends Visitor {
         stack.addValue(rs.getName().toString(),currValue);
 
         AST decl = currentScope.findName(rs.getName().toString()).decl();
-        if(decl.isTopLevelDecl())
-            decl.asTopLevelDecl().asGlobalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        else if(decl.isFieldDecl())
-            decl.asFieldDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        else
-            decl.asStatement().asLocalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        if(decl.isTopLevelDecl()) {
+            if (decl.asTopLevelDecl().asGlobalDecl().type().isMultiType())
+                decl.asTopLevelDecl().asGlobalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        }
+        else if(decl.isFieldDecl()) {
+            if(decl.asFieldDecl().type().isMultiType())
+                decl.asFieldDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        }
+        else {
+            if(decl.asStatement().asLocalDecl().type().isMultiType())
+                decl.asStatement().asLocalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
+        }
     }
 
     /*

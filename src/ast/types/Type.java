@@ -52,7 +52,11 @@ public abstract class Type extends AST {
             return LHS.asClassType().toString().equals(RHS.asClassType().toString());
         else if(LHS.isEnumType() && RHS.isEnumType())
             return LHS.asEnumType().toString().equals(RHS.asEnumType().toString());
-        else if(LHS.isListType() && RHS.isListType()) { return true; }
+        else if(LHS.isListType() && RHS.isListType()) {
+            ListType lType = LHS.asListType();
+            ListType rType = RHS.asListType();
+            return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
+        }
         else if(LHS.isArrayType() && RHS.isArrayType()) {
             ArrayType lType = LHS.asArrayType();
             ArrayType rType = RHS.asArrayType();

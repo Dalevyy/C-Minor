@@ -1,24 +1,61 @@
 package typechecker;
 
-import ast.*;
-import ast.classbody.*;
-import ast.expressions.*;
-import ast.expressions.Literal.*;
+import ast.AST;
+import ast.classbody.FieldDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.ArrayExpr;
+import ast.expressions.ArrayLiteral;
+import ast.expressions.BinaryExpr;
+import ast.expressions.CastExpr;
+import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
+import ast.expressions.InStmt;
+import ast.expressions.Invocation;
+import ast.expressions.ListLiteral;
+import ast.expressions.Literal;
+import ast.expressions.Literal.ConstantKind;
 import ast.expressions.Literal.LiteralBuilder;
-import ast.misc.Name;
+import ast.expressions.NameExpr;
+import ast.expressions.NewExpr;
+import ast.expressions.This;
+import ast.expressions.UnaryExpr;
 import ast.misc.Var;
 import ast.operators.AssignOp.AssignType;
-import ast.statements.*;
-import ast.topleveldecls.*;
-import ast.types.*;
-import ast.types.DiscreteType.*;
+import ast.statements.AssignStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.ListStmt;
+import ast.statements.LocalDecl;
+import ast.statements.ReturnStmt;
+import ast.statements.RetypeStmt;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.MainDecl;
+import ast.topleveldecls.TopLevelDecl;
+import ast.types.Type;
+import ast.types.ArrayType;
+import ast.types.ClassType;
+import ast.types.DiscreteType;
+import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType.EnumTypeBuilder;
-import ast.types.ScalarType.*;
+import ast.types.ListType;
+import ast.types.MultiType;
+import ast.types.ScalarType;
+import ast.types.ScalarType.Scalars;
+import ast.types.VoidType;
 import messages.MessageType;
-import messages.errors.*;
+import messages.errors.ErrorBuilder;
 import messages.errors.scope.ScopeErrorFactory;
 import messages.errors.type.TypeErrorFactory;
-import utilities.*;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 
 public class TypeChecker extends Visitor {
 
@@ -81,7 +118,7 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Checks if an array literal is assignment compatible with an array type
+     * Checks if an array literal is assignment compatible with an array type.<br><br>
      * <p>
      *     This is a recursive algorithm to verify whether an array literal can
      *     be assigned to an array type in C Minor. This algorithm was based off
@@ -134,7 +171,7 @@ public class TypeChecker extends Visitor {
                     return false;
                 }
             }
-            else if(dims.size() != 0) {
+            else if(!dims.isEmpty()) {
                 if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
@@ -220,16 +257,22 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     *
-     * @param currDepth
-     * @param baseType
-     * @param curr
-     * @return
+     * Checks if a list literal is assignment compatible with a list type.<br><br>
+     * <p>
+     *     This is a recursive algorithm to check if a list literal can be assigned
+     *     to a list type in C Minor. This algorithm is based on the algorithm used
+     *     for array assignment compatibility albeit it's simpler and has less error checks.
+     * </p>
+     * @param currDepth Current level of recursion (final depth is 10
+     * @param baseType Base type of the list
+     * @param curr List literal aka the current list literal we are checking
+     * @return Boolean - True if assignment compatible and False otherwise
      */
     private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
         if(currDepth == 1) {
             for(Expression e : curr.inits()) {
                 e.visit(this);
+                // ERROR CHECK #1: Make sure the current expression matches the type of the list
                 if(!Type.assignmentCompatible(baseType,e.type)) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
@@ -246,6 +289,7 @@ public class TypeChecker extends Visitor {
         else if(currDepth > 1) {
             for(Expression e : curr.inits()) {
                 if(!e.isListLiteral()) {
+                    // ERROR CHECK #2: Make sure everything is a list if we're not at depth = 1
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(curr)
@@ -285,10 +329,6 @@ public class TypeChecker extends Visitor {
                         .addArgs(ae.arrayTarget().toString())
                         .error()
             );
-        }
-
-        if(ae.arrayTarget().type.isArrayType()) {
-
         }
 
         Type currType;
@@ -376,7 +416,7 @@ public class TypeChecker extends Visitor {
     /**
      *     If we want to assign a new value to a variable, we need to make sure the
      *     value's type matches the type of the variable.
-     *
+     *     <br><br>
      *     C Minor also supports compound assignment operations such as +=, -=, *=,
      *     etc. which means we have to do an additional check to make sure the two
      *     values can perform a legal binary operation.
@@ -854,32 +894,31 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     *     For a class declaration, we will set the class type that represents
-     *     the inheritance hierarchy of the class before we proceed to visit the
-     *     class body.
+     * Creates the class hierarchy for the current class.<br><br>
+     * <p>
+     *     We do not need to do any explicit type checking with the class
+     *     declaration itself. All we need to do here is to internally keep
+     *     track of all inherited classes, so we can use this information
+     *     elsewhere in the type checker.
+     * </p>
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
+        // Only create the class hierarchy if the class inherits from another class
         if(cd.superClass() != null) {
-            String inheritedClasses = cd.toString();
-            String baseClass = cd.superClass().toString();
-
-            // Adding class names to form the class hierarchy for use in type checking
-            do {
-                inheritedClasses += "/" + baseClass;
-                ClassDecl nextClass = currentScope.findName(baseClass).decl().asTopLevelDecl().asClassDecl();
-                if(nextClass.superClass() == null) { break; }
-                baseClass = nextClass.superClass().getName().toString();
-            }   while(currentScope.hasName(baseClass));
-
-            cd.setClassHierarchy(new ClassType(new Name(inheritedClasses)));
-        } else { cd.setClassHierarchy(new ClassType(new Name(cd.toString()))); }
+            // Add each inherited class to an internal class hierarchy list
+            ClassDecl base = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            while(base.superClass() != null) {
+                cd.addBaseClass(base.name());
+                if(base.superClass() != null)
+                    base = currentScope.findName(base.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            }
+            cd.addBaseClass(base.name());
+        }
 
         currentScope = cd.symbolTable;
-        currentMethod = cd;
         currentClass = cd;
         super.visitClassDecl(cd);
-        currentMethod = null;
         currentClass = null;
         currentScope = currentScope.closeScope();
     }
@@ -1058,7 +1097,7 @@ public class TypeChecker extends Visitor {
      * <p>
      * For a field expression, we will first evaluate the target and make sure the
      * type corresponds to some previously declared class. Then, we will type check
-     * the expression the target is trying to access. We will use <code>currentTarget</code>
+     * the expression the target is trying to access. We will use {@code currentTarget}
      * to keep track of the target's type if we're trying to perform method invocations.
      * </p>
      * @param fe Field Expression
@@ -1225,6 +1264,7 @@ public class TypeChecker extends Visitor {
             );
         }
         currentScope = currentScope.closeScope();
+        currentMethod = null;
         returnFound = false;
     }
 
@@ -1399,17 +1439,23 @@ public class TypeChecker extends Visitor {
         // Method Invocation
         else {
             ClassDecl cd = null;
-            if(currentTarget.isMultiType()) {
+            if(currentTarget != null && currentTarget.isMultiType()) {
+                ClassDecl curr;
+                ClassType superClass = null;
                 for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
-                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
-                    if(cd.symbolTable.hasMethod(in.toString()))
-                        break;
+                    curr = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd == null || ClassType.isSuperClass(ct,superClass)) {
+                        cd = curr;
+                        superClass = ct;
+                    }
                 }
             }
+            else if(currentClass != null)
+                cd = currentClass;
             else
                 cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
 
-            // ERROR CHECK #4: Make sure the method was declared in the class
+            // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
                 errors.add(
                     new ErrorBuilder(generateScopeError, interpretMode)
@@ -1420,7 +1466,7 @@ public class TypeChecker extends Visitor {
                 );
             }
 
-            // ERROR CHECK #5: Check if the method overload exists
+            // ERROR CHECK #5: Check if a valid method overload exists
             while(!cd.symbolTable.hasName(funcSignature.toString())) {
                 if(cd.superClass() == null) {
                     errors.add(
@@ -1477,21 +1523,118 @@ public class TypeChecker extends Visitor {
     /**
      * Evaluates the type of a list literal.
      * <p>
-     *     We will call listAssignmentCompatibility to check if the
-     *     current list literal can indeed be stored into whatever
+     *     We will call {@link #listAssignmentCompatibility} to check
+     *     if the current list literal can indeed be stored into the
      *     variable we are trying to store the list into.
      * </p>
      * @param ll List Literal
      */
     public void visitListLiteral(ListLiteral ll) {
         if(currentTarget == null || !currentTarget.isListType()) {
-            super.visitListLiteral(ll);
-            ll.type = new ListType();
+            int numOfDims = 0;
+            Expression curr = ll;
+            while(curr.isListLiteral()) {
+                numOfDims += 1;
+                if(!curr.asListLiteral().inits().isEmpty())
+                    curr = curr.asListLiteral().inits().get(0);
+                else
+                    break;
+            }
+            if(curr.isListLiteral())
+                listAssignmentCompatibility(numOfDims, new VoidType(), ll);
+            else {
+                curr.visit(this);
+                listAssignmentCompatibility(numOfDims, curr.type, ll);
+            }
+            ll.type = new ListType(curr.type,numOfDims);
         }
         else {
             listAssignmentCompatibility(currentTarget.asListType().numOfDims,
                                         currentTarget.asListType().baseType(), ll);
             ll.type = currentTarget.asListType();
+        }
+    }
+
+    /**
+     * Checks the type of a list statement.<br><br>
+     * <p>
+     *     In C Minor, there are 3 list statements: append, insert, and remove.
+     *     For each statement, we will ensure that a list was passed as an argument
+     *     an
+     * </p>
+     * @param ls List Statement
+     */
+    public void visitListStmt(ListStmt ls) {
+        int argSize;
+        String func;
+
+        argSize = switch (ls.getCommand()) {
+            case APPEND -> {
+                func = "append";
+                yield 2;
+            }
+            case INSERT -> {
+                func = "insert";
+                yield 3;
+            }
+            case REMOVE -> {
+                func = "remove";
+                yield 2;
+            }
+        };
+
+        // ERROR CHECK #1: Make sure list function has the right amount of arguments
+        if(ls.getAllArgs().size() != argSize) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_457)
+                        .addArgs(func,argSize,ls.getAllArgs().size())
+                        .error()
+            );
+        }
+
+        ls.getListName().visit(this);
+        Type lstType = ls.getListName().type;
+        // ERROR CHECK #2: Make sure the variable name represents a list
+        if(!lstType.isListType()) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_458)
+                        .addArgs(func)
+                        .error()
+            );
+        }
+
+        Type itemType;
+        ls.getSecondArg().visit(this);
+        if(func.equals("insert")) {
+            // ERROR CHECK #3: Make sure the insert position is an Int
+            if(!ls.getAllArgs().get(1).type.isInt()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(ls)
+                            .addErrorType(MessageType.TYPE_ERROR_460)
+                            .error()
+                );
+            }
+            ls.getThirdArg().visit(this);
+            itemType = ls.getThirdArg().type;
+        }
+        else
+            itemType = ls.getSecondArg().type;
+
+        // ERROR CHECK #4: Make sure the item we are trying to add/delete
+        //                 represents a sublist for the current list
+        if(!lstType.asListType().isSubList(itemType)) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_459)
+                        .addArgs(func)
+                        .error()
+            );
         }
     }
 
@@ -1567,6 +1710,7 @@ public class TypeChecker extends Visitor {
         }
         super.visitMainDecl(md);
         currentScope = currentScope.closeScope();
+        currentMethod = null;
     }
 
     /**
@@ -1608,6 +1752,7 @@ public class TypeChecker extends Visitor {
             );
         }
         currentScope = currentScope.closeScope();
+        currentMethod = null;
         returnFound = false;
     }
 
@@ -1688,7 +1833,8 @@ public class TypeChecker extends Visitor {
                 }
             }
         }
-        ne.type = cd.classHierarchy();
+        ne.type = new ClassType(cd.toString());
+        ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
     }
 
     /**
@@ -1782,6 +1928,17 @@ public class TypeChecker extends Visitor {
                 decl.asFieldDecl().setType(mt);
             else
                 decl.asStatement().asLocalDecl().setType(mt);
+        }
+        else if(lType.asMultiType().getInitialType().toString().equals(rType.toString())) {
+            AST decl = currentScope.findName(rs.getName().toString()).decl();
+            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
+                decl.asTopLevelDecl().asGlobalDecl().setType(lType.asMultiType().getInitialType());
+            else if(decl.isParamDecl())
+                decl.asParamDecl().setType(lType.asMultiType().getInitialType());
+            else if(decl.isFieldDecl())
+                decl.asFieldDecl().setType(lType.asMultiType().getInitialType());
+            else
+                decl.asStatement().asLocalDecl().setType(lType.asMultiType().getInitialType());
         }
         else
             lType.asMultiType().addType(rType.asClassType());

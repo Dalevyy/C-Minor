@@ -1,21 +1,48 @@
 package lexer;
 
-import token.*;
-
+import token.Location;
+import token.Position;
+import token.Token;
+import token.TokenType;
 import utilities.Vector;
 import utilities.PrettyPrint;
 
+/**
+ * This is the {@code Lexer} which is responsible for tokenizing a C
+ * Minor program. An instance of the lexer will be contained in the parser,
+ * and it will be continually called to generate tokens for the parser until
+ * either an error occurs or we have tokenized the EOF symbol.
+ * @author Daniel Levy
+ */
 public class Lexer {
 
+    /** Custom end-of-file character. */
     public static final char EOF = '\0'; // EOF
 
-    private final String file;              // User Program
-    private int currPos;                    // Position in file
-    private char lookChar;                  // Current lookahead
-    private final Location currLoc;         // Current location
-    private String currText;                // Current Text
-    private final Vector<String> lines;     // User Program (as an array)
+    /** Current C Minor program we are tokenizing. */
+    private final String file;
 
+    /** Current position we are at in {@link Lexer#file}. */
+    private int currPos;
+
+    /** Current lookahead character we are checking.*/
+    private char lookChar;
+
+    /** Current location we are at in {@link Lexer#file}.
+     *  This keeps track of both row and column position.*/
+    private final Location currLoc;
+
+    /** Current text that will be stored when a {@code token} is generated.*/
+    private String currText;
+
+    /** A {@code Vector} that stores a C Minor program. This will be used by
+     *  the parser in order to generate syntax error messages.*/
+    private final Vector<String> lines;
+
+    /**
+     * Creates a new {@code Lexer} instance, will be called by the parser.
+     * @param file C Minor program that will be tokenized.
+     */
     public Lexer(final String file) {
         this.file = file;
         this.currPos = 0;
@@ -25,16 +52,13 @@ public class Lexer {
         this.lines = new Vector<>();
     }
 
-
-    /*
-        After a C Minor grammar rule is parsed, we will call this method to store
-        the lines of the program associated with the AST node we created in the
-        parser. This allows us to output error messages that shows the user where
-        an error might have occurred during semantic analysis.
-    */
-    public void setText(Token t) {
-        Position start = t.getStartPos();
-        Position end = t.getEndPos();
+    /**
+     * Sets a token text to be between its starting and ending {@code positions}.
+     * @param tokenForAST This represents the token we are saving into an AST node.
+     */
+    public void setText(Token tokenForAST) {
+        Position start = tokenForAST.getStartPos();
+        Position end = tokenForAST.getEndPos();
         StringBuilder sb = new StringBuilder();
 
         start.line--;
@@ -55,13 +79,13 @@ public class Lexer {
             startCol = 0;
         }
 
-        t.setText(sb.toString());
+        tokenForAST.setText(sb.toString());
     }
 
+    /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
     public void printSyntaxError(Position start) { System.out.println(start.line + "| " + lines.get(start.line-1)); }
 
-    public void debugPrint() { for (String line : lines) { System.out.print(line); } }
-
+    /** Updates the lookahead character and program text every time there is a valid match.*/
     private void consume() {
         currText += file.charAt(currPos);
 
@@ -78,12 +102,23 @@ public class Lexer {
         else { lookChar = EOF; }
     }
 
+    /** Updates the lookahead character without updating the program buffer. */
+    private void update() {
+        currPos += 1;
+        currLoc.addCol();
+        if(currPos < file.length()) { lookChar = file.charAt(currPos); }
+        else { lookChar = EOF; }
+    }
+
+    /** Checks if the lookahead character matches the expected character we need to see.*/
     private boolean match(char expectedChar) {
-        if(lookChar != expectedChar) { return false; }
+        if(lookChar != expectedChar)
+            return false;
         consume();
         return true;
     }
 
+    /** Consumes all whitespace characters before continuing to tokenize program.*/
     private void consumeWhitespace() {
         while(lookChar == ' ' || lookChar == '\t' || lookChar == '\r' || lookChar == '\n') {
             if(lookChar == ' ' || lookChar == '\t') { consume(); }
@@ -96,80 +131,94 @@ public class Lexer {
         currLoc.resetStart();
     }
 
+    /** Consumes a single line comment that starts with {@code //}.*/
     private void consumeComment() {
         while(lookChar != '\n') { consume(); }
         consumeWhitespace();
     }
 
+    /** Consumes a multi-line comment that starts with {@code /*}.*/
     private void consumeMultiLineComment() {
         while(!(match('*') && match('/'))) { consume(); }
         consumeWhitespace();
     }
 
+    /** Checks if EOF was reached.*/
     private boolean isEOF() { return currPos == file.length(); }
 
+    /** Checks if current lookahead character is a letter.*/
     private boolean isLetter() {
-        return ((lookChar >= 'A' && lookChar <= 'Z') || (lookChar >= 'a' && lookChar <= 'z'));
+        return (lookChar >= 'A' && lookChar <= 'Z') || (lookChar >= 'a' && lookChar <= 'z');
     }
 
-    private boolean isDigit() { return (lookChar >= '0' && lookChar <= '9'); }
+    /** Checks if current lookahead character is a number.*/
+    private boolean isDigit() { return lookChar >= '0' && lookChar <= '9'; }
 
-    /*
-        Any time a '\' appears in a Char or String literal, we have to check
-        if this forms a valid escape sequence. In C Minor, we currently
-        support all simple escape sequences that C++ supports. If the escape
-        sequence is not valid, we will output an error.
-    */
+    /**
+     *    Any time a '\' appears in a Char or String literal, we have to check
+     *    if this forms a valid escape sequence. In C Minor, we currently
+     *    support all escape sequences that Java supports. If the escape
+     *    sequence is not valid, we will output an error.
+     * @param sb This represents the current Character/String literal we are tokenizing.
+     */
     private void escapeSequence(StringBuilder sb) {
+        update();
         switch(lookChar) {
             case '\'':
-                match('\'');
                 sb.append('\'');
+                currText += '\'';
                 break;
             case '\"':
-                match('\"');
                 sb.append('\"');
+                currText += '\"';
                 break;
             case '\\':
-                match('\\');
                 sb.append('\\');
+                currText += '\\';
                 break;
             case 'b':
-                match('b');
                 sb.append('\b');
+                currText += '\b';
                 break;
             case 'f':
-                match('f');
                 sb.append('\f');
+                currText += '\f';
                 break;
             case 'n':
-                match('n');
                 sb.append('\n');
+                currText += '\n';
                 break;
             case 'r':
-                match('r');
                 sb.append('\r');
+                currText += '\r';
                 break;
             case 't':
-                match('t');
                 sb.append('\t');
+                currText += '\t';
                 break;
             case '0':
-                match('0');
                 sb.append('\0');
+                currText += '\0';
                 break;
             default:
                 System.out.println(PrettyPrint.RED + "Error! Invalid escape sequence written at positions "
                                                    + currLoc.toString() + ".");
                 System.exit(1);
         }
+        update();
+        currLoc.removeCol();
     }
 
+    /**
+     * Tokenizes a character literal.
+     * @return Character token.
+     */
     private Token charLit() {
         StringBuilder newChar = new StringBuilder();
         newChar.append('\'');
 
-        if(match('\\')) { escapeSequence(newChar); }
+        if(lookChar == '\\')
+            escapeSequence(newChar);
         else {
             newChar.append(lookChar);
             consume();
@@ -181,23 +230,33 @@ public class Lexer {
         return new Token(TokenType.CHAR_LIT, newChar.toString(), currLoc.copy());
     }
 
+    /**
+     * Tokenizes a string literal.
+     * @param newStr Current String literal we are tokenizing
+     * @return String or Text token.
+     */
     private Token strLit(StringBuilder newStr) {
         while(!match('\'') && !isEOF()) {
-            if(match('\\')) { escapeSequence(newStr); }
+            if(lookChar == '\\')
+                escapeSequence(newStr);
             else {
                 newStr.append(lookChar);
                 consume();
             }
         }
 
-        if(match('\'') && match('\'')) {
+        if(match('\'') && match('\''))
             return new Token(TokenType.TEXT_LIT, newStr.toString(), currLoc.copy());
-        }
 
         newStr.append('\'');
         return new Token(TokenType.STR_LIT, newStr.toString(), currLoc.copy());
     }
 
+    /**
+     * Tokenizes a real number literal.
+     * @param newReal The real number we are trying to build
+     * @return Real number token.
+     */
     private Token realLit(StringBuilder newReal) {
         while(isDigit()) {
             newReal.append(lookChar);
@@ -206,6 +265,11 @@ public class Lexer {
         return new Token(TokenType.REAL_LIT, newReal.toString(), currLoc.copy());
     }
 
+    /**
+     * Creates an identifier token.
+     * @param newID The identifier we are trying to create.
+     * @return Identifier token.
+     */
     private Token createID(StringBuilder newID) {
         while(isDigit() || isLetter() || lookChar == '_') {
             newID.append(lookChar);
@@ -214,6 +278,10 @@ public class Lexer {
         return new Token(TokenType.ID, newID.toString(), currLoc.copy());
     }
 
+    /**
+     * Tokenizes a name.
+     * @return Identifier or keyword token.
+     */
     private Token name() {
         StringBuilder createStr = new StringBuilder();
 
@@ -318,6 +386,11 @@ public class Lexer {
         };
     }
 
+    /**
+     * Tokenizes a number.
+     * @param newNum The number we are trying to build
+     * @return Integer or real token.
+     */
     private Token number(StringBuilder newNum) {
         while(isDigit()) {
             newNum.append(lookChar);
@@ -333,14 +406,16 @@ public class Lexer {
         return new Token(TokenType.INT_LIT, newNum.toString(), currLoc.copy());
     }
 
-    /*
-        This is the main method for the C Minor lexer.
-
-        We will use a greedy algorithm to determine which token to generate next
-        based on the current input lookahead character. Error tokens will only be
-        generated if we can not determine which valid token a string of characters
-        should generate.
-    */
+    /**
+     * This is the main method for the C Minor lexer.<br><br>
+     * <p>
+     *   We will use a greedy algorithm to determine which token to generate next
+     *   based on the current input lookahead character. Error tokens will only be
+     *   generated if we can not determine which valid token a string of characters
+     *   should generate.
+     * </p>
+     * @return Any token.
+     */
     public Token nextToken() {
         while(lookChar != EOF) {
             switch(lookChar) {
