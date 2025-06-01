@@ -101,17 +101,14 @@ public class VM {
 
                 for (AST node : nodes) {
                     node.visit(ioRewritePass);
-                    if (printAST) {
+                    if(printAST)
                         node.visit(treePrinter);
-                    }
                     node.visit(generatePropertyPass);
                     node.visit(nameChecker);
-                    if (printST) {
+                    if(printST)
                         System.out.println(compilationUnit.globalTable.toString());
-                    }
-                    if (node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) {
+                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl())
                         node.visit(fieldRewritePass);
-                    }
                     node.visit(loopCheckPass);
                     node.visit(classToEnumPass);
                     node.visit(typeChecker);
@@ -119,20 +116,19 @@ public class VM {
                     node.visit(modChecker);
 
                     if (node.isTopLevelDecl()) {
-                        if (node.asTopLevelDecl().isClassDecl()) {
+                        if(node.asTopLevelDecl().isClassDecl())
                             compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl());
-                        } else if (node.asTopLevelDecl().isFuncDecl()) {
+                        else if(node.asTopLevelDecl().isFuncDecl())
                             compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl());
-                        } else {
+                        else
                             node.visit(interpreter);
-                        }
                     } else {
                         node.visit(interpreter);
-                        if(node.isStatement()) {
-                            if(node.asStatement().isExprStmt())
+                        if(node.asStatement().isExprStmt()) {
+                            if(node.asStatement().asExprStmt().getExpression().isOutStmt())
                                 System.out.println();
-                            compilationUnit.mainDecl().mainBody().addStmt(node.asStatement());
                         }
+                        compilationUnit.mainDecl().mainBody().addStmt(node.asStatement());
                     }
                 }
             }
