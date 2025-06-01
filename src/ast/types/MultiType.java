@@ -6,7 +6,7 @@ import utilities.Visitor;
 
 /**
  * An internal representation of all the possible types an
- * object variable could be. A <verb>MultiType</verb> is only
+ * object variable could be. A {@code MultiType} is only
  * created when a user executes a retype statement, and the
  * type of the object will still not be known until runtime.
  */
