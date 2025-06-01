@@ -458,25 +458,27 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
-            // ERROR CHECK #2: For a '+=' operation, the only allowed types
-            //                 are Int, Real, String, and Object
-            if (lType.isBool() || lType.isChar())
-                errors.add(new ErrorBuilder(generateTypeError, interpretMode)
-                        .addLocation(as)
-                        .addErrorType(MessageType.TYPE_ERROR_403)
-                        .addArgs(as.assignOp().toString(), lType)
-                        .error());
-        }
-        else {
-            // ERROR CHECK #3: For all other assignment operators, the types
-            //                 Int, Real, and Object have to be used
-            if(lType.isBool() || lType.isChar() || lType.isString())
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(as)
-                        .addErrorType(MessageType.TYPE_ERROR_403)
-                        .addArgs(as.assignOp().toString(),lType)
-                        .error());
+        if(as.assignOp().getAssignOp() != AssignType.EQ) {
+            if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
+                // ERROR CHECK #2: For a '+=' operation, the only allowed types
+                //                 are Int, Real, String, and Object
+                if (lType.isBool() || lType.isChar())
+                    errors.add(new ErrorBuilder(generateTypeError, interpretMode)
+                            .addLocation(as)
+                            .addErrorType(MessageType.TYPE_ERROR_403)
+                            .addArgs(as.assignOp().toString(), lType)
+                            .error());
+            }
+            else {
+                // ERROR CHECK #3: For all other assignment operators, the types
+                //                 Int, Real, and Object have to be used
+                if(lType.isBool() || lType.isChar() || lType.isString())
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(as)
+                            .addErrorType(MessageType.TYPE_ERROR_403)
+                            .addArgs(as.assignOp().toString(),lType)
+                            .error());
+            }
         }
     }
 
@@ -1965,7 +1967,7 @@ public class TypeChecker extends Visitor {
      *         <li>
      *             '~'
      *             <ul>
-     *                 <li>Operand Type: Int, Real</li>
+     *                 <li>Operand Type: Int</li>
      *                 <li>Unary Expression Type: Operand Type</li>
      *             </ul>
      *         </li>
@@ -1988,7 +1990,6 @@ public class TypeChecker extends Visitor {
             case "~":
                 // ERROR CHECK #1: An integer or real can be the only types that are negated
                 if(ue.expr().type.isInt()) { ue.type = new DiscreteType(Discretes.INT); }
-                else if(ue.expr().type.isReal()) { ue.type = new ScalarType(Scalars.REAL); }
                 else {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
