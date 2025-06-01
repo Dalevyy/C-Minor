@@ -95,35 +95,45 @@ public class VM {
             AST currNode = null;
             try {
                 var lexer = new Lexer(program.toString());
-                var parser = new Parser(lexer,printTokens,true);
+                var parser = new Parser(lexer, printTokens, true);
 
                 nodes = parser.nextNode();
 
-                for(AST node : nodes) {
-                    currNode = node;
+                for (AST node : nodes) {
                     node.visit(ioRewritePass);
-                    if(printAST) { node.visit(treePrinter); }
+                    if (printAST) {
+                        node.visit(treePrinter);
+                    }
                     node.visit(generatePropertyPass);
                     node.visit(nameChecker);
-                    if(printST) { System.out.println(compilationUnit.globalTable.toString()); }
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) { node.visit(fieldRewritePass); }
+                    if (printST) {
+                        System.out.println(compilationUnit.globalTable.toString());
+                    }
+                    if (node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) {
+                        node.visit(fieldRewritePass);
+                    }
                     node.visit(loopCheckPass);
                     node.visit(classToEnumPass);
                     node.visit(typeChecker);
                     node.visit(generateConstructorPass);
                     node.visit(modChecker);
 
-                    if(node.isTopLevelDecl()) {
-                        if(node.asTopLevelDecl().isClassDecl()) { compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl()); }
-                        else if(node.asTopLevelDecl().isFuncDecl()) { compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl()); }
-                        else { node.visit(interpreter); }
-                    }
-                    else {
+                    if (node.isTopLevelDecl()) {
+                        if (node.asTopLevelDecl().isClassDecl()) {
+                            compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl());
+                        } else if (node.asTopLevelDecl().isFuncDecl()) {
+                            compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl());
+                        } else {
+                            node.visit(interpreter);
+                        }
+                    } else {
                         node.visit(interpreter);
-                        if(node.isStatement()) { compilationUnit.mainDecl().mainBody().addStmt(node.asStatement()); }
+                        if (node.isStatement()) {
+                            if (node.asStatement().isExprStmt() && node.asStatement().asExprStmt().getExpression().isOutStmt())
+                                System.out.println();
+                            compilationUnit.mainDecl().mainBody().addStmt(node.asStatement());
+                        }
                     }
-
-                    if(node.isExpression() && node.asExpression().isOutStmt()) { System.out.println(); }
                 }
             }
             catch(Exception e) {
