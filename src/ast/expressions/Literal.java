@@ -26,15 +26,7 @@ public class Literal extends Expression {
     public Literal asLiteral() { return this; }
 
     @Override
-    public String toString() {
-        switch(kind) {
-            case INT:
-                if(this.getText().startsWith("~")) {return "-" + this.getText().substring(1); }
-                else { return this.getText(); }
-            default:
-                return this.getText();
-        }
-    }
+    public String toString() { return this.getText(); }
 
     public char asChar() {
       if(this.kind == ConstantKind.CHAR) {

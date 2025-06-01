@@ -397,7 +397,8 @@ public class Lexer {
             consume();
         }
 
-        // Only tokenize a real number when we don't have a loop operator :)
+        // Only tokenize a real number when we don't have a loop operator
+        // Sorta a hack, but it is what it is... :')
         if(lookChar == '.' && currPos+1 < file.length() && file.charAt(currPos+1) != '.') {
                 match('.');
                 newNum.append('.');
@@ -433,6 +434,11 @@ public class Lexer {
                     return new Token(TokenType.PLUS, "+", currLoc.copy());
                 case '-':
                     consume();
+                    if(isDigit()) {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append('-');
+                        return number(sb);
+                    }
                     if(match('=')) { return new Token(TokenType.MINUSEQ, "-=", currLoc.copy()); }
                     return new Token(TokenType.MINUS, "-", currLoc.copy());
                 case '*':
@@ -457,12 +463,7 @@ public class Lexer {
                     return new Token(TokenType.DIV, "/", currLoc.copy());
                 case '~':
                     consume();
-                    if(isDigit()) {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append('~');
-                        return number(sb);
-                    }
-                    return new Token(TokenType.TILDE, "~", currLoc.copy());
+                    return new Token(TokenType.BNOT, "~", currLoc.copy());
                 case '%':
                     consume();
                     if(match('=')) { return new Token(TokenType.MODEQ, "%=", currLoc.copy()); }
