@@ -133,7 +133,7 @@ public class Parser {
                 || nextLA(TokenType.ID)
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.NOT)
-                || nextLA(TokenType.TILDE)
+                || nextLA(TokenType.BNOT)
                 || nextLA(TokenType.LBRACE)
                 || nextLA(TokenType.RETURN)
                 || nextLA(TokenType.SET)
@@ -919,7 +919,7 @@ public class Parser {
 
     // 28. operator_symbol ::= binary_operator | unary_operator
     private Operator operatorSymbol() {
-        if(nextLA(TokenType.TILDE) || nextLA(TokenType.NOT)) { return unaryOperator(); }
+        if(nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) { return unaryOperator(); }
         else { return binaryOperator(); }
     }
 
@@ -985,8 +985,8 @@ public class Parser {
     private UnaryOp unaryOperator() {
         tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.TILDE)) {
-            match(TokenType.TILDE);
+        if(nextLA(TokenType.BNOT)) {
+            match(TokenType.BNOT);
             return new UnaryOp(nodeToken(),UnaryType.NEGATE);
         }
         else {
@@ -1646,7 +1646,7 @@ public class Parser {
 
     // 64. unary_expression ::= unary_operator cast_expression | factor_expression
     private Expression unaryExpression() {
-        if(nextLA(TokenType.TILDE) || nextLA(TokenType.NOT)) {
+        if(nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) {
             tokenStack.add(currentLA());
 
             UnaryOp uo = unaryOperator();

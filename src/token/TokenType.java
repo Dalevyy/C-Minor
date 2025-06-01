@@ -122,7 +122,7 @@ public enum TokenType {
     DIV,         // /
     MOD,         // %
     EXP,         // **
-    TILDE,       // ~
+    BNOT,       // ~
     EQEQ,        // ==
     NEQ,         // !=
     LT,          // <
