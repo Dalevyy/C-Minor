@@ -128,8 +128,8 @@ public class VM {
                         }
                     } else {
                         node.visit(interpreter);
-                        if (node.isStatement()) {
-                            if (node.asStatement().isExprStmt() && node.asStatement().asExprStmt().getExpression().isOutStmt())
+                        if(node.isStatement()) {
+                            if(node.asStatement().isExprStmt())
                                 System.out.println();
                             compilationUnit.mainDecl().mainBody().addStmt(node.asStatement());
                         }
