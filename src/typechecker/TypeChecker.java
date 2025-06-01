@@ -19,7 +19,6 @@ import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
 import ast.expressions.This;
 import ast.expressions.UnaryExpr;
-import ast.misc.Name;
 import ast.misc.Var;
 import ast.operators.AssignOp.AssignType;
 import ast.statements.AssignStmt;
@@ -332,10 +331,6 @@ public class TypeChecker extends Visitor {
             );
         }
 
-        if(ae.arrayTarget().type.isArrayType()) {
-
-        }
-
         Type currType;
         if(currentTarget != null) {
             ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
@@ -421,7 +416,7 @@ public class TypeChecker extends Visitor {
     /**
      *     If we want to assign a new value to a variable, we need to make sure the
      *     value's type matches the type of the variable.
-     *
+     *     <br><br>
      *     C Minor also supports compound assignment operations such as +=, -=, *=,
      *     etc. which means we have to do an additional check to make sure the two
      *     values can perform a legal binary operation.
@@ -899,32 +894,31 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     *     For a class declaration, we will set the class type that represents
-     *     the inheritance hierarchy of the class before we proceed to visit the
-     *     class body.
+     * Creates the class hierarchy for the current class.<br><br>
+     * <p>
+     *     We do not need to do any explicit type checking with the class
+     *     declaration itself. All we need to do here is to internally keep
+     *     track of all inherited classes, so we can use this information
+     *     elsewhere in the type checker.
+     * </p>
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
+        // Only create the class hierarchy if the class inherits from another class
         if(cd.superClass() != null) {
-            String inheritedClasses = cd.toString();
-            String baseClass = cd.superClass().toString();
-
-            // Adding class names to form the class hierarchy for use in type checking
-            do {
-                inheritedClasses += "/" + baseClass;
-                ClassDecl nextClass = currentScope.findName(baseClass).decl().asTopLevelDecl().asClassDecl();
-                if(nextClass.superClass() == null) { break; }
-                baseClass = nextClass.superClass().getName().toString();
-            }   while(currentScope.hasName(baseClass));
-
-            cd.setClassHierarchy(new ClassType(new Name(inheritedClasses)));
-        } else { cd.setClassHierarchy(new ClassType(new Name(cd.toString()))); }
+            // Add each inherited class to an internal class hierarchy list
+            ClassDecl base = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            while(base.superClass() != null) {
+                cd.addBaseClass(base.name());
+                if(base.superClass() != null)
+                    base = currentScope.findName(base.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            }
+            cd.addBaseClass(base.name());
+        }
 
         currentScope = cd.symbolTable;
-        currentMethod = cd;
         currentClass = cd;
         super.visitClassDecl(cd);
-        currentMethod = null;
         currentClass = null;
         currentScope = currentScope.closeScope();
     }
@@ -1103,7 +1097,7 @@ public class TypeChecker extends Visitor {
      * <p>
      * For a field expression, we will first evaluate the target and make sure the
      * type corresponds to some previously declared class. Then, we will type check
-     * the expression the target is trying to access. We will use <code>currentTarget</code>
+     * the expression the target is trying to access. We will use {@code currentTarget}
      * to keep track of the target's type if we're trying to perform method invocations.
      * </p>
      * @param fe Field Expression
@@ -1270,6 +1264,7 @@ public class TypeChecker extends Visitor {
             );
         }
         currentScope = currentScope.closeScope();
+        currentMethod = null;
         returnFound = false;
     }
 
@@ -1444,7 +1439,7 @@ public class TypeChecker extends Visitor {
         // Method Invocation
         else {
             ClassDecl cd = null;
-            if(currentTarget.isMultiType()) {
+            if(currentTarget != null && currentTarget.isMultiType()) {
                 ClassDecl curr;
                 ClassType superClass = null;
                 for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
@@ -1455,10 +1450,12 @@ public class TypeChecker extends Visitor {
                     }
                 }
             }
+            else if(currentClass != null)
+                cd = currentClass;
             else
                 cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
 
-            // ERROR CHECK #4: Make sure the method was declared in the class
+            // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
                 errors.add(
                     new ErrorBuilder(generateScopeError, interpretMode)
@@ -1469,7 +1466,7 @@ public class TypeChecker extends Visitor {
                 );
             }
 
-            // ERROR CHECK #5: Check if the method overload exists
+            // ERROR CHECK #5: Check if a valid method overload exists
             while(!cd.symbolTable.hasName(funcSignature.toString())) {
                 if(cd.superClass() == null) {
                     errors.add(
@@ -1561,7 +1558,7 @@ public class TypeChecker extends Visitor {
     /**
      * Checks the type of a list statement.<br><br>
      * <p>
-     *     In C Minor, there are 3 list statments: append, insert, and remove.
+     *     In C Minor, there are 3 list statements: append, insert, and remove.
      *     For each statement, we will ensure that a list was passed as an argument
      *     an
      * </p>
@@ -1713,6 +1710,7 @@ public class TypeChecker extends Visitor {
         }
         super.visitMainDecl(md);
         currentScope = currentScope.closeScope();
+        currentMethod = null;
     }
 
     /**
@@ -1754,6 +1752,7 @@ public class TypeChecker extends Visitor {
             );
         }
         currentScope = currentScope.closeScope();
+        currentMethod = null;
         returnFound = false;
     }
 
@@ -1834,7 +1833,8 @@ public class TypeChecker extends Visitor {
                 }
             }
         }
-        ne.type = cd.classHierarchy();
+        ne.type = new ClassType(cd.toString());
+        ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
     }
 
     /**

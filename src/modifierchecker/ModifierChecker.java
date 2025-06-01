@@ -356,10 +356,7 @@ public class ModifierChecker extends Visitor {
         // Method Invocation
         else {
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-            while(!cd.symbolTable.hasName(funcSignature))
-                cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-
-            MethodDecl md = cd.symbolTable.findName(funcSignature).decl().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
 
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier
             if(currentContext == md && md.toString().equals(in.toString())) {
@@ -422,7 +419,7 @@ public class ModifierChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.typeName()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.toString()).decl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: An abstract class can not be instantiated
         if(cd.mod.isAbstract()) {

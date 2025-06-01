@@ -890,6 +890,8 @@ public class Interpreter extends Visitor {
         }
         // Method Invocation
         else {
+            // ERROR CHECK #1: Generate an exception if the current object
+            //                 does not match the expected target type
             if(!currTarget.toString().equals(in.targetType.toString())) {
                 if(!currentScope.hasName(in.targetType.typeName()))
                     new ErrorBuilder(generateRuntimeError,interpretMode)
@@ -898,18 +900,19 @@ public class Interpreter extends Visitor {
                             .addArgs(in.toString(),currTarget,in.targetType)
                             .error();
             }
+
             ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-            String methodName = in.invokeSignature();
+//            String methodName = in.invokeSignature();
+//
+//            String searchMethod = methodName;
+//            ClassDecl startClass = cd;
+//            while(!cd.symbolTable.hasName(searchMethod)) {
+//                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+//                searchMethod = methodName + "/" + startClass.toString();
+//            }
+//            methodName = searchMethod;
 
-            String searchMethod = methodName;
-            ClassDecl startClass = cd;
-            while(!cd.symbolTable.hasName(searchMethod)) {
-                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-                searchMethod = methodName + "/" + startClass.toString();
-            }
-            methodName = searchMethod;
-
-            MethodDecl md = cd.symbolTable.findName(methodName).decl().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
             currentScope = md.symbolTable;
 
             if(obj != null)

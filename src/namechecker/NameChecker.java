@@ -230,6 +230,7 @@ public class NameChecker extends Visitor {
             // Go through each declaration in the base class and add it to the subclass symbol table
             for(String name : base.symbolTable.getAllNames().keySet()) {
                 AST decl = base.symbolTable.findName(name).decl();
+                // Fields
                 if(decl.isFieldDecl()) {
                     // ERROR CHECK #3: Each field name in a subclass needs to be unique
                     //                 from the fields declared in the base class
@@ -244,14 +245,15 @@ public class NameChecker extends Visitor {
                     }
                     currentScope.addName(name,decl.asFieldDecl());
                 }
-                else {
-                    // For methods, insert "<baseName>." to denote
-                    // which class the method was initially declared in
-                    if(name.startsWith(base + "."))
-                        currentScope.addName(name,decl.asMethodDecl());
-                    else
-                        currentScope.addName(base + "." + name,decl.asMethodDecl());
-                }
+//                // Methods
+//                else {
+//                    // For methods, insert "<baseName>." to denote
+//                    // which class the method was initially declared in
+//                    if(name.startsWith(base + "."))
+//                        currentScope.addName(name,decl.asMethodDecl());
+//                    else
+//                        currentScope.addName(base + "." + name,decl.asMethodDecl());
+//                }
             }
 
             for(String name: base.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
