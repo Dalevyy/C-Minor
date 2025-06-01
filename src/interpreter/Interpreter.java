@@ -901,7 +901,7 @@ public class Interpreter extends Visitor {
                             .error();
             }
 
-            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
 //            String methodName = in.invokeSignature();
 //
 //            String searchMethod = methodName;
@@ -1087,8 +1087,8 @@ public class Interpreter extends Visitor {
     /**
      * Evaluates and prints out expressions in the VM
      * <p>
-     *     We will print out every expression that appears in the current
-     *     output statement during this visit.
+     *     We will visit every expression contained in the current
+     *     output statement and print each value to the terminal.
      * </p>
      * @param os Output Statement
      */
@@ -1097,18 +1097,15 @@ public class Interpreter extends Visitor {
             e.visit(this);
             if(e.isEndl())
                 System.out.println();
-            else {
-                if(e.type.isArrayType() || e.type.isListType()) {
-                    Vector<Object> arr = (Vector<Object>) currValue;
-                    StringBuilder sb = new StringBuilder();
-                    printList(arr,sb);
-                    System.out.print(sb);
-                }
-                else
-                    System.out.print(currValue);
+            else if(e.type.isArrayType() || e.type.isListType()) {
+                Vector<Object> arr = (Vector<Object>) currValue;
+                StringBuilder sb = new StringBuilder();
+                printList(arr,sb);
+                System.out.print(sb);
             }
+            else
+                System.out.print(currValue);
         }
-        System.out.println();
     }
 
     /*
