@@ -372,12 +372,12 @@ public class ModifierChecker extends Visitor {
                 }
             }
             // ERROR CHECK #3: An object can only invoke public methods outside its class
-            if(currentClass != cd && !md.mods.isPublic()) {
+            if(!md.mods.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
                 errors.add(
                     new ErrorBuilder(generateModError,interpretMode)
                             .addLocation(in)
                             .addErrorType(MessageType.MOD_ERROR_504)
-                            .addArgs(in.toString())
+                            .addArgs("this",in.toString())
                             .addSuggestType(MessageType.MOD_SUGGEST_1504)
                             .error()
                 );

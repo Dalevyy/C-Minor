@@ -450,12 +450,12 @@ public class NameChecker extends Visitor {
         currentScope.addMethod(fd.toString());
 
         currentScope = currentScope.openNewScope();
+        fd.symbolTable = currentScope;
         for(ParamDecl pd : fd.params()) { pd.visit(this); }
 
         for(LocalDecl ld : fd.funcBlock().decls()) { ld.visit(this); }
         for(Statement s : fd.funcBlock().stmts()) { s.visit(this); }
 
-        fd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -637,12 +637,12 @@ public class NameChecker extends Visitor {
         currentScope.addMethod(md.toString());
 
         currentScope = currentScope.openNewScope();
+        md.symbolTable = currentScope;
         for(ParamDecl pd : md.params()) { pd.visit(this); }
 
         for(LocalDecl ld : md.methodBlock().decls()) { ld.visit(this); }
         for(Statement s : md.methodBlock().stmts()) { s.visit(this); }
 
-        md.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
     }
 

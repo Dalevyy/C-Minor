@@ -58,6 +58,13 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     public void addBaseClass(Name n) { this.inheritedClasses.add(n); }
     public Vector<Name> getInheritedClasses() { return this.inheritedClasses; }
 
+    public boolean inherits(String sup) {
+        for(Name sub : this.inheritedClasses)
+            if(sub.toString().equals(sup))
+                return true;
+        return false;
+    }
+
     public boolean isClassDecl() { return true; }
     public ClassDecl asClassDecl() { return this; }
 

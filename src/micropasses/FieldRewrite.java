@@ -1,5 +1,6 @@
 package micropasses;
 
+import ast.AST;
 import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
@@ -34,11 +35,17 @@ public class FieldRewrite extends Visitor {
     public void visitNameExpr(NameExpr ne) {
         if(currentScope.hasNameSomewhere(ne.toString())) {
             if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+                AST parent = ne.getParent();
                 FieldExpr fe = new FieldExprBuilder()
                                         .setTarget(new This())
                                         .setAccessExpr(ne)
                                         .createFieldExpr();
-                fe.copyAndRemove(ne);
+                fe.copyAndRemove(ne,parent);
+                for(int i = 0; i < parent.children.size();i++) {
+                    if(parent.children.get(i) == ne)
+                        parent.children.set(i,fe);
+                }
+                // System.out.println("HU");
             }
         }
     }

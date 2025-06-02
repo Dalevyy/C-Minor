@@ -42,16 +42,28 @@ public class InOutStmtRewrite extends Visitor {
     public void visitBinaryExpr(BinaryExpr be) {
         if(insideIO) {
             switch(be.binaryOp().toString()) {
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+                case "%":
+                case "**":
+                    ioExprs.add(be);
+                    break;
                 case "<<":
                 case ">>":
                     if(!be.toString().startsWith("(")) {
                         be.LHS().visit(this);
-                        if(!be.LHS().isBinaryExpr()) { ioExprs.add(be.LHS()); }
+                        if(!be.LHS().isBinaryExpr())
+                            ioExprs.add(be.LHS());
                     }
-                    else { ioExprs.add(be.LHS()); }
+                    else
+                        ioExprs.add(be.LHS());
 
-                    if(be.RHS().isBinaryExpr()) { be.RHS().visit(this); }
-                    else { ioExprs.add(be.RHS()); }
+                    if(be.RHS().isBinaryExpr())
+                        be.RHS().visit(this);
+                    else
+                        ioExprs.add(be.RHS());
                     break;
                 default:
                     ioExprs.add(be);

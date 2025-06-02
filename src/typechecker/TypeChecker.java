@@ -1990,6 +1990,7 @@ public class TypeChecker extends Visitor {
             case "~":
                 // ERROR CHECK #1: An integer or real can be the only types that are negated
                 if(ue.expr().type.isInt()) { ue.type = new DiscreteType(Discretes.INT); }
+                else if(ue.expr().type.isChar()) { ue.type = new DiscreteType(Discretes.CHAR); }
                 else {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
