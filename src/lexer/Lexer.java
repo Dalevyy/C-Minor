@@ -341,7 +341,6 @@ public class Lexer {
             case "main" -> new Token(TokenType.MAIN, "main", currLoc.copy());
             case "method" -> new Token(TokenType.METHOD, "method", currLoc.copy());
             case "new" -> new Token(TokenType.NEW, "new", currLoc.copy());
-            case "next" -> new Token(TokenType.NEXT, "next", currLoc.copy());
             case "not" -> new Token(TokenType.NOT, "not", currLoc.copy());
             case "on" -> new Token(TokenType.ON, "on", currLoc.copy());
             case "only" -> new Token(TokenType.ONLY, "only", currLoc.copy());
