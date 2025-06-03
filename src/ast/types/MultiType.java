@@ -13,23 +13,23 @@ import utilities.Visitor;
 public class MultiType extends Type {
 
     private final ClassType initialType;
-    private final Vector<ClassType> types;
+    private final Vector<ClassType> allTypes;
 
-    private ClassType runtimeType;
+    private ClassType runtimeType;      // Used by the interpreter
 
     public MultiType(ClassType it, Vector<ClassType> ct) {
         super(new Token());
         this.initialType = it;
-        this.types = ct;
+        this.allTypes = ct;
     }
 
     public void addType(ClassType ct) {
-        if(!types.contains(ct))
-            types.add(ct);
+        if(!allTypes.contains(ct))
+            allTypes.add(ct);
     }
 
     public ClassType getInitialType() { return initialType; }
-    public Vector<ClassType> getAllTypes() { return types; }
+    public Vector<ClassType> getAllTypes() { return allTypes; }
 
     public void setRuntimeType(ClassType ct) { this.runtimeType = ct; }
     public ClassType getRuntimeType() { return this.runtimeType; }
@@ -37,10 +37,14 @@ public class MultiType extends Type {
     public boolean isMultiType() { return true; }
     public MultiType asMultiType() { return this; }
 
+    public static MultiType create(ClassType base, ClassType sub) {
+        return new MultiType(base,new Vector<>(new ClassType[]{base, sub}));
+    }
+
     @Override
     public String typeName() {
         StringBuilder sb = new StringBuilder();
-        for(ClassType ct : types)
+        for(ClassType ct : allTypes)
             sb.append(ct.toString());
         return sb.toString();
     }
