@@ -165,7 +165,8 @@ public class Parser {
                 || nextLA(TokenType.LENGTH)
                 || nextLA(TokenType.CAST)
                 || nextLA(TokenType.BREAK)
-                || nextLA(TokenType.CONTINUE);
+                || nextLA(TokenType.CONTINUE)
+                || nextLA(TokenType.PARENT);
     }
 
     private boolean inConstantFIRST() {
@@ -1528,6 +1529,7 @@ public class Parser {
     //                          | 'break'
     //                          | 'continue'
     //                          | 'endl'
+    //                          | 'parent'
     private Expression primaryExpression() {
         if(nextLA(TokenType.LPAREN)) {
             match(TokenType.LPAREN);
@@ -1556,9 +1558,13 @@ public class Parser {
             match(TokenType.CONTINUE);
             return new ContinueStmt(nodeToken());
         }
-        else {
+        else if(nextLA(TokenType.ENDL)) {
             match(TokenType.ENDL);
             return new Endl(nodeToken());
+        }
+        else {
+            match(TokenType.PARENT);
+            return new NameExpr(nodeToken(),new Name("parent"));
         }
     }
 
