@@ -735,7 +735,7 @@ public class TypeChecker extends Visitor {
             case "!instanceof":
             case "as?": {
                 // ERROR CHECK #10: Make sure the LHS is not a class name
-                if(!lType.isClassType()) {
+                if(!lType.isClassType() && !lType.isMultiType()) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(be)
@@ -1806,22 +1806,49 @@ public class TypeChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(currentTarget != null && currentTarget.isClassType()) {
+        if(currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
             String targetName = currentTarget.toString();
-            ClassDecl cd = currentScope.findName(targetName).decl().asTopLevelDecl().asClassDecl();
-            // ERROR CHECK #1: Make sure the class name exists if we are
-            //                 evaluating a complex field expression
-            if(!cd.symbolTable.hasName(ne.toString())) {
-                // We need to reset currentTarget if there's an error during interpretation
-                if(interpretMode)
-                    currentTarget = null;
-                errors.add(
+            ClassDecl cd = null;
+            if(currentTarget.isClassType()) {
+                cd = currentScope.findName(targetName).decl().asTopLevelDecl().asClassDecl();
+
+                // ERROR CHECK #1: Make sure the class name exists if we are
+                //                 evaluating a complex field expression
+                if(!cd.symbolTable.hasName(ne.toString())) {
+                    // We need to reset currentTarget if there's an error during interpretation
+                    if(interpretMode)
+                        currentTarget = null;
+                    errors.add(
                         new ErrorBuilder(generateScopeError,interpretMode)
                                 .addLocation(ne)
                                 .addErrorType(MessageType.SCOPE_ERROR_309)
                                 .addArgs(ne.toString(),targetName)
                                 .error()
-                );
+                    );
+                }
+            }
+            else {
+                boolean found = false;
+                for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasName(ne.toString())) {
+                        found = true;
+                        break;
+                    }
+                }
+                // ERROR CHECK #2: Make sure the class that declared the
+                //                 field was found for a MultiTyped name
+                if(!found) {
+                    if (interpretMode)
+                        currentTarget = null;
+                    errors.add(
+                        new ErrorBuilder(generateScopeError, interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.SCOPE_ERROR_309)
+                                .addArgs(ne.toString(), targetName)
+                                .error()
+                    );
+                }
             }
             ne.type = cd.symbolTable.findName(ne.toString()).decl().asFieldDecl().type();
         }
