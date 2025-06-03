@@ -68,6 +68,7 @@ public class TypeChecker extends Visitor {
     private final Vector<String> errors;
     
     private boolean returnFound = false;
+    private boolean parentFound = false;
     private boolean inControlStmt = false;
 
     /**
@@ -1157,6 +1158,7 @@ public class TypeChecker extends Visitor {
 
         fe.type = fe.accessExpr().type;
         currentTarget = oldTarget;
+        parentFound = false;
     }
 
     /**
@@ -1488,6 +1490,8 @@ public class TypeChecker extends Visitor {
                         break;
                 }
             }
+            else if(parentFound)
+                cd = currentScope.findName(currentClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             else if(currentClass != null)
                 cd = currentClass;
             else
@@ -1806,7 +1810,19 @@ public class TypeChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
+        if(ne.toString().equals("parent")) {
+            if(parentFound) {
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(ne)
+                            .addErrorType(MessageType.SCOPE_ERROR_337)
+                            .error()
+                );
+            }
+            parentFound = true;
+            ne.type = currentClass.superClass();
+        }
+        else if(currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
             String targetName = currentTarget.toString();
             ClassDecl cd = null;
             if(currentTarget.isClassType()) {

@@ -678,9 +678,27 @@ public class NameChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
+        if(ne.toString().equals("parent")) {
+            if(currentClass == null) {
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(ne)
+                            .addErrorType(MessageType.SCOPE_ERROR_335)
+                            .error()
+                );
+            }
+            if(currentClass.superClass() == null) {
+                errors.add(
+                        new ErrorBuilder(generateScopeError,interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.SCOPE_ERROR_336)
+                                .error()
+                );
+            }
+        }
         // ERROR CHECK #1: Check if the name used was previously
         //                 declared somewhere in the program
-        if(!currentScope.isNameUsedAnywhere(ne.toString())) {
+        else if(!currentScope.isNameUsedAnywhere(ne.toString())) {
             errors.add(
                 new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(ne)

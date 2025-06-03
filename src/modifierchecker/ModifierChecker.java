@@ -5,6 +5,7 @@ import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.FieldExpr;
 import ast.expressions.Invocation;
+import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
 import ast.statements.AssignStmt;
 import ast.statements.CaseStmt;
@@ -16,9 +17,8 @@ import ast.statements.WhileStmt;
 import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.MainDecl;
-import java.util.HashSet;
-
 import ast.types.ClassType;
+import java.util.HashSet;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.mod.ModErrorFactory;
@@ -33,6 +33,8 @@ public class ModifierChecker extends Visitor {
     private ClassDecl currentClass;
     private final ModErrorFactory generateModError;
     private final Vector<String> errors;
+
+    private boolean parentFound = false;
 
     /**
      * Creates modifier checker in compilation mode
@@ -284,6 +286,7 @@ public class ModifierChecker extends Visitor {
             }
         }
         fe.accessExpr().visit(this);
+        parentFound = false;
     }
 
     /**
@@ -374,7 +377,7 @@ public class ModifierChecker extends Visitor {
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
 
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier
-            if(currentContext == md && md.toString().equals(in.toString())) {
+            if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
                 if(!md.mods.isRecurs()) {
                     errors.add(
                         new ErrorBuilder(generateModError,interpretMode)
@@ -421,6 +424,11 @@ public class ModifierChecker extends Visitor {
         super.visitMethodDecl(md);
         currentContext = null;
         currentScope = currentScope.closeScope();
+    }
+
+    public void visitNameExpr(NameExpr ne) {
+        if(ne.toString().equals("parent"))
+            parentFound = true;
     }
 
     /**
