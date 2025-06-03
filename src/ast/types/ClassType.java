@@ -15,7 +15,7 @@ _________________________________________________________________
 */
 public class ClassType extends Type {
     private final Name name;                        // Only for single type
-    private Vector<Name> inheritedTypes;
+    private Vector<Name> inheritedTypes = new Vector<>();
     private final Vector<Type> templateTypes;
 
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
@@ -55,7 +55,7 @@ public class ClassType extends Type {
     public static boolean classAssignmentCompatibility(Type ct1, ClassType ct2) {
         if(ct1.isMultiType())
             return ClassType.isSuperClass(ct2,ct1.asMultiType().getInitialType());
-        else if(ct1.toString().length() > ct2.toString().length())
+        else if(ct1.asClassType().getInheritedTypes().size() > ct2.getInheritedTypes().size())
             return ClassType.isSuperClass(ct1.asClassType(),ct2);
         else
             return ClassType.isSuperClass(ct2,ct1.asClassType());
