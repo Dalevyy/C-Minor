@@ -43,6 +43,8 @@ public enum MessageType {
     SCOPE_ERROR_330,
     SCOPE_ERROR_331,
     SCOPE_ERROR_332,
+    SCOPE_ERROR_333,
+    SCOPE_ERROR_334,
 
     /*      TYPE ERRORS     */
     TYPE_ERROR_400,
