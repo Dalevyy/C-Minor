@@ -184,6 +184,8 @@ public class NameChecker extends Visitor {
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
+        ClassDecl baseClass = null;
+
         // ERROR CHECK #1: Make sure the class name has not been used yet
         if(currentScope.isNameUsedAnywhere(cd.toString())) {
             errors.add(
@@ -223,14 +225,15 @@ public class NameChecker extends Visitor {
         currentScope = currentScope.openNewScope();
         cd.symbolTable = currentScope;
         currentClass = cd;
-        for(FieldDecl fd : cd.classBlock().fieldDecls()) { fd.visit(this); }
+
+        for(FieldDecl fd : cd.classBlock().fieldDecls())
+            fd.visit(this);
 
         if(cd.superClass() != null) {
-            ClassDecl base = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            baseClass = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             // Go through each declaration in the base class and add it to the subclass symbol table
-            for(String name : base.symbolTable.getAllNames().keySet()) {
-                AST decl = base.symbolTable.findName(name).decl();
-                // Fields
+            for(String name : baseClass.symbolTable.getAllNames().keySet()) {
+                AST decl = baseClass.symbolTable.findName(name).decl();
                 if(decl.isFieldDecl()) {
                     // ERROR CHECK #3: Each field name in a subclass needs to be unique
                     //                 from the fields declared in the base class
@@ -243,23 +246,43 @@ public class NameChecker extends Visitor {
                                     .error()
                         );
                     }
+
                     currentScope.addName(name,decl.asFieldDecl());
                 }
-//                // Methods
-//                else {
-//                    // For methods, insert "<baseName>." to denote
-//                    // which class the method was initially declared in
-//                    if(name.startsWith(base + "."))
-//                        currentScope.addName(name,decl.asMethodDecl());
-//                    else
-//                        currentScope.addName(base + "." + name,decl.asMethodDecl());
-//                }
             }
-
-            for(String name: base.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
         }
 
-        for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
+        // Magic~~~~~~~~~~~~
+        for(MethodDecl md : cd.classBlock().methodDecls()) {
+            md.visit(this);
+            boolean found = false;
+            if(baseClass != null) {
+                for(MethodDecl baseMethod : baseClass.classBlock().methodDecls()) {
+                    if(md.methodSignature().equals(baseMethod.methodSignature())) {
+                        found = true;
+                        if(!md.isOverridden()) {
+                            errors.add(
+                                    new ErrorBuilder(generateScopeError, interpretMode)
+                                            .addLocation(md)
+                                            .addErrorType(MessageType.SCOPE_ERROR_333)
+                                            .addArgs(md, baseClass)
+                                            .error()
+                            );
+                        }
+                    }
+                }
+            }
+            if(!found && md.isOverridden()) {
+                errors.add(
+                        new ErrorBuilder(generateScopeError, interpretMode)
+                                .addLocation(md)
+                                .addErrorType(MessageType.SCOPE_ERROR_334)
+                                .addArgs(md)
+                                .error()
+                );
+            }
+        }
+
         currentScope = currentScope.closeScope();
         currentClass = null;
     }
@@ -633,6 +656,7 @@ public class NameChecker extends Visitor {
                             .error()
                 );
         }
+
         currentScope.addName(methodSignature, md);
         currentScope.addMethod(md.toString());
 
@@ -771,17 +795,25 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Checks if retype statement has valid names.
+     * Evaluates the names used in a retype statement.<br><br>
+     * <p>
+     *     For retype statements specifically, we want to make sure
+     *     the LHS evaluates to be a name. This name represents the
+     *     object we want to retype. We will let other visits handle
+     *     the other name checking that is done here.
+     * </p>
      * @param rs Retype Statement
      */
     public void visitRetypeStmt(RetypeStmt rs) {
-        if(!(rs.getName().isNameExpr() || rs.getName().isFieldExpr() || rs.getName().isArrayExpr()))
+        // ERROR CHECK #1: Make sure the LHS represents a name
+        if(!rs.getName().isNameExpr() && !rs.getName().isFieldExpr() && !rs.getName().isArrayExpr()) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(rs)
-                        .addErrorType(MessageType.SCOPE_ERROR_332)
-                        .error()
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(rs)
+                            .addErrorType(MessageType.SCOPE_ERROR_332)
+                            .error()
             );
+        }
 
         rs.getName().visit(this);
         rs.getNewObject().visit(this);
