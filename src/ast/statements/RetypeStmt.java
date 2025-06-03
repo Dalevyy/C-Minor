@@ -2,25 +2,17 @@ package ast.statements;
 
 import ast.expressions.Expression;
 import ast.expressions.NewExpr;
+import ast.operators.AssignOp;
+import ast.operators.AssignOp.AssignType;
 import token.Token;
 import utilities.Visitor;
 
-public class RetypeStmt extends Statement {
-    private final Expression objName;
-    private final NewExpr objStatement;
+public class RetypeStmt extends AssignStmt {
 
-    public RetypeStmt(Token t, Expression n, NewExpr ne) {
-        super(t);
-        this.objName = n;
-        this.objStatement = ne;
+    public RetypeStmt(Token t, Expression n, NewExpr ne) { super(t,n,ne,new AssignOp(AssignType.EQ)); }
 
-        this.addChild(n);
-        this.addChild(ne);
-        this.setParent();
-    }
-
-    public Expression getName() { return this.objName; }
-    public NewExpr getNewObject() { return this.objStatement; }
+    public Expression getName() { return this.LHS(); }
+    public NewExpr getNewObject() { return this.RHS().asNewExpr(); }
 
     public boolean isRetypeStmt() { return true; }
     public RetypeStmt asRetypeStmt() { return this; }
