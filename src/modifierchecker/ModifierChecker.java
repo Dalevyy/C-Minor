@@ -17,6 +17,8 @@ import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.MainDecl;
 import java.util.HashSet;
+
+import ast.types.ClassType;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
 import messages.errors.mod.ModErrorFactory;
@@ -253,8 +255,21 @@ public class ModifierChecker extends Visitor {
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
         if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
-            ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).decl().asTopLevelDecl().asClassDecl();
-            FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+            ClassDecl cd;
+            FieldDecl fd = null;
+            if(fe.fieldTarget().type.isClassType()) {
+                cd = currentScope.findName(fe.fieldTarget().type.toString()).decl().asTopLevelDecl().asClassDecl();
+                fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+            }
+            else {
+                for(ClassType ct : fe.fieldTarget().type.asMultiType().getAllTypes()) {
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasName(fe.accessExpr().toString())) {
+                        fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+                        break;
+                    }
+                }
+            }
 
             // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
             if (!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
@@ -355,7 +370,7 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation
         else {
-            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(in.targetType.toString()).decl().asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
 
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier

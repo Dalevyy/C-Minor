@@ -474,12 +474,16 @@ public class Interpreter extends Visitor {
                 }
             }
             case "instanceof":
-                currValue = ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
-                                                                   be.RHS().type.asClassType());
-                break;
             case "!instanceof":
-                currValue = !ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
-                                                                    be.RHS().type.asClassType());
+                ClassType objType;
+                if(be.LHS().type.isMultiType())
+                    objType = be.LHS().type.asMultiType().getRuntimeType();
+                else
+                    objType = be.LHS().type.asClassType();
+
+                currValue = ClassType.classAssignmentCompatibility(objType,be.RHS().type.asClassType());
+                if(binOp.equals("!instanceof"))
+                    currValue = !(boolean)currValue;
                 break;
         }
     }
@@ -669,7 +673,6 @@ public class Interpreter extends Visitor {
         }
     }
 
-
     /**
      * Evaluates a field expression.<br><br>
      * <p>
@@ -686,14 +689,22 @@ public class Interpreter extends Visitor {
         fe.fieldTarget().visit(this);
         HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
 
-        if(fe.accessExpr().isNameExpr())
+        if(fe.accessExpr().isNameExpr()) {
             currValue = instance.get(fe.accessExpr().toString());
+            if(currValue == null) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(fe)
+                        .addErrorType(MessageType.RUNTIME_ERROR_606)
+                        .addArgs(fe.accessExpr(),fe.fieldTarget().type.asMultiType().getRuntimeType())
+                        .error();
+            }
+        }
         else {
             Type oldTarget = currTarget;
-            if(fe.fieldTarget().type.isClassType())
-                currTarget = fe.fieldTarget().type;
-            else
+            if(fe.fieldTarget().type.isMultiType())
                 currTarget = fe.fieldTarget().type.asMultiType().getRuntimeType();
+            else
+                currTarget = fe.fieldTarget().type;
             fe.accessExpr().visit(this);
             currTarget = oldTarget;
         }
@@ -709,7 +720,7 @@ public class Interpreter extends Visitor {
     */
     public void visitForStmt(ForStmt fs) {
         if(fs.condLHS().type.isInt() || fs.condLHS().type.isEnumType()) {
-            int LHS = 0, RHS = 0;
+            int LHS, RHS;
             fs.condLHS().visit(this);
             LHS = (int) currValue;
 
@@ -737,7 +748,7 @@ public class Interpreter extends Visitor {
             stack = stack.destroyCallFrame();
         }
         else if(fs.condRHS().type.isChar()) {
-            char LHS = 0, RHS = 0;
+            char LHS, RHS;
             fs.condLHS().visit(this);
             LHS = (char) currValue;
 
@@ -943,34 +954,24 @@ public class Interpreter extends Visitor {
         }
         // Method Invocation
         else {
-            // ERROR CHECK #1: Generate an exception if the current object
-            //                 does not match the expected target type
-//            if(!currTarget.toString().equals(in.targetType.toString())) {
-//                if(!currentScope.hasName(in.targetType.typeName()))
-//                    new ErrorBuilder(generateRuntimeError,interpretMode)
-//                            .addLocation(in)
-//                            .addErrorType(MessageType.RUNTIME_ERROR_604)
-//                            .addArgs(in.toString(),currTarget,in.targetType)
-//                            .error();
-//            }
+            // ERROR CHECK #1: Generate an exception if the current object type
+            //                 is not assignment compatible with the target type
+            if(!ClassType.classAssignmentCompatibility(currTarget.asClassType(),in.targetType.asClassType())) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.RUNTIME_ERROR_604)
+                        .addArgs(in.toString(),currTarget,in.targetType)
+                        .error();
+            }
 
-            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-//            String methodName = in.invokeSignature();
-//
-//            String searchMethod = methodName;
-//            ClassDecl startClass = cd;
-//            while(!cd.symbolTable.hasName(searchMethod)) {
-//                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-//                searchMethod = methodName + "/" + startClass.toString();
-//            }
-//            methodName = searchMethod;
-
+            ClassDecl cd = currentScope.findName(in.targetType.toString()).decl().asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
             params = md.params();
             currentScope = md.symbolTable;
 
             if(obj != null)
-                for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
+                for(Object val : obj.keySet())
+                    stack.addValue(val.toString(),obj.get(val));
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -1130,8 +1131,6 @@ public class Interpreter extends Visitor {
     public void visitNameExpr(NameExpr ne) {
         if(ne.toString().equals("this"))
             currValue = stack.getValue("this");
-        else if(currValue instanceof HashMap)
-            currValue = ((HashMap<String,Object>) currValue).get(ne.toString());
         else
             currValue = stack.getValue(ne.toString());
     }
@@ -1201,7 +1200,7 @@ public class Interpreter extends Visitor {
 
     public void visitRetypeStmt(RetypeStmt rs) {
         rs.getNewObject().visit(this);
-        stack.addValue(rs.getName().toString(),currValue);
+        stack.setValue(rs.getName().toString(),currValue);
 
         AST decl = currentScope.findName(rs.getName().toString()).decl();
         if(decl.isTopLevelDecl()) {
