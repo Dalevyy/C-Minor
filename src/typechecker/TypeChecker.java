@@ -66,7 +66,9 @@ public class TypeChecker extends Visitor {
     private final TypeErrorFactory generateTypeError;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
+    
     private boolean returnFound = false;
+    private boolean inControlStmt = false;
 
     /**
      * Creates type checker in compilation mode
@@ -115,6 +117,28 @@ public class TypeChecker extends Visitor {
 
         init.visit(this);
         return init;
+    }
+
+    /**
+     * Changes the type of a variable.<br><br>
+     * <p>
+     *     This method will only be called from {@code visitRetypeStmt}
+     *     when a user changes the type of an object.
+     * </p>
+     * @param varName Variable we are changing the type of
+     * @param varType New type for the variable
+     */
+    private void setVarType(String varName, Type varType) {
+        AST varDecl = currentScope.findName(varName).decl();
+        
+        if(varDecl.isTopLevelDecl())
+            varDecl.asTopLevelDecl().asGlobalDecl().setType(varType);
+        else if(varDecl.isParamDecl())
+            varDecl.asParamDecl().setType(varType);
+        else if(varDecl.isFieldDecl())
+            varDecl.asFieldDecl().setType(varType);
+        else
+            varDecl.asStatement().asLocalDecl().setType(varType);
     }
 
     /**
@@ -804,6 +828,7 @@ public class TypeChecker extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
+        boolean prev = inControlStmt;
         cs.choiceExpr().visit(this);
         Type choiceType = cs.choiceExpr().type;
 
@@ -886,12 +911,16 @@ public class TypeChecker extends Visitor {
                 }
             }
             currentScope = curr.symbolTable;
+            inControlStmt = true;
             curr.caseBlock().visit(this);
+            inControlStmt = prev;
             currentScope = currentScope.closeScope();
         }
 
         currentScope = cs.symbolTable;
+        inControlStmt = true;
         cs.otherBlock().visit(this);
+        inControlStmt = prev;
         currentScope = currentScope.closeScope();
     }
 
@@ -935,8 +964,11 @@ public class TypeChecker extends Visitor {
      * @param ds Do Statement
      */
     public void visitDoStmt(DoStmt ds) {
+        boolean prev = inControlStmt;
         currentScope = ds.symbolTable;
+        inControlStmt = true;
         ds.doBlock().visit(this);
+        inControlStmt = prev;
         currentScope = currentScope.closeScope();
 
         ds.condition().visit(this);
@@ -1136,6 +1168,7 @@ public class TypeChecker extends Visitor {
      * @param fs For Statement
      */
     public void visitForStmt(ForStmt fs) {
+        boolean prev = inControlStmt;
         currentScope = fs.symbolTable;
 
         fs.loopVar().visit(this);
@@ -1223,7 +1256,11 @@ public class TypeChecker extends Visitor {
             }
         }
 
-        if(fs.forBlock() != null) { fs.forBlock().visit(this); }
+        if(fs.forBlock() != null) { 
+            inControlStmt = true;
+            fs.forBlock().visit(this); 
+            inControlStmt = prev;
+        }
         currentScope = currentScope.closeScope();
     }
 
@@ -1328,6 +1365,7 @@ public class TypeChecker extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
+        boolean prev = inControlStmt;
         is.condition().visit(this);
 
         // ERROR CHECK #1: The if statement's conditional expression must be a boolean
@@ -1342,6 +1380,7 @@ public class TypeChecker extends Visitor {
         }
 
         currentScope = is.symbolTableIfBlock;
+        inControlStmt = true;
         is.ifBlock().visit(this);
         currentScope = currentScope.closeScope();
 
@@ -1352,6 +1391,7 @@ public class TypeChecker extends Visitor {
             is.elseBlock().visit(this);
             currentScope = currentScope.closeScope();
         }
+        inControlStmt = prev;
     }
 
     /**
@@ -1442,14 +1482,10 @@ public class TypeChecker extends Visitor {
         else {
             ClassDecl cd = null;
             if(currentTarget != null && currentTarget.isMultiType()) {
-                ClassDecl curr;
-                ClassType superClass = null;
                 for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
-                    curr = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
-                    if(cd == null || ClassType.isSuperClass(ct,superClass)) {
-                        cd = curr;
-                        superClass = ct;
-                    }
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasMethod(in.toString()))
+                        break;
                 }
             }
             else if(currentClass != null)
@@ -1459,6 +1495,8 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
+                if(interpretMode)
+                    currentTarget = null;
                 errors.add(
                     new ErrorBuilder(generateScopeError, interpretMode)
                             .addLocation(in)
@@ -1769,15 +1807,19 @@ public class TypeChecker extends Visitor {
      */
     public void visitNameExpr(NameExpr ne) {
         if(currentTarget != null && currentTarget.isClassType()) {
-            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            String targetName = currentTarget.toString();
+            ClassDecl cd = currentScope.findName(targetName).decl().asTopLevelDecl().asClassDecl();
             // ERROR CHECK #1: Make sure the class name exists if we are
             //                 evaluating a complex field expression
             if(!cd.symbolTable.hasName(ne.toString())) {
+                // We need to reset currentTarget if there's an error during interpretation
+                if(interpretMode)
+                    currentTarget = null;
                 errors.add(
                         new ErrorBuilder(generateScopeError,interpretMode)
                                 .addLocation(ne)
                                 .addErrorType(MessageType.SCOPE_ERROR_309)
-                                .addArgs(ne.toString(),currentTarget.toString())
+                                .addArgs(ne.toString(),targetName)
                                 .error()
                 );
             }
@@ -1785,14 +1827,20 @@ public class TypeChecker extends Visitor {
         }
         else {
             AST decl = currentScope.findName(ne.toString()).decl();
-            if(decl.isStatement()) { ne.type = decl.asStatement().asLocalDecl().type(); }
-            else if(decl.isParamDecl()) { ne.type = decl.asParamDecl().type(); }
-            else if(decl.isFieldDecl()) { ne.type = decl.asFieldDecl().type(); }
+            if(decl.isStatement())
+                ne.type = decl.asStatement().asLocalDecl().type();
+            else if(decl.isParamDecl())
+                ne.type = decl.asParamDecl().type();
+            else if(decl.isFieldDecl())
+                ne.type = decl.asFieldDecl().type();
             else {
                 TopLevelDecl tDecl = decl.asTopLevelDecl();
-                if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
-                else if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type(); }
-                else { ne.type = new ClassType(tDecl.asClassDecl().name()); }
+                if(tDecl.isEnumDecl())
+                    ne.type = tDecl.asEnumDecl().type();
+                else if(tDecl.isGlobalDecl())
+                    ne.type = tDecl.asGlobalDecl().type();
+                else
+                    ne.type = new ClassType(tDecl.asClassDecl().name());
             }
         }
     }
@@ -1888,62 +1936,44 @@ public class TypeChecker extends Visitor {
 
     public void visitRetypeStmt(RetypeStmt rs) {
         rs.getName().visit(this);
-        Type lType = rs.getName().type;
-
-        rs.getNewObject().visit(this);
-        ClassType rType = rs.getNewObject().type.asClassType();
+        Type objType = rs.getName().type;
 
         // ERROR CHECK #1: Make sure the LHS does represent an object
-        if(!lType.isClassType() && !lType.isMultiType()) {
+        if(!objType.isClassType() && !objType.isMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(rs)
                         .addErrorType(MessageType.TYPE_ERROR_453)
-                        .addArgs(lType)
+                        .addArgs(objType)
                         .error()
             );
         }
 
+        rs.getNewObject().visit(this);
+        ClassType newObjType = rs.getNewObject().type.asClassType();
+        Type objBaseType = objType.isMultiType() ? objType.asMultiType().getInitialType() : objType;
+
         // ERROR CHECK #2: Make sure the types are class assignment compatible
-        if(!ClassType.classAssignmentCompatibility(lType,rType)) {
+        if(!ClassType.classAssignmentCompatibility(objBaseType,newObjType)) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(rs)
                         .addErrorType(MessageType.TYPE_ERROR_454)
-                        .addArgs(rs.getName().toString(),rType)
+                        .addArgs(rs.getName().toString(),newObjType)
                         .error()
             );
         }
-
-        if(!lType.isMultiType()) {
-            Vector<ClassType> types = new Vector<>();
-            types.add(lType.asClassType());
-            types.add(rType.asClassType());
-            MultiType mt = new MultiType(lType.asClassType(),types);
-
-            AST decl = currentScope.findName(rs.getName().toString()).decl();
-            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
-                decl.asTopLevelDecl().asGlobalDecl().setType(mt);
-            else if(decl.isParamDecl())
-                decl.asParamDecl().setType(mt);
-            else if(decl.isFieldDecl())
-                decl.asFieldDecl().setType(mt);
-            else
-                decl.asStatement().asLocalDecl().setType(mt);
-        }
-        else if(lType.asMultiType().getInitialType().toString().equals(rType.toString())) {
-            AST decl = currentScope.findName(rs.getName().toString()).decl();
-            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
-                decl.asTopLevelDecl().asGlobalDecl().setType(lType.asMultiType().getInitialType());
-            else if(decl.isParamDecl())
-                decl.asParamDecl().setType(lType.asMultiType().getInitialType());
-            else if(decl.isFieldDecl())
-                decl.asFieldDecl().setType(lType.asMultiType().getInitialType());
-            else
-                decl.asStatement().asLocalDecl().setType(lType.asMultiType().getInitialType());
+        
+        if(inControlStmt) {
+            if(objType.isMultiType())
+                objType.asMultiType().addType(newObjType);
+            else {
+                MultiType mt = MultiType.create(objType.asClassType(),newObjType);
+                setVarType(rs.getName().toString(),mt);
+            }
         }
         else
-            lType.asMultiType().addType(rType.asClassType());
+            setVarType(rs.getName().toString(),newObjType);
     }
 
     /**
@@ -2032,6 +2062,7 @@ public class TypeChecker extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
+        boolean prev = inControlStmt;
         ws.condition().visit(this);
 
         // ERROR CHECK #1: The while loop's condition must be a boolean
@@ -2046,7 +2077,9 @@ public class TypeChecker extends Visitor {
         }
 
         currentScope = ws.symbolTable;
+        inControlStmt = true;
         ws.whileBlock().visit(this);
+        inControlStmt = prev;
         currentScope = currentScope.closeScope();
     }
 }
