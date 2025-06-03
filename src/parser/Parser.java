@@ -150,7 +150,8 @@ public class Parser {
                 || nextLA(TokenType.COUT)
                 || nextLA(TokenType.BREAK)
                 || nextLA(TokenType.CONTINUE)
-                || nextLA(TokenType.STOP);
+                || nextLA(TokenType.STOP)
+                || nextLA(TokenType.PARENT);
     }
 
     private boolean inPrimaryExpressionFIRST() {
