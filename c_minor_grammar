@@ -217,6 +217,7 @@ primary_expression : Identifier
                    | 'break'
                    | 'continue'
                    | 'endl'
+                   | 'parent'
                    ;
 
 postfix_expression: primary_expression ('[' expression ']' | '(' arguments? ')' | ('.' | '?.') expression)* ;
