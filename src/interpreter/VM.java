@@ -47,6 +47,7 @@ public class VM {
         boolean printTokens = false;
         boolean printAST = false;
         boolean printST = false;
+        boolean debug = true;
 
         while(true) {
             String input;
@@ -77,6 +78,10 @@ public class VM {
                 printST = !printST;
                 continue;
             }
+            else if(input.equals("#debug")) {
+                debug = !debug;
+                continue;
+            }
             else if(input.isEmpty()) { continue; }
             else {
                 int tabs = 0;
@@ -100,6 +105,7 @@ public class VM {
                 nodes = parser.nextNode();
 
                 for (AST node : nodes) {
+                    currNode = node;
                     node.visit(ioRewritePass);
                     if(printAST)
                         node.visit(treePrinter);
@@ -108,7 +114,7 @@ public class VM {
                     if(printST)
                         System.out.println(compilationUnit.globalTable.toString());
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl())
-                        node.visit(fieldRewritePass);
+                        fieldRewritePass.bruh(node,node.asTopLevelDecl().asClassDecl());
                     node.visit(loopCheckPass);
                     node.visit(classToEnumPass);
                     node.visit(typeChecker);
@@ -124,16 +130,14 @@ public class VM {
                             node.visit(interpreter);
                     } else {
                         node.visit(interpreter);
-                        if(node.asStatement().isExprStmt()) {
-                            if(node.asStatement().asExprStmt().getExpression().isOutStmt())
-                                System.out.println();
-                        }
                         compilationUnit.mainDecl().mainBody().addStmt(node.asStatement());
                     }
                 }
             }
             catch(Exception e) {
                 generateError(e,currNode,compilationUnit.globalTable);
+                if(debug)
+                    e.printStackTrace();
             }
         }
     }
