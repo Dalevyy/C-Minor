@@ -964,7 +964,7 @@ public class Interpreter extends Visitor {
                         .error();
             }
 
-            ClassDecl cd = currentScope.findName(in.targetType.toString()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
             params = md.params();
             currentScope = md.symbolTable;
@@ -1181,6 +1181,7 @@ public class Interpreter extends Visitor {
             else
                 System.out.print(currValue);
         }
+        System.out.println();
     }
 
     /**
