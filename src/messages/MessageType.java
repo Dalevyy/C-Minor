@@ -9,6 +9,9 @@ import java.util.Properties;
 
 public enum MessageType {
 
+    /*      SYNTAX ERRORS     */
+    SYNTAX_ERROR_100,
+
     /*      SCOPE ERRORS     */
     SCOPE_ERROR_300,
     SCOPE_ERROR_301,
