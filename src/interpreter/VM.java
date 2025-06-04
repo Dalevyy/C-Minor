@@ -99,7 +99,7 @@ public class VM {
             Vector<? extends AST> nodes;
             AST currNode = null;
             try {
-                var lexer = new Lexer(program.toString());
+                var lexer = new Lexer(program.toString(),true);
                 var parser = new Parser(lexer, printTokens, true);
 
                 nodes = parser.nextNode();

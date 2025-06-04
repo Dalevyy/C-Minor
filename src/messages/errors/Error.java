@@ -15,7 +15,8 @@ public abstract class Error extends Message {
         StringBuilder sb = new StringBuilder();
 
         sb.append(this.header());
-        sb.append(this.location().line());
+        if(this.location() != null)
+            sb.append(this.location().line());
         sb.append(this.buildError());
         if(this.suggest != null) {
             sb.append("\n");

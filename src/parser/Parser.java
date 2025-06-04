@@ -209,8 +209,12 @@ public class Parser {
 
     // This will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
-    public Vector<? extends AST> nextNode() {
+    public Vector<? extends AST> nextNode() throws Exception {
         Vector<? extends AST> nodes;
+
+        // Throw an exception if user only wrote a comment
+        if(nextLA(TokenType.EOF))
+            throw new Exception();
         // Parse EnumDecl
         if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)

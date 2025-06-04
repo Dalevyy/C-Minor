@@ -1,5 +1,8 @@
 package lexer;
 
+import messages.MessageType;
+import messages.errors.ErrorBuilder;
+import messages.errors.syntax.SyntaxErrorFactory;
 import token.Location;
 import token.Position;
 import token.Token;
@@ -39,6 +42,12 @@ public class Lexer {
      *  the parser in order to generate syntax error messages.*/
     private final Vector<String> lines;
 
+    /** A {@code SyntaxErrorFactor} to create lexer errors. */
+    private final SyntaxErrorFactory generateSyntaxError;
+
+    /** Current mode the lexer is running in. */
+    private boolean interpretMode = false;
+
     /**
      * Creates a new {@code Lexer} instance, will be called by the parser.
      * @param file C Minor program that will be tokenized.
@@ -50,6 +59,13 @@ public class Lexer {
         this.currLoc = new Location();
         this.currText = "";
         this.lines = new Vector<>();
+        this.generateSyntaxError = new SyntaxErrorFactory();
+    }
+
+    /** Creates a new {@code Lexer} instance in interpretation mode.*/
+    public Lexer(final String file, boolean mode) {
+        this(file);
+        this.interpretMode = mode;
     }
 
     /**
@@ -133,14 +149,24 @@ public class Lexer {
 
     /** Consumes a single line comment that starts with {@code //}.*/
     private void consumeComment() {
-        while(lookChar != '\n') { consume(); }
+        while(lookChar != '\n' && lookChar != EOF)
+            consume();
         consumeWhitespace();
     }
 
     /** Consumes a multi-line comment that starts with {@code /*}.*/
     private void consumeMultiLineComment() {
-        while(!(match('*') && match('/'))) { consume(); }
-        consumeWhitespace();
+        while(lookChar != EOF) {
+            consume();
+            if(match('*') && match('/')) {
+                consumeWhitespace();
+                return;
+            }
+
+        }
+        new ErrorBuilder(generateSyntaxError,interpretMode)
+                .addErrorType(MessageType.SYNTAX_ERROR_100)
+                .error();
     }
 
     /** Checks if EOF was reached.*/
