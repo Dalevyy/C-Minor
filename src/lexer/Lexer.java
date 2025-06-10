@@ -459,11 +459,6 @@ public class Lexer {
                     return new Token(TokenType.PLUS, "+", currLoc.copy());
                 case '-':
                     consume();
-                    if(isDigit()) {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append('-');
-                        return number(sb);
-                    }
                     if(match('=')) { return new Token(TokenType.MINUSEQ, "-=", currLoc.copy()); }
                     return new Token(TokenType.MINUS, "-", currLoc.copy());
                 case '*':

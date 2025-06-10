@@ -171,7 +171,8 @@ public class Parser {
     }
 
     private boolean inConstantFIRST() {
-        return nextLA(TokenType.STR_LIT)
+        return nextLA(TokenType.MINUS)
+                || nextLA(TokenType.STR_LIT)
                 || nextLA(TokenType.TEXT_LIT)
                 || nextLA(TokenType.REAL_LIT)
                 || nextLA(TokenType.BOOL_LIT)
@@ -411,7 +412,7 @@ public class Parser {
         return varList;
     }
 
-    // 8. variable_decl_init ::= ID ':' type ( '=' ( expression | 'uninit' ) )?
+    // 8. variable_decl_init ::= ID ':' type '=' ( expression | 'uninit' )
     private Var variableDeclInit() {
         tokenStack.add(currentLA());
 
@@ -420,17 +421,15 @@ public class Parser {
         match(TokenType.COLON);
         Type t = type();
 
-        if(nextLA(TokenType.EQ)) {
-            match(TokenType.EQ);
+        match(TokenType.EQ);
 
-            Expression e = null;
-            if(nextLA(TokenType.UNINIT)) { match(TokenType.UNINIT); }
-            else { e = expression(); }
+        Expression e = null;
+        if(nextLA(TokenType.UNINIT))
+            match(TokenType.UNINIT);
+        else
+            e = expression();
 
-            return new Var(nodeToken(),n,t,e);
-        }
-
-        return new Var(nodeToken(),n,t);
+        return new Var(nodeToken(),n,t,e);
     }
 
     /*
@@ -2106,8 +2105,10 @@ public class Parser {
             match(TokenType.TEXT_LIT);
             return new Literal(nodeToken(), ConstantKind.TEXT);
         }
-        else if(nextLA(TokenType.REAL_LIT)) {
+        else if(nextLA(TokenType.REAL_LIT) || (nextLA(TokenType.MINUS) && nextLA(TokenType.REAL_LIT,1))) {
             tokenStack.add(currentLA());
+            if(nextLA(TokenType.MINUS))
+                match(TokenType.MINUS);
             match(TokenType.REAL_LIT);
             return new Literal(nodeToken(), ConstantKind.REAL);
         }
@@ -2118,7 +2119,9 @@ public class Parser {
     private Literal discreteConstant() {
         tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.INT_LIT)) {
+        if(nextLA(TokenType.INT_LIT) || (nextLA(TokenType.MINUS) && nextLA(TokenType.INT_LIT,1))) {
+            if(nextLA(TokenType.MINUS))
+                match(TokenType.MINUS);
             match(TokenType.INT_LIT);
             return new Literal(nodeToken(), ConstantKind.INT);
         }
