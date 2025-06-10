@@ -8,12 +8,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import lexer.Lexer;
-import micropasses.ClassToEnumTypeRewrite;
-import micropasses.ConstructorGeneration;
-import micropasses.FieldRewrite;
-import micropasses.InOutStmtRewrite;
-import micropasses.LoopKeywordCheck;
-import micropasses.PropertyMethodGeneration;
+import micropasses.*;
 import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
 import parser.Parser;
@@ -39,6 +34,7 @@ public class VM {
         Printer treePrinter = new Printer();
         InOutStmtRewrite ioRewritePass = new InOutStmtRewrite(true);
         PropertyMethodGeneration generatePropertyPass = new PropertyMethodGeneration();
+        VariableInitialization variableInitPass = new VariableInitialization(true);
         FieldRewrite fieldRewritePass = new FieldRewrite();
         LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
         ClassToEnumTypeRewrite classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
@@ -111,10 +107,13 @@ public class VM {
                         node.visit(treePrinter);
                     node.visit(generatePropertyPass);
                     node.visit(nameChecker);
+
                     if(printST)
                         System.out.println(compilationUnit.globalTable.toString());
+
+                    node.visit(variableInitPass);
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl())
-                        fieldRewritePass.bruh(node,node.asTopLevelDecl().asClassDecl());
+                        node.visit(fieldRewritePass);
                     node.visit(loopCheckPass);
                     node.visit(classToEnumPass);
                     node.visit(typeChecker);
