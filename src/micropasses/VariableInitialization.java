@@ -1,5 +1,6 @@
 package micropasses;
 
+import ast.statements.ForStmt;
 import ast.statements.LocalDecl;
 import ast.topleveldecls.GlobalDecl;
 import messages.MessageType;
@@ -14,6 +15,8 @@ public class VariableInitialization extends Visitor {
     public VariableInitialization(boolean mode) {
         this.interpretMode = mode;
     }
+
+    public void visitForStmt(ForStmt fd) { fd.forBlock().visit(this); }
 
     public void visitGlobalDecl(GlobalDecl gd) {
         if(gd.var().isUninit()) {
