@@ -412,7 +412,7 @@ public class Parser {
         return varList;
     }
 
-    // 8. variable_decl_init ::= ID ':' type '=' ( expression | 'uninit' )
+    // 8. variable_decl_init ::= ID ':' type ('=' (expression | 'uninit' ))?
     private Var variableDeclInit() {
         tokenStack.add(currentLA());
 
@@ -421,15 +421,19 @@ public class Parser {
         match(TokenType.COLON);
         Type t = type();
 
-        match(TokenType.EQ);
-
-        Expression e = null;
-        if(nextLA(TokenType.UNINIT))
-            match(TokenType.UNINIT);
-        else
-            e = expression();
-
-        return new Var(nodeToken(),n,t,e);
+        if(nextLA(TokenType.EQ)) {
+            match(TokenType.EQ);
+            Expression e;
+            if(nextLA(TokenType.UNINIT)) {
+                match(TokenType.UNINIT);
+                return new Var(nodeToken(),n,t);
+            }
+            else {
+                e = expression();
+                return new Var(nodeToken(),n,t,e,true);
+            }
+        }
+        return new Var(nodeToken(),n,t);
     }
 
     /*
