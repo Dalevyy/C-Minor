@@ -137,6 +137,8 @@ public enum MessageType {
     RUNTIME_ERROR_605,
     RUNTIME_ERROR_606,
 
+    SEMANTIC_ERROR_700,
+
     SCOPE_SUGGEST_1300,
     SCOPE_SUGGEST_1301,
     SCOPE_SUGGEST_1302,
@@ -161,8 +163,9 @@ public enum MessageType {
     MOD_SUGGEST_1504,
     MOD_SUGGEST_1505,
     MOD_SUGGEST_1506,
-    MOD_SUGGEST_1507;
+    MOD_SUGGEST_1507,
 
+    SEMANTIC_SUGGEST_1700;
 
     private static Properties errorMessages;
     private static final String PATH = "utilities/MessageType.properties";
