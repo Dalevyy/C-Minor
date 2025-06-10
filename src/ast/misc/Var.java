@@ -22,15 +22,18 @@ public class Var extends AST {
     private Expression init;
     private Type type;
 
-    public Var(Token t, Name name) { this(t,name,null,null); }
-    public Var(Token t, Name name, Expression init) { this(t,name,null,init); }
-    public Var(Token t, Name name, Type type) { this(t,name,type,null); }
+    private boolean uninit;
 
-    public Var(Token t, Name name, Type type, Expression init) {
+    public Var(Token t, Name name) { this(t,name,null,null,false); }
+    public Var(Token t, Name name, Expression init) { this(t,name,null,init,false); }
+    public Var(Token t, Name name, Type type, boolean uninit) { this(t,name,type,null,uninit); }
+
+    public Var(Token t, Name name, Type type, Expression init, boolean uninit) {
         super(t);
         this.name = name;
         this.type = type;
         this.init = init;
+        this.uninit = uninit;
 
         addChild(this.name);
         addChild(this.init);
@@ -40,6 +43,8 @@ public class Var extends AST {
     public Name name() { return name; }
     public Expression init() { return init;}
     public Type type() { return type; }
+
+    public boolean isUninit() { return uninit; }
 
     public boolean isVar() { return true; }
     public Var asVar() { return this; }
