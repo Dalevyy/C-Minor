@@ -144,21 +144,21 @@ public class VM {
 
     private static void generateError(Exception e, AST location, SymbolTable st) {
         // If a lexer/parser error occurs, do not remove anything from the symbol table.
-        if(location == null || e.getMessage().equals("EOF Not Found") || e.getMessage().equals("Redeclaration"))
-            return;
-        else if(location.isTopLevelDecl()) {
-            if(location.asTopLevelDecl().isEnumDecl()) {
-                EnumDecl ed = location.asTopLevelDecl().asEnumDecl();
-                for(Var constant : ed.constants())
-                    st.removeName(constant.toString());
-                st.removeName(ed.toString());
+        if(location != null && !e.getMessage().equals("EOF Not Found") && !e.getMessage().equals("Redeclaration")) {
+            if(location.isTopLevelDecl()) {
+                if(location.asTopLevelDecl().isEnumDecl()) {
+                    EnumDecl ed = location.asTopLevelDecl().asEnumDecl();
+                    for(Var constant : ed.constants())
+                        st.removeName(constant.toString());
+                    st.removeName(ed.toString());
+                }
+                else if(location.asTopLevelDecl().isClassDecl() || location.asTopLevelDecl().isGlobalDecl())
+                    st.removeName(location.toString());
+                else if(location.asTopLevelDecl().isFuncDecl())
+                    st.removeName(location.asTopLevelDecl().asFuncDecl().funcSignature());
             }
-            else if(location.asTopLevelDecl().isClassDecl() || location.asTopLevelDecl().isGlobalDecl())
+            else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
                 st.removeName(location.toString());
-            else if(location.asTopLevelDecl().isFuncDecl())
-                st.removeName(location.asTopLevelDecl().asFuncDecl().funcSignature());
         }
-        else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
-            st.removeName(location.toString());
     }
 }
