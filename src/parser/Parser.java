@@ -423,17 +423,16 @@ public class Parser {
 
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
-            Expression e;
             if(nextLA(TokenType.UNINIT)) {
                 match(TokenType.UNINIT);
-                return new Var(nodeToken(),n,t);
+                return new Var(nodeToken(),n,t,false);
             }
             else {
-                e = expression();
-                return new Var(nodeToken(),n,t,e,true);
+                Expression e = expression();
+                return new Var(nodeToken(),n,t,e,false);
             }
         }
-        return new Var(nodeToken(),n,t);
+        return new Var(nodeToken(),n,t,true);
     }
 
     /*
