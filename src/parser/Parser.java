@@ -1986,18 +1986,15 @@ public class Parser {
         Expression left = logicalAndExpression();
 
         if(nextLA(TokenType.OR)) {
-            BinaryExpr mainBE = null, be;
+            BinaryExpr be;
             while(nextLA(TokenType.OR)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.OR);
                 match(TokenType.OR);
 
                 Expression right = logicalAndExpression();
-
-                if(mainBE != null) { be = new BinaryExpr(nodeToken(),mainBE,right,bo); }
-                else { be = new BinaryExpr(nodeToken(),left,right,bo); }
-                mainBE = be;
+                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                left = be;
             }
-            return mainBE;
         }
 
         nodeToken();
