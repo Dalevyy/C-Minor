@@ -26,6 +26,8 @@ public class BinaryOp extends Operator {
     public boolean isBinaryOp() { return true; }
     public BinaryOp asBinaryOp() { return this; }
 
+    public boolean equals(String op) { return this.toString().equals(op); }
+
     @Override
     public String toString() { return names.get(bOp.ordinal()); }
 
