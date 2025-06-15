@@ -6,9 +6,9 @@ import utilities.Visitor;
 
 public class BinaryExpr extends Expression {
 
-    private Expression LHS;
-    private Expression RHS;
-    private BinaryOp op;
+    private final Expression LHS;
+    private final Expression RHS;
+    private final BinaryOp op;
 
     public BinaryExpr(Token t, Expression LHS, Expression RHS, BinaryOp op) {
         super(t);
@@ -31,4 +31,27 @@ public class BinaryExpr extends Expression {
 
     @Override
     public void visit(Visitor v) { v.visitBinaryExpr(this); }
+
+    public static class BinaryExprBuilder {
+        private Expression LHS;
+        private Expression RHS;
+        private BinaryOp op;
+
+        public BinaryExprBuilder setLHS(Expression LHS) {
+            this.LHS = LHS;
+            return this;
+        }
+
+        public BinaryExprBuilder setRHS(Expression RHS) {
+            this.RHS = RHS;
+            return this;
+        }
+
+        public BinaryExprBuilder setBinaryOp(BinaryOp op) {
+            this.op = op;
+            return this;
+        }
+
+        public BinaryExpr createBinaryExpr() { return new BinaryExpr(new Token(),LHS,RHS,op); }
+    }
 }
