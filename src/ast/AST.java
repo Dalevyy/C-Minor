@@ -39,7 +39,6 @@ public abstract class AST {
      */
     private AST parent;
 
-
     public AST() {
         this.text = "";
         this.location = new Location();
@@ -62,10 +61,11 @@ public abstract class AST {
     }
 
     public void appendText(String s) { this.text += s; }
+    public String getText() { return this.text; }
+
+    public void setEndLocation(Position end) { this.location.end = end;}
     public Location getLocation() { return this.location; }
     public int startLine() { return this.location.start.line; }
-    public void setEndLocation(Position end) { this.location.end = end;}
-    public String getText() { return this.text; }
 
     public void copy(AST n) {
         this.text = n.text;
@@ -78,6 +78,19 @@ public abstract class AST {
         for(AST c : n.children) {
             this.addChild(c);
             c.parent = this;
+        }
+        
+        AST curr = n;
+        while(curr.getParent() != null) {
+            curr = curr.getParent();
+            for(int i = 0; i < curr.children.size(); i++) {
+                AST c = curr.children.get(i);
+                if(c == n) {
+                    c.removeChild(i);
+                    c.children.add(i,this);
+                }
+            }
+            n.parent = n.getParent();
         }
         n.parent = null;
     }
