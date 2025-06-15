@@ -50,8 +50,6 @@ public class FieldRewrite extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
-    public void visitFieldExpr(FieldExpr fe) {}
-
     public void visitNameExpr(NameExpr ne) {
         if(currentScope.hasNameSomewhere(ne.toString())) {
             if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
