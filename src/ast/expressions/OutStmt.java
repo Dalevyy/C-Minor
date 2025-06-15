@@ -11,6 +11,9 @@ public class OutStmt extends Expression {
     public OutStmt(Token t, Vector<Expression> e) {
         super(t);
         this.exprs = e;
+
+        addChild(this.exprs);
+        setParent();
     }
 
     public Vector<Expression> outExprs() { return exprs; }
