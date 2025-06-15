@@ -15,7 +15,8 @@ public abstract class Error extends Message {
         StringBuilder sb = new StringBuilder();
 
         sb.append(this.header());
-        sb.append(this.location().line());
+        if(this.location() != null)
+            sb.append(this.location().line());
         sb.append(this.buildError());
         if(this.suggest != null) {
             sb.append("\n");
@@ -33,7 +34,8 @@ public abstract class Error extends Message {
                 || this.errorType() == MessageType.SCOPE_ERROR_305
                 || this.errorType() == MessageType.SCOPE_ERROR_311
                 || this.errorType() == MessageType.SCOPE_ERROR_312
-                || this.errorType() == MessageType.SCOPE_ERROR_316)
+                || this.errorType() == MessageType.SCOPE_ERROR_316
+                || this.errorType() == MessageType.SCOPE_ERROR_329)
             throw new RuntimeException("Redeclaration");
         else
             throw new RuntimeException("Error");

@@ -1,12 +1,16 @@
 
-def global SIZE = 10 Int
+def const SIZE:Int = 10
 
-def BinarySearch(in num Int) => Bool {
-    def lst = Array[SIZE](1,2,3,4,5,6,7,8,9,10) Array[Int]
-    def l = 0, r = SIZE-1 Int
-    def mid = l + (r-l)/2 Int
+def BinarySearch(in num:Int) => Bool {
+    def lst:Array[Int] = Array[10](1,2,3,4,5,6,7,8,9,10)
+    def l:Int = 0, r:Int = SIZE-1 
+    def mid:Int = uninit 
 
     while(l <= r) {
+        set mid = l + (r-l)/2 
+        if(mid < 1 or mid > SIZE) {
+            return False 
+        }
         if(num > lst[mid]) {
             set l = mid+1
         }
@@ -22,7 +26,7 @@ def BinarySearch(in num Int) => Bool {
 }
 
 def main() => Void {
-    def local numToFind = uninit Int
+    def local numToFind:Int = uninit
 
     cout << 'Please enter a number:'
     cin >> numToFind

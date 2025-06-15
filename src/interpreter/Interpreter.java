@@ -1,23 +1,59 @@
 package interpreter;
 
-import ast.*;
-import ast.classbody.*;
-import ast.expressions.*;
+import ast.AST;
+import ast.classbody.InitDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.ArrayExpr;
+import ast.expressions.ArrayLiteral;
+import ast.expressions.BinaryExpr;
+import ast.expressions.BreakStmt;
+import ast.expressions.CastExpr;
+import ast.expressions.ContinueStmt;
+import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
+import ast.expressions.InStmt;
+import ast.expressions.Invocation;
+import ast.expressions.ListLiteral;
+import ast.expressions.Literal;
+import ast.expressions.NameExpr;
+import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
+import ast.expressions.This;
+import ast.expressions.UnaryExpr;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
-import ast.statements.*;
-import ast.topleveldecls.*;
+import ast.statements.AssignStmt;
+import ast.statements.BlockStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.ListStmt;
+import ast.statements.LocalDecl;
+import ast.statements.ReturnStmt;
+import ast.statements.RetypeStmt;
+import ast.statements.Statement;
+import ast.statements.StopStmt;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
 import ast.types.ClassType;
-import ast.types.DiscreteType;
 import ast.types.Type;
-import messages.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import messages.MessageType;
 import messages.errors.ErrorBuilder;
 import messages.errors.runtime.RuntimeErrorFactory;
-import utilities.*;
-
-import java.io.*;
-import java.util.HashMap;
-import java.math.BigDecimal;
+import utilities.RuntimeStack;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 
 public class Interpreter extends Visitor {
 
@@ -32,7 +68,7 @@ public class Interpreter extends Visitor {
     private boolean continueFound;
 
     /**
-     * Creates interpreter for the VM
+     * Creates interpreter for the VM.
      * @param st Symbol Table
      */
     public Interpreter(SymbolTable st) {
@@ -46,7 +82,7 @@ public class Interpreter extends Visitor {
     }
 
     /**
-     * Build string that will output the contents of an array or list.<br><br>
+     * Builds string that will output the contents of an array or list.<br><br>
      * <p>
      *     To avoid users needing to create for loops to view individual contents
      *     of an array or list, C Minor will allow a user to output the array or
@@ -123,7 +159,7 @@ public class Interpreter extends Visitor {
     }
 
     /**
-     * Evaluates an array literal.
+     * Evaluates an array literal.<br><br>
      * <p>
      *     Arrays are static in C Minor, so a user can not change its size
      *     once an array literal is declared. We will evaluate every expression
@@ -146,14 +182,15 @@ public class Interpreter extends Visitor {
         currValue = arr;
     }
 
-    /*
-    _________________________ Assignment Statements _________________________
-    We will evaluate the LHS of the assignment to figure out what variable we
-    are updating and then the RHS to know what value we are going to assign
-    to it. Then, we will update the variable in the current call frame based
-    on the assignment operator we have.
-    _________________________________________________________________________
-    */
+    /**
+     * Executes an assignment statement.<br><br>
+     * <p>
+     *     We will first evaluate the LHS of the assignment, so we can access
+     *     the correct variable in the runtime stack. Then, we will evaluate
+     *     the RHS and assign its value into the current call frame.
+     * </p>
+     * @param as Assignment Statement
+     */
     public void visitAssignStmt(AssignStmt as) {
         String name = as.LHS().toString();
 
@@ -214,68 +251,93 @@ public class Interpreter extends Visitor {
             return;
         }
 
+        HashMap<String,Object> instance = null;
+        if(as.LHS().isNameExpr() && as.LHS().asNameExpr().getThis() != null)
+            instance = (HashMap<String,Object>) stack.getValue("this");
+
         // TODO: Operator Overloads as well
 
         switch(aOp) {
-            case "=": {
-                stack.setValue(name,newValue);
+            case "=":
+                if(instance != null)
+                    instance.put(name,newValue);
+                else
+                    stack.setValue(name,newValue);
                 break;
-            }
             case "+=":
             case "-=":
             case "*=":
             case "/=":
             case "%=":
-            case "**=": {
+            case "**=":
                 if(as.RHS().type.isInt()) {
-                    int oldVal = (int) stack.getValue(name);
+                    int oldVal;
+                    if(instance != null)
+                        oldVal = (int) instance.get(name);
+                    else
+                        oldVal = (int) stack.getValue(name);
                     int val = (int) newValue;
+                    int nextVal = 0;
                     switch(aOp) {
-                        case "+=" -> stack.setValue(name,oldVal+val);
-                        case "-=" -> stack.setValue(name,oldVal-val);
-                        case "*=" -> stack.setValue(name,oldVal*val);
-                        case "/=" -> stack.setValue(name,oldVal/val);
-                        case "%=" -> stack.setValue(name,oldVal%val);
-                        case "**=" -> stack.setValue(name,Math.pow(oldVal,val));
+                        case "+=" -> nextVal = oldVal+val;
+                        case "-=" -> nextVal = oldVal-val;
+                        case "*=" -> nextVal = oldVal*val;
+                        case "/=" -> nextVal = oldVal/val;
+                        case "%=" -> nextVal = oldVal%val;
+                        case "**=" -> nextVal = (int)Math.pow(oldVal,val);
                     }
+                    if(instance != null)
+                        instance.put(name,nextVal);
+                    else
+                        stack.setValue(name,nextVal);
                     break;
                 }
                 else if(as.RHS().type.isReal()) {
-                    BigDecimal oldVal = (BigDecimal) stack.getValue(name);
+                    BigDecimal oldVal;
+                    if(instance != null)
+                        oldVal = (BigDecimal) instance.get(name);
+                    else
+                        oldVal = (BigDecimal) stack.getValue(name);
                     BigDecimal val = (BigDecimal) newValue;
+                    BigDecimal nextVal = null;
                     switch(aOp) {
-                        case "+=" -> stack.setValue(name,oldVal.add(val));
-                        case "-=" -> stack.setValue(name,oldVal.subtract(val));
-                        case "*=" -> stack.setValue(name,oldVal.multiply(val));
-                        case "/=" -> stack.setValue(name,oldVal.divide(val));
-                        case "%=" -> stack.setValue(name,oldVal.remainder(val));
-                        case "**=" -> stack.setValue(name,oldVal.pow(val.toBigInteger().intValue()));
+                        case "+=" -> nextVal = oldVal.add(val);
+                        case "-=" -> nextVal = oldVal.subtract(val);
+                        case "*=" -> nextVal = oldVal.multiply(val);
+                        case "/=" -> nextVal = oldVal.divide(val);
+                        case "%=" -> nextVal = oldVal.remainder(val);
+                        case "**=" -> nextVal = oldVal.pow(val.toBigInteger().intValue());
                     }
+                    if(instance != null)
+                        instance.put(name,nextVal);
+                    else
+                        stack.setValue(name,nextVal);
                     break;
                 }
-                else if(as.RHS().type.isString()) {
-                    String oldVal = (String) stack.getValue(name);
-                    String val = (String) newValue;
-                    stack.setValue(name,oldVal+val);
-                    break;
+                else {
+                    String oldVal = "";
+                    if(instance != null)
+                        oldVal = instance.get(name).toString();
+                    else
+                        stack.getValue(name).toString();
+                    String val = newValue.toString();
+                    if(instance != null)
+                            instance.put(name,oldVal+val);
+                    else
+                        stack.setValue(name,oldVal+val);
                 }
-            }
-        }
-
-        if(as.LHS().isFieldExpr()) {
-            String objName = as.LHS().asFieldExpr().fieldTarget().toString();
-            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
-            instance.put(name,stack.getValue(name));
         }
     }
 
-    /*
-    ___________________________ Binary Expressions ___________________________
-    We will first evaluate the LHS and then the RHS. From there, we will
-    evaluate the binary expression based on the types of both the LHS and RHS
-    and perform the correct operation from there.
-    __________________________________________________________________________
-    */
+    /**
+     * Evaluates a binary expression.<br><br>
+     * <p>
+     *     We will first evaluate the LHS and the RHS of the binary expression.
+     *     Then, we will evaluate the binary expression based on the LHS and RHS
+     *     types.
+     * </p>
+     * @param be Binary Expression
+     */
     public void visitBinaryExpr(BinaryExpr be) {
         be.LHS().visit(this);
         Object LHS = currValue;
@@ -303,13 +365,13 @@ public class Interpreter extends Visitor {
                         case "*" -> currValue = lValue * rValue;
                         case "/" -> currValue = lValue / rValue;
                         case "%" -> currValue = lValue % rValue;
-                        case "**" -> currValue = Math.pow(lValue,rValue);
+                        case "**" -> currValue = (int) Math.pow(lValue,rValue);
                     }
                     break;
                 }
                 else if(be.type.isReal()) {
-                    BigDecimal lValue = (BigDecimal) LHS;
-                    BigDecimal rValue = (BigDecimal) RHS;
+                    BigDecimal lValue = new BigDecimal(LHS.toString());
+                    BigDecimal rValue = new BigDecimal(RHS.toString());
                     switch(binOp) {
                         case "+" -> currValue = lValue.add(rValue);
                         case "-" -> currValue = lValue.subtract(rValue);
@@ -352,13 +414,13 @@ public class Interpreter extends Visitor {
                     int rValue = (int) RHS;
                     switch(binOp) {
                         case "==" -> currValue = lValue == rValue;
-                        case "!=" -> currValue = lValue == rValue;
+                        case "!=" -> currValue = lValue != rValue;
                     }
                     break;
                 }
                 else if(be.LHS().type.isChar() && be.RHS().type.isChar()) {
-                    char lValue = (char) LHS;
-                    char rValue = (char) RHS;
+                    char lValue = LHS.toString().charAt(0);
+                    char rValue = RHS.toString().charAt(0);
                     switch(binOp) {
                         case "==" -> currValue = lValue == rValue;
                         case "!=" -> currValue = lValue != rValue;
@@ -391,13 +453,13 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(be.LHS().type.isReal() && be.RHS().type.isReal()) {
-                    BigDecimal lValue = (BigDecimal) LHS;
-                    BigDecimal rValue = (BigDecimal) RHS;
+                    BigDecimal lValue = new BigDecimal(LHS.toString());
+                    BigDecimal rValue = new BigDecimal(RHS.toString());
                     switch (binOp) {
                         case "<" -> currValue = lValue.compareTo(rValue) < 0;
-                        case "<=" -> currValue = lValue.compareTo(rValue) > 0;
-                        case ">" -> currValue = lValue.compareTo(rValue) >= 0;
-                        case ">=" -> currValue = lValue.compareTo(rValue) <= 0;
+                        case "<=" -> currValue = lValue.compareTo(rValue) <= 0;
+                        case ">" -> currValue = lValue.compareTo(rValue) > 0;
+                        case ">=" -> currValue = lValue.compareTo(rValue) >= 0;
                     }
                     break;
                 }
@@ -438,45 +500,52 @@ public class Interpreter extends Visitor {
                 }
             }
             case "instanceof":
-                currValue = ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
-                                                                   be.RHS().type.asClassType());
-                break;
             case "!instanceof":
-                currValue = !ClassType.classAssignmentCompatibility(be.LHS().type.asClassType(),
-                                                                    be.RHS().type.asClassType());
+                ClassType objType;
+                if(be.LHS().type.isMultiType())
+                    objType = be.LHS().type.asMultiType().getRuntimeType();
+                else
+                    objType = be.LHS().type.asClassType();
+
+                currValue = ClassType.classAssignmentCompatibility(objType,be.RHS().type.asClassType());
+                if(binOp.equals("!instanceof"))
+                    currValue = !(boolean)currValue;
                 break;
         }
     }
 
-    /*
-    ________________________ Block Statements ________________________
-    Every time we visit a block statement, we will create a new call
-    frame, visit the statements inside the block, and at the end, we
-    will destroy the call frame when we reach the end of the block.
-    __________________________________________________________________
-    */
+    /**
+     * Executes a block statement.<br><br>
+     * <p>
+     *     For every block statement, we will create a new call frame on
+     *     the runtime stack. We will then visit every declaration and
+     *     statement found inside the block statement. Depending on the
+     *     flags we find, we will also terminate executing the block
+     *     statement early if needed.
+     * </p>
+     * @param bs Block Statement
+     */
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
-        for(AST decl : bs.decls()) { decl.visit(this); }
+        for(AST decl : bs.decls())
+            decl.visit(this);
 
-        for(int i = 0; i < bs.stmts().size(); i++) {
-            bs.stmts().get(i).visit(this);
-            if(returnFound) { break; }
-            else if(breakFound) { break; }
-            else if(continueFound) {
-                continueFound = false;
+        for(Statement s : bs.stmts()) {
+            s.visit(this);
+            if(returnFound || breakFound || continueFound)
                 break;
-            }
         }
+
         stack = stack.destroyCallFrame();
     }
 
     /**
-     * Terminates the current loop
+     * Executes a break statement.<br><br>
      * <p>
-     *     When a break statement is found, we will set the breakFound
-     *     flag to be true in order to exit the current executing loop.
+     *     When a break statement is found, we will set the {@code breakFound}
+     *     flag to be true. This will allow us to terminate the loop early, and
+     *     we can move on to execute a different part of the program.
      * </p>
      * @param bs Break Statement
      */
@@ -584,21 +653,26 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /*
-    _____________________ Continue Statements _____________________
-    We set the continueFound flag to be true, and we CONTINUE
-    evaluating the C Minor program. ;)
-    _______________________________________________________________
-    */
+    /**
+     * Executes a continue statement.<br><br>
+     * <p>
+     *     When a continue is found, we will set the {@code continueFound}
+     *     flag to be true. This will allow us to stop executing the current
+     *     iteration of the loop and move on to the next iteration.
+     * </p>
+     * @param cs Continue Statement
+     */
     public void visitContinueStmt(ContinueStmt cs) { continueFound = true; }
 
-    /*
-    ___________________________ Do Statements ___________________________
-    For a do while loop, we will execute the loop body once before we
-    evaluate the condition. From there, we handle this construct like we
-    do with while loops.
-    _____________________________________________________________________
-    */
+    /**
+     * Executes a do while loop.<br><br>
+     * <p>
+     *     For a do while loop, we will execute the loop body once and then
+     *     we will continue executing the body as long as the do while's
+     *     condition evaluates to be true.
+     * </p>
+     * @param ds Do Statement
+     */
     public void visitDoStmt(DoStmt ds) {
         do {
             ds.doBlock().visit(this);
@@ -606,6 +680,9 @@ public class Interpreter extends Visitor {
                 breakFound = false;
                 break;
             }
+            else if(continueFound)
+                continueFound = false;
+
             ds.condition().visit(this);
         } while ((boolean) currValue);
     }
@@ -622,28 +699,38 @@ public class Interpreter extends Visitor {
         }
     }
 
-
     /**
-     * We will evaluate the target for the field expression first. From there, the
-     * next evaluation will be based on what the target is trying to access
-     * <ul>
-     *     <li>Name Expression: Evaluate access expression here.</li>
-     *     <li>Everything Else: Evaluate at a different visit</li>
-     * </ul>
+     * Evaluates a field expression.<br><br>
+     * <p>
+     *     We will evaluate the target for the field expression first. From there,
+     *     the next evaluation will be based on what the target is trying to access
+     *     <ul>
+     *      <li>Name Expression: Evaluate access expression here.</li>
+     *      <li>Everything Else: Evaluate at a different visit</li>
+     *     </ul>
+     * </p>
      * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
         HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
 
-        if(fe.accessExpr().isNameExpr())
+        if(fe.accessExpr().isNameExpr()) {
             currValue = instance.get(fe.accessExpr().toString());
+            if(currValue == null) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(fe)
+                        .addErrorType(MessageType.RUNTIME_ERROR_606)
+                        .addArgs(fe.accessExpr(),fe.fieldTarget().type.asMultiType().getRuntimeType())
+                        .error();
+            }
+        }
         else {
             Type oldTarget = currTarget;
-            if(fe.fieldTarget().type.isClassType())
-                currTarget = fe.fieldTarget().type;
-            else
+            if(fe.fieldTarget().type.isMultiType())
                 currTarget = fe.fieldTarget().type.asMultiType().getRuntimeType();
+            else
+                currTarget = fe.fieldTarget().type;
             fe.accessExpr().visit(this);
             currTarget = oldTarget;
         }
@@ -659,7 +746,7 @@ public class Interpreter extends Visitor {
     */
     public void visitForStmt(ForStmt fs) {
         if(fs.condLHS().type.isInt() || fs.condLHS().type.isEnumType()) {
-            int LHS = 0, RHS = 0;
+            int LHS, RHS;
             fs.condLHS().visit(this);
             LHS = (int) currValue;
 
@@ -687,7 +774,7 @@ public class Interpreter extends Visitor {
             stack = stack.destroyCallFrame();
         }
         else if(fs.condRHS().type.isChar()) {
-            char LHS = 0, RHS = 0;
+            char LHS, RHS;
             fs.condLHS().visit(this);
             LHS = (char) currValue;
 
@@ -720,64 +807,75 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /*
-    ________________________ Global Declarations ________________________
-    We will first evaluate the initial value we assign the global
-    variable to and then we will save the variable onto the current call
-    frame.
-    _____________________________________________________________________
-    */
+    /**
+     * Executes a global declaration statement.<br><br>
+     * <p>
+     *     By executing a global declaration, we will be adding a new
+     *     global variable to the runtime stack. If no initial value was
+     *     given to the variable by the user, then the variable will
+     *     automatically be assigned to be null.
+     * </p>
+     * @param gd Global Declaration
+     */
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.var().init() == null) { currValue = null; }
-        else { gd.var().init().visit(this); }
+        if(gd.var().init() == null)
+            currValue = null;
+        else
+            gd.var().init().visit(this);
 
         stack.addValue(gd.var().toString(),currValue);
     }
 
-    /*
-    ________________________ If Statements  ________________________
-    First, we will evaluate the value of the condition. Then, we
-    will use the condition's value to determine which branch of the
-    if statement we will execute.
-    ________________________________________________________________
-    */
+    /**
+     * Executes an if statement.<br><br>
+     * <p>
+     *     For an if statement, we will evaluate the condition first
+     *     to determine which block of the if statement we will need
+     *     to execute.
+     * </p>
+     * @param is If Statement
+     */
     public void visitIfStmt(IfStmt is) {
+        boolean found = false;
         is.condition().visit(this);
-        if((boolean)currValue) { is.ifBlock().visit(this); }
-        else if(is.elifStmts().size() > 0){
+        boolean condition = (boolean) currValue;
+        if(condition)
+            is.ifBlock().visit(this);
+        else if(!is.elifStmts().isEmpty()){
             for(int i = 0; i < is.elifStmts().size(); i++) {
                 IfStmt e = is.elifStmts().get(i);
                 e.condition().visit(this);
                 if ((boolean) currValue) {
+                    found = true;
                     e.ifBlock().visit(this);
                     break;
                 }
-                else if(i == is.elifStmts().size()-1 && is.elseBlock() != null) {
-                    is.elseBlock().visit(this);
-                }
             }
         }
-        else if(is.elseBlock() != null) { is.elseBlock().visit(this); }
+        if(!condition && is.elseBlock() != null && !found)
+            is.elseBlock().visit(this);
     }
 
-    /*
-    _________________________ Init Declarations _________________________
-    When we visit a constructor declaration, we are concerned with
-    initializing all fields that the user did not specify during object
-    instantiation. We will fill these fields in for the user before we
-    continue the execution of the program.
-    _____________________________________________________________________
-    */
+    /**
+     * Executes a constructor declaration.<br><br>
+     * <p>
+     *     A constructor declaration is only visited during a {@code visitNewExpr}
+     *     when we are trying to instantiate a new object. For all fields not
+     *     specified in the new expression, we will add these fields with an initial
+     *     value to the object's hash map.
+     * </p>
+     * @param id Init Declaration
+     */
     public void visitInitDecl(InitDecl id) {
         HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
-        for(int i = 0; i < id.assignStmts().size(); i++) {
-            AssignStmt as = id.assignStmts().get(i);
 
+        for(AssignStmt as : id.assignStmts()) {
             if(!instance.containsKey(as.LHS().toString())) {
                 as.RHS().visit(this);
                 instance.put(as.LHS().toString(),currValue);
             }
         }
+
         currValue = instance;
     }
 
@@ -846,16 +944,22 @@ public class Interpreter extends Visitor {
     */
     public void visitInvocation(Invocation in) {
         Vector<Object> args = new Vector<>();
+        Vector<ParamDecl> params;
         HashMap<String,Object> vals = new HashMap<>();
+
         HashMap<String,Object> obj = null;
-        if(in.targetType.isClassType())
-           obj = (HashMap<String,Object>) currValue;
+        if(in.targetType.isClassType()) {
+            if(!(currValue instanceof HashMap))
+                obj = (HashMap<String,Object>) stack.getValue("this");
+            else
+                obj = (HashMap<String,Object>) currValue;
+        }
 
-
-        for(int i = 0; i < in.arguments().size(); i++) {
-            in.arguments().get(i).visit(this);
+        for(Expression arg : in.arguments()) {
+            arg.visit(this);
             args.add(currValue);
         }
+
         if(in.toString().equals("length")) {
             Vector<Object> arr = (Vector<Object>) currValue;
             currValue = arr.size() - 1;
@@ -866,57 +970,37 @@ public class Interpreter extends Visitor {
         stack = stack.createCallFrame();
 
         // Function Invocation
-        if(!in.targetType.isClassType()) {
+        if(in.targetType.isVoidType()) {
             FuncDecl fd = currentScope.findName(in.invokeSignature()).decl().asTopLevelDecl().asFuncDecl();
+            params = fd.params();
             currentScope = fd.symbolTable;
 
-            for(int i = 0; i < in.arguments().size(); i++) {
-                ParamDecl currParam = fd.params().get(i);
-                stack.addValue(currParam.toString(),args.get(i));
-            }
+            for(int i = 0; i < in.arguments().size(); i++)
+                stack.addValue(params.get(i).toString(),args.get(i));
 
             fd.funcBlock().visit(this);
-            returnFound = false;
-
-            for(int i = 0; i < in.arguments().size(); i++) {
-                if(in.arguments().get(i).isNameExpr()) {
-                    String argName = in.arguments().get(i).toString();
-                    ParamDecl currParam = fd.params().get(i);
-
-                    if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
-                        vals.put(argName,stack.getValue(currParam.toString()));
-                }
-            }
         }
         // Method Invocation
         else {
-            // ERROR CHECK #1: Generate an exception if the current object
-            //                 does not match the expected target type
-            if(!currTarget.toString().equals(in.targetType.toString())) {
-                if(!currentScope.hasName(in.targetType.typeName()))
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
-                            .addLocation(in)
-                            .addErrorType(MessageType.RUNTIME_ERROR_604)
-                            .addArgs(in.toString(),currTarget,in.targetType)
-                            .error();
+            // ERROR CHECK #1: Generate an exception if the current object type
+            //                 is not assignment compatible with the target type
+            if(!ClassType.classAssignmentCompatibility(currTarget.asClassType(),in.targetType.asClassType())) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.RUNTIME_ERROR_604)
+                        .addArgs(in.toString(),currTarget,in.targetType)
+                        .error();
             }
 
-            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
-//            String methodName = in.invokeSignature();
-//
-//            String searchMethod = methodName;
-//            ClassDecl startClass = cd;
-//            while(!cd.symbolTable.hasName(searchMethod)) {
-//                startClass = currentScope.findName(startClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-//                searchMethod = methodName + "/" + startClass.toString();
-//            }
-//            methodName = searchMethod;
+            ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            while(!cd.symbolTable.hasName(in.invokeSignature()))
+                cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
 
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
+            params = md.params();
             currentScope = md.symbolTable;
 
-            if(obj != null)
-                for(String s : obj.keySet()) { stack.addValue(s,obj.get(s)); }
+            if(obj != null) { stack.addValue("this",obj); }
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -924,16 +1008,16 @@ public class Interpreter extends Visitor {
             }
 
             md.methodBlock().visit(this);
-            returnFound = false;
+        }
 
-            for(int i = 0; i < in.arguments().size(); i++) {
-                if(in.arguments().get(i).isNameExpr()) {
-                    String argName = in.arguments().get(i).toString();
-                    ParamDecl currParam = md.params().get(i);
+        returnFound = false;
+        for(int i = 0; i < in.arguments().size(); i++) {
+            if(in.arguments().get(i).isNameExpr()) {
+                String argName = in.arguments().get(i).toString();
+                ParamDecl currParam = params.get(i);
 
-                    if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
-                        vals.put(argName,stack.getValue(currParam.toString()));
-                }
+                if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
+                    vals.put(argName,stack.getValue(currParam.toString()));
             }
         }
 
@@ -1013,64 +1097,91 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /*
-    ________________________ Literals ________________________
-    Whenever we visit a literal, we will just evaluate it and
-    set the current value to equal the evaluation result.
-    __________________________________________________________
-    */
+    /**
+     * Evaluates a literal.<br><br>
+     * <p>
+     *     We will interpret the value of the literal
+     *     and save it into the {@code currValue}.
+     * </p>
+     * @param li Literal
+     */
     public void visitLiteral(Literal li) {
-        if(li.type.isInt() || (li.type.isEnumType() && li.type.asEnumType().constantType().isInt())) {
-            if(li.text.charAt(0) == '~') { currValue = (-1*Integer.parseInt(li.text.substring(1))); }
-            else { currValue = Integer.parseInt(li.text); }
+        switch(li.getConstantKind()) {
+            case INT:
+                currValue = Integer.parseInt(li.text);
+                break;
+            case CHAR:
+                if(li.text.length() == 0)
+                    currValue = "";
+                else
+                    currValue = li.text.charAt(1);
+                break;
+            case BOOL:
+                currValue = Boolean.parseBoolean(li.text);
+                break;
+            case REAL:
+                currValue = new BigDecimal(li.text);
+                break;
+            case STR:
+                if(li.text.length()== 0)
+                    currValue = "";
+                else
+                    currValue = li.text.substring(1,li.text.length()-1); // Removes quotes
+                break;
+            default:
+                if(li.type.asEnumType().constantType().isInt())
+                    currValue = Integer.parseInt(li.text);
+                else
+                    currValue = li.text.charAt(1);
         }
-        else if(li.type.isChar() || (li.type.isEnumType() && li.type.asEnumType().constantType().isChar())) {
-            if(li.text.charAt(1) == '\\') { currValue = li.text.substring(1,3); }
-            else { currValue = li.text.charAt(1); }
-        }
-        else if(li.type.isBool()) { currValue = Boolean.parseBoolean(li.text); }
-        else if(li.type.isReal()) {
-            if(li.text.charAt(0) == '~') { currValue = (new BigDecimal(li.text.substring(1)).multiply(new BigDecimal(-1))); }
-            else { currValue = new BigDecimal(li.text); }
-        }
-        else if(li.type.isString()) { currValue = li.text.substring(1,li.text.length()-1); } // Removes single quotes
     }
 
-    /*
-    ________________________ Local Declarations ________________________
-    We first visit the initial value that is set when we are making a
-    local declaration (at this point, the value will be either given or
-    we will manually set one for the user). We will then add the local
-    variable onto the current call frame.
-    ____________________________________________________________________
-    */
+    /**
+     * Executes a local declaration statement.<br><br>
+     * <p>
+     *     By executing a local declaration, we will allocate space
+     *     on the runtime stack to store a new local value. If there is
+     *     no value to store (i.e. if a user did not assign any value to
+     *     the variable), we will just store null.
+     * </p>
+     * @param ld Local Declaration
+     */
     public void visitLocalDecl(LocalDecl ld) {
-        if(ld.var().init() == null) { currValue = null; }
-        else { ld.var().init().visit(this); }
+        if(ld.var().init() == null)
+            currValue = null;
+        else
+            ld.var().init().visit(this);
 
         stack.addValue(ld.var().toString(),currValue);
     }
 
-    /*
-    _________________________ Name Expressions  _________________________
-    For name expressions, we just need to retrieve the value associated
-    with the name from the stack and set the current value equal to it.
-    _____________________________________________________________________
-    */
+    /**
+     * Evaluates a name expression.<br><br>
+     * <p>
+     *     By evaluating a name expression, we are trying to access the
+     *     value stored at its memory location in the runtime stack.
+     * </p>
+     * @param ne Name Expression
+     */
     public void visitNameExpr(NameExpr ne) {
-        if (ne.getName().toString().equals("this")) { currValue = stack.getValue("this"); }
-        else {
-            currValue = stack.getValue(ne.toString());
+        if(ne.getThis() != null) {
+            ne.getThis().visit(this);
+            currValue = ((HashMap<String,Object>)currValue).get(ne.toString());
         }
+        else
+            currValue = stack.getValue(ne.toString());
     }
 
-    /*
-    ___________________________ New Expressions ___________________________
-    When we are instantiating a new object, we will create a hash map that
-    stores each object's initial field value (if specified by the user) and
-    then we will call the constructor we made for the user.
-    _______________________________________________________________________
-    */
+    /**
+     * Evaluates a new expression.<br><br>
+     * <p>
+     *     When we are instantiating a new object, we will use a hash map to
+     *     keep track of the internal state of the object. During this visit,
+     *     we will store all fields the user chose to initialize prior to
+     *     calling the constructor to handle the rest of the field initializations.
+     * </p>
+     * @param ne New Expression
+     */
     public void visitNewExpr(NewExpr ne) {
         ClassDecl cd = currentScope.findName(ne.classType().typeName()).decl().asTopLevelDecl().asClassDecl();
 
@@ -1081,14 +1192,15 @@ public class Interpreter extends Visitor {
         }
         currValue = instance;
 
-        if(cd.constructor() != null) { cd.constructor().visit(this); }
+        if(cd.constructor() != null)
+            cd.constructor().visit(this);
     }
 
     /**
-     * Evaluates and prints out expressions in the VM
+     * Evaluates expressions that will be printed inside the VM.<br><br>
      * <p>
-     *     We will print out every expression that appears in the current
-     *     output statement during this visit.
+     *     We will visit every expression contained in the current
+     *     output statement and print each value to the terminal.
      * </p>
      * @param os Output Statement
      */
@@ -1097,35 +1209,36 @@ public class Interpreter extends Visitor {
             e.visit(this);
             if(e.isEndl())
                 System.out.println();
-            else {
-                if(e.type.isArrayType() || e.type.isListType()) {
-                    Vector<Object> arr = (Vector<Object>) currValue;
-                    StringBuilder sb = new StringBuilder();
-                    printList(arr,sb);
-                    System.out.print(sb);
-                }
-                else
-                    System.out.print(currValue);
+            else if(e.type.isArrayType() || e.type.isListType()) {
+                Vector<Object> arr = (Vector<Object>) currValue;
+                StringBuilder sb = new StringBuilder();
+                printList(arr,sb);
+                System.out.print(sb);
             }
+            else
+                System.out.print(currValue);
         }
         System.out.println();
     }
 
-    /*
-    ___________________________ Return Statements ___________________________
-    If a return statement has an expression, we will evaluate the expression.
-    Then, we will just set the return found flag to be true, so we can stop
-    evaluating statements in the block statement.
-    _________________________________________________________________________
-    */
+    /**
+     * Executes a return statement.<br><br>
+     * <p>
+     *     When we encounter a return statement, we will evaluate the expression
+     *     that will be returned (if there is any) and set the {@code returnFound}
+     *     flag to be true.
+     * </p>
+     * @param rs Return Statements
+     */
     public void visitReturnStmt(ReturnStmt rs) {
-        if(rs.expr() != null) { rs.expr().visit(this); }
+        if(rs.expr() != null)
+            rs.expr().visit(this);
         returnFound = true;
     }
 
     public void visitRetypeStmt(RetypeStmt rs) {
         rs.getNewObject().visit(this);
-        stack.addValue(rs.getName().toString(),currValue);
+        stack.setValue(rs.getName().toString(),currValue);
 
         AST decl = currentScope.findName(rs.getName().toString()).decl();
         if(decl.isTopLevelDecl()) {
@@ -1142,58 +1255,61 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /*
-    __________________________ Stop Statements  __________________________
-    When we encounter a `stop`, we are going to terminate the interpreter.
-    ______________________________________________________________________
-    */
+    /**
+     * Executes a stop statement.<br><br>
+     * <p>
+     *     If a stop statement is written by the user, we
+     *     will simply terminate the C Minor interpreter.
+     * </p>
+     * @param ss Stop Statement
+     */
     public void visitStopStmt(StopStmt ss) { System.exit(1); }
 
+    /**
+     * Executes a {@code This} statement.<br><br>
+     * <p>
+     *     When we are inside of a class, we want to make sure we access the
+     *     correct fields and methods for the current object. This will be done
+     *     by
+     * </p>
+     * @param t This Statement
+     */
     public void visitThis(This t) { currValue = stack.getValue("this"); }
 
-    /*
-    __________________________ Unary Expressions  __________________________
-    We will evaluate unary expressions just like we did with binary
-    expressions by first evaluating the individual expression. From there,
-    we will perform the operation that is needed.
-    ________________________________________________________________________
-    */
+    /**
+     * Evaluates a unary expression.<br><br>
+     * <p>
+     *     We will evaluate the unary expression and store
+     *     the result into the {@code currValue} variable.
+     * </p>
+     * @param ue Unary Expression
+     */
     public void visitUnaryExpr(UnaryExpr ue) {
         ue.expr().visit(this);
-        Object val = currValue;
-
-        String uOp = ue.unaryOp().toString();
 
         //TODO: Operator Overload
 
-        switch(uOp) {
-            case "~": {
-                if(ue.type.isInt()) {
-                    int uVal = (int) val;
-                    currValue = uVal * -1;
-                    break;
-                }
-                else if(ue.type.isReal()) {
-                    BigDecimal uVal = (BigDecimal) val;
-                    currValue = uVal.multiply(new BigDecimal(-1));
-                    break;
-                }
-            }
-            case "not": {
-                boolean uVal = (boolean) val;
-                currValue = !uVal;
+        switch(ue.unaryOp().toString()) {
+            case "~":
+                if(ue.type.isInt())
+                    currValue = ~((int) currValue);
+                else
+                    currValue = ~((char) currValue);
                 break;
-            }
+            case "not":
+                currValue = !((boolean) currValue);
+                break;
         }
     }
 
-    /*
-    ___________________________ While Statements ___________________________
-    For a while loop, we evaluate the condition and if its true, then we
-    will continue to execute the body of the loop until the condition
-    evaluates to be false.
-    ________________________________________________________________________
-    */
+    /**
+     * Executes a while loop.<br><br>
+     * <p>
+     *     For a while loop, we will evaluates its condition and executes its
+     *     body as long as its condition remains true.
+     * </p>
+     * @param ws While Statement
+     */
     public void visitWhileStmt(WhileStmt ws) {
         ws.condition().visit(this);
         while((boolean)currValue) {
@@ -1202,6 +1318,8 @@ public class Interpreter extends Visitor {
                 breakFound = false;
                 break;
             }
+            else if(continueFound)
+                continueFound = false;
             ws.condition().visit(this);
         }
     }

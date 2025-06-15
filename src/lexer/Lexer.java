@@ -1,5 +1,8 @@
 package lexer;
 
+import messages.MessageType;
+import messages.errors.ErrorBuilder;
+import messages.errors.syntax.SyntaxErrorFactory;
 import token.Location;
 import token.Position;
 import token.Token;
@@ -39,6 +42,12 @@ public class Lexer {
      *  the parser in order to generate syntax error messages.*/
     private final Vector<String> lines;
 
+    /** A {@code SyntaxErrorFactor} to create lexer errors. */
+    private final SyntaxErrorFactory generateSyntaxError;
+
+    /** Current mode the lexer is running in. */
+    private boolean interpretMode = false;
+
     /**
      * Creates a new {@code Lexer} instance, will be called by the parser.
      * @param file C Minor program that will be tokenized.
@@ -50,6 +59,13 @@ public class Lexer {
         this.currLoc = new Location();
         this.currText = "";
         this.lines = new Vector<>();
+        this.generateSyntaxError = new SyntaxErrorFactory();
+    }
+
+    /** Creates a new {@code Lexer} instance in interpretation mode.*/
+    public Lexer(final String file, boolean mode) {
+        this(file);
+        this.interpretMode = mode;
     }
 
     /**
@@ -133,14 +149,24 @@ public class Lexer {
 
     /** Consumes a single line comment that starts with {@code //}.*/
     private void consumeComment() {
-        while(lookChar != '\n') { consume(); }
+        while(lookChar != '\n' && lookChar != EOF)
+            consume();
         consumeWhitespace();
     }
 
     /** Consumes a multi-line comment that starts with {@code /*}.*/
     private void consumeMultiLineComment() {
-        while(!(match('*') && match('/'))) { consume(); }
-        consumeWhitespace();
+        while(lookChar != EOF) {
+            consume();
+            if(match('*') && match('/')) {
+                consumeWhitespace();
+                return;
+            }
+
+        }
+        new ErrorBuilder(generateSyntaxError,interpretMode)
+                .addErrorType(MessageType.SYNTAX_ERROR_100)
+                .error();
     }
 
     /** Checks if EOF was reached.*/
@@ -341,7 +367,6 @@ public class Lexer {
             case "main" -> new Token(TokenType.MAIN, "main", currLoc.copy());
             case "method" -> new Token(TokenType.METHOD, "method", currLoc.copy());
             case "new" -> new Token(TokenType.NEW, "new", currLoc.copy());
-            case "next" -> new Token(TokenType.NEXT, "next", currLoc.copy());
             case "not" -> new Token(TokenType.NOT, "not", currLoc.copy());
             case "on" -> new Token(TokenType.ON, "on", currLoc.copy());
             case "only" -> new Token(TokenType.ONLY, "only", currLoc.copy());
@@ -397,7 +422,8 @@ public class Lexer {
             consume();
         }
 
-        // Only tokenize a real number when we don't have a loop operator :)
+        // Only tokenize a real number when we don't have a loop operator
+        // Sorta a hack, but it is what it is... :')
         if(lookChar == '.' && currPos+1 < file.length() && file.charAt(currPos+1) != '.') {
                 match('.');
                 newNum.append('.');
@@ -457,12 +483,7 @@ public class Lexer {
                     return new Token(TokenType.DIV, "/", currLoc.copy());
                 case '~':
                     consume();
-                    if(isDigit()) {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append('~');
-                        return number(sb);
-                    }
-                    return new Token(TokenType.TILDE, "~", currLoc.copy());
+                    return new Token(TokenType.BNOT, "~", currLoc.copy());
                 case '%':
                     consume();
                     if(match('=')) { return new Token(TokenType.MODEQ, "%=", currLoc.copy()); }

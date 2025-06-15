@@ -9,6 +9,10 @@ import java.util.Properties;
 
 public enum MessageType {
 
+    /*      SYNTAX ERRORS     */
+    SYNTAX_ERROR_100,
+    SYNTAX_ERROR_101,
+
     /*      SCOPE ERRORS     */
     SCOPE_ERROR_300,
     SCOPE_ERROR_301,
@@ -43,6 +47,11 @@ public enum MessageType {
     SCOPE_ERROR_330,
     SCOPE_ERROR_331,
     SCOPE_ERROR_332,
+    SCOPE_ERROR_333,
+    SCOPE_ERROR_334,
+    SCOPE_ERROR_335,
+    SCOPE_ERROR_336,
+    SCOPE_ERROR_337,
 
     /*      TYPE ERRORS     */
     TYPE_ERROR_400,
@@ -127,6 +136,9 @@ public enum MessageType {
     RUNTIME_ERROR_603,
     RUNTIME_ERROR_604,
     RUNTIME_ERROR_605,
+    RUNTIME_ERROR_606,
+
+    SEMANTIC_ERROR_700,
 
     SCOPE_SUGGEST_1300,
     SCOPE_SUGGEST_1301,
@@ -152,8 +164,9 @@ public enum MessageType {
     MOD_SUGGEST_1504,
     MOD_SUGGEST_1505,
     MOD_SUGGEST_1506,
-    MOD_SUGGEST_1507;
+    MOD_SUGGEST_1507,
 
+    SEMANTIC_SUGGEST_1700;
 
     private static Properties errorMessages;
     private static final String PATH = "utilities/MessageType.properties";

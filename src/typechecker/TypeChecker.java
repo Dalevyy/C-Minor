@@ -17,6 +17,7 @@ import ast.expressions.Literal.ConstantKind;
 import ast.expressions.Literal.LiteralBuilder;
 import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
 import ast.expressions.This;
 import ast.expressions.UnaryExpr;
 import ast.misc.Var;
@@ -66,7 +67,10 @@ public class TypeChecker extends Visitor {
     private final TypeErrorFactory generateTypeError;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
+    
     private boolean returnFound = false;
+    private boolean parentFound = false;
+    private boolean inControlStmt = false;
 
     /**
      * Creates type checker in compilation mode
@@ -115,6 +119,28 @@ public class TypeChecker extends Visitor {
 
         init.visit(this);
         return init;
+    }
+
+    /**
+     * Changes the type of a variable.<br><br>
+     * <p>
+     *     This method will only be called from {@code visitRetypeStmt}
+     *     when a user changes the type of an object.
+     * </p>
+     * @param varName Variable we are changing the type of
+     * @param varType New type for the variable
+     */
+    private void setVarType(String varName, Type varType) {
+        AST varDecl = currentScope.findName(varName).decl();
+        
+        if(varDecl.isTopLevelDecl())
+            varDecl.asTopLevelDecl().asGlobalDecl().setType(varType);
+        else if(varDecl.isParamDecl())
+            varDecl.asParamDecl().setType(varType);
+        else if(varDecl.isFieldDecl())
+            varDecl.asFieldDecl().setType(varType);
+        else
+            varDecl.asStatement().asLocalDecl().setType(varType);
     }
 
     /**
@@ -458,25 +484,27 @@ public class TypeChecker extends Visitor {
                     .error());
         }
 
-        if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
-            // ERROR CHECK #2: For a '+=' operation, the only allowed types
-            //                 are Int, Real, String, and Object
-            if (lType.isBool() || lType.isChar())
-                errors.add(new ErrorBuilder(generateTypeError, interpretMode)
-                        .addLocation(as)
-                        .addErrorType(MessageType.TYPE_ERROR_403)
-                        .addArgs(as.assignOp().toString(), lType)
-                        .error());
-        }
-        else {
-            // ERROR CHECK #3: For all other assignment operators, the types
-            //                 Int, Real, and Object have to be used
-            if(lType.isBool() || lType.isChar() || lType.isString())
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(as)
-                        .addErrorType(MessageType.TYPE_ERROR_403)
-                        .addArgs(as.assignOp().toString(),lType)
-                        .error());
+        if(as.assignOp().getAssignOp() != AssignType.EQ) {
+            if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
+                // ERROR CHECK #2: For a '+=' operation, the only allowed types
+                //                 are Int, Real, String, and Object
+                if (lType.isBool() || lType.isChar())
+                    errors.add(new ErrorBuilder(generateTypeError, interpretMode)
+                            .addLocation(as)
+                            .addErrorType(MessageType.TYPE_ERROR_403)
+                            .addArgs(as.assignOp().toString(), lType)
+                            .error());
+            }
+            else {
+                // ERROR CHECK #3: For all other assignment operators, the types
+                //                 Int, Real, and Object have to be used
+                if(lType.isBool() || lType.isChar() || lType.isString())
+                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+                            .addLocation(as)
+                            .addErrorType(MessageType.TYPE_ERROR_403)
+                            .addArgs(as.assignOp().toString(),lType)
+                            .error());
+            }
         }
     }
 
@@ -709,7 +737,7 @@ public class TypeChecker extends Visitor {
             case "!instanceof":
             case "as?": {
                 // ERROR CHECK #10: Make sure the LHS is not a class name
-                if(!lType.isClassType()) {
+                if(!lType.isClassType() && !lType.isMultiType()) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(be)
@@ -802,6 +830,7 @@ public class TypeChecker extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
+        boolean prev = inControlStmt;
         cs.choiceExpr().visit(this);
         Type choiceType = cs.choiceExpr().type;
 
@@ -884,12 +913,16 @@ public class TypeChecker extends Visitor {
                 }
             }
             currentScope = curr.symbolTable;
+            inControlStmt = true;
             curr.caseBlock().visit(this);
+            inControlStmt = prev;
             currentScope = currentScope.closeScope();
         }
 
         currentScope = cs.symbolTable;
+        inControlStmt = true;
         cs.otherBlock().visit(this);
+        inControlStmt = prev;
         currentScope = currentScope.closeScope();
     }
 
@@ -933,8 +966,11 @@ public class TypeChecker extends Visitor {
      * @param ds Do Statement
      */
     public void visitDoStmt(DoStmt ds) {
+        boolean prev = inControlStmt;
         currentScope = ds.symbolTable;
+        inControlStmt = true;
         ds.doBlock().visit(this);
+        inControlStmt = prev;
         currentScope = currentScope.closeScope();
 
         ds.condition().visit(this);
@@ -1123,6 +1159,7 @@ public class TypeChecker extends Visitor {
 
         fe.type = fe.accessExpr().type;
         currentTarget = oldTarget;
+        parentFound = false;
     }
 
     /**
@@ -1134,6 +1171,7 @@ public class TypeChecker extends Visitor {
      * @param fs For Statement
      */
     public void visitForStmt(ForStmt fs) {
+        boolean prev = inControlStmt;
         currentScope = fs.symbolTable;
 
         fs.loopVar().visit(this);
@@ -1221,7 +1259,11 @@ public class TypeChecker extends Visitor {
             }
         }
 
-        if(fs.forBlock() != null) { fs.forBlock().visit(this); }
+        if(fs.forBlock() != null) { 
+            inControlStmt = true;
+            fs.forBlock().visit(this); 
+            inControlStmt = prev;
+        }
         currentScope = currentScope.closeScope();
     }
 
@@ -1326,6 +1368,7 @@ public class TypeChecker extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
+        boolean prev = inControlStmt;
         is.condition().visit(this);
 
         // ERROR CHECK #1: The if statement's conditional expression must be a boolean
@@ -1340,6 +1383,7 @@ public class TypeChecker extends Visitor {
         }
 
         currentScope = is.symbolTableIfBlock;
+        inControlStmt = true;
         is.ifBlock().visit(this);
         currentScope = currentScope.closeScope();
 
@@ -1350,6 +1394,7 @@ public class TypeChecker extends Visitor {
             is.elseBlock().visit(this);
             currentScope = currentScope.closeScope();
         }
+        inControlStmt = prev;
     }
 
     /**
@@ -1440,16 +1485,14 @@ public class TypeChecker extends Visitor {
         else {
             ClassDecl cd = null;
             if(currentTarget != null && currentTarget.isMultiType()) {
-                ClassDecl curr;
-                ClassType superClass = null;
                 for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
-                    curr = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
-                    if(cd == null || ClassType.isSuperClass(ct,superClass)) {
-                        cd = curr;
-                        superClass = ct;
-                    }
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasMethod(in.toString()))
+                        break;
                 }
             }
+            else if(parentFound)
+                cd = currentScope.findName(currentClass.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             else if(currentClass != null)
                 cd = currentClass;
             else
@@ -1457,6 +1500,9 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
+                System.out.println(in.toString());
+                if(interpretMode)
+                    currentTarget = null;
                 errors.add(
                     new ErrorBuilder(generateScopeError, interpretMode)
                             .addLocation(in)
@@ -1683,7 +1729,8 @@ public class TypeChecker extends Visitor {
                 );
             }
         }
-        ld.var().setType(ld.type());
+        ld.var().setType(ld.var().init().type);
+        ld.setType(ld.var().init().type);
     }
 
     /**
@@ -1766,31 +1813,84 @@ public class TypeChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(currentTarget != null && currentTarget.isClassType()) {
-            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            // ERROR CHECK #1: Make sure the class name exists if we are
-            //                 evaluating a complex field expression
-            if(!cd.symbolTable.hasName(ne.toString())) {
+        if(ne.getThis() != null)
+            ne.getThis().visit(this);
+
+        if(ne.toString().equals("parent")) {
+            if(parentFound) {
+                parentFound = false;
                 errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(ne)
+                            .addErrorType(MessageType.SCOPE_ERROR_337)
+                            .error()
+                );
+            }
+            parentFound = true;
+            ne.type = currentClass.superClass();
+        }
+        else if(!currentScope.hasName(ne.toString()) && currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
+            String targetName = currentTarget.toString();
+            ClassDecl cd = null;
+            if(currentTarget.isClassType()) {
+                cd = currentScope.findName(targetName).decl().asTopLevelDecl().asClassDecl();
+
+                // ERROR CHECK #1: Make sure the class name exists if we are
+                //                 evaluating a complex field expression
+                if(!cd.symbolTable.hasName(ne.toString())) {
+                    // We need to reset currentTarget if there's an error during interpretation
+                    if(interpretMode)
+                        currentTarget = null;
+                    errors.add(
                         new ErrorBuilder(generateScopeError,interpretMode)
                                 .addLocation(ne)
                                 .addErrorType(MessageType.SCOPE_ERROR_309)
-                                .addArgs(ne.toString(),currentTarget.toString())
+                                .addArgs(ne.toString(),targetName)
                                 .error()
-                );
+                    );
+                }
+            }
+            else {
+                boolean found = false;
+                for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasName(ne.toString())) {
+                        found = true;
+                        break;
+                    }
+                }
+                // ERROR CHECK #2: Make sure the class that declared the
+                //                 field was found for a MultiTyped name
+                if(!found) {
+                    if (interpretMode)
+                        currentTarget = null;
+                    errors.add(
+                        new ErrorBuilder(generateScopeError, interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.SCOPE_ERROR_309)
+                                .addArgs(ne.toString(), targetName)
+                                .error()
+                    );
+                }
             }
             ne.type = cd.symbolTable.findName(ne.toString()).decl().asFieldDecl().type();
         }
         else {
             AST decl = currentScope.findName(ne.toString()).decl();
-            if(decl.isStatement()) { ne.type = decl.asStatement().asLocalDecl().type(); }
-            else if(decl.isParamDecl()) { ne.type = decl.asParamDecl().type(); }
-            else if(decl.isFieldDecl()) { ne.type = decl.asFieldDecl().type(); }
+            if(decl.isStatement())
+                ne.type = decl.asStatement().asLocalDecl().type();
+            else if(decl.isParamDecl())
+                ne.type = decl.asParamDecl().type();
+            else if(decl.isFieldDecl())
+                ne.type = decl.asFieldDecl().type();
             else {
                 TopLevelDecl tDecl = decl.asTopLevelDecl();
-                if(tDecl.isEnumDecl()) { ne.type = tDecl.asEnumDecl().type(); }
-                else if(tDecl.isGlobalDecl()) { ne.type = tDecl.asGlobalDecl().type(); }
-                else { ne.type = new ClassType(tDecl.asClassDecl().name()); }
+                if(tDecl.isEnumDecl())
+                    ne.type = tDecl.asEnumDecl().type();
+                else if(tDecl.isGlobalDecl())
+                    ne.type = tDecl.asGlobalDecl().type();
+                else
+                    ne.type = new ClassType(tDecl.asClassDecl().name());
             }
         }
     }
@@ -1835,6 +1935,11 @@ public class TypeChecker extends Visitor {
         }
         ne.type = new ClassType(cd.toString());
         ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
+    }
+
+    public void visitOutStmt(OutStmt os) {
+        for(Expression e : os.outExprs())
+            e.visit(this);
     }
 
     /**
@@ -1886,62 +1991,44 @@ public class TypeChecker extends Visitor {
 
     public void visitRetypeStmt(RetypeStmt rs) {
         rs.getName().visit(this);
-        Type lType = rs.getName().type;
-
-        rs.getNewObject().visit(this);
-        ClassType rType = rs.getNewObject().type.asClassType();
+        Type objType = rs.getName().type;
 
         // ERROR CHECK #1: Make sure the LHS does represent an object
-        if(!lType.isClassType() && !lType.isMultiType()) {
+        if(!objType.isClassType() && !objType.isMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(rs)
                         .addErrorType(MessageType.TYPE_ERROR_453)
-                        .addArgs(lType)
+                        .addArgs(objType)
                         .error()
             );
         }
 
+        rs.getNewObject().visit(this);
+        ClassType newObjType = rs.getNewObject().type.asClassType();
+        Type objBaseType = objType.isMultiType() ? objType.asMultiType().getInitialType() : objType;
+
         // ERROR CHECK #2: Make sure the types are class assignment compatible
-        if(!ClassType.classAssignmentCompatibility(lType,rType)) {
+        if(!ClassType.classAssignmentCompatibility(objBaseType,newObjType)) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(rs)
                         .addErrorType(MessageType.TYPE_ERROR_454)
-                        .addArgs(rs.getName().toString(),rType)
+                        .addArgs(rs.getName().toString(),newObjType)
                         .error()
             );
         }
-
-        if(!lType.isMultiType()) {
-            Vector<ClassType> types = new Vector<>();
-            types.add(lType.asClassType());
-            types.add(rType.asClassType());
-            MultiType mt = new MultiType(lType.asClassType(),types);
-
-            AST decl = currentScope.findName(rs.getName().toString()).decl();
-            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
-                decl.asTopLevelDecl().asGlobalDecl().setType(mt);
-            else if(decl.isParamDecl())
-                decl.asParamDecl().setType(mt);
-            else if(decl.isFieldDecl())
-                decl.asFieldDecl().setType(mt);
-            else
-                decl.asStatement().asLocalDecl().setType(mt);
-        }
-        else if(lType.asMultiType().getInitialType().toString().equals(rType.toString())) {
-            AST decl = currentScope.findName(rs.getName().toString()).decl();
-            if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
-                decl.asTopLevelDecl().asGlobalDecl().setType(lType.asMultiType().getInitialType());
-            else if(decl.isParamDecl())
-                decl.asParamDecl().setType(lType.asMultiType().getInitialType());
-            else if(decl.isFieldDecl())
-                decl.asFieldDecl().setType(lType.asMultiType().getInitialType());
-            else
-                decl.asStatement().asLocalDecl().setType(lType.asMultiType().getInitialType());
+        
+        if(inControlStmt) {
+            if(objType.isMultiType())
+                objType.asMultiType().addType(newObjType);
+            else {
+                MultiType mt = MultiType.create(objType.asClassType(),newObjType);
+                setVarType(rs.getName().toString(),mt);
+            }
         }
         else
-            lType.asMultiType().addType(rType.asClassType());
+            setVarType(rs.getName().toString(),newObjType);
     }
 
     /**
@@ -1965,7 +2052,7 @@ public class TypeChecker extends Visitor {
      *         <li>
      *             '~'
      *             <ul>
-     *                 <li>Operand Type: Int, Real</li>
+     *                 <li>Operand Type: Int</li>
      *                 <li>Unary Expression Type: Operand Type</li>
      *             </ul>
      *         </li>
@@ -1988,7 +2075,7 @@ public class TypeChecker extends Visitor {
             case "~":
                 // ERROR CHECK #1: An integer or real can be the only types that are negated
                 if(ue.expr().type.isInt()) { ue.type = new DiscreteType(Discretes.INT); }
-                else if(ue.expr().type.isReal()) { ue.type = new ScalarType(Scalars.REAL); }
+                else if(ue.expr().type.isChar()) { ue.type = new DiscreteType(Discretes.CHAR); }
                 else {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
@@ -2030,6 +2117,7 @@ public class TypeChecker extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
+        boolean prev = inControlStmt;
         ws.condition().visit(this);
 
         // ERROR CHECK #1: The while loop's condition must be a boolean
@@ -2044,7 +2132,9 @@ public class TypeChecker extends Visitor {
         }
 
         currentScope = ws.symbolTable;
+        inControlStmt = true;
         ws.whileBlock().visit(this);
+        inControlStmt = prev;
         currentScope = currentScope.closeScope();
     }
 }

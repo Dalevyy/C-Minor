@@ -1,12 +1,8 @@
 package token;
 
-/*
-                    C Minor TokenType
-                   -------------------
-There are currently 131 tokens that a C Minor program
-can be represented with.
-________________________________________________________
-*/
+/**
+ * There are currently 130 tokens in C Minor.
+ */
 public enum TokenType {
     EOF,        // $
     ERROR,      // DefaultError
@@ -55,7 +51,6 @@ public enum TokenType {
     MAIN,        // main
     METHOD,      // method
     NEW,         // new
-    NEXT,        // next
     NOT,         // not
     ON,          // on
     ONLY,        // only
@@ -122,7 +117,7 @@ public enum TokenType {
     DIV,         // /
     MOD,         // %
     EXP,         // **
-    TILDE,       // ~
+    BNOT,       // ~
     EQEQ,        // ==
     NEQ,         // !=
     LT,          // <

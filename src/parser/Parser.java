@@ -39,6 +39,11 @@ public class Parser {
     private final Vector<Token> tokenStack;
     private final SyntaxErrorFactory generateSyntaxError;
 
+    // Hacks to get IO statements to be parsed correctly... :(
+    private boolean insideParen = false;
+    private boolean insideIO = false;
+    private boolean insideField = false;
+
     public Parser(Lexer input, boolean printTokens) {
         this.input = input;
         this.lookPos = 0;
@@ -133,7 +138,7 @@ public class Parser {
                 || nextLA(TokenType.ID)
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.NOT)
-                || nextLA(TokenType.TILDE)
+                || nextLA(TokenType.BNOT)
                 || nextLA(TokenType.LBRACE)
                 || nextLA(TokenType.RETURN)
                 || nextLA(TokenType.SET)
@@ -150,7 +155,8 @@ public class Parser {
                 || nextLA(TokenType.COUT)
                 || nextLA(TokenType.BREAK)
                 || nextLA(TokenType.CONTINUE)
-                || nextLA(TokenType.STOP);
+                || nextLA(TokenType.STOP)
+                || nextLA(TokenType.PARENT);
     }
 
     private boolean inPrimaryExpressionFIRST() {
@@ -165,11 +171,13 @@ public class Parser {
                 || nextLA(TokenType.LENGTH)
                 || nextLA(TokenType.CAST)
                 || nextLA(TokenType.BREAK)
-                || nextLA(TokenType.CONTINUE);
+                || nextLA(TokenType.CONTINUE)
+                || nextLA(TokenType.PARENT);
     }
 
     private boolean inConstantFIRST() {
-        return nextLA(TokenType.STR_LIT)
+        return nextLA(TokenType.MINUS)
+                || nextLA(TokenType.STR_LIT)
                 || nextLA(TokenType.TEXT_LIT)
                 || nextLA(TokenType.REAL_LIT)
                 || nextLA(TokenType.BOOL_LIT)
@@ -207,8 +215,12 @@ public class Parser {
 
     // This will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
-    public Vector<? extends AST> nextNode() {
+    public Vector<? extends AST> nextNode() throws Exception {
         Vector<? extends AST> nodes;
+
+        // Throw an exception if user only wrote a comment
+        if(nextLA(TokenType.EOF))
+            throw new Exception();
         // Parse EnumDecl
         if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)
@@ -405,7 +417,7 @@ public class Parser {
         return varList;
     }
 
-    // 8. variable_decl_init ::= ID ':' type ( '=' ( expression | 'uninit' ) )?
+    // 8. variable_decl_init ::= ID ':' type ('=' (expression | 'uninit' ))?
     private Var variableDeclInit() {
         tokenStack.add(currentLA());
 
@@ -416,15 +428,16 @@ public class Parser {
 
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
-
-            Expression e = null;
-            if(nextLA(TokenType.UNINIT)) { match(TokenType.UNINIT); }
-            else { e = expression(); }
-
-            return new Var(nodeToken(),n,t,e);
+            if(nextLA(TokenType.UNINIT)) {
+                match(TokenType.UNINIT);
+                return new Var(nodeToken(),n,t,false);
+            }
+            else {
+                Expression e = expression();
+                return new Var(nodeToken(),n,t,e,false);
+            }
         }
-
-        return new Var(nodeToken(),n,t);
+        return new Var(nodeToken(),n,t,true);
     }
 
     /*
@@ -919,7 +932,7 @@ public class Parser {
 
     // 28. operator_symbol ::= binary_operator | unary_operator
     private Operator operatorSymbol() {
-        if(nextLA(TokenType.TILDE) || nextLA(TokenType.NOT)) { return unaryOperator(); }
+        if(nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) { return unaryOperator(); }
         else { return binaryOperator(); }
     }
 
@@ -985,8 +998,8 @@ public class Parser {
     private UnaryOp unaryOperator() {
         tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.TILDE)) {
-            match(TokenType.TILDE);
+        if(nextLA(TokenType.BNOT)) {
+            match(TokenType.BNOT);
             return new UnaryOp(nodeToken(),UnaryType.NEGATE);
         }
         else {
@@ -1498,8 +1511,16 @@ public class Parser {
 
         match(TokenType.CIN);
         match(TokenType.SRIGHT);
+
+        boolean oldIO = insideIO;
+        insideIO = true;
         Vector<Expression> inputExprs = new Vector<>(expression());
 
+        while(nextLA(TokenType.SRIGHT)) {
+            match(TokenType.SRIGHT);
+            inputExprs.add(expression());
+        }
+        insideIO = oldIO;
         return new InStmt(nodeToken(),inputExprs);
     }
 
@@ -1509,8 +1530,17 @@ public class Parser {
 
         match(TokenType.COUT);
         match(TokenType.SLEFT);
+
+        boolean oldIO = insideIO;
+        insideIO = true;
         Vector<Expression> outputExprs = new Vector<>(expression());
 
+        while(nextLA(TokenType.SLEFT)) {
+            match(TokenType.SLEFT);
+            outputExprs.add(expression());
+        }
+
+        insideIO = oldIO;
         return new OutStmt(nodeToken(),outputExprs);
     }
 
@@ -1528,11 +1558,17 @@ public class Parser {
     //                          | 'break'
     //                          | 'continue'
     //                          | 'endl'
+    //                          | 'parent'
     private Expression primaryExpression() {
         if(nextLA(TokenType.LPAREN)) {
+            boolean oldParen = insideParen;
+            insideParen = true;
+
             match(TokenType.LPAREN);
             Expression e = expression();
             match(TokenType.RPAREN);
+
+            insideParen = oldParen;
 
             return e;
         }
@@ -1556,9 +1592,13 @@ public class Parser {
             match(TokenType.CONTINUE);
             return new ContinueStmt(nodeToken());
         }
-        else {
+        else if(nextLA(TokenType.ENDL)) {
             match(TokenType.ENDL);
             return new Endl(nodeToken());
+        }
+        else {
+            match(TokenType.PARENT);
+            return new NameExpr(nodeToken(),new Name("parent"));
         }
     }
 
@@ -1585,10 +1625,11 @@ public class Parser {
                     RHS = new ArrayExpr(tokenStack.top(),LHS,indices);
                 }
                 else if(nextLA(TokenType.LPAREN)) {
+                    Vector<Expression> args = new Vector<>();
                     match(TokenType.LPAREN);
 
-                    Vector<Expression> args = new Vector<>();
-                    if(!nextLA(TokenType.RPAREN)) { args = arguments(); }
+                    if(!nextLA(TokenType.RPAREN))
+                        args = arguments();
 
                     match(TokenType.RPAREN);
 
@@ -1596,9 +1637,12 @@ public class Parser {
                     RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),args);
                 }
                 else {
+                    boolean oldField = insideField;
+                    insideField = true;
                     boolean nullCheck = false;
 
-                    if(nextLA(TokenType.PERIOD)) {match(TokenType.PERIOD); }
+                    if(nextLA(TokenType.PERIOD))
+                        match(TokenType.PERIOD);
                     else {
                         match(TokenType.ELVIS);
                         nullCheck = true;
@@ -1607,6 +1651,7 @@ public class Parser {
                     Expression expr = expression();
                     input.setText(tokenStack.top());
                     RHS = new FieldExpr(tokenStack.top(),LHS.asExpression(),expr.asExpression(),nullCheck);
+                    insideField = oldField;
                 }
                 LHS = RHS;
             }
@@ -1646,7 +1691,7 @@ public class Parser {
 
     // 64. unary_expression ::= unary_operator cast_expression | factor_expression
     private Expression unaryExpression() {
-        if(nextLA(TokenType.TILDE) || nextLA(TokenType.NOT)) {
+        if((nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) && !insideField) {
             tokenStack.add(currentLA());
 
             UnaryOp uo = unaryOperator();
@@ -1659,7 +1704,7 @@ public class Parser {
 
     // 65. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
     private Expression castExpression() {
-        if(inScalarTypeFIRST()) {
+        if(inScalarTypeFIRST() && !insideField) {
             tokenStack.add(currentLA());
             Type st = scalarType();
 
@@ -1678,7 +1723,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = castExpression();
 
-        if(nextLA(TokenType.EXP)) {
+        if(nextLA(TokenType.EXP) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.EXP)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.EXP);
@@ -1699,7 +1744,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = powerExpression();
 
-        if(inPowerExpressionFOLLOW()) {
+        if(inPowerExpressionFOLLOW() && !insideField) {
             BinaryExpr be;
             while(inPowerExpressionFOLLOW()) {
                 BinaryOp bo;
@@ -1732,7 +1777,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = multiplicationExpression();
 
-        if(nextLA(TokenType.PLUS) || nextLA(TokenType.MINUS)) {
+        if((nextLA(TokenType.PLUS) || nextLA(TokenType.MINUS)) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.PLUS) || nextLA(TokenType.MINUS)) {
                 BinaryOp bo;
@@ -1762,7 +1807,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = additiveExpression();
 
-        if(nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) {
+        if((nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) && (!insideIO || insideParen) && !insideField) {
             BinaryExpr be;
             while (nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) {
                 BinaryOp bo;
@@ -1790,7 +1835,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = shiftExpression();
 
-        if(inShiftExpressionFOLLOW() && !nextLA(TokenType.INC,1)) {
+        if(inShiftExpressionFOLLOW() && !nextLA(TokenType.INC,1) && !insideField) {
             BinaryExpr be;
             while(inShiftExpressionFOLLOW()) {
                 BinaryOp bo;
@@ -1827,7 +1872,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = relationalExpression();
 
-        if(nextLA(TokenType.INSTANCEOF) || nextLA(TokenType.NINSTANCEOF) || nextLA(TokenType.AS)) {
+        if((nextLA(TokenType.INSTANCEOF) || nextLA(TokenType.NINSTANCEOF) || nextLA(TokenType.AS)) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.INSTANCEOF) || nextLA(TokenType.NINSTANCEOF) || nextLA(TokenType.AS)) {
                 BinaryOp bo;
@@ -1860,7 +1905,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = instanceOfExpression();
 
-        if(nextLA(TokenType.EQEQ) || nextLA(TokenType.NEQ)) {
+        if((nextLA(TokenType.EQEQ) || nextLA(TokenType.NEQ)) && !insideField) {
             BinaryExpr be;
             while (nextLA(TokenType.EQEQ) || nextLA(TokenType.NEQ)) {
                 BinaryOp bo;
@@ -1888,7 +1933,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = equalityExpression();
 
-        if(nextLA(TokenType.BAND)) {
+        if(nextLA(TokenType.BAND) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.BAND)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.BAND);
@@ -1909,7 +1954,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = andExpression();
 
-        if(nextLA(TokenType.XOR)) {
+        if(nextLA(TokenType.XOR) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.XOR)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.XOR);
@@ -1930,7 +1975,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = exclusiveOrExpression();
 
-        if(nextLA(TokenType.BOR)) {
+        if(nextLA(TokenType.BOR) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.BOR)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.BOR);
@@ -1951,7 +1996,7 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = inclusiveOrExpression();
 
-        if(nextLA(TokenType.AND)) {
+        if(nextLA(TokenType.AND) && !insideField) {
             BinaryExpr be;
             while(nextLA(TokenType.AND)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.AND);
@@ -1972,19 +2017,16 @@ public class Parser {
         tokenStack.add(currentLA());
         Expression left = logicalAndExpression();
 
-        if(nextLA(TokenType.OR)) {
-            BinaryExpr mainBE = null, be;
+        if(nextLA(TokenType.OR) && !insideField) {
+            BinaryExpr be;
             while(nextLA(TokenType.OR)) {
                 BinaryOp bo = new BinaryOp(currentLA(),BinaryType.OR);
                 match(TokenType.OR);
 
                 Expression right = logicalAndExpression();
-
-                if(mainBE != null) { be = new BinaryExpr(nodeToken(),mainBE,right,bo); }
-                else { be = new BinaryExpr(nodeToken(),left,right,bo); }
-                mainBE = be;
+                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                left = be;
             }
-            return mainBE;
         }
 
         nodeToken();
@@ -2095,8 +2137,10 @@ public class Parser {
             match(TokenType.TEXT_LIT);
             return new Literal(nodeToken(), ConstantKind.TEXT);
         }
-        else if(nextLA(TokenType.REAL_LIT)) {
+        else if(nextLA(TokenType.REAL_LIT) || (nextLA(TokenType.MINUS) && nextLA(TokenType.REAL_LIT,1))) {
             tokenStack.add(currentLA());
+            if(nextLA(TokenType.MINUS))
+                match(TokenType.MINUS);
             match(TokenType.REAL_LIT);
             return new Literal(nodeToken(), ConstantKind.REAL);
         }
@@ -2107,7 +2151,9 @@ public class Parser {
     private Literal discreteConstant() {
         tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.INT_LIT)) {
+        if(nextLA(TokenType.INT_LIT) || (nextLA(TokenType.MINUS) && nextLA(TokenType.INT_LIT,1))) {
+            if(nextLA(TokenType.MINUS))
+                match(TokenType.MINUS);
             match(TokenType.INT_LIT);
             return new Literal(nodeToken(), ConstantKind.INT);
         }

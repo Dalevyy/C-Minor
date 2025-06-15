@@ -3,12 +3,7 @@ package namechecker;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.BinaryExpr;
-import ast.expressions.Expression;
-import ast.expressions.FieldExpr;
-import ast.expressions.Invocation;
-import ast.expressions.NameExpr;
-import ast.expressions.NewExpr;
+import ast.expressions.*;
 import ast.misc.NameNode;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
@@ -139,8 +134,12 @@ public class NameChecker extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openNewScope();
 
-        for(LocalDecl ld : bs.decls()) { ld.visit(this); }
-        for(Statement s : bs.stmts()) { s.visit(this); }
+        for(LocalDecl ld : bs.decls())
+            ld.visit(this);
+        for(Statement s : bs.stmts())
+            s.visit(this);
+        if(bs.getParent() == null)
+            currentScope = currentScope.closeScope();
     }
 
     /**
@@ -184,6 +183,8 @@ public class NameChecker extends Visitor {
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
+        ClassDecl baseClass = null;
+
         // ERROR CHECK #1: Make sure the class name has not been used yet
         if(currentScope.isNameUsedAnywhere(cd.toString())) {
             errors.add(
@@ -223,14 +224,15 @@ public class NameChecker extends Visitor {
         currentScope = currentScope.openNewScope();
         cd.symbolTable = currentScope;
         currentClass = cd;
-        for(FieldDecl fd : cd.classBlock().fieldDecls()) { fd.visit(this); }
+
+        for(FieldDecl fd : cd.classBlock().fieldDecls())
+            fd.visit(this);
 
         if(cd.superClass() != null) {
-            ClassDecl base = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            baseClass = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             // Go through each declaration in the base class and add it to the subclass symbol table
-            for(String name : base.symbolTable.getAllNames().keySet()) {
-                AST decl = base.symbolTable.findName(name).decl();
-                // Fields
+            for(String name : baseClass.symbolTable.getAllNames().keySet()) {
+                AST decl = baseClass.symbolTable.findName(name).decl();
                 if(decl.isFieldDecl()) {
                     // ERROR CHECK #3: Each field name in a subclass needs to be unique
                     //                 from the fields declared in the base class
@@ -243,23 +245,46 @@ public class NameChecker extends Visitor {
                                     .error()
                         );
                     }
+
                     currentScope.addName(name,decl.asFieldDecl());
                 }
-//                // Methods
-//                else {
-//                    // For methods, insert "<baseName>." to denote
-//                    // which class the method was initially declared in
-//                    if(name.startsWith(base + "."))
-//                        currentScope.addName(name,decl.asMethodDecl());
-//                    else
-//                        currentScope.addName(base + "." + name,decl.asMethodDecl());
-//                }
-            }
+                else
+                    currentScope.addMethod(name.substring(0,name.indexOf('/')));
 
-            for(String name: base.symbolTable.getMethodNames()) { currentScope.addMethod(name); }
+            }
         }
 
-        for(MethodDecl md : cd.classBlock().methodDecls()) { md.visit(this); }
+        // Magic~~~~~~~~~~~~
+        for(MethodDecl md : cd.classBlock().methodDecls()) {
+            md.visit(this);
+            boolean found = false;
+            if(baseClass != null) {
+                for(MethodDecl baseMethod : baseClass.classBlock().methodDecls()) {
+                    if(md.methodSignature().equals(baseMethod.methodSignature())) {
+                        found = true;
+                        if(!md.isOverridden()) {
+                            errors.add(
+                                    new ErrorBuilder(generateScopeError, interpretMode)
+                                            .addLocation(md)
+                                            .addErrorType(MessageType.SCOPE_ERROR_333)
+                                            .addArgs(md, baseClass)
+                                            .error()
+                            );
+                        }
+                    }
+                }
+            }
+            if(!found && md.isOverridden()) {
+                errors.add(
+                        new ErrorBuilder(generateScopeError, interpretMode)
+                                .addLocation(md)
+                                .addErrorType(MessageType.SCOPE_ERROR_334)
+                                .addArgs(md)
+                                .error()
+                );
+            }
+        }
+
         currentScope = currentScope.closeScope();
         currentClass = null;
     }
@@ -450,12 +475,12 @@ public class NameChecker extends Visitor {
         currentScope.addMethod(fd.toString());
 
         currentScope = currentScope.openNewScope();
+        fd.symbolTable = currentScope;
         for(ParamDecl pd : fd.params()) { pd.visit(this); }
 
         for(LocalDecl ld : fd.funcBlock().decls()) { ld.visit(this); }
         for(Statement s : fd.funcBlock().stmts()) { s.visit(this); }
 
-        fd.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -633,16 +658,17 @@ public class NameChecker extends Visitor {
                             .error()
                 );
         }
+
         currentScope.addName(methodSignature, md);
         currentScope.addMethod(md.toString());
 
         currentScope = currentScope.openNewScope();
+        md.symbolTable = currentScope;
         for(ParamDecl pd : md.params()) { pd.visit(this); }
 
         for(LocalDecl ld : md.methodBlock().decls()) { ld.visit(this); }
         for(Statement s : md.methodBlock().stmts()) { s.visit(this); }
 
-        md.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -654,9 +680,28 @@ public class NameChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
+        if(ne.toString().equals("this")) return;
+        if(ne.toString().equals("parent")) {
+            if(currentClass == null) {
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(ne)
+                            .addErrorType(MessageType.SCOPE_ERROR_335)
+                            .error()
+                );
+            }
+            if(currentClass.superClass() == null) {
+                errors.add(
+                        new ErrorBuilder(generateScopeError,interpretMode)
+                                .addLocation(ne)
+                                .addErrorType(MessageType.SCOPE_ERROR_336)
+                                .error()
+                );
+            }
+        }
         // ERROR CHECK #1: Check if the name used was previously
         //                 declared somewhere in the program
-        if(!currentScope.isNameUsedAnywhere(ne.toString())) {
+        else if(!currentScope.isNameUsedAnywhere(ne.toString())) {
             errors.add(
                 new ErrorBuilder(generateScopeError,interpretMode)
                     .addLocation(ne)
@@ -745,6 +790,11 @@ public class NameChecker extends Visitor {
         }
     }
 
+    public void visitOutStmt(OutStmt os) {
+        for(Expression e : os.outExprs())
+            e.visit(this);
+    }
+
     /**
      * <p>
      *     We will add the parameter to the current function or method symbol
@@ -771,17 +821,25 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Checks if retype statement has valid names.
+     * Evaluates the names used in a retype statement.<br><br>
+     * <p>
+     *     For retype statements specifically, we want to make sure
+     *     the LHS evaluates to be a name. This name represents the
+     *     object we want to retype. We will let other visits handle
+     *     the other name checking that is done here.
+     * </p>
      * @param rs Retype Statement
      */
     public void visitRetypeStmt(RetypeStmt rs) {
-        if(!(rs.getName().isNameExpr() || rs.getName().isFieldExpr() || rs.getName().isArrayExpr()))
+        // ERROR CHECK #1: Make sure the LHS represents a name
+        if(!rs.getName().isNameExpr() && !rs.getName().isFieldExpr() && !rs.getName().isArrayExpr()) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(rs)
-                        .addErrorType(MessageType.SCOPE_ERROR_332)
-                        .error()
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(rs)
+                            .addErrorType(MessageType.SCOPE_ERROR_332)
+                            .error()
             );
+        }
 
         rs.getName().visit(this);
         rs.getNewObject().visit(this);

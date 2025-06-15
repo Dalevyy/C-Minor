@@ -3,9 +3,12 @@ package modifierchecker;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
+import ast.expressions.Expression;
 import ast.expressions.FieldExpr;
 import ast.expressions.Invocation;
+import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
 import ast.statements.AssignStmt;
 import ast.statements.CaseStmt;
 import ast.statements.ChoiceStmt;
@@ -16,6 +19,7 @@ import ast.statements.WhileStmt;
 import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.MainDecl;
+import ast.types.ClassType;
 import java.util.HashSet;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
@@ -31,6 +35,8 @@ public class ModifierChecker extends Visitor {
     private ClassDecl currentClass;
     private final ModErrorFactory generateModError;
     private final Vector<String> errors;
+
+    private boolean parentFound = false;
 
     /**
      * Creates modifier checker in compilation mode
@@ -253,8 +259,21 @@ public class ModifierChecker extends Visitor {
     public void visitFieldExpr(FieldExpr fe) {
         fe.fieldTarget().visit(this);
         if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
-            ClassDecl cd = currentScope.findName(fe.fieldTarget().type.typeName()).decl().asTopLevelDecl().asClassDecl();
-            FieldDecl fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+            ClassDecl cd;
+            FieldDecl fd = null;
+            if(fe.fieldTarget().type.isClassType()) {
+                cd = currentScope.findName(fe.fieldTarget().type.toString()).decl().asTopLevelDecl().asClassDecl();
+                fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+            }
+            else {
+                for(ClassType ct : fe.fieldTarget().type.asMultiType().getAllTypes()) {
+                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+                    if(cd.symbolTable.hasName(fe.accessExpr().toString())) {
+                        fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+                        break;
+                    }
+                }
+            }
 
             // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
             if (!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
@@ -269,6 +288,7 @@ public class ModifierChecker extends Visitor {
             }
         }
         fe.accessExpr().visit(this);
+        parentFound = false;
     }
 
     /**
@@ -355,11 +375,11 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation
         else {
-            ClassDecl cd = currentScope.findName(in.targetType.typeName()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(in.targetType.toString()).decl().asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
 
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier
-            if(currentContext == md && md.toString().equals(in.toString())) {
+            if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
                 if(!md.mods.isRecurs()) {
                     errors.add(
                         new ErrorBuilder(generateModError,interpretMode)
@@ -372,12 +392,12 @@ public class ModifierChecker extends Visitor {
                 }
             }
             // ERROR CHECK #3: An object can only invoke public methods outside its class
-            if(currentClass != cd && !md.mods.isPublic()) {
+            if(!md.mods.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
                 errors.add(
                     new ErrorBuilder(generateModError,interpretMode)
                             .addLocation(in)
                             .addErrorType(MessageType.MOD_ERROR_504)
-                            .addArgs(in.toString())
+                            .addArgs("this",in.toString())
                             .addSuggestType(MessageType.MOD_SUGGEST_1504)
                             .error()
                 );
@@ -408,6 +428,11 @@ public class ModifierChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    public void visitNameExpr(NameExpr ne) {
+        if(ne.toString().equals("parent"))
+            parentFound = true;
+    }
+
     /**
      * Checks new expression modifier usage.<br><br>
      * <p>
@@ -433,6 +458,11 @@ public class ModifierChecker extends Visitor {
             );
         }
         super.visitNewExpr(ne);
+    }
+
+    public void visitOutStmt(OutStmt os) {
+        for(Expression e : os.outExprs())
+            e.visit(this);
     }
 
     /**
