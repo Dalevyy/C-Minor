@@ -55,14 +55,14 @@ public class FieldRewrite extends Visitor {
     public void visitNameExpr(NameExpr ne) {
         if(currentScope.hasNameSomewhere(ne.toString())) {
             if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
-                //ne.setNameInClass();
-                AST parent = ne.getParent();
-                FieldExpr fe = new FieldExprBuilder()
-                                        .setTarget(new This())
-                                        .setAccessExpr(ne)
-                                        .createFieldExpr();
-
-                fe.copyAndRemove(ne);
+                ne.setNameInClass();
+//                AST parent = ne.getParent();
+//                FieldExpr fe = new FieldExprBuilder()
+//                                        .setTarget(new This())
+//                                        .setAccessExpr(ne)
+//                                        .createFieldExpr();
+//
+//                fe.copyAndRemove(ne);
             }
         }
     }
