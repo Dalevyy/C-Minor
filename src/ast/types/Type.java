@@ -122,6 +122,7 @@ public abstract class Type extends AST {
     public boolean isDiscreteType() { return false; }
     public boolean isClassType() { return false; }
     public boolean isMultiType() { return false; }
+    public boolean isClassOrMultiType() { return this.isClassType() || this.isMultiType(); }
     public boolean isListType() { return false; }
     public boolean isArrayType() { return false; }
     public boolean isVoidType() { return false; }
