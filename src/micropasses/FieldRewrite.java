@@ -24,6 +24,24 @@ import utilities.Visitor;
  */
 public class FieldRewrite extends Visitor {
 
+//    public void check(AST curr, ClassDecl cd) {
+////        for(int i = 0; i < curr.children.size(); i++) {
+////            AST n = curr.children.get(i);
+////            if(n.isExpression() && n.asExpression().isNameExpr()) {
+////                if(cd.symbolTable.hasNameSomewhere(n.toString())) {
+////                    if(cd.symbolTable.findName(n.toString()).decl().isFieldDecl()) {
+////                        FieldExpr fe = new FieldExprBuilder()
+////                                        .setTarget(new This())
+////                                        .setAccessExpr(n.asExpression())
+////                                        .createFieldExpr();
+////                        curr.children.set(i,fe);
+////                    }
+////                }
+////            }
+////            check(n,cd);
+////       }
+//// }
+
     private SymbolTable currentScope;
 
     public void visitClassDecl(ClassDecl cd) {
@@ -32,20 +50,19 @@ public class FieldRewrite extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    public void visitFieldExpr(FieldExpr fe) {}
+
     public void visitNameExpr(NameExpr ne) {
         if(currentScope.hasNameSomewhere(ne.toString())) {
             if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+                //ne.setNameInClass();
                 AST parent = ne.getParent();
                 FieldExpr fe = new FieldExprBuilder()
                                         .setTarget(new This())
                                         .setAccessExpr(ne)
                                         .createFieldExpr();
-                fe.copyAndRemove(ne,parent);
-                for(int i = 0; i < parent.children.size();i++) {
-                    if(parent.children.get(i) == ne)
-                        parent.children.set(i,fe);
-                }
-                // System.out.println("HU");
+
+                fe.copyAndRemove(ne);
             }
         }
     }
