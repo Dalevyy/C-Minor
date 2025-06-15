@@ -90,6 +90,7 @@ operator_header : operator_symbol '(' formal_params? ')' ;
 operator_symbol : binary_operator | unary_operator ;
 
 binary_operator : '=='
+                | '!='
                 | '>'
                 | '>='
                 | '<'
