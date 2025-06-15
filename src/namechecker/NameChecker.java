@@ -3,12 +3,7 @@ package namechecker;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.BinaryExpr;
-import ast.expressions.Expression;
-import ast.expressions.FieldExpr;
-import ast.expressions.Invocation;
-import ast.expressions.NameExpr;
-import ast.expressions.NewExpr;
+import ast.expressions.*;
 import ast.misc.NameNode;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
@@ -139,8 +134,12 @@ public class NameChecker extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openNewScope();
 
-        for(LocalDecl ld : bs.decls()) { ld.visit(this); }
-        for(Statement s : bs.stmts()) { s.visit(this); }
+        for(LocalDecl ld : bs.decls())
+            ld.visit(this);
+        for(Statement s : bs.stmts())
+            s.visit(this);
+        if(bs.getParent() == null)
+            currentScope = currentScope.closeScope();
     }
 
     /**
@@ -249,6 +248,9 @@ public class NameChecker extends Visitor {
 
                     currentScope.addName(name,decl.asFieldDecl());
                 }
+                else
+                    currentScope.addMethod(name.substring(0,name.indexOf('/')));
+
             }
         }
 
@@ -678,6 +680,7 @@ public class NameChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
+        if(ne.toString().equals("this")) return;
         if(ne.toString().equals("parent")) {
             if(currentClass == null) {
                 errors.add(
@@ -785,6 +788,11 @@ public class NameChecker extends Visitor {
             seen.add(v.toString());
             v.init().visit(this);
         }
+    }
+
+    public void visitOutStmt(OutStmt os) {
+        for(Expression e : os.outExprs())
+            e.visit(this);
     }
 
     /**

@@ -251,11 +251,18 @@ public class Interpreter extends Visitor {
             return;
         }
 
+        HashMap<String,Object> instance = null;
+        if(as.LHS().isNameExpr() && as.LHS().asNameExpr().getThis() != null)
+            instance = (HashMap<String,Object>) stack.getValue("this");
+
         // TODO: Operator Overloads as well
 
         switch(aOp) {
             case "=":
-                stack.setValue(name,newValue);
+                if(instance != null)
+                    instance.put(name,newValue);
+                else
+                    stack.setValue(name,newValue);
                 break;
             case "+=":
             case "-=":
@@ -264,42 +271,61 @@ public class Interpreter extends Visitor {
             case "%=":
             case "**=":
                 if(as.RHS().type.isInt()) {
-                    int oldVal = (int) stack.getValue(name);
+                    int oldVal;
+                    if(instance != null)
+                        oldVal = (int) instance.get(name);
+                    else
+                        oldVal = (int) stack.getValue(name);
                     int val = (int) newValue;
+                    int nextVal = 0;
                     switch(aOp) {
-                        case "+=" -> stack.setValue(name,oldVal+val);
-                        case "-=" -> stack.setValue(name,oldVal-val);
-                        case "*=" -> stack.setValue(name,oldVal*val);
-                        case "/=" -> stack.setValue(name,oldVal/val);
-                        case "%=" -> stack.setValue(name,oldVal%val);
-                        case "**=" -> stack.setValue(name,(int)Math.pow(oldVal,val));
+                        case "+=" -> nextVal = oldVal+val;
+                        case "-=" -> nextVal = oldVal-val;
+                        case "*=" -> nextVal = oldVal*val;
+                        case "/=" -> nextVal = oldVal/val;
+                        case "%=" -> nextVal = oldVal%val;
+                        case "**=" -> nextVal = (int)Math.pow(oldVal,val);
                     }
+                    if(instance != null)
+                        instance.put(name,nextVal);
+                    else
+                        stack.setValue(name,nextVal);
                     break;
                 }
                 else if(as.RHS().type.isReal()) {
-                    BigDecimal oldVal = (BigDecimal) stack.getValue(name);
+                    BigDecimal oldVal;
+                    if(instance != null)
+                        oldVal = (BigDecimal) instance.get(name);
+                    else
+                        oldVal = (BigDecimal) stack.getValue(name);
                     BigDecimal val = (BigDecimal) newValue;
+                    BigDecimal nextVal = null;
                     switch(aOp) {
-                        case "+=" -> stack.setValue(name,oldVal.add(val));
-                        case "-=" -> stack.setValue(name,oldVal.subtract(val));
-                        case "*=" -> stack.setValue(name,oldVal.multiply(val));
-                        case "/=" -> stack.setValue(name,oldVal.divide(val));
-                        case "%=" -> stack.setValue(name,oldVal.remainder(val));
-                        case "**=" -> stack.setValue(name,oldVal.pow(val.toBigInteger().intValue()));
+                        case "+=" -> nextVal = oldVal.add(val);
+                        case "-=" -> nextVal = oldVal.subtract(val);
+                        case "*=" -> nextVal = oldVal.multiply(val);
+                        case "/=" -> nextVal = oldVal.divide(val);
+                        case "%=" -> nextVal = oldVal.remainder(val);
+                        case "**=" -> nextVal = oldVal.pow(val.toBigInteger().intValue());
                     }
+                    if(instance != null)
+                        instance.put(name,nextVal);
+                    else
+                        stack.setValue(name,nextVal);
                     break;
                 }
                 else {
-                    String oldVal = stack.getValue(name).toString();
+                    String oldVal = "";
+                    if(instance != null)
+                        oldVal = instance.get(name).toString();
+                    else
+                        stack.getValue(name).toString();
                     String val = newValue.toString();
-                    stack.setValue(name,oldVal+val);
+                    if(instance != null)
+                            instance.put(name,oldVal+val);
+                    else
+                        stack.setValue(name,oldVal+val);
                 }
-        }
-
-        if(as.LHS().isFieldExpr()) {
-            String objName = as.LHS().asFieldExpr().fieldTarget().toString();
-            HashMap<String,Object> instance = (HashMap<String,Object>) stack.getValue(objName);
-            instance.put(name,stack.getValue(name));
         }
     }
 
@@ -393,8 +419,8 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(be.LHS().type.isChar() && be.RHS().type.isChar()) {
-                    char lValue = (char) LHS;
-                    char rValue = (char) RHS;
+                    char lValue = LHS.toString().charAt(0);
+                    char rValue = RHS.toString().charAt(0);
                     switch(binOp) {
                         case "==" -> currValue = lValue == rValue;
                         case "!=" -> currValue = lValue != rValue;
@@ -810,6 +836,7 @@ public class Interpreter extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
+        boolean found = false;
         is.condition().visit(this);
         boolean condition = (boolean) currValue;
         if(condition)
@@ -819,12 +846,13 @@ public class Interpreter extends Visitor {
                 IfStmt e = is.elifStmts().get(i);
                 e.condition().visit(this);
                 if ((boolean) currValue) {
+                    found = true;
                     e.ifBlock().visit(this);
                     break;
                 }
             }
         }
-        if(!condition && is.elseBlock() != null)
+        if(!condition && is.elseBlock() != null && !found)
             is.elseBlock().visit(this);
     }
 
@@ -965,13 +993,14 @@ public class Interpreter extends Visitor {
             }
 
             ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            while(!cd.symbolTable.hasName(in.invokeSignature()))
+                cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+
             MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
             params = md.params();
             currentScope = md.symbolTable;
 
-            if(obj != null)
-                for(Object val : obj.keySet())
-                    stack.addValue(val.toString(),obj.get(val));
+            if(obj != null) { stack.addValue("this",obj); }
 
             for(int i = 0; i < in.arguments().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
@@ -1082,7 +1111,10 @@ public class Interpreter extends Visitor {
                 currValue = Integer.parseInt(li.text);
                 break;
             case CHAR:
-                currValue = li.text.charAt(1);
+                if(li.text.length() == 0)
+                    currValue = "";
+                else
+                    currValue = li.text.charAt(1);
                 break;
             case BOOL:
                 currValue = Boolean.parseBoolean(li.text);
@@ -1091,7 +1123,10 @@ public class Interpreter extends Visitor {
                 currValue = new BigDecimal(li.text);
                 break;
             case STR:
-                currValue = li.text.substring(1,li.text.length()-1); // Removes quotes
+                if(li.text.length()== 0)
+                    currValue = "";
+                else
+                    currValue = li.text.substring(1,li.text.length()-1); // Removes quotes
                 break;
             default:
                 if(li.type.asEnumType().constantType().isInt())
@@ -1129,8 +1164,10 @@ public class Interpreter extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(ne.toString().equals("this"))
-            currValue = stack.getValue("this");
+        if(ne.getThis() != null) {
+            ne.getThis().visit(this);
+            currValue = ((HashMap<String,Object>)currValue).get(ne.toString());
+        }
         else
             currValue = stack.getValue(ne.toString());
     }

@@ -17,6 +17,7 @@ import ast.expressions.Literal.ConstantKind;
 import ast.expressions.Literal.LiteralBuilder;
 import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
 import ast.expressions.This;
 import ast.expressions.UnaryExpr;
 import ast.misc.Var;
@@ -1499,6 +1500,7 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
+                System.out.println(in.toString());
                 if(interpretMode)
                     currentTarget = null;
                 errors.add(
@@ -1727,7 +1729,8 @@ public class TypeChecker extends Visitor {
                 );
             }
         }
-        ld.var().setType(ld.type());
+        ld.var().setType(ld.var().init().type);
+        ld.setType(ld.var().init().type);
     }
 
     /**
@@ -1810,8 +1813,12 @@ public class TypeChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
+        if(ne.getThis() != null)
+            ne.getThis().visit(this);
+
         if(ne.toString().equals("parent")) {
             if(parentFound) {
+                parentFound = false;
                 errors.add(
                     new ErrorBuilder(generateScopeError,interpretMode)
                             .addLocation(ne)
@@ -1822,7 +1829,7 @@ public class TypeChecker extends Visitor {
             parentFound = true;
             ne.type = currentClass.superClass();
         }
-        else if(currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
+        else if(!currentScope.hasName(ne.toString()) && currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
             String targetName = currentTarget.toString();
             ClassDecl cd = null;
             if(currentTarget.isClassType()) {
@@ -1928,6 +1935,11 @@ public class TypeChecker extends Visitor {
         }
         ne.type = new ClassType(cd.toString());
         ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
+    }
+
+    public void visitOutStmt(OutStmt os) {
+        for(Expression e : os.outExprs())
+            e.visit(this);
     }
 
     /**

@@ -3,10 +3,12 @@ package modifierchecker;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
+import ast.expressions.Expression;
 import ast.expressions.FieldExpr;
 import ast.expressions.Invocation;
 import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
 import ast.statements.AssignStmt;
 import ast.statements.CaseStmt;
 import ast.statements.ChoiceStmt;
@@ -456,6 +458,11 @@ public class ModifierChecker extends Visitor {
             );
         }
         super.visitNewExpr(ne);
+    }
+
+    public void visitOutStmt(OutStmt os) {
+        for(Expression e : os.outExprs())
+            e.visit(this);
     }
 
     /**
