@@ -11,6 +11,7 @@ public enum MessageType {
 
     /*      SYNTAX ERRORS     */
     SYNTAX_ERROR_100,
+    SYNTAX_ERROR_101,
 
     /*      SCOPE ERRORS     */
     SCOPE_ERROR_300,
