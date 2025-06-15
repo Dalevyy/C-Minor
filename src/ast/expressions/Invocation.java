@@ -39,4 +39,23 @@ public class Invocation extends Expression {
 
     @Override
     public void visit(Visitor v) { v.visitInvocation(this); }
+
+    public static class InvocationBuilder {
+        private Name name;
+        private Vector<Expression> args;
+
+        public InvocationBuilder setName(Name n) {
+            this.name = n;
+            return this;
+        }
+
+        public InvocationBuilder setArgs(Vector<Expression> args) {
+            this.args = args;
+            return this;
+        }
+
+        public Invocation create() {
+            return new Invocation(new Token(),name,args);
+        }
+    }
 }
