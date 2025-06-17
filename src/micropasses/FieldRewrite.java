@@ -1,6 +1,5 @@
 package micropasses;
 
-import ast.AST;
 import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
@@ -12,56 +11,48 @@ import utilities.Visitor;
 /**
  * Micropass #3
  * <br><br>
- * Once name checking is complete, we want to go back through each class
- * in a C Minor program and make sure all <code>NameExpr</code> nodes that
- * represent fields are rewritten to be <code>FieldExpr</code> nodes instead.
- * This is needed as we have to internally keep track of whether or not the
- * <code>NameExpr</code> refers to a field since during execution, we have to
- * be able to evaluate the value of the field based on the current object. This
- * will be done by setting the target to be <code>this</code> when we generate
- * the replacement <code>FieldExpr</code>
+ * <p>
+ *     Once name checking is complete, we want to go back through each class
+ *     in a C Minor program and make sure all {@code NameExpr} nodes that
+ *     represent fields are rewritten to be {@code FieldExpr} nodes instead.
+ *     This is needed as we have to internally keep track of whether or not the
+ *     {@code NameExpr} refers to a field since during execution, we have to
+ *     be able to evaluate the value of the field based on the current object. This
+ *     will be done by setting the target to be {@code this} when we generate
+ *     the replacement {@code FieldExpr}
+ * </p>
  * @author Daniel Levy
  */
 public class FieldRewrite extends Visitor {
 
-//    public void check(AST curr, ClassDecl cd) {
-////        for(int i = 0; i < curr.children.size(); i++) {
-////            AST n = curr.children.get(i);
-////            if(n.isExpression() && n.asExpression().isNameExpr()) {
-////                if(cd.symbolTable.hasNameSomewhere(n.toString())) {
-////                    if(cd.symbolTable.findName(n.toString()).decl().isFieldDecl()) {
-////                        FieldExpr fe = new FieldExprBuilder()
-////                                        .setTarget(new This())
-////                                        .setAccessExpr(n.asExpression())
-////                                        .createFieldExpr();
-////                        curr.children.set(i,fe);
-////                    }
-////                }
-////            }
-////            check(n,cd);
-////       }
-//// }
-
+    /** Current class scope we are in */
     private SymbolTable currentScope;
 
+    /**
+     * Sets the current scope to be the class we are doing a field rewrite for
+     * @param cd Class declaration
+     */
     public void visitClassDecl(ClassDecl cd) {
         currentScope = cd.symbolTable;
         super.visitClassDecl(cd);
         currentScope = currentScope.closeScope();
     }
 
+    /**
+     * Visits and rewrites all name expressions that correspond to field declarations
+     * @param ne Name Expression
+     */
     public void visitNameExpr(NameExpr ne) {
-        if(currentScope.hasNameSomewhere(ne.toString())) {
-            if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
-                ne.setNameInClass();
-//                AST parent = ne.getParent();
-//                FieldExpr fe = new FieldExprBuilder()
-//                                        .setTarget(new This())
-//                                        .setAccessExpr(ne)
-//                                        .createFieldExpr();
-//
-//                fe.copyAndRemove(ne);
-            }
+        /*
+            If the current name expression can be traced back to a field declaration,
+            then we need to turn the name expression into a field expression.
+        */
+        if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+            FieldExpr fe = new FieldExprBuilder()
+                               .setTarget(new This())
+                               .setAccessExpr(new NameExpr(ne.toString()))
+                               .create();
+            fe.replace(ne);
         }
     }
 }
