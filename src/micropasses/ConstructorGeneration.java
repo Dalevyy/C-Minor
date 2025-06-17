@@ -36,7 +36,7 @@ public class ConstructorGeneration extends Visitor {
                                 new FieldExprBuilder()
                                         .setTarget(new NameExpr("this"))
                                         .setAccessExpr(new NameExpr(currFieldDecl.toString()))
-                                        .createFieldExpr()
+                                        .create()
                             )
                             .setRHS(currFieldDecl.var().init())
                             .setAssignOp(AssignType.EQ)
