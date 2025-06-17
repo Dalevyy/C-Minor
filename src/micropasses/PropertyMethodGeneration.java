@@ -5,6 +5,7 @@ import ast.classbody.MethodDecl;
 import ast.classbody.MethodDecl.MethodDeclBuilder;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
+import ast.expressions.This;
 import ast.misc.Modifier;
 import ast.misc.Modifier.Mods;
 import ast.operators.AssignOp.AssignType;
@@ -47,9 +48,9 @@ public class PropertyMethodGeneration extends Visitor {
                             new AssignStmtBuilder()
                                 .setLHS(
                                     new FieldExprBuilder()
-                                            .setTarget(new NameExpr("this"))
+                                            .setTarget(new This())
                                             .setAccessExpr(new NameExpr(fd.toString()))
-                                            .createFieldExpr()
+                                            .create()
                                 )
                                 .setRHS(new NameExpr("param"+fd))
                                 .setAssignOp(AssignType.EQ)
@@ -71,9 +72,9 @@ public class PropertyMethodGeneration extends Visitor {
                         .addStmt(
                             new ReturnStmtBuilder()
                                 .setReturnExpr(new FieldExprBuilder()
-                                        .setTarget(new NameExpr("this"))
+                                        .setTarget(new This())
                                         .setAccessExpr(new NameExpr(fd.toString()))
-                                        .createFieldExpr()
+                                        .create()
                                 )
                                 .createReturnStmt()
                         )
