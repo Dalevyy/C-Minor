@@ -67,37 +67,45 @@ public abstract class AST {
     public Location getLocation() { return this.location; }
     public int startLine() { return this.location.start.line; }
 
-    public void copy(AST n) {
-        this.text = n.text;
-        this.location = n.location;
-        this.parent = n.parent;
+    /**
+     * Copies the metadata of an AST node into the current node.
+     * @param node AST node we want to copy
+     */
+    public void copy(AST node) {
+        this.text = node.text;
+        this.location = node.location;
+        this.parent = node.parent;
     }
 
-    public void copyAndRemove(AST n) {
-        this.copy(n);
-//        for(AST c : n.children) {
-//            this.addChild(c);
-//        }
-        
-        AST currParent = n;
-        while(currParent.getParent() != null) {
-            currParent = currParent.getParent();
-            int originalSize = currParent.children.size();
-            for(int i = 0; i < originalSize; i++) {
-                AST childNode = currParent.children.get(i);
-                if(childNode.equals(n)) {
-                    currParent.removeChild(i);
-                    currParent.children.add(i,this);
-                    currParent.update(i,this);
+    /**
+     * Removes all references of the passed AST node and replaces it with the current node.
+     * @param node AST node we want to copy and remove from the tree
+     */
+    public void replace(AST node) {
+        this.copy(node);
+
+        AST curr = node;
+        /*
+            We will start removing all references of 'node' here. We will 
+            traverse the AST going upwards until we reach the root.
+        */
+        while(curr.getParent() != null) {
+            curr = curr.getParent();
+            // Look through the current node's children
+            for(int i = 0; i < curr.children.size(); i++) {
+                /*
+                    If a child node matches the passed 'node', then we need to replace 
+                    the child node with the current node ('this'). We will update both
+                    the children vector alongside the individual reference in the object.
+                */
+                if(curr.children.get(i).equals(node)) {
+                    curr.removeChild(i);
+                    curr.children.add(i,this);
+                    curr.update(i,this);
                 }
             }
         }
-        n.parent = null;
-    }
-
-    public void copyAndRemove(AST n, AST parent) {
-        this.copyAndRemove(n);
-        this.parent = parent;
+        node.parent = null;
     }
 
     public void updateMetaData(Token t) {
