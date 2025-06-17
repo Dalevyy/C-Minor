@@ -903,7 +903,6 @@ public class Parser {
         Vector<Object> header = operatorHeader();
         Operator op = (Operator) header.get(0);
         Vector<ParamDecl> pd = (Vector<ParamDecl>) header.get(1);
-        if(pd.isEmpty()) { pd = null; }
 
         match(TokenType.ARROW);
         Type rt = returnType();
