@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.*;
 import token.*;
 import utilities.Vector;
@@ -11,10 +12,10 @@ public class IfStmt extends Statement {
     public SymbolTable symbolTableIfBlock;
     public SymbolTable symbolTableElseBlock;
 
-    private final Expression cond;
-    private final BlockStmt ifBlock;
+    private Expression cond;
+    private BlockStmt ifBlock;
     private final Vector<IfStmt> elifStmts;
-    private final BlockStmt elseBlock;
+    private BlockStmt elseBlock;
 
     public IfStmt(Token t, Expression c, BlockStmt ib) { this(t,c,ib,new Vector<>(),null); }
     public IfStmt(Token t, Expression c, BlockStmt ib, Vector<IfStmt> es) { this(t,c,ib,es,null); }
@@ -39,6 +40,25 @@ public class IfStmt extends Statement {
 
     public boolean isIfStmt() { return true; }
     public IfStmt asIfStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                cond = n.asExpression();
+                break;
+            case 1:
+                ifBlock = n.asStatement().asBlockStmt();
+                break;
+            default:
+                if(elifStmts().size()-pos-2 >= 1) {
+                    elifStmts.remove(pos-2);
+                    elifStmts.add(pos-2,n.asStatement().asIfStmt());
+                }
+                else
+                    elseBlock = n.asStatement().asBlockStmt();
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitIfStmt(this); }

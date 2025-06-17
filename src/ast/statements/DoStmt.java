@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.*;
 import token.*;
 import utilities.Visitor;
@@ -9,8 +10,8 @@ public class DoStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private final BlockStmt doBlock;
-    private final Expression cond;
+    private BlockStmt doBlock;
+    private Expression cond;
 
     public DoStmt(Token t, BlockStmt db, Expression c) {
         super(t);
@@ -27,6 +28,18 @@ public class DoStmt extends Statement {
 
     public boolean isDoStmt() { return true; }
     public DoStmt asDoStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                doBlock = n.asStatement().asBlockStmt();
+                break;
+            case 1:
+                cond = n.asExpression();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitDoStmt(this); }

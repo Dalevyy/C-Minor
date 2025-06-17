@@ -1,13 +1,14 @@
 package ast.expressions;
 
+import ast.AST;
 import ast.operators.*;
 import token.*;
 import utilities.Visitor;
 
 public class UnaryExpr extends Expression {
 
-    private final Expression expr;
-    private final UnaryOp op;
+    private Expression expr;
+    private UnaryOp op;
 
     public UnaryExpr(Token t, Expression expr, UnaryOp op) {
         super(t);
@@ -24,6 +25,18 @@ public class UnaryExpr extends Expression {
 
     public boolean isUnaryExpr() { return true; }
     public UnaryExpr asUnaryExpr() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                expr = n.asExpression();
+                break;
+            case 1:
+                op = n.asOperator().asUnaryOp();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitUnaryExpr(this); }

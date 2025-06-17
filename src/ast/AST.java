@@ -9,7 +9,6 @@ import ast.statements.Statement;
 import ast.topleveldecls.TopLevelDecl;
 import ast.types.Type;
 import token.Location;
-import token.Position;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
@@ -63,7 +62,6 @@ public abstract class AST {
     public void appendText(String s) { this.text += s; }
     public String getText() { return this.text; }
 
-    public void setEndLocation(Position end) { this.location.end = end;}
     public Location getLocation() { return this.location; }
     public int startLine() { return this.location.start.line; }
 
@@ -108,6 +106,10 @@ public abstract class AST {
         node.parent = null;
     }
 
+    /**
+     * Updates a node's metadata based on a passed token.
+     * @param t Token
+     */
     public void updateMetaData(Token t) {
         this.text = t.getText();
         this.location = new Location();
@@ -119,6 +121,7 @@ public abstract class AST {
         for(AST n : children)
             n.parent = this;
     }
+
     public AST getParent() { return parent; }
 
     public void addChild(AST node) {
@@ -142,7 +145,7 @@ public abstract class AST {
         return null;
     }
 
-    public void update(int pos, AST n){}
+    public abstract void update(int pos, AST n);
 
     public String getStartPosition() {
         return this.location.start.line + "." + this.location.start.column;

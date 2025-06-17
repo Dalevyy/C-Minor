@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
@@ -22,6 +23,12 @@ public class ListLiteral extends Literal {
 
     public boolean isListLiteral() { return true; }
     public ListLiteral asListLiteral() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        inits.remove(pos);
+        inits.add(pos,n.asExpression());
+    }
 
     @Override
     public void visit(Visitor v) { v.visitListLiteral(this); }

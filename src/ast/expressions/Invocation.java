@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import ast.misc.Name;
 import ast.types.*;
 import token.*;
@@ -10,7 +11,7 @@ public class Invocation extends Expression {
 
     public Type targetType;
 
-    private final Name name;
+    private Name name;
     private final Vector<Expression> args;
 
     private String invokeSignature;
@@ -38,9 +39,22 @@ public class Invocation extends Expression {
     public String toString() { return name.toString(); }
 
     @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                name = n.asName();
+                break;
+            default:
+                args.remove(pos-1);
+                args.add(pos+1,n.asExpression());
+        }
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitInvocation(this); }
 
     public static class InvocationBuilder {
+        private Token metaData;
         private Name name;
         private Vector<Expression> args;
 
@@ -55,7 +69,14 @@ public class Invocation extends Expression {
         }
 
         public Invocation create() {
-            return new Invocation(new Token(),name,args);
+            metaData = new Token();
+            metaData.appendText(name.text);
+            for(Expression e : args)
+                metaData.appendText(e.text);
+            metaData.setStartLocation(this.name.location.start);
+            metaData.setEndLocation(this.args.top().location.end);
+
+            return new Invocation(metaData,name,args);
         }
     }
 }

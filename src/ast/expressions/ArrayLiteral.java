@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
@@ -36,6 +37,19 @@ public class ArrayLiteral extends Literal {
 
     public boolean isArrayLiteral() { return true; }
     public ArrayLiteral asArrayLiteral() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        if(pos < dims.size()) {
+            dims.remove(pos);
+            dims.add(pos,n.asExpression());
+        }
+        else {
+            pos -= inits.size();
+            inits.remove(pos);
+            inits.add(pos,n.asExpression());
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitArrayLiteral(this); }

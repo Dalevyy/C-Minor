@@ -1,5 +1,6 @@
 package ast.operators;
 
+import ast.AST;
 import token.*;
 import utilities.Vector;
 import utilities.Visitor;

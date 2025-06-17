@@ -15,5 +15,11 @@ public class InitDecl extends AST {
     public Vector<AssignStmt> assignStmts() { return this.params; }
 
     @Override
+    public void update(int pos, AST n) {
+        params.remove(pos);
+        params.add(pos,n.asStatement().asAssignStmt());
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitInitDecl(this); }
 }

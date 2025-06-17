@@ -64,5 +64,8 @@ public class Compilation extends AST {
     public Compilation asCompilation() { return this; }
 
     @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A compilation unit can not be updated."); }
+
+    @Override
     public void visit(Visitor v) { v.visitCompilation(this); }
 }

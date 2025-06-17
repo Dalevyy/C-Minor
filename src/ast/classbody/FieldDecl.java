@@ -13,7 +13,7 @@ public class FieldDecl extends AST implements NameNode {
 
     public Modifiers mod;
 
-    private final Var var;
+    private Var var;
     private Type type;
 
     public FieldDecl(Token t, Modifier m, Var v, Type type) {
@@ -38,6 +38,18 @@ public class FieldDecl extends AST implements NameNode {
 
     @Override
     public String toString() { return var().toString(); }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                var = n.asVar();
+                break;
+            case 1:
+                type = n.asType();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitFieldDecl(this); }

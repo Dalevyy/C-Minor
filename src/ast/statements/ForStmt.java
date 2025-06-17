@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.*;
 import ast.operators.LoopOp;
 import token.*;
@@ -10,11 +11,11 @@ public class ForStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private final LocalDecl loopControlVar;
-    private final Expression LHS;
-    private final Expression RHS;
-    private final LoopOp lOp;
-    private final BlockStmt body;
+    private LocalDecl loopControlVar;
+    private Expression LHS;
+    private Expression RHS;
+    private LoopOp lOp;
+    private BlockStmt body;
 
     public ForStmt(Token t, LocalDecl ld, Expression LHS, Expression RHS, LoopOp lOp, BlockStmt b) {
         super(t);
@@ -40,6 +41,27 @@ public class ForStmt extends Statement {
 
     public boolean isForStmt() { return true; }
     public ForStmt asForStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                loopControlVar = n.asStatement().asLocalDecl();
+                break;
+            case 1:
+                LHS = n.asExpression();
+                break;
+            case 2:
+                RHS = n.asExpression();
+                break;
+            case 3:
+                lOp = n.asOperator().asLoopOp();
+                break;
+            case 4:
+                body = n.asStatement().asBlockStmt();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitForStmt(this); }

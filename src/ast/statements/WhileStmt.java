@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.*;
 import token.*;
 import utilities.Visitor;
@@ -9,8 +10,8 @@ public class WhileStmt extends Statement {
 
     public SymbolTable symbolTable;
 
-    private final Expression cond;
-    private final BlockStmt whileBlock;
+    private Expression cond;
+    private BlockStmt whileBlock;
 
     public WhileStmt(Token t, Expression cond, BlockStmt whileBlock) {
         super(t);
@@ -27,6 +28,18 @@ public class WhileStmt extends Statement {
 
     public boolean isWhileStmt() { return true; }
     public WhileStmt asWhileStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                cond = n.asExpression();
+                break;
+            case 1:
+                whileBlock = n.asStatement().asBlockStmt();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitWhileStmt(this); }

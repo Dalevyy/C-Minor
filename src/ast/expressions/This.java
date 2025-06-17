@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import token.Token;
 import utilities.Visitor;
 
@@ -15,6 +16,9 @@ public class This extends Expression {
 
     @Override
     public String toString() { return "this"; }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A this statement can not be updated."); }
 
     @Override
     public void visit(Visitor v) { v.visitThis(this); }

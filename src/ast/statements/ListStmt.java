@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.Expression;
 import ast.expressions.NameExpr;
 import ast.types.ListType;
@@ -37,6 +38,12 @@ public class ListStmt extends Statement {
 
     @Override
     public String toString() { return  names.get(commandType.ordinal()); }
+
+    @Override
+    public void update(int pos, AST n) {
+        args.remove(pos);
+        args.add(pos,n.asExpression());
+    }
 
     @Override
     public void visit(Visitor v) { v.visitListStmt(this); }

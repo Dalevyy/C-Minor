@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import ast.misc.Var;
 import ast.types.*;
 import token.*;
@@ -8,7 +9,7 @@ import utilities.Visitor;
 
 public class NewExpr extends Expression {
 
-    private final ClassType cType;
+    private ClassType cType;
     private final Vector<Var> fields;
 
     public NewExpr(String ct) { this(new Token(),new ClassType(ct),new Vector<>());}
@@ -29,6 +30,18 @@ public class NewExpr extends Expression {
     public NewExpr asNewExpr() { return this; }
 
     public String getObjectName() { return this.getParent().toString(); }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                cType = n.asType().asClassType();
+                break;
+            default:
+                fields.remove(pos-1);
+                fields.add(pos-1,n.asVar());
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitNewExpr(this); }

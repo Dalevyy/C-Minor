@@ -29,4 +29,7 @@ public abstract class TopLevelDecl extends AST {
 
     public boolean isMainDecl() { return false; }
     public MainDecl asMainDecl() { throw new RuntimeException("Expression can not be casted into a MainDecl.\n"); }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A top level declaration can not be updated."); }
 }

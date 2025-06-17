@@ -1,12 +1,13 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.*;
 import token.*;
 import utilities.Visitor;
 
 public class ReturnStmt extends Statement {
 
-    private final Expression expr;
+    private Expression expr;
 
     public ReturnStmt(Expression e) { this(new Token(),e); }
     public ReturnStmt(Token t, Expression e) {
@@ -21,6 +22,9 @@ public class ReturnStmt extends Statement {
 
     public boolean isReturnStmt() { return true; }
     public ReturnStmt asReturnStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) { expr = n.asExpression(); }
 
     @Override
     public void visit(Visitor v) { v.visitReturnStmt(this); }

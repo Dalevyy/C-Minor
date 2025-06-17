@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import token.*;
 import utilities.Vector;
 
@@ -35,6 +36,19 @@ public class BlockStmt extends Statement {
 
     public boolean isBlockStmt() { return true; }
     public BlockStmt asBlockStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        if(pos < decls.size()) {
+            decls.remove(pos);
+            decls.add(pos,n.asStatement().asLocalDecl());
+        }
+        else {
+            pos -= stmts.size();
+            stmts.remove(pos);
+            stmts.add(pos,n.asStatement());
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitBlockStmt(this); }

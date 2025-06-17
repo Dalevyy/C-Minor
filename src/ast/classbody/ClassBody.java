@@ -26,5 +26,18 @@ public class ClassBody extends AST {
     public ClassBody asClassBody() { return this; }
 
     @Override
+    public void update(int pos, AST n) {
+        if(pos < fieldDecls.size()) {
+            fieldDecls.remove(pos);
+            fieldDecls.add(pos,n.asFieldDecl());
+        }
+        else {
+            pos -= methodDecls.size();
+            methodDecls.remove(pos);
+            methodDecls.add(pos,n.asMethodDecl());
+        }
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitClassBody(this); }
 }

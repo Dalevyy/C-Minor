@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import ast.expressions.*;
 import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
@@ -8,9 +9,9 @@ import utilities.Visitor;
 
 public class AssignStmt extends Statement {
 
-    private final Expression LHS;
-    private final Expression RHS;
-    private final AssignOp op;
+    private Expression LHS;
+    private Expression RHS;
+    private AssignOp op;
 
     public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op,false); }
     public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) { this(t,LHS,RHS,op,false); }
@@ -34,7 +35,24 @@ public class AssignStmt extends Statement {
     public AssignStmt asAssignStmt() { return this; }
 
     @Override
-    public void visit(Visitor v) { v.visitAssignStmt(this); }
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                LHS = n.asExpression();
+                break;
+            case 1:
+                RHS = n.asExpression();
+                break;
+            case 2:
+                op = n.asOperator().asAssignOp();
+                break;
+        }
+    }
+
+
+    @Override
+    public void visit(Visitor v) { v.
+            visitAssignStmt(this); }
 
     public static class AssignStmtBuilder {
         private Expression LHS;

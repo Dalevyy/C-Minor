@@ -17,7 +17,7 @@ public class ParamDecl extends AST implements NameNode {
 
     public Modifiers mod;
 
-    private final Name name;
+    private Name name;
     private Type type;
 
     public ParamDecl(Modifier m, Name n, Type type) { this(new Token(),m,n,type); }
@@ -43,6 +43,18 @@ public class ParamDecl extends AST implements NameNode {
 
     public boolean isParamDecl() { return true; }
     public ParamDecl asParamDecl() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                name = n.asName();
+                break;
+            case 1:
+                type = n.asType();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitParamDecl(this); }

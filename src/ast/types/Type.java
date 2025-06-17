@@ -135,4 +135,7 @@ public abstract class Type extends AST {
     public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
     public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
     public EnumType asEnumType() { throw new RuntimeException("Expression can not be casted into an EnumType.\n"); }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A type can not be updated."); }
 }

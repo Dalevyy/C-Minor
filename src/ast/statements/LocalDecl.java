@@ -9,7 +9,7 @@ import utilities.Visitor;
 
 public class LocalDecl extends Statement implements NameNode {
 
-    private final Var myVar;
+    private Var myVar;
     private Type type;
 
     public LocalDecl(Token t, Var v, Type type) {
@@ -32,6 +32,18 @@ public class LocalDecl extends Statement implements NameNode {
 
     public boolean isLocalDecl() { return true; }
     public LocalDecl asLocalDecl() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                myVar = n.asVar();
+                break;
+            case 1:
+                type = n.asType();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitLocalDecl(this); }

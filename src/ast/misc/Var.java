@@ -18,7 +18,7 @@ ___________________________________________________________
 */
 public class Var extends AST {
 
-    private final Name name;
+    private Name name;
     private Expression init;
     private Type type;
 
@@ -51,6 +51,21 @@ public class Var extends AST {
 
     public void setType(Type t) { this.type = t; }
     public void setInit(Expression e) { this.init = e; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                name = n.asName();
+                break;
+            case 1:
+                setInit(n.asExpression());
+                break;
+            case 2:
+                setType(n.asType());
+                break;
+        }
+    }
 
     @Override
     public String toString() { return this.name.toString(); }

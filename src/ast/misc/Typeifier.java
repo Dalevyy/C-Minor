@@ -16,7 +16,7 @@ public class Typeifier extends AST {
     public static String[] names = {"Discrete", "Scalar", "Class" };
 
     private final Typfiers typef;
-    private final Name name;
+    private Name name;
 
     public Typeifier(Token t, Typfiers m, Name n) {
         super(t);
@@ -32,6 +32,9 @@ public class Typeifier extends AST {
 
     public boolean isTypeifier() { return true; }
     public Typeifier asTypeifier() { return this; }
+
+    @Override
+    public void update(int pos, AST n) { name = n.asName(); }
 
     @Override
     public void visit(Visitor v) { v.visitTypeifier(this); }

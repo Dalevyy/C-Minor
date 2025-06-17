@@ -14,8 +14,8 @@ ___________________________________________________________
 */
 public class Label extends AST {
 
-    private final Literal lConstant;
-    private final Literal rConstant;
+    private Literal lConstant;
+    private Literal rConstant;
 
     public Label(Token t, Literal l) { this(t, l, null); }
 
@@ -34,6 +34,18 @@ public class Label extends AST {
 
     public boolean isLabel() { return true; }
     public Label asLabel() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                lConstant = n.asExpression().asLiteral();
+                break;
+            case 1:
+                rConstant = n.asExpression().asLiteral();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitChoiceLabel(this); }

@@ -1,5 +1,6 @@
 package ast.statements;
 
+import ast.AST;
 import token.*;
 import utilities.Visitor;
 
@@ -10,6 +11,9 @@ public class StopStmt extends Statement {
 
     public boolean isStopStmt() { return true; }
     public StopStmt asStopStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A stop statement can not be updated."); }
 
     @Override
     public void visit(Visitor v) { v.visitStopStmt(this); }

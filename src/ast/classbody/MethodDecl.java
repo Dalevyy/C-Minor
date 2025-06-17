@@ -15,17 +15,18 @@ public class MethodDecl extends AST implements NameNode {
     public SymbolTable symbolTable;
     public Modifiers mods;
 
-    private final Name methodName;       // Set if we have a MethodDecl
-    private final Operator op;           // Set if we have a OperatorDecl
+    private Name methodName;       // Set if we have a MethodDecl
+    private Operator op;           // Set if we have a OperatorDecl
     private final Vector<ParamDecl> params;
-    private final Type returnType;
-    private final BlockStmt block;
+    private Type returnType;
+    private BlockStmt methodBlock;
 
     private final boolean isOverridden;
 
     public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         this(new Token(),m,n,null,p,rt,b,false);
     }
+
     public MethodDecl(Token t, Vector<Modifier> m, Name n, Operator o, Vector<ParamDecl> p,
                       Type rt, BlockStmt b, boolean override) {
        super(t);
@@ -34,15 +35,17 @@ public class MethodDecl extends AST implements NameNode {
        this.op = o;
        this.params = p;
        this.returnType = rt;
-       this.block = b;
+       this.methodBlock = b;
 
        this.isOverridden = override;
 
-       addChild(this.methodName);
-       addChild(this.op);
+       if(this.methodName != null)
+           addChild(this.methodName);
+       else
+           addChild(this.op);
        addChild(this.params);
        addChild(this.returnType);
-       addChild(this.block);
+       addChild(this.methodBlock);
        setParent();
     }
 
@@ -52,7 +55,7 @@ public class MethodDecl extends AST implements NameNode {
     public Operator operator() { return op; }
     public Vector<ParamDecl> params() { return params; }
     public Type returnType() { return returnType; }
-    public BlockStmt methodBlock() { return block; }
+    public BlockStmt methodBlock() { return methodBlock; }
 
     public boolean isOverridden() { return isOverridden; }
 
@@ -71,7 +74,28 @@ public class MethodDecl extends AST implements NameNode {
     }
 
     @Override
-    public String toString() { return methodName.toString(); }
+    public String toString() { return (op != null) ? "operator" + op : methodName.toString(); }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                if(methodName != null)
+                    methodName = n.asName();
+                else
+                    op = n.asOperator();
+                break;
+            default:
+                if(pos <= params.size()) {
+                    params.remove(pos-1);
+                    params.add(pos-1,n.asParamDecl());
+                }
+                else if(pos-1 == params.size())
+                    returnType = n.asType();
+                else
+                    methodBlock = n.asStatement().asBlockStmt();
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitMethodDecl(this); }

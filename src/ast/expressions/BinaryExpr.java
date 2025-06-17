@@ -1,14 +1,15 @@
 package ast.expressions;
 
-import ast.operators.*;
-import token.*;
+import ast.AST;
+import ast.operators.BinaryOp;
+import token.Token;
 import utilities.Visitor;
 
 public class BinaryExpr extends Expression {
 
-    private final Expression LHS;
-    private final Expression RHS;
-    private final BinaryOp op;
+    private Expression LHS;
+    private Expression RHS;
+    private BinaryOp op;
 
     public BinaryExpr(Token t, Expression LHS, Expression RHS, BinaryOp op) {
         super(t);
@@ -28,6 +29,21 @@ public class BinaryExpr extends Expression {
 
     public boolean isBinaryExpr() { return true; }
     public BinaryExpr asBinaryExpr() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                LHS = n.asExpression();
+                break;
+            case 1:
+                RHS = n.asExpression();
+                break;
+            case 2:
+                op = n.asOperator().asBinaryOp();
+                break;
+        }
+    }
 
     @Override
     public void visit(Visitor v) { v.visitBinaryExpr(this); }

@@ -20,4 +20,7 @@ public abstract class Operator extends AST {
 
     public boolean isUnaryOp() { return false; }
     public UnaryOp asUnaryOp() { throw new RuntimeException("Expression can not be casted into a UnaryOp.\n"); }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("An operator can not be updated."); }
 }

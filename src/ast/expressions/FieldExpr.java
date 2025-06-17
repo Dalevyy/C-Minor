@@ -1,11 +1,12 @@
 package ast.expressions;
 
+import ast.AST;
 import token.*;
 import utilities.Visitor;
 
 public class FieldExpr extends Expression {
 
-    private final Expression target;
+    private Expression target;
     private Expression accessExpr;
 
     private final boolean asCheck;
@@ -39,6 +40,18 @@ public class FieldExpr extends Expression {
     public String toString() { return accessExpr.toString(); }
 
     @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                target = n.asExpression();
+                break;
+            case 1:
+                accessExpr = n.asExpression();
+                break;
+        }
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitFieldExpr(this); }
 
     public static class FieldExprBuilder {
@@ -61,6 +74,11 @@ public class FieldExpr extends Expression {
             return this;
         }
 
-        public FieldExpr createFieldExpr() { return new FieldExpr(target,accessExpr,as); }
+        public FieldExpr create() {
+            return new FieldExpr(
+                    new Token(target.text+accessExpr.text,
+                                new Location(target.location.start,accessExpr.location.end)),
+                    target,accessExpr,as);
+        }
     }
 }

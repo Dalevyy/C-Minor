@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import token.Token;
 import utilities.Visitor;
 
@@ -25,16 +26,19 @@ public class Literal extends Expression {
     public boolean isLiteral() { return true; }
     public Literal asLiteral() { return this; }
 
+    public char asChar() {
+        if(this.kind == ConstantKind.CHAR) {
+            if(this.getText().charAt(1) == '\\') { return (char) ('\\' + this.getText().charAt(2));}
+            return this.getText().charAt(1);
+        }
+        return '\0';
+    }
+
     @Override
     public String toString() { return this.getText(); }
 
-    public char asChar() {
-      if(this.kind == ConstantKind.CHAR) {
-          if(this.getText().charAt(1) == '\\') { return (char) ('\\' + this.getText().charAt(2));}
-          return this.getText().charAt(1);
-      }
-      return '\0';
-    }
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A literal can not be updated."); }
 
     @Override
     public void visit(Visitor v) { v.visitLiteral(this); }

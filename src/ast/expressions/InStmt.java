@@ -1,5 +1,6 @@
 package ast.expressions;
 
+import ast.AST;
 import token.*;
 import utilities.Vector;
 import utilities.Visitor;
@@ -21,6 +22,12 @@ public class InStmt extends Expression {
 
     public boolean isInStmt() { return true; }
     public InStmt asInStmt() { return this; }
+
+    @Override
+    public void update(int pos, AST n) {
+        exprs.remove(pos);
+        exprs.add(pos,n.asExpression());
+    }
 
     @Override
     public void visit(Visitor v) { v.visitInStmt(this); }
