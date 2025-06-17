@@ -463,7 +463,7 @@ public class Parser {
 
             if(ty.isListType()) {
                 ty.asListType().numOfDims += 1;
-                ty.updateNode(nodeToken());
+                ty.updateMetaData(nodeToken());
                 return ty;
             }
             return new ListType(nodeToken(),ty,1);
@@ -481,7 +481,7 @@ public class Parser {
 
             if(ty.isArrayType()) {
                 ty.asArrayType().numOfDims += 1;
-                ty.updateNode(nodeToken());
+                ty.updateMetaData(nodeToken());
                 return ty;
             }
             return new ArrayType(nodeToken(),ty,1);
