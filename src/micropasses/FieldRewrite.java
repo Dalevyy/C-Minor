@@ -47,7 +47,7 @@ public class FieldRewrite extends Visitor {
             If the current name expression can be traced back to a field declaration,
             then we need to turn the name expression into a field expression.
         */
-        if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+        if(currentScope.hasName(ne.toString()) && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new This())
                                .setAccessExpr(new NameExpr(ne.toString()))
