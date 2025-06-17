@@ -74,7 +74,10 @@ public class Invocation extends Expression {
             for(Expression e : args)
                 metaData.appendText(e.text);
             metaData.setStartLocation(this.name.location.start);
-            metaData.setEndLocation(this.args.top().location.end);
+            if(args.isEmpty())
+                metaData.setEndLocation(this.name.location.end);
+            else
+                metaData.setEndLocation(this.args.top().location.end);
 
             return new Invocation(metaData,name,args);
         }
