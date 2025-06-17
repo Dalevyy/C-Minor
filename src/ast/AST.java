@@ -3,10 +3,7 @@ package ast;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.Expression;
-import ast.misc.Compilation;
-import ast.misc.Name;
-import ast.misc.ParamDecl;
-import ast.misc.Var;
+import ast.misc.*;
 import ast.operators.Operator;
 import ast.statements.Statement;
 import ast.topleveldecls.TopLevelDecl;
@@ -26,14 +23,17 @@ public abstract class AST {
      * The textual representation of the current AST node
      */
     public String text;
+
     /**
      * The location of the AST node in the program
      * */
     public Location location;
+
     /**
      * List of child nodes that the current AST is a parent of
      */
     public Vector<AST> children = new Vector<>();
+
     /**
      * Reference to current AST node's parent
      */
@@ -75,22 +75,22 @@ public abstract class AST {
 
     public void copyAndRemove(AST n) {
         this.copy(n);
-        for(AST c : n.children) {
-            this.addChild(c);
-            c.parent = this;
-        }
+//        for(AST c : n.children) {
+//            this.addChild(c);
+//        }
         
-        AST curr = n;
-        while(curr.getParent() != null) {
-            curr = curr.getParent();
-            for(int i = 0; i < curr.children.size(); i++) {
-                AST c = curr.children.get(i);
-                if(c == n) {
-                    c.removeChild(i);
-                    c.children.add(i,this);
+        AST currParent = n;
+        while(currParent.getParent() != null) {
+            currParent = currParent.getParent();
+            int originalSize = currParent.children.size();
+            for(int i = 0; i < originalSize; i++) {
+                AST childNode = currParent.children.get(i);
+                if(childNode.equals(n)) {
+                    currParent.removeChild(i);
+                    currParent.children.add(i,this);
+                    currParent.update(i,this);
                 }
             }
-            n.parent = n.getParent();
         }
         n.parent = null;
     }
@@ -100,7 +100,7 @@ public abstract class AST {
         this.parent = parent;
     }
 
-    public void updateNode(Token t) {
+    public void updateMetaData(Token t) {
         this.text = t.getText();
         this.location = new Location();
         this.location.start = t.getLocation().start;
@@ -134,6 +134,8 @@ public abstract class AST {
         return null;
     }
 
+    public void update(int pos, AST n){}
+
     public String getStartPosition() {
         return this.location.start.line + "." + this.location.start.column;
     }
@@ -152,9 +154,13 @@ public abstract class AST {
     public boolean isFieldDecl() { return false; }
     public FieldDecl asFieldDecl() { throw new RuntimeException("Expression can not be casted into a FieldDecl.\n"); }
 
+    public boolean isLabel() { return true; }
+    public Label asLabel() { throw new RuntimeException("Expression can not be casted into a Label.\n"); }
+
     public boolean isMethodDecl() { return false; }
     public MethodDecl asMethodDecl() { throw new RuntimeException("Expression can not be casted into a MethodDecl.\n"); }
 
+    public boolean isName() { return false; }
     public Name asName() { throw new RuntimeException("Expression can not be casted into a Name.\n"); }
 
     public boolean isOperator() { return false; }
