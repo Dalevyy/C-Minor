@@ -252,7 +252,7 @@ public class Interpreter extends Visitor {
         }
 
         HashMap<String,Object> instance = null;
-        if(as.LHS().isNameExpr() && as.LHS().asNameExpr().getThis() != null)
+        if(as.LHS().isFieldExpr() && as.LHS().asFieldExpr().fieldTarget().isThis())
             instance = (HashMap<String,Object>) stack.getValue("this");
 
         // TODO: Operator Overloads as well
@@ -346,8 +346,6 @@ public class Interpreter extends Visitor {
         Object RHS = currValue;
 
         String binOp = be.binaryOp().toString();
-
-        // TODO: Check for operator overloads here
 
         switch(binOp) {
             case "+":
@@ -1163,14 +1161,7 @@ public class Interpreter extends Visitor {
      * </p>
      * @param ne Name Expression
      */
-    public void visitNameExpr(NameExpr ne) {
-        if(ne.getThis() != null) {
-            ne.getThis().visit(this);
-            currValue = ((HashMap<String,Object>)currValue).get(ne.toString());
-        }
-        else
-            currValue = stack.getValue(ne.toString());
-    }
+    public void visitNameExpr(NameExpr ne) { currValue = stack.getValue(ne.toString()); }
 
     /**
      * Evaluates a new expression.<br><br>
@@ -1286,9 +1277,7 @@ public class Interpreter extends Visitor {
      */
     public void visitUnaryExpr(UnaryExpr ue) {
         ue.expr().visit(this);
-
-        //TODO: Operator Overload
-
+        
         switch(ue.unaryOp().toString()) {
             case "~":
                 if(ue.type.isInt())
