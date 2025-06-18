@@ -636,27 +636,43 @@ public class NameChecker extends Visitor {
         if(currentScope.hasName(md.toString())) {
             errors.add(
                 new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(md)
-                        .addErrorType(MessageType.SCOPE_ERROR_313)
-                        .addArgs(md.toString())
-                        .error()
+                    .addLocation(md)
+                    .addErrorType(MessageType.SCOPE_ERROR_313)
+                    .addArgs(md.toString())
+                    .error()
             );
         }
 
         String methodSignature = md + "/";
-        if(md.params() != null) { methodSignature += md.paramSignature(); }
+        if(md.params() != null)
+            methodSignature += md.paramSignature();
 
         // ERROR CHECK #2: Make sure method signature is unique to support overloading
         if(currentScope.hasName(methodSignature)) {
-            // Make sure to not error out if we are overriding a base class method
-            if(!currentClass.symbolTable.hasName(methodSignature))
-                errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
+            if(currentClass.superClass() != null) {
+                // Make sure to not error out if we are overriding a base class method
+                if(!currentClass.symbolTable.hasName(methodSignature)) {
+                    if(interpretMode)
+                        currentScope = currentScope.closeScope();
+                    errors.add(
+                        new ErrorBuilder(generateScopeError,interpretMode)
                             .addLocation(md)
                             .addErrorType(MessageType.SCOPE_ERROR_314)
                             .addArgs(md.toString())
                             .error()
+                    );
+                }
+            } else {
+                if(interpretMode)
+                    currentScope = currentScope.closeScope();
+                errors.add(
+                    new ErrorBuilder(generateScopeError,interpretMode)
+                        .addLocation(md)
+                        .addErrorType(MessageType.SCOPE_ERROR_314)
+                        .addArgs(md.toString())
+                        .error()
                 );
+            }
         }
 
         currentScope.addName(methodSignature, md);
@@ -664,10 +680,14 @@ public class NameChecker extends Visitor {
 
         currentScope = currentScope.openNewScope();
         md.symbolTable = currentScope;
-        for(ParamDecl pd : md.params()) { pd.visit(this); }
 
-        for(LocalDecl ld : md.methodBlock().decls()) { ld.visit(this); }
-        for(Statement s : md.methodBlock().stmts()) { s.visit(this); }
+        for(ParamDecl pd : md.params())
+            pd.visit(this);
+
+        for(LocalDecl ld : md.methodBlock().decls())
+            ld.visit(this);
+        for(Statement s : md.methodBlock().stmts())
+            s.visit(this);
 
         currentScope = currentScope.closeScope();
     }
@@ -680,7 +700,6 @@ public class NameChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(ne.toString().equals("this")) return;
         if(ne.toString().equals("parent")) {
             if(currentClass == null) {
                 errors.add(
