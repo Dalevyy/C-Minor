@@ -1,6 +1,7 @@
 package micropasses;
 
 import ast.classbody.FieldDecl;
+import ast.misc.Compilation;
 import ast.misc.ParamDecl;
 import ast.statements.LocalDecl;
 import ast.topleveldecls.EnumDecl;
@@ -31,7 +32,7 @@ import utilities.Visitor;
  */
 public class ClassToEnumTypeRewrite extends Visitor {
 
-    private final SymbolTable currentScope;
+    private SymbolTable currentScope;
 
     public ClassToEnumTypeRewrite() { currentScope = null; }
     public ClassToEnumTypeRewrite(SymbolTable st) { this.currentScope = st; }
@@ -44,6 +45,11 @@ public class ClassToEnumTypeRewrite extends Visitor {
         return typeBuilder
                 .setName(ed.toString())
                 .createEnumType();
+    }
+
+    public void visitCompilation(Compilation c) {
+        currentScope = c.globalTable;
+        super.visitCompilation(c);
     }
 
     public void visitFieldDecl(FieldDecl fd) {

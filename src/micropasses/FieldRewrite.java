@@ -4,6 +4,7 @@ import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
 import ast.expressions.This;
+import ast.misc.Compilation;
 import ast.topleveldecls.ClassDecl;
 import utilities.SymbolTable;
 import utilities.Visitor;
@@ -36,6 +37,11 @@ public class FieldRewrite extends Visitor {
         currentScope = cd.symbolTable;
         super.visitClassDecl(cd);
         currentScope = currentScope.closeScope();
+    }
+
+    public void visitCompilation(Compilation c) {
+        currentScope = c.globalTable;
+        super.visitCompilation(c);
     }
 
     /**
