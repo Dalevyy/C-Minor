@@ -52,6 +52,7 @@ public enum MessageType {
     SCOPE_ERROR_335,
     SCOPE_ERROR_336,
     SCOPE_ERROR_337,
+    SCOPE_ERROR_338,
 
     /*      TYPE ERRORS     */
     TYPE_ERROR_400,
@@ -139,6 +140,8 @@ public enum MessageType {
     RUNTIME_ERROR_606,
 
     SEMANTIC_ERROR_700,
+    SEMANTIC_ERROR_701,
+    SEMANTIC_ERROR_702,
 
     SCOPE_SUGGEST_1300,
     SCOPE_SUGGEST_1301,
