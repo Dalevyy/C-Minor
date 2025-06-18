@@ -9,8 +9,10 @@ import ast.expressions.BinaryExpr;
 import ast.expressions.CastExpr;
 import ast.expressions.Expression;
 import ast.expressions.FieldExpr;
+import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.InStmt;
 import ast.expressions.Invocation;
+import ast.expressions.Invocation.InvocationBuilder;
 import ast.expressions.ListLiteral;
 import ast.expressions.Literal;
 import ast.expressions.Literal.ConstantKind;
@@ -20,6 +22,7 @@ import ast.expressions.NewExpr;
 import ast.expressions.OutStmt;
 import ast.expressions.This;
 import ast.expressions.UnaryExpr;
+import ast.misc.Name;
 import ast.misc.Var;
 import ast.operators.AssignOp.AssignType;
 import ast.statements.AssignStmt;
@@ -579,6 +582,45 @@ public class TypeChecker extends Visitor {
         Type rType = be.RHS().type;
 
         String binOp = be.binaryOp().toString();
+
+        if(lType.isClassOrMultiType()) {
+            ClassType LHS = null;
+            if(lType.isClassType())
+                LHS = lType.asClassType();
+            switch(binOp) {
+                case "&":
+                case "^":
+                case "|":
+                case "and":
+                case "or":
+                    errors.add(
+                        new ErrorBuilder(generateScopeError,interpretMode)
+                            .addLocation(be)
+                            .addErrorType(MessageType.SCOPE_ERROR_338)
+                            .addArgs(LHS,binOp)
+                            .error()
+                    );
+                    break;
+                case "instanceof":
+                case "!instanceof":
+                case "as?":
+                    break;
+                default:
+                    FieldExpr fe = new FieldExprBuilder()
+                                       .setTarget(be.LHS())
+                                       .setAccessExpr(
+                                            new InvocationBuilder()
+                                                .setName(new Name("operator"+binOp))
+                                                .setArgs(new Vector<>(be.RHS()))
+                                                .create()
+                                        )
+                                        .create();
+                    fe.replace(be);
+                    fe.visit(this);
+                    return;
+            }
+        }
+
         switch(binOp) {
             case "==":
             case "!=": {
@@ -1500,7 +1542,6 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
-                System.out.println(in.toString());
                 if(interpretMode)
                     currentTarget = null;
                 errors.add(
@@ -1813,9 +1854,6 @@ public class TypeChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(ne.getThis() != null)
-            ne.getThis().visit(this);
-
         if(ne.toString().equals("parent")) {
             if(parentFound) {
                 parentFound = false;
@@ -2064,42 +2102,68 @@ public class TypeChecker extends Visitor {
      *             </ul>
      *         </li>
      *     </ol>
-     *     Both unary operators may also be overloaded, so we also will check if
-     *     the overload was defined by the user.
+     *     Both unary operators may also be overloaded. If the unary expression
+     *     contains a class type, then we will let {@code visitFieldExpr} handle
+     *     the type checking for us.
      * </p>
      * @param ue Unary Expression
      */
     public void visitUnaryExpr(UnaryExpr ue) {
         ue.expr().visit(this);
+
+        /*
+            If the unary expression evaluates to be an object, then we might have a
+            unary operator overload. Thus, we are going to create a field expression
+            to replace the current unary expression and let other visitors handle the
+            type checking for us.
+        */
+        if(ue.expr().type.isClassOrMultiType()) {
+            FieldExpr unaryOverload = new FieldExprBuilder()
+                                          .setTarget(ue.expr())
+                                          .setAccessExpr(
+                                              new InvocationBuilder()
+                                              .setName(new Name("operator"+ue.unaryOp()))
+                                              .setArgs(new Vector<>())
+                                              .create()
+                                          )
+                                          .create();
+            unaryOverload.replace(ue);
+            unaryOverload.visit(this);
+            return;
+        }
+
         switch(ue.unaryOp().toString()) {
             case "~":
                 // ERROR CHECK #1: An integer or real can be the only types that are negated
-                if(ue.expr().type.isInt()) { ue.type = new DiscreteType(Discretes.INT); }
-                else if(ue.expr().type.isChar()) { ue.type = new DiscreteType(Discretes.CHAR); }
+                if(ue.expr().type.isInt())
+                    ue.type = new DiscreteType(Discretes.INT);
+                else if(ue.expr().type.isChar())
+                    ue.type = new DiscreteType(Discretes.CHAR);
                 else {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(ue)
-                                .addErrorType(MessageType.TYPE_ERROR_405)
-                                .addArgs(ue.expr().type)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1407)
-                                .addArgsForSuggestion(ue.unaryOp().toString())
-                                .error()
+                            .addLocation(ue)
+                            .addErrorType(MessageType.TYPE_ERROR_405)
+                            .addArgs(ue.expr().type)
+                            .addSuggestType(MessageType.TYPE_SUGGEST_1407)
+                            .addArgsForSuggestion(ue.unaryOp().toString())
+                            .error()
                     );
                 }
                 break;
             case "not":
                 // ERROR CHECK #2: A 'not' operation can only occur on a boolean expression
-                if(ue.expr().type.isBool()) { ue.type = new DiscreteType(Discretes.BOOL); }
+                if(ue.expr().type.isBool())
+                    ue.type = new DiscreteType(Discretes.BOOL);
                 else {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(ue)
-                                .addErrorType(MessageType.TYPE_ERROR_405)
-                                .addArgs(ue.expr().type)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1408)
-                                .addArgsForSuggestion(ue.unaryOp().toString())
-                                .error()
+                            .addLocation(ue)
+                            .addErrorType(MessageType.TYPE_ERROR_405)
+                            .addArgs(ue.expr().type)
+                            .addSuggestType(MessageType.TYPE_SUGGEST_1408)
+                            .addArgsForSuggestion(ue.unaryOp().toString())
+                            .error()
                     );
                 }
                 break;
