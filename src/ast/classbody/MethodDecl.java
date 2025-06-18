@@ -22,6 +22,7 @@ public class MethodDecl extends AST implements NameNode {
     private BlockStmt methodBlock;
 
     private final boolean isOverridden;
+    public final boolean isOperatorOverload;
 
     public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         this(new Token(),m,n,null,p,rt,b,false);
@@ -39,10 +40,15 @@ public class MethodDecl extends AST implements NameNode {
 
        this.isOverridden = override;
 
-       if(this.methodName != null)
+       if(this.methodName != null) {
            addChild(this.methodName);
-       else
+           isOperatorOverload = false;
+       }
+       else {
            addChild(this.op);
+            isOperatorOverload = true;
+       }
+
        addChild(this.params);
        addChild(this.returnType);
        addChild(this.methodBlock);
@@ -69,9 +75,7 @@ public class MethodDecl extends AST implements NameNode {
         return sb.toString();
     }
 
-    public String methodSignature() {
-        return this + "(" + paramSignature() + ")" + returnType.typeSignature();
-    }
+    public String methodSignature() { return this + "(" + paramSignature() + ")" + returnType.typeSignature(); }
 
     @Override
     public String toString() { return (op != null) ? "operator" + op : methodName.toString(); }
