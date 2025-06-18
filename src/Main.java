@@ -1,41 +1,70 @@
-// System properties
-import java.io.*;
-import ast.*;
-import interpreter.*;
+import ast.misc.Compilation;
+import interpreter.Interpreter;
+import interpreter.VM;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import lexer.Lexer;
+import micropasses.ClassToEnumTypeRewrite;
 import micropasses.ConstructorGeneration;
+import micropasses.FieldRewrite;
 import micropasses.InOutStmtRewrite;
-import parser.*;
-import lexer.*;
+import micropasses.LoopKeywordCheck;
+import micropasses.OperatorOverloadCheck;
+import micropasses.PropertyMethodGeneration;
+import micropasses.VariableInitialization;
 import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
+import parser.Parser;
 import typechecker.TypeChecker;
-import utilities.*;
+import utilities.PrettyPrint;
+import utilities.Printer;
 
+/**
+ * C Minor Main Class
+ * <p>
+ *     This is the {@code Main} class for the C Minor compiler
+ *     which begins the compilation process.
+ * </p>
+ * @author Daniel Levy
+ */
 public class Main {
 
+    /** Flag that will print out C Minor tokens. */
     private static Boolean printTokens = false;
+
+    /** Flag that will print out a C Minor AST. */
     private static Boolean printParseTree = false;
 
+    /**
+     * {@code Main} method.
+     * <p>
+     *     This method will handle and execute all compilation phases.
+     * </p>
+     * @param args The arguments the user passes into the compiler
+     * @throws IOException Exception when a user incorrectly passes an argument flag
+     */
     public static void main(String[] args) throws IOException {
-        String input = readProgram(args);
-
-        AST root = syntaxAnalysis(input);
+        String program = readProgram(args);
+        Compilation root = syntaxAnalysis(program);
         semanticAnalysis(root);
     }
 
-    /*
-        The first step of the compilation process is syntax analysis. We must
-        check whether or not a C Minor program is syntactically valid based on
-        its grammar.
-
-        In C Minor, we will tokenize the entire program before parsing it. This
-        means the lexer does not generate any errors. Instead, the parser will
-        generate an error when a user has written an invalid statement or expression.
-    */
-    private static AST syntaxAnalysis(String program) {
-        Lexer lexer = new Lexer(program);
-        Parser parser = new Parser(lexer,printTokens);
-        AST root = parser.compilation();
+    /**
+     * Executes the syntax analysis phase of the C Minor compiler.
+     * <p>
+     *     During this phase, we check if a C Minor program is syntactically valid
+     *     based on the grammar. If there are any errors, then the {@code Parser} will
+     *     generate an error and terminate the compilation process. Additionally, the
+     *     tokenization and parsing of a C Minor program will occur in parallel, so we
+     *     can have better performance.
+     * </p>
+     * @param program C Minor program as a string
+     * @return An AST node representing the {@code Compilation} unit for the program.
+     */
+    private static Compilation syntaxAnalysis(String program) {
+        Parser parser = new Parser(new Lexer(program),printTokens);
+        Compilation root = parser.compilation();
         root.visit(new InOutStmtRewrite());
 
         if(printParseTree)
@@ -44,49 +73,69 @@ public class Main {
         return root;
     }
 
-    private static void semanticAnalysis(AST root) {
-        root.asCompilation().visit(new NameChecker());
-
-        root.visitChildren(new TypeChecker());
+    /**
+     * Executes the semantic analysis phase of the C Minor compiler.
+     * <p>
+     *     This method will execute all major and micro passes associated with
+     *     the C Minor compiler. If no errors were found, then the compiler
+     *     will currently execute the program by running it through the interpreter.
+     * </p>
+     * @param root Compilation unit representing the program we want to compile
+     */
+    private static void semanticAnalysis(Compilation root) {
+        root.visit(new PropertyMethodGeneration());
+        root.visit(new NameChecker());
+        root.visit(new VariableInitialization());
+        root.visit(new FieldRewrite());
+        root.visit(new OperatorOverloadCheck());
+        root.visit(new LoopKeywordCheck());
+        root.visit(new ClassToEnumTypeRewrite());
+        root.visit(new TypeChecker());
         root.visit(new ConstructorGeneration());
-
-        root.visitChildren(new ModifierChecker());
+        root.visit(new ModifierChecker());
+        root.visit(new Interpreter(root.globalTable));
     }
 
-    /*
-        Since the compiler is not machine dependent, we are going to use Java's
-        System class to handle reading a C Minor source program for us, and we
-        will transfer all contents of the file into a buffer.
-    */
+    /**
+     * Reads a C Minor input file and stores the contents into a buffer.
+     * <p>
+     *     Once all compiler flags are valid, this method will perform
+     *     file IO to read in a C Minor program for the compiler.
+     * </p>
+     * @param args The arguments the user passed into the compiler
+     * @return String representing a C Minor program that needs to be compiled
+     * @throws IOException Exception when a user incorrectly passes an argument flag
+     */
     private static String readProgram(String[] args) throws IOException {
         String fileName = args[inputValidation(args)];
-        StringBuilder programAsStr = new StringBuilder();
+        StringBuilder program = new StringBuilder();
 
         try {
-            File program = new File(fileName);
-            BufferedReader readInput = new BufferedReader(new FileReader(program));
+            BufferedReader readInput = new BufferedReader(new FileReader(fileName));
 
             String currLine = readInput.readLine();
             while(currLine != null) {
-                programAsStr.append(currLine);
-                programAsStr.append('\n');
+                program.append(currLine).append('\n');
                 currLine = readInput.readLine();
             }
         }
+        // ERROR CHECK #1: An error is generated when a C Minor file could not be found in the file system.
         catch(Exception e) {
             System.out.print(PrettyPrint.RED + "Error! C Minor program file could not be found.\n");
-            System.exit(1);
+            System.exit(-1);
         }
 
-        if(programAsStr.isEmpty()) {
-            System.out.print(PrettyPrint.RED + "Error! Undefined reference to main function.\n");
-            System.exit(1);
-        }
-        return programAsStr.toString();
+        return program.toString();
     }
 
-
+    /**
+     * Checks if a user correctly inputted compiler arguments.
+     * @param args The arguments the user passed into the compiler
+     * @return Integer position that denotes which argument contains the C Minor file name
+     * @throws IOException Exception when a user incorrectly passes an argument flag
+     */
     private static int inputValidation(String[] args) throws IOException {
+        // ERROR CHECK #1: We will generate an error if the user did not pass any arguments to the compiler
         if(args.length < 1) {
             System.out.print(PrettyPrint.RED + "Error! No input files were detected.\n" + PrettyPrint.RESET);
             System.exit(1);
@@ -94,28 +143,43 @@ public class Main {
         return parseOptions(args);
     }
 
+    /**
+     * Parses the compiler arguments and checks if they are valid.
+     * @param args The arguments the user passed into the compiler
+     * @return Integer position that denotes which argument contains the C Minor file name
+     * @throws IOException Exception when a user incorrectly passes an argument flag
+     */
     private static int parseOptions(String[] args) throws IOException {
         boolean inputFileFound = false;
         int fileArg = -1;
-        for(int i = 0; i < args.length; i++) {
-            String curr = args[i];
 
-            if(curr.equals("--start-vm")) {
-                VM.runInterpreter();
-                System.exit(0);
-            }
-            else if(curr.equals("--print-tokens"))
-                printTokens = true;
-            else if(curr.equals("--print-tree"))
-                printParseTree = true;
-            else if(curr.endsWith(".cm")) {
-                inputFileFound = true;
-                fileArg = i;
+        for(int i = 0; i < args.length; i++) {
+            String currArg = args[i];
+
+            switch(currArg) {
+                case "--start-vm":
+                    VM.runInterpreter();
+                case "--print-tokens":
+                    printTokens = true;
+                    break;
+                case "--print-tree":
+                    printParseTree = true;
+                    break;
+                default:
+                    if(currArg.endsWith(".cm")) {
+                        inputFileFound = true;
+                        fileArg = i;
+                        break;
+                    }
+                    // ERROR CHECK #1: If an invalid compiler flag was passed, generate an error
+                    System.out.print(PrettyPrint.RED + currArg + " is an invalid compiler flag." + PrettyPrint.RESET);
+                    System.exit(1);
             }
         }
 
+        // ERROR CHECK #2: Generate an error if we did not find a C Minor file and terminate the compilation process.
         if(!inputFileFound) {
-            System.out.print(PrettyPrint.RED + "Error! A .cm file was not given.\n" + PrettyPrint.RESET);
+            System.out.print(PrettyPrint.RED + "Error! A .cm file could not be found.\n" + PrettyPrint.RESET);
             System.exit(1);
         }
 
