@@ -4,6 +4,7 @@ import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.*;
+import ast.misc.Compilation;
 import ast.misc.NameNode;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
@@ -303,6 +304,11 @@ public class NameChecker extends Visitor {
                             .error()
             );
         }
+    }
+
+    public void visitCompilation(Compilation c) {
+        super.visitCompilation(c);
+        c.globalTable = currentScope;
     }
 
     /**
