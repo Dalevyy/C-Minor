@@ -33,6 +33,7 @@ public class ClassToEnumTypeRewrite extends Visitor {
 
     private final SymbolTable currentScope;
 
+    public ClassToEnumTypeRewrite() { currentScope = null; }
     public ClassToEnumTypeRewrite(SymbolTable st) { this.currentScope = st; }
 
     private EnumType buildEnumType(EnumDecl ed) {
