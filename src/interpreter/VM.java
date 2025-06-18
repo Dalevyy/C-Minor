@@ -36,6 +36,7 @@ public class VM {
         PropertyMethodGeneration generatePropertyPass = new PropertyMethodGeneration();
         VariableInitialization variableInitPass = new VariableInitialization(true);
         FieldRewrite fieldRewritePass = new FieldRewrite();
+        OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck(true);
         LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
         ClassToEnumTypeRewrite classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
         ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
@@ -112,8 +113,11 @@ public class VM {
                         System.out.println(compilationUnit.globalTable.toString());
 
                     node.visit(variableInitPass);
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl())
+                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) {
                         node.visit(fieldRewritePass);
+                        node.visit(operatorOverloadPass);
+                    }
+
                     node.visit(loopCheckPass);
                     node.visit(classToEnumPass);
                     node.visit(typeChecker);
