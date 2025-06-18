@@ -53,7 +53,7 @@ public class VM {
             input = reader.readLine();
 
             if(input.equals("#quit"))
-                System.exit(1);
+                System.exit(0);
             else if(input.equals("#clear")) {
                 compilationUnit = new Compilation();
                 nameChecker = new NameChecker(compilationUnit.globalTable);
