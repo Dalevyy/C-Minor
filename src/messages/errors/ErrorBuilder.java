@@ -43,7 +43,7 @@ public class ErrorBuilder {
         return this;
     }
 
-    public ErrorBuilder addArgsForSuggestion(Object... extraArgs) {
+    public ErrorBuilder addSuggestArgs(Object... extraArgs) {
         this.error.setArgsForSuggestions(extraArgs);
         return this;
     }
