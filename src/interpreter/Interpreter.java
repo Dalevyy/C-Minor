@@ -41,7 +41,6 @@ import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.MainDecl;
 import ast.types.ClassType;
 import ast.types.Type;
 import java.io.BufferedReader;
