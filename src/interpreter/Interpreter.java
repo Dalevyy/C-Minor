@@ -20,6 +20,7 @@ import ast.expressions.NewExpr;
 import ast.expressions.OutStmt;
 import ast.expressions.This;
 import ast.expressions.UnaryExpr;
+import ast.misc.Compilation;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
 import ast.statements.AssignStmt;
@@ -40,6 +41,7 @@ import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.MainDecl;
 import ast.types.ClassType;
 import ast.types.Type;
 import java.io.BufferedReader;
@@ -68,7 +70,7 @@ public class Interpreter extends Visitor {
     private boolean continueFound;
 
     /**
-     * Creates interpreter for the VM.
+     * Creates interpreter for the VM.des
      * @param st Symbol Table
      */
     public Interpreter(SymbolTable st) {
@@ -649,6 +651,27 @@ public class Interpreter extends Visitor {
                 }
             }
         }
+    }
+
+    /**
+     * Begins the execution of a program in compilation mode.
+     * <p>
+     *     For the time being, we are going to execute programs via
+     *     the interpreter if a user is in compilation mode instead of
+     *     generating bytecode. When we do this, we want to make sure to
+     *     visit every {@code EnumDecl} and {@code GlobalDecl}, so they can
+     *     be saved into the runtime stack before visiting the main function.
+     * </p>
+     * @param c Compilation unit representing the program we are executing
+     */
+    public void visitCompilation(Compilation c) {
+        for(EnumDecl ed : c.enumDecls())
+            ed.visit(this);
+
+        for(GlobalDecl gd : c.globalDecls())
+            gd.visit(this);
+
+        c.mainDecl().mainBody().visit(this);
     }
 
     /**
