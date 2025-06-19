@@ -100,7 +100,15 @@ public class Parser {
         Token t = tokenStack.pop();
         input.setText(t);
 
-        if(tokenStack.top() != null) { tokenStack.top().setEndLocation(t.getEndPos()); }
+        if(tokenStack.top() != null)
+            tokenStack.top().setEndLocation(t.getEndPos());
+
+        return t;
+    }
+
+    public Token nodeTokenTop() {
+        Token t = tokenStack.top();
+        input.setText(t);
         return t;
     }
 
@@ -1729,7 +1737,7 @@ public class Parser {
                 match(TokenType.EXP);
 
                 Expression right = castExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1762,7 +1770,7 @@ public class Parser {
                 }
 
                 Expression right = powerExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1792,7 +1800,7 @@ public class Parser {
 
                 Expression right = multiplicationExpression();
 
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1820,7 +1828,7 @@ public class Parser {
                 }
 
                 Expression right = additiveExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1857,7 +1865,7 @@ public class Parser {
                 }
 
                 Expression right = shiftExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1890,7 +1898,7 @@ public class Parser {
                 }
 
                 Expression right = relationalExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1918,7 +1926,7 @@ public class Parser {
                 }
 
                 Expression right = instanceOfExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1939,7 +1947,7 @@ public class Parser {
                 match(TokenType.BAND);
 
                 Expression right = equalityExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1960,7 +1968,7 @@ public class Parser {
                 match(TokenType.XOR);
 
                 Expression right = andExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1981,7 +1989,7 @@ public class Parser {
                 match(TokenType.BOR);
 
                 Expression right = exclusiveOrExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -2002,7 +2010,7 @@ public class Parser {
                 match(TokenType.AND);
 
                 Expression right = inclusiveOrExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -2023,7 +2031,7 @@ public class Parser {
                 match(TokenType.OR);
 
                 Expression right = logicalAndExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
