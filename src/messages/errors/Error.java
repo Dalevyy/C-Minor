@@ -11,6 +11,10 @@ public abstract class Error extends Message {
 
     public abstract String header();
 
+    protected String errorNumber() {
+        return error.toString().substring(error.toString().lastIndexOf("_")+1);
+    }
+
     public String createMessage() {
         StringBuilder sb = new StringBuilder();
 
@@ -55,7 +59,7 @@ public abstract class Error extends Message {
     }
 
     private String buildSuggestion() {
-        String suggestMsg = PrettyPrint.RED + this.suggest.getMessage() + PrettyPrint.RESET;
+        String suggestMsg = "\nSuggestion:\n" + PrettyPrint.RED + this.suggest.getMessage() + PrettyPrint.RESET;
         if(this.argsForSuggestions != null) {
             for(int i = 0; i < this.argsForSuggestions.length; i++) {
                 String arg = "<arg" + i + ">";

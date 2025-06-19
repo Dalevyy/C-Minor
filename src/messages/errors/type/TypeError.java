@@ -10,9 +10,9 @@ public class TypeError extends Error {
     @Override
     public String header() {
         if(fileName != null) {
-            return PrettyPrint.GREEN + "Typing error detected in "
+            return PrettyPrint.GREEN + "Type error detected in "
                     + PrettyPrint.RESET + fileName() + "\n";
         }
-        return PrettyPrint.GREEN + "Typing error detected!\n\n" + PrettyPrint.RESET;
+        return PrettyPrint.GREEN + "Type Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }
