@@ -13,6 +13,6 @@ public class RuntimeError extends Error {
             return PrettyPrint.RED + "Runtime error detected in "
                     + PrettyPrint.RESET + fileName() + "\n";
         }
-        return PrettyPrint.RED + "Runtime error detected!\n\n" + PrettyPrint.RESET;
+        return PrettyPrint.RED + "Runtime Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

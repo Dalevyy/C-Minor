@@ -12,6 +12,6 @@ public class SemanticError extends Error {
             return PrettyPrint.CYAN + "Semantic error detected in "
                     + PrettyPrint.RESET + fileName() + "\n";
         }
-        return PrettyPrint.CYAN + "Semantic error detected\n" + PrettyPrint.RESET;
+        return PrettyPrint.CYAN + "Semantic Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

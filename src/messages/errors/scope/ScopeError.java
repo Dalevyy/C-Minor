@@ -13,6 +13,6 @@ public class ScopeError extends Error {
             return PrettyPrint.YELLOW + "Scoping error detected in "
                     + PrettyPrint.RESET + fileName() + "\n";
         }
-        return PrettyPrint.YELLOW + "Scoping error detected!\n\n" + PrettyPrint.RESET;
+        return PrettyPrint.YELLOW + "Scope Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

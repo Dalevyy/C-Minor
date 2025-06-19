@@ -12,6 +12,6 @@ public class SyntaxError extends Error {
             return PrettyPrint.CYAN + "Syntax error detected in "
                     + PrettyPrint.RESET + fileName() + "\n";
         }
-        return PrettyPrint.CYAN + "Syntax error detected\n" + PrettyPrint.RESET;
+        return PrettyPrint.CYAN + "Syntax Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

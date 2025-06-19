@@ -13,6 +13,6 @@ public class ModError extends Error {
             return PrettyPrint.YELLOW + "Modifier error detected in "
                     + PrettyPrint.RESET + fileName() + "\n";
         }
-        return PrettyPrint.YELLOW + "Modifier error detected!\n\n" + PrettyPrint.RESET;
+        return PrettyPrint.YELLOW + "Modifier Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }
