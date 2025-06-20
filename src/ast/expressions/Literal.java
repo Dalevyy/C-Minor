@@ -26,6 +26,13 @@ public class Literal extends Expression {
     public boolean isLiteral() { return true; }
     public Literal asLiteral() { return this; }
 
+    public int asInt() {
+        if(this.kind == ConstantKind.INT)
+            return Integer.parseInt(this.toString());
+        else
+            return '\0';
+    }
+
     public char asChar() {
         if(this.kind == ConstantKind.CHAR) {
             if(this.getText().charAt(1) == '\\') { return (char) ('\\' + this.getText().charAt(2));}
