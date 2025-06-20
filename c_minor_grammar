@@ -196,7 +196,7 @@ choice_statement : 'choice' expression '{' case_statement* 'other' block_stateme
 
 case_statement : 'on' label block_statement ;
 
-label : constant ('..' constant)?
+label : scalar_constant ('..' scalar_constant)?
 
 list_command_statement : 'append' '(' arguments ')'
                        | 'remove' '(' arguments ')'
