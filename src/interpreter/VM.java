@@ -44,7 +44,7 @@ public class VM {
         boolean printTokens = false;
         boolean printAST = false;
         boolean printST = false;
-        boolean debug = true;
+        boolean debug = false;
 
         while(true) {
             String input;
