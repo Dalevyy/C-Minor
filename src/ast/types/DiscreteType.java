@@ -28,6 +28,7 @@ public class DiscreteType extends Type {
     public DiscreteType asDiscreteType() { return this; }
     public Discretes getDiscreteType() { return dType; }
 
+    @Override
     public String typeName() { return names.get(dType.ordinal()); }
 
     @Override

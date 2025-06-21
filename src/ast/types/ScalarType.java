@@ -33,6 +33,7 @@ public class ScalarType extends Type {
     public ScalarType asScalarType() { return this; }
     public Scalars getScalarType() { return sType; }
 
+    @Override
     public String typeName() { return names.get(sType.ordinal()); }
 
     @Override

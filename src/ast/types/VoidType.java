@@ -14,10 +14,12 @@ public class VoidType extends Type {
 
     public VoidType() { this(new Token()); }
     public VoidType(Token t) { super(t); }
-    public String typeName() { return "Void"; }
 
     public boolean isVoidType() { return true; }
     public VoidType asVoidType() { return this; }
+
+    @Override
+    public String typeName() { return "Void"; }
 
     @Override
     public String toString() { return "Void"; }

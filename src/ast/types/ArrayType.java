@@ -27,13 +27,26 @@ public class ArrayType extends Type {
 
     public Type baseType() { return baseType; }
 
-    public String typeName() { return "Array"; }
-
     public boolean isArrayType() { return true; }
     public ArrayType asArrayType() { return this; }
 
     @Override
-    public String toString() { return "Array"; }
+    public String typeName() {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 0; i <= numOfDims; i++) {
+            if(i == numOfDims)
+                sb.append(baseType.typeName());
+            else
+                sb.append("Array[");
+        }
+
+        sb.append("]".repeat(Math.max(0, numOfDims)));
+        return sb.toString();
+    }
+
+    @Override
+    public String toString() { return typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitArrayType(this); }

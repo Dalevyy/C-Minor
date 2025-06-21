@@ -44,8 +44,15 @@ public class MultiType extends Type {
     @Override
     public String typeName() {
         StringBuilder sb = new StringBuilder();
-        for(ClassType ct : allTypes)
-            sb.append(ct.toString());
+
+        for(int i = 1; i <= allTypes.size(); i++) {
+            ClassType ct = allTypes.get(i-1);
+            if(i == allTypes.size())
+                sb.append(ct);
+            else
+                sb.append(ct).append("/");
+        }
+      
         return sb.toString();
     }
 

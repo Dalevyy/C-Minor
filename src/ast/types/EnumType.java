@@ -22,7 +22,8 @@ public class EnumType extends DiscreteType {
     public boolean isEnumType() { return true; }
     public EnumType asEnumType() { return this; }
 
-    public String typeName() { return "Enum"; }
+    @Override
+    public String typeName() { return name.toString(); }
 
     @Override
     public String toString() { return name.toString(); }

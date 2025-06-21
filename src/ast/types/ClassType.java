@@ -36,16 +36,6 @@ public class ClassType extends Type {
     public Name getName() { return name; }
     public Vector<Type> templateTypes() { return templateTypes; }
 
-    public String typeName() {
-        if(inheritedTypes != null) {
-            StringBuilder classHierarchy = new StringBuilder();
-            for(Name n : inheritedTypes)
-                classHierarchy.append(n.toString()).append("/");
-            return classHierarchy + name.toString();
-        }
-        return name.toString();
-    }
-
     public void setInheritedTypes(Vector<Name> it) { this.inheritedTypes = it; }
     public Vector<Name> getInheritedTypes() { return this.inheritedTypes; }
 
@@ -71,6 +61,9 @@ public class ClassType extends Type {
         }
         return false;
     }
+
+    @Override
+    public String typeName() { return name.toString(); }
 
     @Override
     public String toString() { return name.toString(); }
