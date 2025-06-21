@@ -1,6 +1,7 @@
 package ast.types;
 
 import ast.*;
+import ast.expressions.Expression;
 import token.*;
 import utilities.Vector;
 
@@ -35,6 +36,19 @@ public abstract class Type extends AST {
         else if(this.isArrayType()) return "A";
         else if(this.isClassType()) return this.toString();
         else return "V";
+    }
+
+    public static String createTypeString(Vector<Expression> args) {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 1; i <= args.size(); i++) {
+            if(i == args.size())
+                sb.append(args.get(i - 1).type.typeName());
+            else
+                sb.append(args.get(i-1).type.typeName()).append(", ");
+        }
+
+        return sb.toString();
     }
 
     public static boolean sameTypeName(Type LHS, Type RHS) {
