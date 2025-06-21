@@ -22,7 +22,7 @@ public class VoidType extends Type {
     public String typeName() { return "Void"; }
 
     @Override
-    public String toString() { return "Void"; }
+    public String toString() { return typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitVoidType(this); }

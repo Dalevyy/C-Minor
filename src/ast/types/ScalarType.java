@@ -37,7 +37,7 @@ public class ScalarType extends Type {
     public String typeName() { return names.get(sType.ordinal()); }
 
     @Override
-    public String toString() { return names.get(sType.ordinal()); }
+    public String toString() { return typeName();  }
 
     @Override
     public void visit(Visitor v) { v.visitScalarType(this); }

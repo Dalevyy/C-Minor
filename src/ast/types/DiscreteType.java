@@ -32,7 +32,7 @@ public class DiscreteType extends Type {
     public String typeName() { return names.get(dType.ordinal()); }
 
     @Override
-    public String toString() { return names.get(dType.ordinal()); }
+    public String toString() { return typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitDiscreteType(this); }
