@@ -1,7 +1,0 @@
-
-def main() => Void {
-
-    choice(True) {
-        other {}
-    }
-}

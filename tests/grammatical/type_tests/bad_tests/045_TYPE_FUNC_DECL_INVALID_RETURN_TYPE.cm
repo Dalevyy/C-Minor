@@ -1,4 +1,0 @@
-
-def myFunc() => error {}
-
-def main() => Void {}

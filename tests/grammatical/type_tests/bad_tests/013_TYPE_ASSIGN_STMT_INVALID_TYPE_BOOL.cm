@@ -1,6 +1,0 @@
-
-def global a = True Bool
-
-def main() => Void {
-    set a += False
-}

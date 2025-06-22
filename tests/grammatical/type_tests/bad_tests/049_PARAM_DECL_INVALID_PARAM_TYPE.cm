@@ -1,4 +1,0 @@
-
-def func(in a thisIsWrong) => Void {}
-
-def main() => Void {}

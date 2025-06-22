@@ -1,7 +1,0 @@
-
-def global a = 'hi' String
-def global b = 'hey' String
-
-def main() => Void {
-    a - b
-}

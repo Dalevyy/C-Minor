@@ -1,8 +1,0 @@
-
-class MyClass {
-
-    public method myMethod() => Int {}
-}
-
-
-def main() => Void {}

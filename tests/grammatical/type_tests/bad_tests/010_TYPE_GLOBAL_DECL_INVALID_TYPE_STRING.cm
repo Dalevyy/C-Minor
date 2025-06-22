@@ -1,5 +1,0 @@
-
-
-def global a = False String
-
-def main() => Void {}
