@@ -71,7 +71,7 @@ method_class : method_modifier attribute* 'override'? 'method' method_header '=>
 
 method_modifier : 'protected' | 'public' ;
 
-attribute : 'final' | 'pure' | 'recurs' | 'static' | 'virtual' ;
+attribute : 'final' | 'pure' | 'recurs' | 'static' ;
 
 method_header : Name '(' formal_params? ')' ;
 
