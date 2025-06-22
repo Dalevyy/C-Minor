@@ -124,6 +124,16 @@ public abstract class AST {
 
     public AST getParent() { return parent; }
 
+    public AST getRootParent() {
+        AST curr = parent;
+        while(curr != null) {
+            if(curr.isStatement() && curr.asStatement().isExprStmt())
+                return curr;
+            curr = curr.parent;
+        }
+        return curr;
+    }
+
     public void addChild(AST node) {
         if(node != null)
             children.add(node);
