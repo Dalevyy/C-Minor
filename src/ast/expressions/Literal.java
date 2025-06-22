@@ -35,14 +35,14 @@ public class Literal extends Expression {
 
     public char asChar() {
         if(this.kind == ConstantKind.CHAR) {
-            if(this.getText().charAt(1) == '\\') { return (char) ('\\' + this.getText().charAt(2));}
-            return this.getText().charAt(1);
+            if(this.text.charAt(1) == '\\') { return (char) ('\\' + this.text.charAt(2));}
+            return this.text.charAt(1);
         }
         return '\0';
     }
 
     @Override
-    public String toString() { return this.getText(); }
+    public String toString() { return this.text; }
 
     @Override
     public void update(int pos, AST n) { throw new RuntimeException("A literal can not be updated."); }
