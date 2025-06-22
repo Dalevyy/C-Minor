@@ -1,6 +1,7 @@
 package messages.errors.scope;
 
 import ast.AST;
+import messages.MessageType;
 import messages.errors.Error;
 import utilities.PrettyPrint;
 
@@ -12,6 +13,20 @@ public class ScopeError extends Error {
     @Override
     public String createMessage() {
         return super.createMessage() + createRedeclarationMsg();
+    }
+
+    @Override
+    public String printMessage() {
+        System.out.println(createMessage());
+
+        if(!interpretMode)
+            System.exit(1);
+        else if(redeclarationLocation != null)
+            throw new RuntimeException("Redeclaration");
+        else
+            throw new RuntimeException("Error");
+
+        return "";
     }
 
     public String createRedeclarationMsg() {

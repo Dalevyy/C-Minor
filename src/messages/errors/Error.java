@@ -40,17 +40,6 @@ public abstract class Error extends Message {
 
         if(!interpretMode)
             System.exit(1);
-        // If we have a redeclaration error, then throw an exception indicating
-        // we had a redeclaration in order to prevent the removal of the name
-        else if(this.errorType() == MessageType.SCOPE_ERROR_300
-                || this.errorType() == MessageType.SCOPE_ERROR_302
-                || this.errorType() == MessageType.SCOPE_ERROR_304
-                || this.errorType() == MessageType.SCOPE_ERROR_305
-                || this.errorType() == MessageType.SCOPE_ERROR_311
-                || this.errorType() == MessageType.SCOPE_ERROR_312
-                || this.errorType() == MessageType.SCOPE_ERROR_316
-                || this.errorType() == MessageType.SCOPE_ERROR_329)
-            throw new RuntimeException("Redeclaration");
         else
             throw new RuntimeException("Error");
         
