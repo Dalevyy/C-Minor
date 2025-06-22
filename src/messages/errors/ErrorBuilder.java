@@ -1,17 +1,18 @@
 package messages.errors;
 
 import ast.AST;
+import messages.errors.scope.ScopeErrorBuilder;
 import messages.MessageType;
 
 public class ErrorBuilder {
-    private Error error;
+    protected final Error error;
 
-    public ErrorBuilder(ErrorFactory ef,boolean mode) {
+    public ErrorBuilder(ErrorFactory ef, boolean mode) {
         this.error = ef.createError();
         this.error.setInterpretMode(mode);
     }
 
-    public String error() { return this.error.createMessage(); }
+    public String error() { return this.error.printMessage(); }
 
     public ErrorBuilder addFileName(String fileName) {
         this.error.setFileName(fileName);
@@ -47,5 +48,8 @@ public class ErrorBuilder {
         this.error.setArgsForSuggestions(extraArgs);
         return this;
     }
-    
+
+    public ScopeErrorBuilder asScopeErrorBuilder() {
+        throw new RuntimeException("The current error builder is not building a scope error.");
+    }
 }
