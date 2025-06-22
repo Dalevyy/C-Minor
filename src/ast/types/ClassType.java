@@ -66,7 +66,7 @@ public class ClassType extends Type {
     public String typeName() { return name.toString(); }
 
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() { return typeName(); }
 
     @Override
     public void visit(Visitor v) { v.visitClassType(this); }
