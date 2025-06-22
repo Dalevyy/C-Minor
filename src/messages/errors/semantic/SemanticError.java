@@ -4,7 +4,9 @@ import messages.errors.Error;
 import utilities.PrettyPrint;
 
 public class SemanticError extends Error {
-    public SemanticError() {}
+
+    public boolean isSemanticError() { return true; }
+    public SemanticError asSemanticError() { return this; }
 
     @Override
     public String header() {

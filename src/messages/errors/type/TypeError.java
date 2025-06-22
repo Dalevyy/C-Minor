@@ -5,7 +5,8 @@ import utilities.PrettyPrint;
 
 public class TypeError extends Error {
 
-    public TypeError() {}
+    public boolean isTypeError() { return true; }
+    public TypeError asTypeError() { return this; }
 
     @Override
     public String header() {

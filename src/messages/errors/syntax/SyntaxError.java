@@ -1,10 +1,13 @@
 package messages.errors.syntax;
 
 import messages.errors.Error;
+import messages.errors.semantic.SemanticError;
 import utilities.PrettyPrint;
 
 public class SyntaxError extends Error {
-    public SyntaxError() {}
+
+    public boolean isSyntaxError() { return true; }
+    public SyntaxError asSyntaxError() { return this; }
 
     @Override
     public String header() {

@@ -5,7 +5,9 @@ import utilities.PrettyPrint;
 
 public class ModError extends Error {
 
-    public ModError() {}
+
+    public boolean isModifierError() { return true; }
+    public ModError asModifierError() { return this; }
 
     @Override
     public String header() {

@@ -5,7 +5,8 @@ import utilities.PrettyPrint;
 
 public class RuntimeError extends Error {
 
-    public RuntimeError() {}
+    public boolean isRuntimeError() { return true; }
+    public RuntimeError asRuntimeError() { return this; }
 
     @Override
     public String header() {
