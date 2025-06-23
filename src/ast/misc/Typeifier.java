@@ -12,22 +12,50 @@ _________________________________________________________________
 */
 public class Typeifier extends AST {
 
-    public enum Typfiers { DISCR, SCALAR, CLASS }
+    /**
+     * List of potential types the typefier could represent.
+     */
+    public enum possibleType { DISCR, SCALAR, CLASS }
+
+    /**
+     * String representation of {@code possibleType} enum.
+     */
     public static String[] names = {"Discrete", "Scalar", "Class" };
 
-    private final Typfiers typef;
+    /**
+     * The high level type that the typefier could represent.
+     * <p>
+     *     In C Minor, only 3 classes of types are allowed to be used
+     *     within templates: discrete, scalar, and class. The user can
+     *     choose to specify if the typefier is any of these 3 types;
+     *     however, it is not a requirement. As a result, this field
+     *     will be empty, and it will be our job to make sure the user
+     *     correctly uses the appropriate type.
+     * </p>
+     */
+    private final possibleType pt;
+
+    /**
+     * The generic name for the type that is written by the user.
+     */
     private Name name;
 
-    public Typeifier(Token t, Typfiers m, Name n) {
-        super(t);
-        this.typef = m;
+    /**
+     * Default constructor for {@code Typeifier}
+     * @param metaData Metadata token
+     * @param pt The type the typefier represents
+     * @param n The generic name for the type
+     */
+    public Typeifier(Token metaData, possibleType pt, Name n) {
+        super(metaData);
+        this.pt = pt;
         this.name = n;
 
         addChild(this.name);
         setParent();
     }
 
-    public Typfiers getTypeifier() { return typef; }
+    public possibleType getPossibleType() { return pt; }
     public Name getName() { return name; }
 
     public boolean isTypeifier() { return true; }
@@ -36,6 +64,10 @@ public class Typeifier extends AST {
     @Override
     public void update(int pos, AST n) { name = n.asName(); }
 
+    /**
+     * Visit method.
+     * @param v Current visitor
+     */
     @Override
     public void visit(Visitor v) { v.visitTypeifier(this); }
 }
