@@ -54,7 +54,9 @@ class_name : Name ('<' type (',' type)* '>')? ;
 
 class_type : ('abstr' | 'final')? 'class' name type_params? super_class? class_body ;
 
-type_params : '<' type (',' type)* '>' ;
+type_params : '<' typefier (',' typefier)* '>' ;
+
+typefier : ('discr' | 'scalar' | 'class')? Name ;
 
 super_class : 'inherits' name type_params? ;
 
@@ -120,10 +122,6 @@ unary_operator : '~'
 function : 'def' ('pure' | 'recurs')? function_header '=>' return_type block_statement ;
 
 function_header : Name type_params? '(' formal_params? ')' ;
-
-type_params : '<' typefier (',' typefier)* '>' ;
-
-typefier : ('discr' | 'scalar' | 'class')? Name ;
 
 // Main function
 // -------------
