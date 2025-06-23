@@ -262,7 +262,8 @@ public class Parser {
                 && (nextLA(TokenType.PURE,1)
                 || nextLA(TokenType.RECURS,1)
                 || ((nextLA(TokenType.ID,1)
-                && nextLA(TokenType.LPAREN,2))
+                && (nextLA(TokenType.LPAREN,2)
+                || nextLA(TokenType.LT,2)))
                 && ((!nextLA(TokenType.MAIN,1))
                 && (!nextLA(TokenType.MAIN,2)))))) {
             nodes = new Vector<>(function());
