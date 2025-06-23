@@ -5,7 +5,12 @@
 // Program
 // -------
 
-compilation: enum_type* global_variable* class_type* function* main ;
+compilation : import_stmt* enum_type* global_variable* class_type* function* main ;
+
+// Imports
+// -------
+
+import_stmt : '#include' String_literal
 
 // Enumeration
 // -----------
