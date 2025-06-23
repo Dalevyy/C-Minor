@@ -44,10 +44,10 @@ public class ImportHandler extends Visitor {
         }
         catch(Exception e) {
             new ErrorBuilder(generateSemanticError,interpretMode)
-                    .addLocation(im)
-                    .addErrorType(MessageType.SEMANTIC_ERROR_704)
-                    .addArgs(im)
-                    .error();
+                .addLocation(im)
+                .addErrorType(MessageType.SEMANTIC_ERROR_704)
+                .addArgs(im)
+                .error();
         }
 
 
