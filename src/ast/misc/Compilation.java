@@ -60,7 +60,7 @@ public class Compilation extends AST {
     public MainDecl mainDecl() { return mainFunc; }
 
     public void mergeCompilationUnit(Compilation c) {
-        globalTable.setParent(c.globalTable);
+        globalTable.setImportParent(c.globalTable);
         this.addEnumDecl(c.enumDecls);
         this.addGlobalDecl(c.globalDecls);
         this.addClassDecl(c.classDecls);
