@@ -38,6 +38,7 @@ public class Parser {
     private boolean interpretMode = false;
     private final Vector<Token> tokenStack;
     private final SyntaxErrorFactory generateSyntaxError;
+    private boolean parseImport = false;
 
     // Hacks to get IO statements to be parsed correctly... :(
     private boolean insideParen = false;
@@ -57,6 +58,11 @@ public class Parser {
     public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
         this(input,printTokens);
         this.interpretMode = interpretMode;
+    }
+
+    public Parser(Lexer input, boolean printTokens, boolean interpretMode, boolean parseImport) {
+        this(input,printTokens,interpretMode);
+        this.parseImport = parseImport;
     }
 
     private String errorPosition(int start, int end) {
@@ -314,7 +320,9 @@ public class Parser {
         Vector<FuncDecl> funcs = new Vector<>();
         while((nextLA(TokenType.DEF)) && !nextLA(TokenType.MAIN,1)) { funcs.add(function()); }
 
-        MainDecl md = mainFunc();
+        MainDecl md = null;
+        if(!parseImport)
+            md = mainFunc();
 
         if(!nextLA(TokenType.EOF)) {
             System.out.println(PrettyPrint.CYAN + "Syntax Error Detected! Unexpected End of File.");
