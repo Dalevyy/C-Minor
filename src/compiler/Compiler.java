@@ -58,7 +58,7 @@ public class Compiler {
      * @return An AST node representing the {@code Compilation} unit for the program.
      */
     private Compilation syntaxAnalysis(String program) {
-        Parser parser = new Parser(new Lexer(program),printTokens);
+        Parser parser = new Parser(new Lexer(program),printTokens,false,true);
         Compilation root = parser.compilation();
         root.visit(new InOutStmtRewrite());
 
