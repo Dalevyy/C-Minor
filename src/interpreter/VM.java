@@ -3,7 +3,11 @@ package interpreter;
 import ast.AST;
 import ast.misc.Compilation;
 import ast.misc.Var;
+import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.Import;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
@@ -19,7 +23,7 @@ import utilities.Vector;
 
 public class VM {
 
-    public static void runInterpreter() throws IOException {
+    public void runInterpreter() throws IOException {
         System.out.println("C Minor Interpreter");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         Compilation compilationUnit = new Compilation();
@@ -94,7 +98,7 @@ public class VM {
                 }
             }
             Vector<? extends AST> nodes;
-            AST currNode = null;
+            AST errorNode = null;
             try {
                 var lexer = new Lexer(program.toString(),true);
                 var parser = new Parser(lexer, printTokens, true);
@@ -102,7 +106,13 @@ public class VM {
                 nodes = parser.nextNode();
 
                 for (AST node : nodes) {
-                    currNode = node;
+                    errorNode = node;
+
+                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isImport()) {
+                        handleImportStmt(node.asTopLevelDecl().asImport(), interpreter, compilationUnit);
+                        continue;
+                    }
+
                     node.visit(ioRewritePass);
                     if(printAST)
                         node.visit(treePrinter);
@@ -138,14 +148,14 @@ public class VM {
                 }
             }
             catch(Exception e) {
-                generateError(e,currNode,compilationUnit.globalTable);
+                generateError(e,errorNode,compilationUnit.globalTable);
                 if(debug)
                     e.printStackTrace();
             }
         }
     }
 
-    private static void generateError(Exception e, AST location, SymbolTable st) {
+    private void generateError(Exception e, AST location, SymbolTable st) {
         // If a lexer/parser error occurs, do not remove anything from the symbol table.
         if(location != null && !e.getMessage().equals("EOF Not Found") && !e.getMessage().equals("Redeclaration")) {
             if(location.isTopLevelDecl()) {
@@ -162,6 +172,21 @@ public class VM {
             }
             else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
                 st.removeName(location.toString());
+        }
+    }
+
+    private void handleImportStmt(Import currImport, Interpreter interpreter, Compilation globalUnit) {
+        ImportHandler importPass = new ImportHandler(true);
+
+        currImport.visit(importPass);
+
+        for(Compilation c : currImport.compiledFiles) {
+            for(EnumDecl ed : c.enumDecls())
+                ed.visit(interpreter);
+            for(GlobalDecl gd : c.globalDecls())
+                gd.visit(interpreter);
+
+            globalUnit.mergeCompilationUnit(c);
         }
     }
 }
