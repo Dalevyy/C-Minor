@@ -229,8 +229,11 @@ public class Parser {
         // Throw an exception if user only wrote a comment
         if(nextLA(TokenType.EOF))
             throw new Exception();
+        // Parse Import
+        if(nextLA(TokenType.INCLUDE))
+            nodes = new Vector<>(importStmt());
         // Parse EnumDecl
-        if(nextLA(TokenType.DEF)
+        else if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)
                 && !(nextLA(TokenType.LT,2)
                 || nextLA(TokenType.LPAREN,2)
@@ -281,9 +284,14 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 1. compilation ::= file_merge* enum_type* global_variable* class_type* function* main
+    // 1. compilation ::= import_stmt* enum_type* global_variable* class_type* function* main
     public Compilation compilation() {
         tokenStack.add(currentLA());
+
+        Vector<Import> imports = new Vector<>();
+        while(nextLA(TokenType.INCLUDE)) {
+            imports.add(importStmt());
+        }
 
         Vector<EnumDecl> enums = new Vector<>();
         while(nextLA(TokenType.DEF)
@@ -314,7 +322,7 @@ public class Parser {
         }
         else if(printToks) { System.out.println(currentLA().toString()); }
 
-        return new Compilation(nodeToken(),enums,globals,classes,funcs,md);
+        return new Compilation(nodeToken(),imports,enums,globals,classes,funcs,md);
     }
 
     /*
@@ -323,14 +331,15 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 2. file-merge ::= '#include' filename choice? rename
-    private void fileMerge() {
-        Token t = currentLA();
+    // 2. file-merge ::= '#include' STRING_LITERAL
+    private Import importStmt() {
+        tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.INCLUDE)) {
-            match(TokenType.INCLUDE);
-            match(TokenType.STR_LIT);
-        }
+        match(TokenType.INCLUDE);
+        Name fileName = new Name(currentLA());
+        match(TokenType.STR_LIT);
+
+        return new Import(nodeToken(),fileName);
     }
 
     /*
