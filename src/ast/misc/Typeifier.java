@@ -15,10 +15,10 @@ public class Typeifier extends AST {
     /**
      * List of potential types the typefier could represent.
      */
-    public enum possibleType { DISCR, SCALAR, CLASS }
+    public enum PossibleType { DISCR, SCALAR, CLASS }
 
     /**
-     * String representation of {@code possibleType} enum.
+     * String representation of {@code PossibleType} enum.
      */
     public static String[] names = {"Discrete", "Scalar", "Class" };
 
@@ -33,7 +33,7 @@ public class Typeifier extends AST {
      *     correctly uses the appropriate type.
      * </p>
      */
-    private final possibleType pt;
+    private final PossibleType pt;
 
     /**
      * The generic name for the type that is written by the user.
@@ -46,7 +46,7 @@ public class Typeifier extends AST {
      * @param pt The type the typefier represents
      * @param n The generic name for the type
      */
-    public Typeifier(Token metaData, possibleType pt, Name n) {
+    public Typeifier(Token metaData, PossibleType pt, Name n) {
         super(metaData);
         this.pt = pt;
         this.name = n;
@@ -55,7 +55,7 @@ public class Typeifier extends AST {
         setParent();
     }
 
-    public possibleType getPossibleType() { return pt; }
+    public PossibleType getPossibleType() { return pt; }
     public Name getName() { return name; }
 
     public boolean isTypeifier() { return true; }
@@ -63,6 +63,9 @@ public class Typeifier extends AST {
 
     @Override
     public void update(int pos, AST n) { name = n.asName(); }
+
+    @Override
+    public String toString() { return name.toString(); }
 
     /**
      * Visit method.
