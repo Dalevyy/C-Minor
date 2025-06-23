@@ -10,7 +10,7 @@ A typeifier node is used to keep track of templated types when
 working with templated classes/functions. (NOT YET IMPLEMENTED)
 _________________________________________________________________
 */
-public class Typeifier extends AST {
+public class Typeifier extends AST implements NameNode {
 
     /**
      * List of potential types the typefier could represent.
@@ -55,11 +55,14 @@ public class Typeifier extends AST {
         setParent();
     }
 
-    public PossibleType getPossibleType() { return pt; }
+    public PossibleType getPossibleType() { return pt != null ? pt : null; }
     public Name getName() { return name; }
 
     public boolean isTypeifier() { return true; }
     public Typeifier asTypeifier() { return this; }
+
+    @Override
+    public AST decl() { return this; }
 
     @Override
     public void update(int pos, AST n) { name = n.asName(); }

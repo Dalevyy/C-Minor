@@ -60,7 +60,6 @@ public abstract class AST {
     }
 
     public void appendText(String s) { this.text += s; }
-    public String getText() { return this.text; }
 
     public Location getLocation() { return this.location; }
     public int startLine() { return this.location.start.line; }
@@ -166,6 +165,8 @@ public abstract class AST {
     }
     public String line() { return startLine() + "| " + this.text + "\n"; }
 
+    public String header() { return line(); }
+
     public boolean isCompilation() { return false; }
     public Compilation asCompilation() { throw new RuntimeException("Expression can not be casted into a Compilation Unit.\n"); }
 
@@ -198,6 +199,9 @@ public abstract class AST {
 
     public boolean isType() { return false; }
     public Type asType() { throw new RuntimeException("Expression can not be casted into a Type.\n"); }
+
+    public boolean isTypeifier() { return false; }
+    public Typeifier asTypeifier() { throw new RuntimeException("Expression can not be casted into a Typeifier.\n"); }
 
     public boolean isVar() { return false; }
     public Var asVar() { throw new RuntimeException("Expression can not be casted into a Var.\n"); }
