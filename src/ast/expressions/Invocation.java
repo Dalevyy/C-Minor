@@ -11,14 +11,16 @@ public class Invocation extends Expression {
 
     public Type targetType;
 
+    private Vector<Type> templateTypes;
     private Name name;
     private final Vector<Expression> args;
 
     private String invokeSignature;
 
-    public Invocation(Token t, Name fn, Vector<Expression> p) {
+    public Invocation(Token t, Name fn, Vector<Type> tt, Vector<Expression> p) {
         super(t);
         this.name = fn;
+        this.templateTypes = tt;
         this.args = p;
 
         addChild(this.name);
@@ -79,7 +81,7 @@ public class Invocation extends Expression {
             else
                 metaData.setEndLocation(this.args.top().location.end);
 
-            return new Invocation(metaData,name,args);
+            return new Invocation(metaData,name,new Vector<>(),args);
         }
     }
 }
