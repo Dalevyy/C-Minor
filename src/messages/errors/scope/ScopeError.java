@@ -39,7 +39,7 @@ public class ScopeError extends Error {
               .append("'")
               .append(" was already declared in the line below.\n")
               .append(PrettyPrint.RESET)
-              .append(redeclarationLocation.line());
+              .append(redeclarationLocation.header());
         }
         return sb.toString();
     }
@@ -47,10 +47,14 @@ public class ScopeError extends Error {
     private String getRedeclName() {
         if(redeclarationLocation.isTopLevelDecl())
             return redeclarationLocation.toString();
+        else if(redeclarationLocation.isFieldDecl() || redeclarationLocation.isMethodDecl())
+            return redeclarationLocation.toString();
         else if(redeclarationLocation.isStatement() && redeclarationLocation.asStatement().isLocalDecl())
             return redeclarationLocation.toString();
         else if(redeclarationLocation.isParamDecl())
             return redeclarationLocation.asParamDecl().toString();
+        else if(redeclarationLocation.isTypeifier())
+            return redeclarationLocation.toString();
         else
             throw new RuntimeException("An invalid AST node was saved as a redeclaration.");
     }
@@ -63,10 +67,6 @@ public class ScopeError extends Error {
 
     @Override
     public String header() {
-        if(fileName != null) {
-            return PrettyPrint.YELLOW + "Scoping error detected in "
-                    + PrettyPrint.RESET + fileName() + "\n";
-        }
-        return PrettyPrint.YELLOW + "Scope Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.YELLOW + "Scope Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

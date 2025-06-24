@@ -11,10 +11,6 @@ public class ModError extends Error {
 
     @Override
     public String header() {
-        if(fileName != null) {
-            return PrettyPrint.YELLOW + "Modifier error detected in "
-                    + PrettyPrint.RESET + fileName() + "\n";
-        }
-        return PrettyPrint.YELLOW + "Modifier Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.YELLOW + "Modifier Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

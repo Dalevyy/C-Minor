@@ -10,10 +10,6 @@ public class RuntimeError extends Error {
 
     @Override
     public String header() {
-        if(fileName != null) {
-            return PrettyPrint.RED + "Runtime error detected in "
-                    + PrettyPrint.RESET + fileName() + "\n";
-        }
-        return PrettyPrint.RED + "Runtime Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.RED + "Runtime Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }
