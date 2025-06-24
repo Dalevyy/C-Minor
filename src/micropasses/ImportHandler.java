@@ -128,7 +128,7 @@ public class ImportHandler extends Visitor {
      * </p>
      * @param im Current import statement we want to parse
      */
-    public void visitImport(ImportDecl im) {
+    public void visitImportDecl(ImportDecl im) {
         /* ERROR CHECK #1: This checks to make sure the file we are importing represents a C Minor program. */
         if(!im.toString().endsWith(".cm")) {
             new ErrorBuilder(generateSemanticError,currFile,interpretMode)

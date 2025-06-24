@@ -42,7 +42,7 @@ public abstract class Visitor {
     public void visitFuncDecl(FuncDecl fd) { fd.visitChildren(this); }
     public void visitGlobalDecl(GlobalDecl gd) { gd.visitChildren(this); }
     public void visitIfStmt(IfStmt is) { is.visitChildren(this); }
-    public void visitImport(Import im) { im.visitChildren(this); }
+    public void visitImportDecl(ImportDecl im) { im.visitChildren(this); }
     public void visitInitDecl(InitDecl id) { id.visitChildren(this); }
     public void visitInStmt(InStmt ins) { ins.visitChildren(this); }
     public void visitInvocation(Invocation i) { i.visitChildren(this); }

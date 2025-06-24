@@ -30,5 +30,5 @@ public class ImportDecl extends TopLevelDecl{
     public String toString() { return fileName.toString(); }
 
     @Override
-    public void visit(Visitor v) { v.visitImport(this); }
+    public void visit(Visitor v) { v.visitImportDecl(this); }
 }
