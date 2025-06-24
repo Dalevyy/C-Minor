@@ -25,6 +25,9 @@ public class Lexer {
     /** Current C Minor program we are tokenizing. */
     private final String file;
 
+    /** The file name we are tokenizing */
+    private final String fileName;
+
     /** Current position we are at in {@link Lexer#file}. */
     private int currPos;
 
@@ -52,8 +55,17 @@ public class Lexer {
      * Creates a new {@code Lexer} instance, will be called by the parser.
      * @param file C Minor program that will be tokenized.
      */
-    public Lexer(final String file) {
+    public Lexer(final String file, String fileName) {
         this.file = file;
+
+        // Get the actual file name depending on the file system.
+        if(fileName.contains("/"))
+            this.fileName = fileName.substring(fileName.lastIndexOf("/")+1);
+        else if(fileName.contains("\\"))
+            this.fileName = fileName.substring(fileName.lastIndexOf("\\")+1);
+        else
+            this.fileName = fileName;
+
         this.currPos = 0;
         this.lookChar = file.charAt(currPos);
         this.currLoc = new Location();
@@ -64,9 +76,11 @@ public class Lexer {
 
     /** Creates a new {@code Lexer} instance in interpretation mode.*/
     public Lexer(final String file, boolean mode) {
-        this(file);
+        this(file,"");
         this.interpretMode = mode;
     }
+
+    public String getFileName() { return fileName; }
 
     /**
      * Sets a token text to be between its starting and ending {@code positions}.
