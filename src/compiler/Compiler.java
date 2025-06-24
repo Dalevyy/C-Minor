@@ -31,16 +31,25 @@ public class Compiler {
     /** Flag that will print out a C Minor AST. */
     private static Boolean printParseTree = false;
 
+    /** File we are currently compiling */
+    private String fileName = "";
+
+    /**
+     * Creates a {@code Compiler} object.
+     * @param fileName File we are trying to compile
+     */
+    public Compiler(String fileName) { this.fileName = fileName; }
+
     /** Begins the C Minor compilation process. */
     public void compile(String[] args) throws IOException {
         String input = readProgram(args);
-        Compilation root = syntaxAnalysis(input);
+        Compilation root = syntaxAnalysis(input,false,false);
         semanticAnalysis(root,true);
     }
 
     /** Handles the compilation process for import statements. */
     public Compilation compile(String program) {
-        Compilation root = syntaxAnalysis(program);
+        Compilation root = syntaxAnalysis(program,false,false);
         semanticAnalysis(root,false);
         return root;
     }
@@ -57,8 +66,8 @@ public class Compiler {
      * @param program C Minor program as a string
      * @return An AST node representing the {@code Compilation} unit for the program.
      */
-    private Compilation syntaxAnalysis(String program) {
-        Parser parser = new Parser(new Lexer(program),printTokens,false,true);
+    public Compilation syntaxAnalysis(String program, boolean interpretMode, boolean importMode) {
+        Parser parser = new Parser(new Lexer(program,fileName),printTokens,interpretMode,importMode);
         Compilation root = parser.compilation();
         root.visit(new InOutStmtRewrite());
 
@@ -84,7 +93,7 @@ public class Compiler {
         root.visit(new FieldRewrite());
         root.visit(new OperatorOverloadCheck());
         root.visit(new LoopKeywordCheck());
-        root.visit(new ClassToEnumTypeRewrite());
+        root.visit(new TypeValidityCheck());
         root.visit(new TypeChecker());
         root.visit(new ConstructorGeneration());
         root.visit(new ModifierChecker());
@@ -103,7 +112,7 @@ public class Compiler {
      * @throws IOException Exception when a user incorrectly passes an argument flag
      */
     private String readProgram(String[] args) throws IOException {
-        String fileName = args[inputValidation(args)];
+        fileName = args[inputValidation(args)];
         StringBuilder program = new StringBuilder();
 
         try {
