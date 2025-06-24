@@ -12,6 +12,12 @@ public class ErrorBuilder {
         this.error.setInterpretMode(mode);
     }
 
+    public ErrorBuilder(ErrorFactory ef, String file, boolean mode) {
+        this.error = ef.createError();
+        this.error.setFileName(file);
+        this.error.setInterpretMode(mode);
+    }
+
     public String error() { return this.error.printMessage(); }
 
     public ErrorBuilder addFileName(String fileName) {
