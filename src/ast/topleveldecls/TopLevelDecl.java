@@ -28,7 +28,7 @@ public abstract class TopLevelDecl extends AST {
     public GlobalDecl asGlobalDecl() { throw new RuntimeException("Expression can not be casted into a GlobalDecl.\n"); }
 
     public boolean isImport() { return false; }
-    public Import asImport() { throw new RuntimeException("Expression can not be casted into an Import.\n"); }
+    public ImportDecl asImport() { throw new RuntimeException("Expression can not be casted into an ImportDecl.\n"); }
 
     public boolean isMainDecl() { return false; }
     public MainDecl asMainDecl() { throw new RuntimeException("Expression can not be casted into a MainDecl.\n"); }
