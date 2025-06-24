@@ -131,7 +131,7 @@ public class ImportHandler extends Visitor {
     public void visitImport(ImportDecl im) {
         /* ERROR CHECK #1: This checks to make sure the file we are importing represents a C Minor program. */
         if(!im.toString().endsWith(".cm")) {
-            new ErrorBuilder(generateSemanticError,interpretMode)
+            new ErrorBuilder(generateSemanticError,currFile,interpretMode)
                 .addLocation(im)
                 .addErrorType(MessageType.SEMANTIC_ERROR_703)
                 .addArgs(im)
@@ -141,7 +141,7 @@ public class ImportHandler extends Visitor {
 
         /* ERROR CHECK #2: This checks to make sure the current file does not import itself. */
         if(im.toString().equals(currFile)) {
-            new ScopeErrorBuilder(generateSemanticError,interpretMode)
+            new ScopeErrorBuilder(generateSemanticError,currFile,interpretMode)
                 .addLocation(im)
                 .addErrorType(MessageType.SEMANTIC_ERROR_705)
                 .addArgs(im)
@@ -151,7 +151,7 @@ public class ImportHandler extends Visitor {
         /* ERROR CHECK #3: This checks if we are reimporting any files in order to avoid circular imports. */
         for(String importName : seenImports) {
             if(importName.equals(im.toString())) {
-                new ScopeErrorBuilder(generateSemanticError,interpretMode)
+                new ScopeErrorBuilder(generateSemanticError,currFile,interpretMode)
                     .addLocation(im)
                     .addErrorType(MessageType.SEMANTIC_ERROR_706)
                     .addArgs(im)
@@ -171,7 +171,7 @@ public class ImportHandler extends Visitor {
             }
         }
         catch(Exception e) {
-            new ErrorBuilder(generateSemanticError,interpretMode)
+            new ErrorBuilder(generateSemanticError,currFile,interpretMode)
                 .addLocation(im)
                 .addErrorType(MessageType.SEMANTIC_ERROR_704)
                 .addArgs(im)
