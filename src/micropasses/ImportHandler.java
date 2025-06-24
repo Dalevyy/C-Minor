@@ -95,6 +95,17 @@ public class ImportHandler extends Visitor {
     }
 
     /**
+     * Clears all seen imports (only during interpretation)
+     * <p>
+     *     This method removes all the seen imports whenever the
+     *     {@code #clear} flag is used inside of the VM. This prevents
+     *     any unwarranted errors to show up when a user tries to reimport
+     *     a file after all of its contents have been cleared.
+     * </p>
+     * */
+    public static void clear() { seenImports.clear(); }
+
+    /**
      * Analyzes every import statement currently in the queue.
      * <p>
      *     This method will iterate through the queue in order
