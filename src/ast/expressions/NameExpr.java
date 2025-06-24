@@ -23,6 +23,8 @@ public class NameExpr extends Expression {
     public boolean isNameExpr() { return true; }
     public NameExpr asNameExpr() { return this; }
 
+    public boolean isParent() { return name.toString().equals("parent"); }
+
     @Override
     public String toString() { return name.toString(); }
 
