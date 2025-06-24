@@ -17,6 +17,12 @@ public abstract class Error extends Message {
 
     public abstract String header();
 
+    public String fileHeader() {
+        if(!fileName.isEmpty())
+            return "In " + fileName + ": ";
+        return "";
+    }
+
     protected String errorNumber() {
         return error.toString().substring(error.toString().lastIndexOf("_")+1);
     }
@@ -26,7 +32,7 @@ public abstract class Error extends Message {
 
         sb.append(header());
         if(location != null)
-            sb.append(location.line());
+            sb.append(location.header());
 
         sb.append(buildError());
         if(suggest != null)
