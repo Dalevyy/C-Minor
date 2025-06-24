@@ -39,7 +39,7 @@ public class Parser {
     private boolean interpretMode = false;
     private final Vector<Token> tokenStack;
     private final SyntaxErrorFactory generateSyntaxError;
-    private boolean parseImport = false;
+    private boolean importMode = false;
 
     // Hacks to get IO statements to be parsed correctly... :(
     private boolean insideParen = false;
@@ -63,7 +63,7 @@ public class Parser {
 
     public Parser(Lexer input, boolean printTokens, boolean interpretMode, boolean parseImport) {
         this(input,printTokens,interpretMode);
-        this.parseImport = parseImport;
+        this.importMode = parseImport;
     }
 
     private String errorPosition(int start, int end) {
@@ -237,7 +237,7 @@ public class Parser {
         // Throw an exception if user only wrote a comment
         if(nextLA(TokenType.EOF))
             throw new Exception();
-        // Parse Import
+        // Parse ImportDecl
         if(nextLA(TokenType.INCLUDE))
             nodes = new Vector<>(importStmt());
         // Parse EnumDecl
@@ -297,15 +297,15 @@ public class Parser {
     public Compilation compilation() {
         tokenStack.add(currentLA());
 
-        Vector<Import> imports = new Vector<>();
+        Vector<ImportDecl> imports = new Vector<>();
         if(nextLA(TokenType.INCLUDE)) {
-            while(nextLA(TokenType.INCLUDE))
-                imports.add(importStmt());
+            ImportHandler importHandler = new ImportHandler(input.getFileName(),interpretMode);
 
-            ImportHandler importHandler = new ImportHandler(interpretMode);
-            for(Import im : imports) {
-                im.visit(importHandler);
-            }
+
+            while(nextLA(TokenType.INCLUDE))
+                importHandler.enqueue(importStmt());
+
+            imports = importHandler.analyzeImports();
         }
 
         Vector<EnumDecl> enums = new Vector<>();
@@ -330,16 +330,16 @@ public class Parser {
         while((nextLA(TokenType.DEF)) && !nextLA(TokenType.MAIN,1)) { funcs.add(function()); }
 
         MainDecl md = null;
-        if(!parseImport)
+        if(!importMode)
             md = mainFunc();
 
         if(!nextLA(TokenType.EOF)) {
-            System.out.println(PrettyPrint.CYAN + "Syntax Error Detected! Unexpected End of File.");
+            System.out.println(PrettyPrint.CYAN + "Syntax Error Detected! Unexpected End of File in " + input.getFileName() + ".");
             System.exit(1);
         }
         else if(printToks) { System.out.println(currentLA().toString()); }
 
-        return new Compilation(nodeToken(),imports,enums,globals,classes,funcs,md);
+        return new Compilation(nodeToken(),input.getFileName(),imports,enums,globals,classes,funcs,md);
     }
 
     /*
@@ -349,14 +349,14 @@ public class Parser {
     */
 
     // 2. file-merge ::= '#include' STRING_LITERAL
-    private Import importStmt() {
+    private ImportDecl importStmt() {
         tokenStack.add(currentLA());
 
         match(TokenType.INCLUDE);
         Name fileName = new Name(currentLA());
         match(TokenType.STR_LIT);
 
-        return new Import(nodeToken(),fileName);
+        return new ImportDecl(nodeToken(),fileName);
     }
 
     /*
@@ -718,17 +718,17 @@ public class Parser {
     private Typeifier typeifier() {
         tokenStack.add(currentLA());
 
-        possibleType pt = null;
+        PossibleType pt = null;
         if(nextLA(TokenType.DISCR)) {
-            pt = possibleType.DISCR;
+            pt = PossibleType.DISCR;
             match(TokenType.DISCR);
         }
         else if(nextLA(TokenType.SCALAR)) {
-            pt = possibleType.SCALAR;
+            pt = PossibleType.SCALAR;
             match(TokenType.SCALAR);
         }
         else if(nextLA(TokenType.CLASS)) {
-            pt = possibleType.CLASS;
+            pt = PossibleType.CLASS;
             match(TokenType.CLASS);
         }
 
