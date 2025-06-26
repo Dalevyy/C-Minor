@@ -229,6 +229,15 @@ public class Parser {
                 || nextLA(TokenType.GTEQ);
     }
 
+    private Vector<ImportDecl> handleImports() {
+        ImportHandler importHandler = new ImportHandler(input.getFileName(),interpretMode);
+
+        while(nextLA(TokenType.INCLUDE))
+            importHandler.enqueue(importStmt());
+
+        return importHandler.analyzeImports();
+    }
+
     // This will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
     public Vector<? extends AST> nextNode() throws Exception {
@@ -239,7 +248,7 @@ public class Parser {
             throw new Exception();
         // Parse ImportDecl
         if(nextLA(TokenType.INCLUDE))
-            nodes = new Vector<>(importStmt());
+            nodes = handleImports();
         // Parse EnumDecl
         else if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)
@@ -298,15 +307,8 @@ public class Parser {
         tokenStack.add(currentLA());
 
         Vector<ImportDecl> imports = new Vector<>();
-        if(nextLA(TokenType.INCLUDE)) {
-            ImportHandler importHandler = new ImportHandler(input.getFileName(),interpretMode);
-
-
-            while(nextLA(TokenType.INCLUDE))
-                importHandler.enqueue(importStmt());
-
-            imports = importHandler.analyzeImports();
-        }
+        if(nextLA(TokenType.INCLUDE))
+           imports = handleImports();
 
         Vector<EnumDecl> enums = new Vector<>();
         while(nextLA(TokenType.DEF)
@@ -664,7 +666,6 @@ public class Parser {
         match(TokenType.GT);
         return types;
     }
-
 
     /*
     ____________________________________________________________
