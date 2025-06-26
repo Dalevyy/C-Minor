@@ -37,6 +37,8 @@ public class Invocation extends Expression {
     public void setInvokeSignature(String inSig) { this.invokeSignature = inSig; }
     public String invokeSignature() { return this.invokeSignature; }
 
+    public boolean isLengthInvocation() { return toString().equals("length"); }
+
     @Override
     public String toString() { return name.toString(); }
 
