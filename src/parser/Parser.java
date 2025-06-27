@@ -653,8 +653,6 @@ public class Parser {
 
     // --. type_params : '<' type ( ',' type )* '>'
     private Vector<Type> typeParams() {
-        tokenStack.add(currentLA());
-
         match(TokenType.LT);
         Vector<Type> types = new Vector<>(type());
 
