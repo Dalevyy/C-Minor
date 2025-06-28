@@ -303,7 +303,7 @@ logical_or_expression
 
 constant : object_constant | array_constant | list_constant | scalar_constant ;
 
-object_constant : 'new' Name '(' object_field (',' object_field)* ')' ;
+object_constant : 'new' Name (type_params)? '(' object_field (',' object_field)* ')' ;
 
 object_field : Name '=' expression ;
 

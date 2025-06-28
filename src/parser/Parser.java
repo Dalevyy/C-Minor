@@ -2082,7 +2082,7 @@ public class Parser {
         else { return scalarConstant(); }
     }
 
-    // 80. object_constant ::= 'new' ID '(' (object_field ( ',' object_field )* ')'
+    // 80. object_constant ::= 'new' ID (type_params)? '(' (object_field ( ',' object_field )* ')'
     private NewExpr objectConstant() {
         tokenStack.add(currentLA());
         match(TokenType.NEW);
@@ -2090,6 +2090,10 @@ public class Parser {
         Token nameTok = currentLA();
         Name n = new Name(currentLA());
         match(TokenType.ID);
+
+        Vector<Type> typeArgs = new Vector<>();
+        if(nextLA(TokenType.LT))
+            typeArgs = typeParams();
 
         match(TokenType.LPAREN);
         Vector<Var> vars = new Vector<>();
@@ -2102,7 +2106,7 @@ public class Parser {
         }
         match(TokenType.RPAREN);
 
-        return new NewExpr(nodeToken(),new ClassType(nameTok,n),vars);
+        return new NewExpr(nodeToken(),new ClassType(nameTok,n),vars,typeArgs);
     }
 
     // 81. object_field ::= ID '=' expression
