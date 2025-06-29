@@ -68,7 +68,7 @@ public abstract class AST {
      * Copies the metadata of an AST node into the current node.
      * @param node AST node we want to copy
      */
-    public void copy(AST node) {
+    public void copyMetaData(AST node) {
         this.text = node.text;
         this.location = node.location;
         this.parent = node.parent;
@@ -79,7 +79,7 @@ public abstract class AST {
      * @param node AST node we want to copy and remove from the tree
      */
     public void replace(AST node) {
-        this.copy(node);
+        this.copyMetaData(node);
 
         AST curr = node;
         /*
@@ -125,7 +125,7 @@ public abstract class AST {
 
     public AST getRootParent() {
         AST curr = parent;
-        while(curr != null) {
+        while(curr.parent != null) {
             if(curr.isStatement() && curr.asStatement().isExprStmt())
                 return curr;
             curr = curr.parent;
@@ -133,9 +133,21 @@ public abstract class AST {
         return curr;
     }
 
+    public AST getCompilationUnit() {
+        if(parent == null)
+            return this;
+
+        AST curr = parent;
+        while(curr.parent != null && !curr.isCompilation())
+            curr = curr.parent;
+        return curr;
+    }
+
     public void addChild(AST node) {
-        if(node != null)
+        if(node != null) {
             children.add(node);
+            node.parent = this;
+        }
     }
 
     public <T extends AST> void addChild(Vector<T> nodes) {
@@ -155,6 +167,8 @@ public abstract class AST {
     }
 
     public abstract void update(int pos, AST n);
+
+    public abstract AST deepCopy();
 
     public String getStartPosition() {
         return this.location.start.line + "." + this.location.start.column;
@@ -206,7 +220,7 @@ public abstract class AST {
     public boolean isVar() { return false; }
     public Var asVar() { throw new RuntimeException("Expression can not be casted into a Var.\n"); }
 
-    // getType: Helper method to get a node's type (if applicable)
+    // getType: Helper method to get a node's type (if applicable) (should be removed \0_0/)
     public Type getType() {
         if(this.isExpression()) { return this.asExpression().type; }
         else if(this.isParamDecl()) { return this.asParamDecl().type(); }
@@ -235,6 +249,29 @@ public abstract class AST {
         for(AST child : children) {
             if(child != null)
                 child.visit(v);
+        }
+    }
+
+    public static class NodeBuilder {
+        protected String text = "";
+        protected Location location = new Location();
+        protected AST parent = null;
+
+        // Copies the node metadata into node
+        protected NodeBuilder setMetaData(AST node) {
+            this.text = node.text;
+            this.location = node.location;
+            this.parent = node.parent;
+            return this;
+        }
+
+        // Copies the internal metadata to the newly created node
+        protected AST saveMetaData(AST node) {
+            if(node.text.isEmpty())
+                node.text = this.text;
+            node.location = this.location;
+            node.parent = this.parent;
+            return node;
         }
     }
 }
