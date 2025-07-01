@@ -7,7 +7,7 @@ import java.util.Iterator;
 
 /*
 __________________________________ Vector __________________________________
-This is a container class designed to store items throughout the C Minor
+ThisStmt is a container class designed to store items throughout the C Minor
 compiler. The point of this class is to create a unified list structure that
 every part of the compiler uses, so we do not have multiple list types being
 used in different locations.

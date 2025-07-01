@@ -29,9 +29,9 @@ import utilities.Visitor;
  * Micropass #5
  * <br><br>
  * The parser generates a <code>ClassType</code> node when a name is used for a <i>type</i> regardless
- * if the name represents a <i>Class</i> or <i>Enum</i>. This means we have to do a pass to change all
+ * if the name represents a <i>Class</i> or <i>Enum</i>. ThisStmt means we have to do a pass to change all
  * <code>ClassType</code> nodes to be <code>EnumType</code> nodes if the name represents an <i>Enum</i>.
- * This pass needs to be completed before typechecking or else we can't properly run the assignment
+ * ThisStmt pass needs to be completed before typechecking or else we can't properly run the assignment
  * compatibility method.
  * <br><br>
  * The following is a list of declarations this micropass will run on.
@@ -78,7 +78,7 @@ public class TypeValidityPass extends Visitor {
      *     Since the parser does not distinguish the difference between class
      *     and enum types, we have to do a manual rewrite of any class types that
      *     actually represent an enum type in order to do proper type checking.
-     *     This method handles the rewrite for us if it needs to be done.
+     *     ThisStmt method handles the rewrite for us if it needs to be done.
      * </p>
      * @param t Type we might need to rewrite
      * @return A type representing the original {@code ClassType} or a new {@code EnumType}.
@@ -99,7 +99,7 @@ public class TypeValidityPass extends Visitor {
     /**
      * Builds a new {@code EnumType} node.
      * <p>
-     *     This method will create a new type for an enum declaration. This
+     *     ThisStmt method will create a new type for an enum declaration. ThisStmt
      *     type is specifically an {@code EnumType} that will contain the
      *     name of the enum followed by the type of data stored in the enum's
      *     constants.
@@ -115,8 +115,8 @@ public class TypeValidityPass extends Visitor {
         else
             enumTypeBuilder.setConstantType(Discretes.CHAR);
 
-        enumTypeBuilder.setName(ed.toString());
-        return enumTypeBuilder.createEnumType();
+        enumTypeBuilder.setName(ed.name());
+        return enumTypeBuilder.create();
     }
 
     /**
@@ -134,9 +134,9 @@ public class TypeValidityPass extends Visitor {
     private void checkTemplateType(ClassType ct) {
         ClassDecl cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
 
-        // ERROR CHECK #1: This checks if both the class and the class type have the same number of type parameters.
+        // ERROR CHECK #1: ThisStmt checks if both the class and the class type have the same number of type parameters.
         if(cd.typeParams().size() != ct.typeArgs().size()) {
-            // This error message is generated when a user tries to instantiate a non-templated class.
+            // ThisStmt error message is generated when a user tries to instantiate a non-templated class.
             if (cd.typeParams().isEmpty()) {
                 errors.add(
                         new ErrorBuilder(generateTypeError, currentFile, interpretMode)
@@ -146,7 +146,7 @@ public class TypeValidityPass extends Visitor {
                                 .error()
                 );
             }
-            // This error message is generated when a user tries to instantiate a templated class.
+            // ThisStmt error message is generated when a user tries to instantiate a templated class.
             else {
                 ErrorBuilder eb = new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                         .addLocation(ct.getRootParent())
@@ -164,7 +164,7 @@ public class TypeValidityPass extends Visitor {
         // We now look through each type parameter for the corresponding class.
         for (int i = 0; i < cd.typeParams().size(); i++) {
             Typeifier tp = cd.typeParams().get(i);
-            // ERROR CHECK #2: This checks if the correct type was passed as an argument (if applicable).
+            // ERROR CHECK #2: ThisStmt checks if the correct type was passed as an argument (if applicable).
             if (tp.hasPossibleType() && !tp.isValidType(ct.typeArgs().get(i))) {
                 errors.add(
                     new ErrorBuilder(generateTypeError, currentFile, interpretMode)
@@ -188,7 +188,7 @@ public class TypeValidityPass extends Visitor {
      * @param ct Class Type
      */
     public void visitClassType(ClassType ct) {
-        // ERROR CHECK #1: This checks if the type written was actually declared in the program.
+        // ERROR CHECK #1: ThisStmt checks if the type written was actually declared in the program.
         if(!currentScope.hasNameSomewhere(ct.toString())) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
@@ -297,8 +297,11 @@ public class TypeValidityPass extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        if(ne.instantiatesTemplate())
-            checkTemplateType(ne.classType());
+        if(ne.createsFromTemplate())
+            checkTemplateType(ne.getClassType());
+
+        ClassDecl cd = currentClass.deepCopy().asTopLevelDecl().asClassDecl();
+        System.out.println("HI");
     }
 
     /**

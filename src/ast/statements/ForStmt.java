@@ -4,6 +4,7 @@ import ast.AST;
 import ast.expressions.*;
 import ast.operators.LoopOp;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
@@ -17,6 +18,7 @@ public class ForStmt extends Statement {
     private LoopOp lOp;
     private BlockStmt body;
 
+    public ForStmt(){this(new Token(),null,null,null,null,null); }
     public ForStmt(Token t, LocalDecl ld, Expression LHS, Expression RHS, LoopOp lOp, BlockStmt b) {
         super(t);
         this.loopControlVar = ld;
@@ -30,7 +32,6 @@ public class ForStmt extends Statement {
         addChild(this.RHS);
         addChild(this.lOp);
         addChild(this.body);
-        setParent();
     }
 
     public LocalDecl loopVar() { return this.loopControlVar; }
@@ -43,26 +44,87 @@ public class ForStmt extends Statement {
     public ForStmt asForStmt() { return this; }
 
     @Override
-    public void update(int pos, AST n) {
+    public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                loopControlVar = n.asStatement().asLocalDecl();
+                loopControlVar = node.asStatement().asLocalDecl();
                 break;
             case 1:
-                LHS = n.asExpression();
+                LHS = node.asExpression();
                 break;
             case 2:
-                RHS = n.asExpression();
+                RHS = node.asExpression();
                 break;
             case 3:
-                lOp = n.asOperator().asLoopOp();
+                lOp = node.asOperator().asLoopOp();
                 break;
             case 4:
-                body = n.asStatement().asBlockStmt();
+                body = node.asStatement().asBlockStmt();
                 break;
         }
     }
 
     @Override
+    public AST deepCopy() {
+        return new ForStmtBuilder()
+                   .setMetaData(this)
+                   .setLocalVar(this.loopControlVar.deepCopy().asStatement().asLocalDecl())
+                   .setLHS(this.LHS.deepCopy().asExpression())
+                   .setRHS(this.RHS.deepCopy().asExpression())
+                   .setLoopOp(this.lOp.deepCopy().asOperator().asLoopOp())
+                   .setLoopBlock(this.body.deepCopy().asStatement().asBlockStmt())
+                   .create();
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitForStmt(this); }
+
+    public static class ForStmtBuilder extends NodeBuilder {
+        private final ForStmt fs = new ForStmt();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return ForStmtBuilder
+         */
+        public ForStmtBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        public ForStmtBuilder setLocalVar(LocalDecl ld) {
+            fs.loopControlVar = ld;
+            return this;
+        }
+
+        public ForStmtBuilder setLHS(Expression LHS) {
+            fs.LHS = LHS;
+            return this;
+        }
+
+        public ForStmtBuilder setRHS(Expression RHS) {
+            fs.RHS = RHS;
+            return this;
+        }
+
+        public ForStmtBuilder setLoopOp(LoopOp LoOp) {
+            fs.lOp = LoOp;
+            return this;
+        }
+
+        public ForStmtBuilder setLoopBlock(BlockStmt bs) {
+            fs.body = bs;
+            return this;
+        }
+
+        public ForStmt create() {
+            super.saveMetaData(fs);
+            fs.addChild(fs.loopControlVar);
+            fs.addChild(fs.LHS);
+            fs.addChild(fs.RHS);
+            fs.addChild(fs.lOp);
+            fs.addChild(fs.body);
+            return fs;
+        }
+    }
 }

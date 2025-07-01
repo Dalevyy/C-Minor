@@ -18,7 +18,7 @@ import ast.expressions.Literal;
 import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
 import ast.expressions.OutStmt;
-import ast.expressions.This;
+import ast.expressions.ThisStmt;
 import ast.expressions.UnaryExpr;
 import ast.misc.Compilation;
 import ast.misc.ParamDecl;
@@ -41,6 +41,7 @@ import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.ImportDecl;
 import ast.types.ClassType;
 import ast.types.Type;
 import java.io.BufferedReader;
@@ -87,7 +88,7 @@ public class Interpreter extends Visitor {
      * <p>
      *     To avoid users needing to create for loops to view individual contents
      *     of an array or list, C Minor will allow a user to output the array or
-     *     list directly in order to see what they are storing. This method aids
+     *     list directly in order to see what they are storing. ThisStmt method aids
      *     in generating the output for the user.
      * </p>
      * @param arr Current array we are building the output for
@@ -118,19 +119,19 @@ public class Interpreter extends Visitor {
         if(currValue instanceof HashMap)
             arr = (Vector<Object>) ((HashMap<String,Object>) currValue).get(ae.toString());
         else {
-            ae.arrayTarget().visit(this);
+            ae.getArrayTarget().visit(this);
             arr = (Vector<Object>) currValue;
         }
                    Vector<Object> curr = arr;
 
-        for(int i = 0; i < ae.arrayIndex().size(); i++) {
-            ae.arrayIndex().get(i).visit(this);
+        for(int i = 0; i < ae.getArrayIndex().size(); i++) {
+            ae.getArrayIndex().get(i).visit(this);
             int offset = (int) currValue;
 
             if(arr.get(0) instanceof ArrayLiteral) {
                 ArrayLiteral al = (ArrayLiteral)arr.get(0);
-                if(!al.arrayDims().isEmpty())
-                    al.arrayDims().get(i).visit(this);
+                if(!al.getArrayDims().isEmpty())
+                    al.getArrayDims().get(i).visit(this);
                 else if(i == 0)
                     currValue = arr.size() -1;
                 else
@@ -165,14 +166,14 @@ public class Interpreter extends Visitor {
      *     Arrays are static in C Minor, so a user can not change its size
      *     once an array literal is declared. We will evaluate every expression
      *     for the current array literal and store it in a <code>Vector</code>.
-     *     This will emulate the array during runtime.
+     *     ThisStmt will emulate the array during runtime.
      * </p>
      * @param al Array Literal
      */
     public void visitArrayLiteral(ArrayLiteral al) {
         Vector<Object> arr = new Vector<>();
 
-        for(Expression e : al.arrayInits()) {
+        for(Expression e : al.getArrayInits()) {
             e.visit(this);
             arr.add(currValue);
         }
@@ -253,7 +254,7 @@ public class Interpreter extends Visitor {
         }
 
         HashMap<String,Object> instance = null;
-        if(as.LHS().isFieldExpr() && as.LHS().asFieldExpr().fieldTarget().isThis())
+        if(as.LHS().isFieldExpr() && as.LHS().asFieldExpr().getTarget().isThisStmt())
             instance = (HashMap<String,Object>) stack.getValue("this");
 
         // TODO: Operator Overloads as well
@@ -340,13 +341,13 @@ public class Interpreter extends Visitor {
      * @param be Binary Expression
      */
     public void visitBinaryExpr(BinaryExpr be) {
-        be.LHS().visit(this);
+        be.getLHS().visit(this);
         Object LHS = currValue;
 
-        be.RHS().visit(this);
+        be.getRHS().visit(this);
         Object RHS = currValue;
 
-        String binOp = be.binaryOp().toString();
+        String binOp = be.getBinaryOp().toString();
 
         switch(binOp) {
             case "+":
@@ -390,7 +391,7 @@ public class Interpreter extends Visitor {
             }
             case "==":
             case "!=": {
-                if(be.LHS().type.isBool() && be.RHS().type.isBool()) {
+                if(be.getLHS().type.isBool() && be.getRHS().type.isBool()) {
                     boolean lValue = (boolean) LHS;
                     boolean rValue = (boolean) RHS;
                     switch(binOp) {
@@ -399,7 +400,7 @@ public class Interpreter extends Visitor {
                     }
                     break;
                 }
-                else if(be.LHS().type.isString() && be.RHS().type.isString()) {
+                else if(be.getLHS().type.isString() && be.getRHS().type.isString()) {
                     String lValue = (String) LHS;
                     String rValue = (String) RHS;
                     switch(binOp) {
@@ -408,7 +409,7 @@ public class Interpreter extends Visitor {
                     }
                     break;
                 }
-                else if(be.LHS().type.isInt() && be.RHS().type.isInt()) {
+                else if(be.getLHS().type.isInt() && be.getRHS().type.isInt()) {
                     int lValue = (int) LHS;
                     int rValue = (int) RHS;
                     switch(binOp) {
@@ -417,7 +418,7 @@ public class Interpreter extends Visitor {
                     }
                     break;
                 }
-                else if(be.LHS().type.isChar() && be.RHS().type.isChar()) {
+                else if(be.getLHS().type.isChar() && be.getRHS().type.isChar()) {
                     char lValue = LHS.toString().charAt(0);
                     char rValue = RHS.toString().charAt(0);
                     switch(binOp) {
@@ -426,7 +427,7 @@ public class Interpreter extends Visitor {
                     }
                     break;
                 }
-                else if(be.LHS().type.isReal() && be.RHS().type.isReal()) {
+                else if(be.getLHS().type.isReal() && be.getRHS().type.isReal()) {
                     BigDecimal lValue = (BigDecimal) LHS;
                     BigDecimal rValue = (BigDecimal) RHS;
                     switch(binOp) {
@@ -440,7 +441,7 @@ public class Interpreter extends Visitor {
             case "<=":
             case ">":
             case ">=": {
-                if(be.LHS().type.isInt() && be.RHS().type.isInt()) {
+                if(be.getLHS().type.isInt() && be.getRHS().type.isInt()) {
                     int lValue = (int) LHS;
                     int rValue = (int) RHS;
                     switch (binOp) {
@@ -451,7 +452,7 @@ public class Interpreter extends Visitor {
                     }
                     break;
                 }
-                else if(be.LHS().type.isReal() && be.RHS().type.isReal()) {
+                else if(be.getLHS().type.isReal() && be.getRHS().type.isReal()) {
                     BigDecimal lValue = new BigDecimal(LHS.toString());
                     BigDecimal rValue = new BigDecimal(RHS.toString());
                     switch (binOp) {
@@ -501,12 +502,12 @@ public class Interpreter extends Visitor {
             case "instanceof":
             case "!instanceof":
                 ClassType objType;
-                if(be.LHS().type.isMultiType())
-                    objType = be.LHS().type.asMultiType().getRuntimeType();
+                if(be.getLHS().type.isMultiType())
+                    objType = be.getLHS().type.asMultiType().getRuntimeType();
                 else
-                    objType = be.LHS().type.asClassType();
+                    objType = be.getLHS().type.asClassType();
 
-                currValue = ClassType.classAssignmentCompatibility(objType,be.RHS().type.asClassType());
+                currValue = ClassType.classAssignmentCompatibility(objType,be.getRHS().type.asClassType());
                 if(binOp.equals("!instanceof"))
                     currValue = !(boolean)currValue;
                 break;
@@ -543,7 +544,7 @@ public class Interpreter extends Visitor {
      * Executes a break statement.<br><br>
      * <p>
      *     When a break statement is found, we will set the {@code breakFound}
-     *     flag to be true. This will allow us to terminate the loop early, and
+     *     flag to be true. ThisStmt will allow us to terminate the loop early, and
      *     we can move on to execute a different part of the program.
      * </p>
      * @param bs Break Statement
@@ -557,19 +558,19 @@ public class Interpreter extends Visitor {
     ____________________________________________________________
     */
     public void visitCastExpr(CastExpr cs) {
-        cs.castExpr().visit(this);
-        if(cs.castType().isInt()) {
-            if(cs.castExpr().type.isReal()) { currValue = ((BigDecimal) currValue).intValue(); }
-            else if(cs.castExpr().type.isChar()) {
+        cs.getCastExpr().visit(this);
+        if(cs.getCastType().isInt()) {
+            if(cs.getCastExpr().type.isReal()) { currValue = ((BigDecimal) currValue).intValue(); }
+            else if(cs.getCastExpr().type.isChar()) {
                 if(currValue.toString().charAt(1) != '/') { currValue = (int) currValue.toString().charAt(1); }
                 else { currValue = (int) currValue.toString().charAt(1) + (int) currValue.toString().charAt(2); }
             }
         }
-        else if(cs.castType().isReal()) {
-            if(cs.castExpr().type.isInt()) { currValue = new BigDecimal(currValue.toString()); }
+        else if(cs.getCastType().isReal()) {
+            if(cs.getCastExpr().type.isInt()) { currValue = new BigDecimal(currValue.toString()); }
         }
-        else if(cs.castType().isString()) {
-            if(cs.castType().isChar()) { currValue = currValue.toString(); }
+        else if(cs.getCastType().isString()) {
+            if(cs.getCastType().isChar()) { currValue = currValue.toString(); }
         }
     }
 
@@ -664,20 +665,27 @@ public class Interpreter extends Visitor {
      * @param c Compilation unit representing the program we are executing
      */
     public void visitCompilation(Compilation c) {
+        for(ImportDecl im : c.imports()) {
+            im.visit(this);
+            c.addClassDecl(im.getCompilationUnit().classDecls());
+            c.addFuncDecl(im.getCompilationUnit().funcDecls());
+        }
+
         for(EnumDecl ed : c.enumDecls())
             ed.visit(this);
 
         for(GlobalDecl gd : c.globalDecls())
             gd.visit(this);
 
-        c.mainDecl().mainBody().visit(this);
+        if(c.mainDecl() != null)
+            c.mainDecl().mainBody().visit(this);
     }
 
     /**
      * Executes a continue statement.<br><br>
      * <p>
      *     When a continue is found, we will set the {@code continueFound}
-     *     flag to be true. This will allow us to stop executing the current
+     *     flag to be true. ThisStmt will allow us to stop executing the current
      *     iteration of the loop and move on to the next iteration.
      * </p>
      * @param cs Continue Statement
@@ -732,26 +740,26 @@ public class Interpreter extends Visitor {
      * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) {
-        fe.fieldTarget().visit(this);
+        fe.getTarget().visit(this);
         HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
 
-        if(fe.accessExpr().isNameExpr()) {
-            currValue = instance.get(fe.accessExpr().toString());
+        if(fe.getAccessExpr().isNameExpr()) {
+            currValue = instance.get(fe.getAccessExpr().toString());
             if(currValue == null) {
                 new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(fe)
                         .addErrorType(MessageType.RUNTIME_ERROR_606)
-                        .addArgs(fe.accessExpr(),fe.fieldTarget().type.asMultiType().getRuntimeType())
+                        .addArgs(fe.getAccessExpr(),fe.getTarget().type.asMultiType().getRuntimeType())
                         .error();
             }
         }
         else {
             Type oldTarget = currTarget;
-            if(fe.fieldTarget().type.isMultiType())
-                currTarget = fe.fieldTarget().type.asMultiType().getRuntimeType();
+            if(fe.getTarget().type.isMultiType())
+                currTarget = fe.getTarget().type.asMultiType().getRuntimeType();
             else
-                currTarget = fe.fieldTarget().type;
-            fe.accessExpr().visit(this);
+                currTarget = fe.getTarget().type;
+            fe.getAccessExpr().visit(this);
             currTarget = oldTarget;
         }
     }
@@ -918,7 +926,7 @@ public class Interpreter extends Visitor {
 
         // ERROR CHECK #1: Make sure the number of input arguments matches the number
         //                 of expected input values that should be written
-        if(vals.size() != in.inExprs().size()) {
+        if(vals.size() != in.getInExprs().size()) {
             new ErrorBuilder(generateRuntimeError,interpretMode)
                     .addLocation(in)
                     .addErrorType(MessageType.RUNTIME_ERROR_600)
@@ -926,7 +934,7 @@ public class Interpreter extends Visitor {
         }
         for(int i = 0; i < vals.size(); i++) {
             String currVal = vals.get(i);
-            Expression currExpr = in.inExprs().get(i);
+            Expression currExpr = in.getInExprs().get(i);
             try {
                 if(currExpr.type.isInt()) {
                     if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
@@ -947,6 +955,10 @@ public class Interpreter extends Visitor {
                         .error();
             }
         }
+    }
+
+    public void visitImportDecl(ImportDecl im) {
+        im.getCompilationUnit().visit(this);
     }
 
     /*
@@ -975,7 +987,7 @@ public class Interpreter extends Visitor {
                 obj = (HashMap<String,Object>) currValue;
         }
 
-        for(Expression arg : in.arguments()) {
+        for(Expression arg : in.getArgs()) {
             arg.visit(this);
             args.add(currValue);
         }
@@ -991,11 +1003,11 @@ public class Interpreter extends Visitor {
 
         // Function Invocation
         if(in.targetType.isVoidType()) {
-            FuncDecl fd = currentScope.findName(in.invokeSignature()).decl().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = currentScope.findName(in.getSignature()).decl().asTopLevelDecl().asFuncDecl();
             params = fd.params();
             currentScope = fd.symbolTable;
 
-            for(int i = 0; i < in.arguments().size(); i++)
+            for(int i = 0; i < in.getArgs().size(); i++)
                 stack.addValue(params.get(i).toString(),args.get(i));
 
             fd.funcBlock().visit(this);
@@ -1013,16 +1025,16 @@ public class Interpreter extends Visitor {
             }
 
             ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            while(!cd.symbolTable.hasName(in.invokeSignature()))
+            while(!cd.symbolTable.hasName(in.getSignature()))
                 cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
 
-            MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(in.getSignature()).decl().asMethodDecl();
             params = md.params();
             currentScope = md.symbolTable;
 
             if(obj != null) { stack.addValue("this",obj); }
 
-            for(int i = 0; i < in.arguments().size(); i++) {
+            for(int i = 0; i < in.getArgs().size(); i++) {
                 ParamDecl currParam = md.params().get(i);
                 stack.addValue(currParam.toString(),args.get(i));
             }
@@ -1031,9 +1043,9 @@ public class Interpreter extends Visitor {
         }
 
         returnFound = false;
-        for(int i = 0; i < in.arguments().size(); i++) {
-            if(in.arguments().get(i).isNameExpr()) {
-                String argName = in.arguments().get(i).toString();
+        for(int i = 0; i < in.getArgs().size(); i++) {
+            if(in.getArgs().get(i).isNameExpr()) {
+                String argName = in.getArgs().get(i).toString();
                 ParamDecl currParam = params.get(i);
 
                 if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
@@ -1050,7 +1062,7 @@ public class Interpreter extends Visitor {
     public void visitListLiteral(ListLiteral ll) {
         Vector<Object> lst = new Vector<>();
 
-        for(Expression e : ll.inits()) {
+        for(Expression e : ll.getInits()) {
             e.visit(this);
             lst.add(currValue);
         }
@@ -1062,7 +1074,7 @@ public class Interpreter extends Visitor {
     /**
      * Executes a list statement command.<br><br>
      * <p>
-     *     This method will execute the current list command based on the
+     *     ThisStmt method will execute the current list command based on the
      *     provided arguments. If there are any issues, then we will produce
      *     an exception for the user.
      * </p>
@@ -1196,10 +1208,10 @@ public class Interpreter extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.classType().typeName()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().typeName()).decl().asTopLevelDecl().asClassDecl();
 
         HashMap<String,Object> instance = new HashMap<>();
-        for(Var v : ne.args()) {
+        for(Var v : ne.getInitialFields()) {
             v.init().visit(this);
             instance.put(v.toString(),currValue);
         }
@@ -1218,7 +1230,7 @@ public class Interpreter extends Visitor {
      * @param os Output Statement
      */
     public void visitOutStmt(OutStmt os) {
-        for(Expression e : os.outExprs()) {
+        for(Expression e : os.getOutExprs()) {
             e.visit(this);
             if(e.isEndl())
                 System.out.println();
@@ -1279,15 +1291,15 @@ public class Interpreter extends Visitor {
     public void visitStopStmt(StopStmt ss) { System.exit(1); }
 
     /**
-     * Executes a {@code This} statement.<br><br>
+     * Executes a {@code ThisStmt} statement.<br><br>
      * <p>
      *     When we are inside of a class, we want to make sure we access the
-     *     correct fields and methods for the current object. This will be done
+     *     correct fields and methods for the current object. ThisStmt will be done
      *     by
      * </p>
-     * @param t This Statement
+     * @param t ThisStmt Statement
      */
-    public void visitThis(This t) { currValue = stack.getValue("this"); }
+    public void visitThis(ThisStmt t) { currValue = stack.getValue("this"); }
 
     /**
      * Evaluates a unary expression.<br><br>
@@ -1298,9 +1310,9 @@ public class Interpreter extends Visitor {
      * @param ue Unary Expression
      */
     public void visitUnaryExpr(UnaryExpr ue) {
-        ue.expr().visit(this);
+        ue.getExpr().visit(this);
         
-        switch(ue.unaryOp().toString()) {
+        switch(ue.getUnaryOp().toString()) {
             case "~":
                 if(ue.type.isInt())
                     currValue = ~((int) currValue);

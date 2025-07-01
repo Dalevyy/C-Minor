@@ -18,7 +18,7 @@ import utilities.Printer;
 /**
  * C Minor Compiler class
  * <p>
- *     This class is responsible for handling the compilation mode
+ *     ThisStmt class is responsible for handling the compilation mode
  *     of C Minor. It will ensure the user correctly inputted their
  *     program alongside any compile flags and performs the compilation.
  * </p>
@@ -47,13 +47,6 @@ public class Compiler {
         semanticAnalysis(root,true);
     }
 
-    /** Handles the compilation process for import statements. */
-    public Compilation compile(String program) {
-        Compilation root = syntaxAnalysis(program,false,false);
-        semanticAnalysis(root,false);
-        return root;
-    }
-
     /**
      * Executes the syntax analysis phase of the C Minor compiler.
      * <p>
@@ -80,7 +73,7 @@ public class Compiler {
     /**
      * Executes the semantic analysis phase of the C Minor compiler.
      * <p>
-     *     This method will execute all major and micro passes associated with
+     *     ThisStmt method will execute all major and micro passes associated with
      *     the C Minor compiler. If no errors were found, then the compiler
      *     will currently execute the program by running it through the interpreter.
      * </p>
@@ -93,7 +86,7 @@ public class Compiler {
         root.visit(new FieldRewrite());
         root.visit(new OperatorOverloadCheck());
         root.visit(new LoopKeywordCheck());
-        root.visit(new TypeValidityCheck());
+        root.visit(new TypeValidityPass());
         root.visit(new TypeChecker());
         root.visit(new ConstructorGeneration());
         root.visit(new ModifierChecker());

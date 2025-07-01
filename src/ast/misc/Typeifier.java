@@ -1,6 +1,7 @@
 package ast.misc;
 
 import ast.AST;
+import ast.types.Type;
 import token.*;
 import utilities.*;
 
@@ -20,7 +21,7 @@ public class Typeifier extends AST implements NameNode {
     /**
      * String representation of {@code PossibleType} enum.
      */
-    public static String[] names = {"Discrete", "Scalar", "Class" };
+    public static String[] names = {"discrete", "scalar", "class" };
 
     /**
      * The high level type that the typefier could represent.
@@ -33,13 +34,14 @@ public class Typeifier extends AST implements NameNode {
      *     correctly uses the appropriate type.
      * </p>
      */
-    private final PossibleType pt;
+    private PossibleType pt;
 
     /**
-     * The generic name for the type that is written by the user.
+     * The generic name for the type parameter.
      */
     private Name name;
 
+    public Typeifier() { this(new Token(),null,null); }
     /**
      * Default constructor for {@code Typeifier}
      * @param metaData Metadata token
@@ -52,14 +54,34 @@ public class Typeifier extends AST implements NameNode {
         this.name = n;
 
         addChild(this.name);
-        setParent();
     }
 
-    public PossibleType getPossibleType() { return pt != null ? pt : null; }
+    public PossibleType getPossibleType() { return pt; }
     public Name getName() { return name; }
 
     public boolean isTypeifier() { return true; }
     public Typeifier asTypeifier() { return this; }
+
+    public boolean hasPossibleType() { return pt != null; }
+
+    public boolean isValidType(Type t) {
+        switch(possibleTypeToString()) {
+            case "discrete":
+                if(t.isDiscreteType())
+                    return true;
+                break;
+            case "scalar":
+                if(t.isScalarType())
+                    return true;
+                break;
+            case "class":
+                if(t.isClassOrMultiType())
+                    return true;
+        }
+        return false;
+    }
+
+    public String possibleTypeToString() { return names[pt.ordinal()]; }
 
     @Override
     public AST decl() { return this; }
@@ -68,7 +90,20 @@ public class Typeifier extends AST implements NameNode {
     public void update(int pos, AST n) { name = n.asName(); }
 
     @Override
+    public String header() { return getParent().header(); }
+
+    @Override
     public String toString() { return name.toString(); }
+
+
+    @Override
+    public AST deepCopy() {
+        return new TypeifierBuilder()
+                   .setMetaData(this)
+                   .setPossibleType(this.pt)
+                   .setName(this.name.deepCopy().asName())
+                   .create();
+    }
 
     /**
      * Visit method.
@@ -76,4 +111,34 @@ public class Typeifier extends AST implements NameNode {
      */
     @Override
     public void visit(Visitor v) { v.visitTypeifier(this); }
+
+    public static class TypeifierBuilder extends NodeBuilder {
+        private final Typeifier tp = new Typeifier();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return TypeifierBuilder
+         */
+        public TypeifierBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        public TypeifierBuilder setPossibleType(PossibleType pt) {
+            tp.pt = pt;
+            return this;
+        }
+
+        public TypeifierBuilder setName(Name name) {
+            tp.name = name;
+            return this;
+        }
+
+        public Typeifier create() {
+            super.saveMetaData(tp);
+            tp.addChild(tp.name);
+            return tp;
+        }
+    }
 }

@@ -9,7 +9,7 @@ import utilities.Visitor;
 /**
  * Micropass #??
  * <p>
- *     This micropass is designed to validate if operator overloads
+ *     ThisStmt micropass is designed to validate if operator overloads
  *     were correctly written by the user prior to typechecking.
  * </p>
  *

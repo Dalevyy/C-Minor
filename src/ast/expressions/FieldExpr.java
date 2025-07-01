@@ -53,7 +53,8 @@ public class FieldExpr extends Expression {
         this.target = target;
         this.accessExpr = accessExpr;
         this.isNullCheck = nullCheck;
-        this.isInvocation = this.accessExpr.isInvocation();
+        if(this.accessExpr != null)
+         this.isInvocation = this.accessExpr.isInvocation();
 
         addChild(this.target);
         addChild(this.accessExpr);

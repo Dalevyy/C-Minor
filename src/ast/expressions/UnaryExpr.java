@@ -134,7 +134,7 @@ public class UnaryExpr extends Expression {
          * @param node AST node we want to copy.
          * @return UnaryExprBuilder
          */
-        public UnaryExprBuilder setMetaData(UnaryExpr node) {
+        public UnaryExprBuilder setMetaData(AST node) {
             super.setMetaData(node);
             return this;
         }

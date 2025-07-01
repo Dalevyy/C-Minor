@@ -8,7 +8,7 @@ import utilities.Vector;
 /*
 __________________________ Type __________________________
 Type is an abstract class that will be inherited by all C
-Minor type nodes. This class contains a bunch of helper
+Minor type nodes. ThisStmt class contains a bunch of helper
 methods to aid in type checking/interpretation including
 type equality and assignment compatibility.
 

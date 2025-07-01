@@ -6,7 +6,7 @@ import java.io.IOException;
 /**
  * C Minor Main Class
  * <p>
- *     This is the {@code Main} class for the C Minor compiler
+ *     ThisStmt is the {@code Main} class for the C Minor compiler
  *     which begins the compilation process.
  * </p>
  * @author Daniel Levy
@@ -16,7 +16,7 @@ public class Main {
     /**
      * {@code Main} method.
      * <p>
-     *     This is the entrance method for the C Minor compiler. It will
+     *     ThisStmt is the entrance method for the C Minor compiler. It will
      *     call the {@code compile} method from the {@link Compiler} class
      *     to begin the compilation process.
      * </p>

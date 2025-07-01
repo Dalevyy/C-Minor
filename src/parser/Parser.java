@@ -238,7 +238,7 @@ public class Parser {
         return importHandler.analyzeImports();
     }
 
-    // This will be the main method used for parsing when a user
+    // ThisStmt will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
     public Vector<? extends AST> nextNode() throws Exception {
         Vector<? extends AST> nodes;
@@ -1622,7 +1622,7 @@ public class Parser {
         }
         else if(nextLA(TokenType.ENDL)) {
             match(TokenType.ENDL);
-            return new Endl(nodeToken());
+            return new EndlStmt(nodeToken());
         }
         else {
             match(TokenType.PARENT);
@@ -2106,7 +2106,7 @@ public class Parser {
         }
         match(TokenType.RPAREN);
 
-        return new NewExpr(nodeToken(),new ClassType(nameTok,n),vars,typeArgs);
+        return new NewExpr(nodeToken(),new ClassType(nameTok,n,typeArgs),vars);
     }
 
     // 81. object_field ::= ID '=' expression
@@ -2166,19 +2166,19 @@ public class Parser {
         if(nextLA(TokenType.STR_LIT)) {
             tokenStack.add(currentLA());
             match(TokenType.STR_LIT);
-            return new Literal(nodeToken(), ConstantKind.STR);
+            return new Literal(nodeToken(), ConstantType.STR);
         }
         else if(nextLA(TokenType.TEXT_LIT)) {
             tokenStack.add(currentLA());
             match(TokenType.TEXT_LIT);
-            return new Literal(nodeToken(), ConstantKind.TEXT);
+            return new Literal(nodeToken(), ConstantType.TEXT);
         }
         else if(nextLA(TokenType.REAL_LIT) || (nextLA(TokenType.MINUS) && nextLA(TokenType.REAL_LIT,1))) {
             tokenStack.add(currentLA());
             if(nextLA(TokenType.MINUS))
                 match(TokenType.MINUS);
             match(TokenType.REAL_LIT);
-            return new Literal(nodeToken(), ConstantKind.REAL);
+            return new Literal(nodeToken(), ConstantType.REAL);
         }
         else { return discreteConstant(); }
     }
@@ -2191,14 +2191,14 @@ public class Parser {
             if(nextLA(TokenType.MINUS))
                 match(TokenType.MINUS);
             match(TokenType.INT_LIT);
-            return new Literal(nodeToken(), ConstantKind.INT);
+            return new Literal(nodeToken(), ConstantType.INT);
         }
         else if(nextLA(TokenType.CHAR_LIT)) {
             match(TokenType.CHAR_LIT);
-            return new Literal(nodeToken(), ConstantKind.CHAR);
+            return new Literal(nodeToken(), ConstantType.CHAR);
         }
 
         match(TokenType.BOOL_LIT);
-        return new Literal(nodeToken(), ConstantKind.BOOL);
+        return new Literal(nodeToken(), ConstantType.BOOL);
     }
 }

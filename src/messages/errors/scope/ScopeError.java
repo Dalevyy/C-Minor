@@ -31,14 +31,22 @@ public class ScopeError extends Error {
 
     public String createRedeclarationMsg() {
         StringBuilder sb = new StringBuilder();
+
         if(redeclarationLocation != null) {
-            sb.append("\n\nRedeclaration Found:\n")
-              .append(PrettyPrint.RED)
-              .append("'")
-              .append(getRedeclName())
-              .append("'")
-              .append(" was already declared in the line below.\n")
-              .append(PrettyPrint.RESET)
+            AST compilationUnit = redeclarationLocation.getCompilationUnit();
+            if(!interpretMode || compilationUnit.isCompilation()) {
+                sb.append("\n\nIn ")
+                  .append(compilationUnit.asCompilation().getFile())
+                  .append(": ")
+                  .append(PrettyPrint.RED)
+                  .append("Redeclaration was found.");
+            } else {
+                sb.append(PrettyPrint.RED)
+                  .append("\n\nRedeclaration was found.");
+            }
+
+            sb.append(PrettyPrint.RESET)
+              .append("\n")
               .append(redeclarationLocation.header());
         }
         return sb.toString();

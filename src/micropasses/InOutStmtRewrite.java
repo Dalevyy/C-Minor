@@ -12,7 +12,7 @@ import utilities.Visitor;
  * Micropass #1
  * <p>
  * Due to the nature of the C Minor grammar, <code>InStmt</code> and <code>OutStmt</code> nodes
- * within the <code>AST</code> will not be written correctly. This is because the parser will
+ * within the <code>AST</code> will not be written correctly. ThisStmt is because the parser will
  * treat the <code>'<<'</code> and <code>'>>'</code> operators as binary shift operators instead
  * of the stream insertion and extraction operators. Thus, after we finish parsing, we need to
  * do a pass to rewrite these statements to ensure the <code>AST</code> is correctly written.
@@ -37,7 +37,7 @@ public class InOutStmtRewrite extends Visitor {
     public void visitInStmt(InStmt is) {
         // ERROR CHECK #1: Each expression in an InStmt has to be a name or else
         //                 we can not store any input values from the user
-        for(Expression e : is.inExprs()) {
+        for(Expression e : is.getInExprs()) {
             if(!e.isNameExpr())
                 new ErrorBuilder(generateScopeError,this.interpretMode)
                     .addLocation(is)
@@ -48,7 +48,7 @@ public class InOutStmtRewrite extends Visitor {
 
     public void visitOutStmt(OutStmt os) {
         // ERROR CHECK #1: Make sure the output statement does not have an input statement
-        for(Expression e : os.outExprs()) {
+        for(Expression e : os.getOutExprs()) {
             if(e.isInStmt())
                 new ErrorBuilder(generateScopeError,this.interpretMode)
                     .addLocation(os)

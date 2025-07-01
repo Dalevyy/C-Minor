@@ -4,6 +4,7 @@ import ast.AST;
 import ast.expressions.*;
 import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
+import ast.types.ArrayType;
 import token.*;
 import utilities.Visitor;
 
@@ -13,9 +14,8 @@ public class AssignStmt extends Statement {
     private Expression RHS;
     private AssignOp op;
 
-    public AssignStmt(Expression LHS, Expression RHS, AssignOp op) { this(new Token(),LHS,RHS,op,false); }
-    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) { this(t,LHS,RHS,op,false); }
-    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op, boolean rt) {
+    public AssignStmt() { this(new Token(),null,null,null); }
+    public AssignStmt(Token t, Expression LHS, Expression RHS, AssignOp op) {
         super(t);
         this.LHS = LHS;
         this.RHS = RHS;
@@ -24,7 +24,6 @@ public class AssignStmt extends Statement {
         addChild(this.LHS);
         addChild(this.RHS);
         addChild(this.op);
-        setParent();
     }
 
     public Expression LHS() { return this.LHS; }
@@ -49,31 +48,58 @@ public class AssignStmt extends Statement {
         }
     }
 
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link AssignStmt}
+     */
+    @Override
+    public AST deepCopy() {
+        return new AssignStmtBuilder()
+                   .setMetaData(this)
+                   .setLHS(this.LHS().deepCopy().asExpression())
+                   .setRHS(this.RHS().deepCopy().asExpression())
+                   .setAssignOp(this.op.deepCopy().asOperator().asAssignOp())
+                   .create();
+    }
 
     @Override
     public void visit(Visitor v) { v.
             visitAssignStmt(this); }
 
-    public static class AssignStmtBuilder {
-        private Expression LHS;
-        private Expression RHS;
-        private AssignOp op;
+    public static class AssignStmtBuilder extends NodeBuilder {
+        private final AssignStmt as = new AssignStmt();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return AssignStmtBuilder
+         */
+        public AssignStmtBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
 
         public AssignStmtBuilder setLHS(Expression LHS) {
-            this.LHS = LHS;
+            as.LHS = LHS;
             return this;
         }
 
         public AssignStmtBuilder setRHS(Expression RHS) {
-            this.RHS = RHS;
+            as.RHS = RHS;
             return this;
         }
 
-        public AssignStmtBuilder setAssignOp(AssignType op) {
-            this.op = new AssignOp(op);
+        public AssignStmtBuilder setAssignOp(AssignOp op) {
+            as.op = op;
             return this;
         }
 
-        public AssignStmt createAssignStmt() { return new AssignStmt(LHS,RHS,op); }
+        public AssignStmt create() {
+            super.saveMetaData(as);
+            as.addChild(as.LHS);
+            as.addChild(as.RHS);
+            as.addChild(as.op);
+            return as;
+        }
     }
 }

@@ -1,5 +1,6 @@
 package ast.types;
 
+import ast.AST;
 import ast.misc.Name;
 import token.*;
 import utilities.Vector;
@@ -14,10 +15,11 @@ ClassType as well.
 _________________________________________________________________
 */
 public class ClassType extends Type {
-    private final Name name;                        // Only for single type
-    private Vector<Name> inheritedTypes = new Vector<>();
-    private final Vector<Type> templateTypes;
+    private Name className;                        // Only for single type
+    private Vector<Name> inheritedTypes;
+    private Vector<Type> typeArgs;
 
+    public ClassType() { this(new Token(),null,null,null); }
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
     public ClassType(Token t, Name n) { this(t,n,new Vector<>(),new Vector<>()); }
@@ -25,22 +27,34 @@ public class ClassType extends Type {
     public ClassType(Token t, Name n, Vector<Type> tt) { this(t,n,new Vector<>(),tt); }
     public ClassType(Token t, Name n, Vector<Name> it, Vector<Type> tt) {
         super(t);
-        this.name = n;
-        this.templateTypes = tt;
+        this.className = n;
+        this.typeArgs = tt;
 
-        addChild(this.name);
-        addChild(this.templateTypes);
-        setParent();
+        addChild(this.className);
     }
 
-    public Name getName() { return name; }
-    public Vector<Type> templateTypes() { return templateTypes; }
+    public Name getClassName() { return className; }
+    public Vector<Type> typeArgs() { return typeArgs; }
 
     public void setInheritedTypes(Vector<Name> it) { this.inheritedTypes = it; }
     public Vector<Name> getInheritedTypes() { return this.inheritedTypes; }
 
+    public void setClassName(Name className) {
+        this.className = className;
+    }
+
+    public void setTypeArgs(Vector<Type> typeArgs) {
+        this.typeArgs = typeArgs;
+    }
+
     public boolean isClassType() { return true; }
     public ClassType asClassType() { return this; }
+
+    /**
+     * Checks if the current {@code ClassType} represents a templated class.
+     * @return Boolean
+     */
+    public boolean isTemplatedType() { return !typeArgs.isEmpty(); }
 
     public static boolean classAssignmentCompatibility(Type ct1, ClassType ct2) {
         if(ct1.isMultiType())
@@ -63,11 +77,79 @@ public class ClassType extends Type {
     }
 
     @Override
-    public String typeName() { return name.toString(); }
+    public String typeName() { return className.toString(); }
 
     @Override
     public String toString() { return typeName(); }
 
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link ClassType}
+     */
+    @Override
+    public AST deepCopy() {
+        Vector<Type> typeArgs = new Vector<>();
+        for(Type t : this.typeArgs)
+            typeArgs.add(t.deepCopy().asType());
+
+        return new ClassTypeBuilder()
+                .setMetaData(this)
+                .setClassName(this.className.deepCopy().asName())
+                .setTypeArgs(typeArgs)
+                .create();
+    }
+
     @Override
     public void visit(Visitor v) { v.visitClassType(this); }
+
+    /**
+     * Internal class that builds a {@link ClassType} object.
+     */
+    public static class ClassTypeBuilder extends NodeBuilder {
+
+        /**
+         * {@link ClassType} object we are building.
+         */
+        private final ClassType ct = new ClassType();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return ClassTypeBuilder
+         */
+        public ClassTypeBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        /**
+         * Sets the class type's {@link #className}.
+         * @param className Name representing the class the type refers to
+         * @return ClassTypeBuilder
+         */
+        public ClassTypeBuilder setClassName(Name className) {
+            ct.setClassName(className);
+            return this;
+        }
+
+        /**
+         * Sets the class type's {@link #typeArgs}.
+         * @param typeArgs Vector of types containing any passed type arguments
+         * @return ClassTypeBuilder
+         */
+        public ClassTypeBuilder setTypeArgs(Vector<Type> typeArgs) {
+            ct.setTypeArgs(typeArgs);
+            return this;
+        }
+
+        /**
+         * Creates a {@link ClassType} object.
+         * @return {@link ClassType}
+         */
+        public ClassType create() {
+            super.saveMetaData(ct);
+            ct.addChild(ct.className);
+            return ct;
+        }
+    }
 }

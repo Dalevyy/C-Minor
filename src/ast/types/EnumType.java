@@ -1,23 +1,33 @@
 package ast.types;
 
+import ast.AST;
 import ast.misc.Name;
 import utilities.Visitor;
 
 public class EnumType extends DiscreteType {
 
-    private final Name name;
-    private final Type constantType;
+    private Name name;
+    private Type constantType;
 
+    public EnumType() { this(null,null); }
     public EnumType(String n, Discretes d) {
         super(d);
         name = new Name(n);
 
-        if(dType == Discretes.INT) { constantType = new DiscreteType(Discretes.INT); }
-        else if(dType == Discretes.CHAR) { constantType = new DiscreteType(Discretes.CHAR); }
+        if(specificType == Discretes.INT) { constantType = new DiscreteType(Discretes.INT); }
+        else if(specificType == Discretes.CHAR) { constantType = new DiscreteType(Discretes.CHAR); }
         else { constantType = new DiscreteType(Discretes.BOOL); }
     }
 
     public Type constantType() { return constantType; }
+
+    public void setName(Name name) {
+        this.name = name;
+    }
+
+    public void setConstantType(Type constantType) {
+        this.constantType = constantType;
+    }
 
     public boolean isEnumType() { return true; }
     public EnumType asEnumType() { return this; }
@@ -28,23 +38,43 @@ public class EnumType extends DiscreteType {
     @Override
     public String toString() { return typeName(); }
 
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link EnumType}
+     */
+    @Override
+    public AST deepCopy() {
+        return new EnumTypeBuilder()
+                   .setMetaData(this)
+                   .setName(this.name.deepCopy().asName())
+                   .setConstantType(this.getDiscreteType())
+                   .create();
+    }
+
     @Override
     public void visit(Visitor v) { v.visitEnumType(this); }
 
-    public static class EnumTypeBuilder {
-        private String name;
-        private Discretes constantType;
+    public static class EnumTypeBuilder extends NodeBuilder {
+        private final EnumType et = new EnumType();
 
-        public EnumTypeBuilder setName(String s) {
-            this.name = s;
+        public EnumTypeBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        public EnumTypeBuilder setName(Name name) {
+            et.setName(name);
             return this;
         }
 
         public EnumTypeBuilder setConstantType(Discretes d) {
-            this.constantType = d;
+            et.setConstantType(new DiscreteType(d));
             return this;
         }
 
-        public EnumType createEnumType() { return new EnumType(name,constantType); }
+        public EnumType create() {
+            super.saveMetaData(et);
+            return et;
+        }
     }
 }

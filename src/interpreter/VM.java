@@ -3,14 +3,11 @@ package interpreter;
 import ast.AST;
 import ast.misc.Compilation;
 import ast.misc.Var;
-import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
-import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.Import;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
+
 import lexer.Lexer;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
@@ -42,7 +39,7 @@ public class VM {
         FieldRewrite fieldRewritePass = new FieldRewrite();
         OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck(true);
         LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
-        ClassToEnumTypeRewrite classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
+        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
         ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
 
         boolean printTokens = false;
@@ -61,10 +58,11 @@ public class VM {
             else if(input.equals("#clear")) {
                 compilationUnit = new Compilation();
                 nameChecker = new NameChecker(compilationUnit.globalTable);
-                classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
+                classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
                 typeChecker = new TypeChecker(compilationUnit.globalTable);
                 modChecker = new ModifierChecker(compilationUnit.globalTable);
                 interpreter = new Interpreter(compilationUnit.globalTable);
+                ImportHandler.clear();
                 continue;
             }
             else if(input.equals("#show-tokens")) {
@@ -107,11 +105,6 @@ public class VM {
 
                 for (AST node : nodes) {
                     errorNode = node;
-
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isImport()) {
-                        handleImportStmt(node.asTopLevelDecl().asImport(), interpreter, compilationUnit);
-                        continue;
-                    }
 
                     node.visit(ioRewritePass);
                     if(printAST)
@@ -172,21 +165,6 @@ public class VM {
             }
             else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
                 st.removeName(location.toString());
-        }
-    }
-
-    private void handleImportStmt(Import currImport, Interpreter interpreter, Compilation globalUnit) {
-        ImportHandler importPass = new ImportHandler(true);
-
-        currImport.visit(importPass);
-
-        for(Compilation c : currImport.compiledFiles) {
-            for(EnumDecl ed : c.enumDecls())
-                ed.visit(interpreter);
-            for(GlobalDecl gd : c.globalDecls())
-                gd.visit(interpreter);
-
-            globalUnit.mergeCompilationUnit(c);
         }
     }
 }

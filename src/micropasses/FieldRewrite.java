@@ -3,7 +3,7 @@ package micropasses;
 import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
-import ast.expressions.This;
+import ast.expressions.ThisStmt;
 import ast.misc.Compilation;
 import ast.topleveldecls.ClassDecl;
 import utilities.SymbolTable;
@@ -16,9 +16,9 @@ import utilities.Visitor;
  *     Once name checking is complete, we want to go back through each class
  *     in a C Minor program and make sure all {@code NameExpr} nodes that
  *     represent fields are rewritten to be {@code FieldExpr} nodes instead.
- *     This is needed as we have to internally keep track of whether or not the
+ *     ThisStmt is needed as we have to internally keep track of whether or not the
  *     {@code NameExpr} refers to a field since during execution, we have to
- *     be able to evaluate the value of the field based on the current object. This
+ *     be able to evaluate the value of the field based on the current object. ThisStmt
  *     will be done by setting the target to be {@code this} when we generate
  *     the replacement {@code FieldExpr}
  * </p>
@@ -55,7 +55,7 @@ public class FieldRewrite extends Visitor {
         */
         if(currentScope.hasName(ne.toString()) && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
-                               .setTarget(new This())
+                               .setTarget(new ThisStmt())
                                .setAccessExpr(new NameExpr(ne.toString()))
                                .create();
             fe.replace(ne);

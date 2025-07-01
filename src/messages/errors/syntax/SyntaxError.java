@@ -11,6 +11,6 @@ public class SyntaxError extends Error {
 
     @Override
     public String header() {
-        return fileHeader() + PrettyPrint.CYAN + "Syntax Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.CYAN + "Syntax Error 100 " + "\n\n" + PrettyPrint.RESET;
     }
 }

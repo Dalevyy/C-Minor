@@ -60,9 +60,9 @@ public class ModifierChecker extends Visitor {
     /**
      * Determines if abstract methods were implemented in concrete classes.<br><br>
      * <p>
-     *     This algorithm comes from Dr. Pedersen's compilers textbook, and it will
+     *     ThisStmt algorithm comes from Dr. Pedersen's compilers textbook, and it will
      *     determine whether or not a method is considered abstract or concrete based
-     *     on its implementation inside of a class. This will only be called by
+     *     on its implementation inside of a class. ThisStmt will only be called by
      *     {@link #checkAbstrClassImplementation(ClassDecl, ClassDecl)} when we are
      *     checking if a class correctly implements all methods from an abstract class.
      * </p>
@@ -81,7 +81,7 @@ public class ModifierChecker extends Visitor {
         for(String conName : concrete)
             abstr.remove(conName);
 
-        for(MethodDecl md : cd.classBlock().methodDecls()) {
+        for(MethodDecl md : cd.classBlock().getMethods()) {
             if(cd.mod.isAbstract()) {
                 abstr.add(md.toString());
                 concrete.remove(md.toString());
@@ -96,7 +96,7 @@ public class ModifierChecker extends Visitor {
     /**
      * Checks if the user correctly implements an inherited abstract class.<br><br>
      * <p>
-     *     This method will validate if a user correctly inherits from an abstract
+     *     ThisStmt method will validate if a user correctly inherits from an abstract
      *     class. A valid inheritance implies the user has implemented every single
      *     method declared in the abstract class in their base class. To determine
      *     which methods were implemented, we will call {@link #sortClassMethods(HashSet, HashSet, ClassDecl)}.
@@ -257,37 +257,37 @@ public class ModifierChecker extends Visitor {
      * @param fe Field Expressions
      */
     public void visitFieldExpr(FieldExpr fe) {
-        fe.fieldTarget().visit(this);
-        if(fe.accessExpr().isNameExpr() || fe.accessExpr().isArrayExpr()) {
+        fe.getTarget().visit(this);
+        if(fe.getAccessExpr().isNameExpr() || fe.getAccessExpr().isArrayExpr()) {
             ClassDecl cd;
             FieldDecl fd = null;
-            if(fe.fieldTarget().type.isClassType()) {
-                cd = currentScope.findName(fe.fieldTarget().type.toString()).decl().asTopLevelDecl().asClassDecl();
-                fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+            if(fe.getTarget().type.isClassType()) {
+                cd = currentScope.findName(fe.getTarget().type.toString()).decl().asTopLevelDecl().asClassDecl();
+                fd = cd.symbolTable.findName(fe.getAccessExpr().toString()).decl().asFieldDecl();
             }
             else {
-                for(ClassType ct : fe.fieldTarget().type.asMultiType().getAllTypes()) {
+                for(ClassType ct : fe.getTarget().type.asMultiType().getAllTypes()) {
                     cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
-                    if(cd.symbolTable.hasName(fe.accessExpr().toString())) {
-                        fd = cd.symbolTable.findName(fe.accessExpr().toString()).decl().asFieldDecl();
+                    if(cd.symbolTable.hasName(fe.getAccessExpr().toString())) {
+                        fd = cd.symbolTable.findName(fe.getAccessExpr().toString()).decl().asFieldDecl();
                         break;
                     }
                 }
             }
 
             // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
-            if (!fe.fieldTarget().toString().equals("this") && !fd.mod.isPublic()) {
+            if (!fe.getTarget().toString().equals("this") && !fd.mod.isPublic()) {
                 errors.add(
                     new ErrorBuilder(generateModError, interpretMode)
                             .addLocation(fe)
                             .addErrorType(MessageType.MOD_ERROR_507)
-                            .addArgs(fe.fieldTarget().toString(), fd.toString())
+                            .addArgs(fe.getTarget().toString(), fd.toString())
                             .addSuggestType(MessageType.MOD_SUGGEST_1507)
                             .error()
                 );
             }
         }
-        fe.accessExpr().visit(this);
+        fe.getAccessExpr().visit(this);
         parentFound = false;
     }
 
@@ -349,7 +349,7 @@ public class ModifierChecker extends Visitor {
      * @param in Invocation
      */
     public void visitInvocation(Invocation in) {
-        String funcSignature = in.invokeSignature();
+        String funcSignature = in.getSignature();
 
         // Temporary here to prevent exception, probably move in the future :)
         if(in.toString().equals("length")) {
@@ -376,7 +376,7 @@ public class ModifierChecker extends Visitor {
         // Method Invocation
         else {
             ClassDecl cd = currentScope.findName(in.targetType.toString()).decl().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(in.invokeSignature()).decl().asMethodDecl();
+            MethodDecl md = cd.symbolTable.findName(in.getSignature()).decl().asMethodDecl();
 
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier
             if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
@@ -438,7 +438,7 @@ public class ModifierChecker extends Visitor {
      * <p>
      *     When we are instantiating an object, we want to make sure a user is
      *     not trying to instantiate from an abstract class since that defeats
-     *     the purpose of having an abstract class. This is the only modifier
+     *     the purpose of having an abstract class. ThisStmt is the only modifier
      *     check we need to perform.
      * </p>
      * @param ne New Expression
@@ -461,7 +461,7 @@ public class ModifierChecker extends Visitor {
     }
 
     public void visitOutStmt(OutStmt os) {
-        for(Expression e : os.outExprs())
+        for(Expression e : os.getOutExprs())
             e.visit(this);
     }
 

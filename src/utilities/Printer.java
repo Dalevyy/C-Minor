@@ -146,7 +146,7 @@ public class Printer extends Visitor {
         spaces -= 2;
     }
 
-    public void visitEndl(Endl e) { System.out.println(printSpaces() + "Endl" + debugLines(e)); }
+    public void visitEndl(EndlStmt e) { System.out.println(printSpaces() + "EndlStmt" + debugLines(e)); }
 
     public void visitEnumDecl(EnumDecl ed) {
         System.out.println(printSpaces() + "EnumDecl" + debugLines(ed));

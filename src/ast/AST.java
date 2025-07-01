@@ -1,5 +1,6 @@
 package ast;
 
+import ast.classbody.ClassBody;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.Expression;
@@ -196,6 +197,7 @@ public abstract class AST {
     public boolean isMethodDecl() { return false; }
     public MethodDecl asMethodDecl() { throw new RuntimeException("Expression can not be casted into a MethodDecl.\n"); }
 
+    public ClassBody asClassBody() { throw new RuntimeException("fix later but this isn't a class body."); }
     public boolean isName() { return false; }
     public Name asName() { throw new RuntimeException("Expression can not be casted into a Name.\n"); }
 

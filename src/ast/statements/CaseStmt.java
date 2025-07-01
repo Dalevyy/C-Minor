@@ -40,6 +40,11 @@ public class CaseStmt extends Statement {
         }
     }
 
+    @Override
+    public AST deepCopy() {
+        return null; //please do later awwwwwwwwwwwwwwwwwwwwwwwwwww
+    }
+
 
     @Override
     public void visit(Visitor v) { v.visitCaseStmt(this); }

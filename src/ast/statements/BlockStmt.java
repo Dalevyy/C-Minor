@@ -32,6 +32,7 @@ public class BlockStmt extends Statement {
     public Vector<Statement> stmts() { return stmts; }
 
     public void addDecl(Vector<LocalDecl> ld) { this.decls.merge(ld); }
+    public void addStmt(Vector<Statement> stmts) { this.stmts.merge(stmts); }
     public void addStmt(Statement s) { this.stmts.add(s); }
 
     public boolean isBlockStmt() { return true; }
@@ -50,22 +51,58 @@ public class BlockStmt extends Statement {
         }
     }
 
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link BlockStmt}
+     */
+    @Override
+    public AST deepCopy() {
+        Vector<LocalDecl> decls = new Vector<>();
+        Vector<Statement> stmts = new Vector<>();
+
+        for(LocalDecl ld : this.decls)
+            decls.add(ld.deepCopy().asStatement().asLocalDecl());
+        for(Statement s : this.stmts)
+            stmts.add(s.deepCopy().asStatement().asStatement());
+
+        return new BlockStmtBuilder()
+                   .setMetaData(this)
+                   .setDecls(decls)
+                   .setStmts(stmts)
+                   .create();
+    }
+
     @Override
     public void visit(Visitor v) { v.visitBlockStmt(this); }
 
-    public static class BlockStmtBuilder {
-        private final BlockStmt bs = new BlockStmt(new Vector<>(),new Vector());
+    public static class BlockStmtBuilder extends NodeBuilder{
+        private final BlockStmt bs = new BlockStmt();
 
-        public BlockStmtBuilder addDecl(LocalDecl ld) {
-            bs.addDecl(new Vector<>(ld));
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return BlockStmtBuilder
+         */
+        public BlockStmtBuilder setMetaData(AST node) {
+            super.setMetaData(node);
             return this;
         }
 
-        public BlockStmtBuilder addStmt(Statement s) {
-            bs.addStmt(s);
+        public BlockStmtBuilder setDecls(Vector<LocalDecl> locals) {
+            bs.addDecl(locals);
             return this;
         }
 
-        public BlockStmt createBlockStmt() { return bs; }
+        public BlockStmtBuilder setStmts(Vector<Statement> stmts) {
+            bs.addStmt(stmts);
+            return this;
+        }
+
+        public BlockStmt create() {
+            super.saveMetaData(bs);
+            bs.addChild(bs.decls);
+            bs.addChild(bs.stmts);
+            return bs;
+        }
     }
 }

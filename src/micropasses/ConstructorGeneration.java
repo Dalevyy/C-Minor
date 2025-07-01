@@ -4,6 +4,7 @@ import ast.classbody.FieldDecl;
 import ast.classbody.InitDecl;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
+import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
 import ast.topleveldecls.ClassDecl;
 import ast.statements.AssignStmt;
@@ -39,8 +40,11 @@ public class ConstructorGeneration extends Visitor {
                                         .create()
                             )
                             .setRHS(currFieldDecl.var().init())
-                            .setAssignOp(AssignType.EQ)
-                            .createAssignStmt()
+                            .setAssignOp(
+                                    new AssignOp.AssignOpBuilder()
+                                            .setAssignOperator(AssignType.EQ)
+                                            .create())
+                            .create()
                 );
             }
         }

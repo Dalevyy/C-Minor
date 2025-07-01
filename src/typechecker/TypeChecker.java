@@ -3,25 +3,13 @@ package typechecker;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.ArrayExpr;
-import ast.expressions.ArrayLiteral;
-import ast.expressions.BinaryExpr;
-import ast.expressions.CastExpr;
-import ast.expressions.Expression;
-import ast.expressions.FieldExpr;
+import ast.expressions.*;
 import ast.expressions.FieldExpr.FieldExprBuilder;
-import ast.expressions.InStmt;
-import ast.expressions.Invocation;
 import ast.expressions.Invocation.InvocationBuilder;
-import ast.expressions.ListLiteral;
-import ast.expressions.Literal;
-import ast.expressions.Literal.ConstantKind;
+import ast.expressions.Literal.ConstantType;
 import ast.expressions.Literal.LiteralBuilder;
-import ast.expressions.NameExpr;
-import ast.expressions.NewExpr;
-import ast.expressions.OutStmt;
-import ast.expressions.This;
-import ast.expressions.UnaryExpr;
+import ast.expressions.ThisStmt;
+import ast.misc.Compilation;
 import ast.misc.Name;
 import ast.misc.Var;
 import ast.operators.AssignOp.AssignType;
@@ -40,6 +28,7 @@ import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.ImportDecl;
 import ast.topleveldecls.MainDecl;
 import ast.topleveldecls.TopLevelDecl;
 import ast.types.Type;
@@ -55,6 +44,7 @@ import ast.types.ScalarType.Scalars;
 import ast.types.VoidType;
 import messages.MessageType;
 import messages.errors.ErrorBuilder;
+import messages.errors.scope.ScopeErrorBuilder;
 import messages.errors.scope.ScopeErrorFactory;
 import messages.errors.type.TypeErrorFactory;
 import utilities.SymbolTable;
@@ -64,6 +54,7 @@ import utilities.Visitor;
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
+    private String currentFile;
     private ClassDecl currentClass;
     private AST currentMethod;
     private Type currentTarget;
@@ -109,11 +100,11 @@ public class TypeChecker extends Visitor {
      */
     private Expression setDefaultValue(Type varType) {
         Expression init;
-        if(varType.isInt()) { init = new Literal(ConstantKind.INT, "0"); }
-        else if(varType.isChar()) { init = new Literal(ConstantKind.CHAR, ""); }
-        else if(varType.isBool()) { init = new Literal(ConstantKind.BOOL, "False"); }
-        else if(varType.isReal()) { init = new Literal(ConstantKind.REAL, "0.0"); }
-        else if(varType.isString()) { init = new Literal(ConstantKind.STR, ""); }
+        if(varType.isInt()) { init = new Literal(ConstantType.INT, "0"); }
+        else if(varType.isChar()) { init = new Literal(ConstantType.CHAR, ""); }
+        else if(varType.isBool()) { init = new Literal(ConstantType.BOOL, "False"); }
+        else if(varType.isReal()) { init = new Literal(ConstantType.REAL, "0.0"); }
+        else if(varType.isString()) { init = new Literal(ConstantType.STR, ""); }
         else if(varType.isEnumType()){
             EnumDecl ed = currentScope.findName(varType.toString()).decl().asTopLevelDecl().asEnumDecl();
             init = new NameExpr(ed.constants().get(0).toString());
@@ -127,7 +118,7 @@ public class TypeChecker extends Visitor {
     /**
      * Changes the type of a variable.<br><br>
      * <p>
-     *     This method will only be called from {@code visitRetypeStmt}
+     *     ThisStmt method will only be called from {@code visitRetypeStmt}
      *     when a user changes the type of an object.
      * </p>
      * @param varName Variable we are changing the type of
@@ -149,8 +140,8 @@ public class TypeChecker extends Visitor {
     /**
      * Checks if an array literal is assignment compatible with an array type.<br><br>
      * <p>
-     *     This is a recursive algorithm to verify whether an array literal can
-     *     be assigned to an array type in C Minor. This algorithm was based off
+     *     ThisStmt is a recursive algorithm to verify whether an array literal can
+     *     be assigned to an array type in C Minor. ThisStmt algorithm was based off
      *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
      * </p>
      * @param currDepth Current level of recursion (final depth is 1)
@@ -163,15 +154,15 @@ public class TypeChecker extends Visitor {
         if(currDepth == 1) {
             // ERROR CHECK #1: If we are checking a single dimension array, then we
             //                 want to ensure there are not 2 or more dimensions specified
-            if(curr.arrayDims().size() > 1) {
+            if(curr.getArrayDims().size() > 1) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(curr)
                         .addErrorType(MessageType.TYPE_ERROR_443)
                         .error());
                 return false;
             }
-            else if(curr.arrayDims().size() == 1) {
-                Expression dim = curr.arrayDims().get(0);
+            else if(curr.getArrayDims().size() == 1) {
+                Expression dim = curr.getArrayDims().get(0);
                 dim.visit(this);
 
                 // ERROR CHECK #2: If a user specified a size for the 1D array, then we want to make sure
@@ -192,7 +183,7 @@ public class TypeChecker extends Visitor {
                 }
                 // ERROR CHECK #4: We will also check if the arguments passed into the array
                 //                 matches the specified size for the array
-                if(Integer.parseInt(dim.asLiteral().toString()) != curr.arrayInits().size()) {
+                if(Integer.parseInt(dim.asLiteral().toString()) != curr.getArrayInits().size()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
                             .addErrorType(MessageType.TYPE_ERROR_444)
@@ -201,7 +192,7 @@ public class TypeChecker extends Visitor {
                 }
             }
             else if(!dims.isEmpty()) {
-                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
+                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.getArrayInits().size()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
                             .addErrorType(MessageType.TYPE_ERROR_444)
@@ -210,7 +201,7 @@ public class TypeChecker extends Visitor {
                 }
             }
 
-            Vector<Expression> inits = curr.arrayInits();
+            Vector<Expression> inits = curr.getArrayInits();
             for(int i = 0; i < inits.size(); i++) {
                 Expression val = inits.get(i);
                 val.visit(this);
@@ -232,7 +223,7 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #1: For all n-dimensional array literals (where n>1), we need to make sure the user
             //                 explicitly writes down the size given for each possible dimension.
-            if(al.arrayDims().size() != currDepth) {
+            if(al.getArrayDims().size() != currDepth) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(al)
                         .addErrorType(MessageType.TYPE_ERROR_442)
@@ -240,8 +231,8 @@ public class TypeChecker extends Visitor {
                 return false;
             }
 
-            for(int i = 0; i < al.arrayDims().size(); i++) {
-                Expression dim = al.arrayDims().get(i);
+            for(int i = 0; i < al.getArrayDims().size(); i++) {
+                Expression dim = al.getArrayDims().get(i);
                 dim.visit(this);
                 // ERROR CHECK #: Make sure its integer constant
                 if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
@@ -253,7 +244,7 @@ public class TypeChecker extends Visitor {
                 }
             }
 
-            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(al.arrayDims().get(0).toString())) {
+            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(curr)
                         .addErrorType(MessageType.TYPE_ERROR_446)
@@ -261,7 +252,7 @@ public class TypeChecker extends Visitor {
                 return false;
             }
 
-            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.arrayInits().size()) {
+            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.getArrayInits().size()) {
                 errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(curr)
                         .addErrorType(MessageType.TYPE_ERROR_444)
@@ -269,15 +260,15 @@ public class TypeChecker extends Visitor {
                 return false;
             }
 
-            for(int i = 0; i < al.arrayInits().size();i++) {
-                if(!al.arrayInits().get(i).isArrayLiteral()) {
+            for(int i = 0; i < al.getArrayInits().size(); i++) {
+                if(!al.getArrayInits().get(i).isArrayLiteral()) {
                     errors.add(new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(curr)
                             .addErrorType(MessageType.TYPE_ERROR_447)
                             .error());
                     return false;
                 }
-                arrayAssignmentCompatibility(currDepth-1,t,dims,al.arrayInits().get(i).asArrayLiteral());
+                arrayAssignmentCompatibility(currDepth-1,t,dims,al.getArrayInits().get(i).asArrayLiteral());
             }
             return true;
         }
@@ -288,8 +279,8 @@ public class TypeChecker extends Visitor {
     /**
      * Checks if a list literal is assignment compatible with a list type.<br><br>
      * <p>
-     *     This is a recursive algorithm to check if a list literal can be assigned
-     *     to a list type in C Minor. This algorithm is based on the algorithm used
+     *     ThisStmt is a recursive algorithm to check if a list literal can be assigned
+     *     to a list type in C Minor. ThisStmt algorithm is based on the algorithm used
      *     for array assignment compatibility albeit it's simpler and has less error checks.
      * </p>
      * @param currDepth Current level of recursion (final depth is 10
@@ -299,7 +290,7 @@ public class TypeChecker extends Visitor {
      */
     private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
         if(currDepth == 1) {
-            for(Expression e : curr.inits()) {
+            for(Expression e : curr.getInits()) {
                 e.visit(this);
                 // ERROR CHECK #1: Make sure the current expression matches the type of the list
                 if(!Type.assignmentCompatible(baseType,e.type)) {
@@ -316,7 +307,7 @@ public class TypeChecker extends Visitor {
             return true;
         }
         else if(currDepth > 1) {
-            for(Expression e : curr.inits()) {
+            for(Expression e : curr.getInits()) {
                 if(!e.isListLiteral()) {
                     // ERROR CHECK #2: Make sure everything is a list if we're not at depth = 1
                     errors.add(
@@ -347,15 +338,15 @@ public class TypeChecker extends Visitor {
      * @param ae Array Expression
      */
     public void visitArrayExpr(ArrayExpr ae) {
-        ae.arrayTarget().visit(this);
+        ae.getArrayTarget().visit(this);
 
         // ERROR CHECK #1: Make sure the target represents an array or list
-        if(!ae.arrayTarget().type.isArrayType() && !ae.arrayTarget().type.isListType()) {
+        if(!ae.getArrayTarget().type.isArrayType() && !ae.getArrayTarget().type.isListType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ae)
                     .addErrorType(MessageType.TYPE_ERROR_434)
-                    .addArgs(ae.arrayTarget().toString())
+                    .addArgs(ae.getArrayTarget().toString())
                     .error()
             );
         }
@@ -363,21 +354,21 @@ public class TypeChecker extends Visitor {
         Type currType;
         if(currentTarget != null) {
             ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            currType = cd.symbolTable.findName(ae.arrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
+            currType = cd.symbolTable.findName(ae.getArrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
         }
         else {
-            currType = currentScope.findName(ae.arrayTarget().toString()).decl().getType();
+            currType = currentScope.findName(ae.getArrayTarget().toString()).decl().getType();
         }
 
         if(currType.isArrayType()) {
             // ERROR CHECK #2: Make sure the number of indices matches
             //                 the number of dimensions for the array
-            if(currType.asArrayType().numOfDims != ae.arrayIndex().size()) {
+            if(currType.asArrayType().numOfDims != ae.getArrayIndex().size()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.arrayTarget().toString(),currType.asArrayType().numOfDims,ae.arrayIndex().size())
+                        .addArgs(ae.getArrayTarget().toString(),currType.asArrayType().numOfDims,ae.getArrayIndex().size())
                         .error()
                 );
             }
@@ -385,12 +376,12 @@ public class TypeChecker extends Visitor {
         else {
             // ERROR CHECK #3: Make sure the number of indices matches
             //                 the number of dimensions for the list
-            if(currType.asListType().numOfDims != ae.arrayIndex().size()) {
+            if(currType.asListType().numOfDims != ae.getArrayIndex().size()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.arrayTarget().toString(),currType.asListType().numOfDims,ae.arrayIndex().size())
+                        .addArgs(ae.getArrayTarget().toString(),currType.asListType().numOfDims,ae.getArrayIndex().size())
                         .error()
                 );
             }
@@ -398,7 +389,7 @@ public class TypeChecker extends Visitor {
 
 
 
-        for(Expression e : ae.arrayIndex()) {
+        for(Expression e : ae.getArrayIndex()) {
             e.visit(this);
 
             // ERROR CHECK #3: For each index, make sure the
@@ -436,7 +427,7 @@ public class TypeChecker extends Visitor {
         else {
             arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims,
                                          currentTarget.asArrayType().baseType(),
-                                         al.arrayDims(), al);
+                                         al.getArrayDims(), al);
             al.type = currentTarget.asArrayType();
         }
 
@@ -586,31 +577,21 @@ public class TypeChecker extends Visitor {
      * @param be Binary Expression
      */
     public void visitBinaryExpr(BinaryExpr be) {
-        be.LHS().visit(this);
-        Type lType = be.LHS().type;
+        be.getLHS().visit(this);
+        Type lType = be.getLHS().type;
 
-        be.RHS().visit(this);
-        Type rType = be.RHS().type;
+        be.getRHS().visit(this);
+        Type rType = be.getRHS().type;
 
-        String binOp = be.binaryOp().toString();
+        String binOp = be.getBinaryOp().toString();
 
         if(lType.isClassOrMultiType()) {
-            ClassType LHS = null;
-            if(lType.isClassType())
-                LHS = lType.asClassType();
             switch(binOp) {
                 case "&":
                 case "^":
                 case "|":
                 case "and":
                 case "or":
-                    errors.add(
-                        new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(be)
-                            .addErrorType(MessageType.SCOPE_ERROR_338)
-                            .addArgs(LHS,binOp)
-                            .error()
-                    );
                     break;
                 case "instanceof":
                 case "!instanceof":
@@ -618,11 +599,11 @@ public class TypeChecker extends Visitor {
                     break;
                 default:
                     FieldExpr fe = new FieldExprBuilder()
-                                       .setTarget(be.LHS())
+                                       .setTarget(be.getLHS())
                                        .setAccessExpr(
                                             new InvocationBuilder()
                                                 .setName(new Name("operator"+binOp))
-                                                .setArgs(new Vector<>(be.RHS()))
+                                                .setArgs(new Vector<>(be.getRHS()))
                                                 .create()
                                         )
                                         .create();
@@ -790,46 +771,46 @@ public class TypeChecker extends Visitor {
      * @param ce Cast Expression
      */
     public void visitCastExpr(CastExpr ce) {
-        ce.castExpr().visit(this);
+        ce.getCastExpr().visit(this);
 
-        if(ce.castExpr().type.isInt()) {
+        if(ce.getCastExpr().type.isInt()) {
             // ERROR CHECK #1: An Int can only be typecasted into a Char and a Real
-            if(!ce.castType().isChar() && !ce.castType().isReal() && !ce.castType().isInt()) {
+            if(!ce.getCastType().isChar() && !ce.getCastType().isReal() && !ce.getCastType().isInt()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ce)
                         .addErrorType(MessageType.TYPE_ERROR_409)
-                        .addArgs(ce.castType())
+                        .addArgs(ce.getCastType())
                         .addSuggestType(MessageType.TYPE_SUGGEST_1412)
-                        .addSuggestArgs(ce.castExpr())
+                        .addSuggestArgs(ce.getCastExpr())
                         .error()
                 );
             }
         }
-        else if(ce.castExpr().type.isChar()) {
+        else if(ce.getCastExpr().type.isChar()) {
             // ERROR CHECK #2: A Char can only be type casted into an Int and a String
-            if(!ce.castType().isInt() && !ce.castType().isString() && !ce.castType().isChar()) {
+            if(!ce.getCastType().isInt() && !ce.getCastType().isString() && !ce.getCastType().isChar()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ce)
                         .addErrorType(MessageType.TYPE_ERROR_409)
-                        .addArgs(ce.castType())
+                        .addArgs(ce.getCastType())
                         .addSuggestType(MessageType.TYPE_SUGGEST_1413)
-                        .addSuggestArgs(ce.castExpr())
+                        .addSuggestArgs(ce.getCastExpr())
                         .error()
                 );
             }
         }
-        else if(ce.castExpr().type.isReal()) {
+        else if(ce.getCastExpr().type.isReal()) {
             // ERROR CHECK #3: A Real can only be type casted into an Int
-            if(!ce.castType().isInt() && !ce.castType().isReal()) {
+            if(!ce.getCastType().isInt() && !ce.getCastType().isReal()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ce)
                         .addErrorType(MessageType.TYPE_ERROR_409)
-                        .addArgs(ce.castType())
+                        .addArgs(ce.getCastType())
                         .addSuggestType(MessageType.TYPE_SUGGEST_1414)
-                        .addSuggestArgs(ce.castExpr())
+                        .addSuggestArgs(ce.getCastExpr())
                         .error()
                 );
             }
@@ -840,13 +821,13 @@ public class TypeChecker extends Visitor {
                 new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(ce)
                     .addErrorType(MessageType.TYPE_ERROR_409)
-                    .addArgs(ce.castType())
+                    .addArgs(ce.getCastType())
                     .addSuggestType(MessageType.TYPE_SUGGEST_1415)
                     .error()
             );
         }
 
-        ce.type = ce.castType();
+        ce.type = ce.getCastType();
     }
 
     /**
@@ -992,6 +973,12 @@ public class TypeChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    public void visitCompilation(Compilation c) {
+        currentFile = c.getFile();
+        currentScope = c.globalTable;
+        super.visitCompilation(c);
+    }
+
     /**
      * Evaluates the do statement's conditional expression
      * <p>
@@ -1055,14 +1042,14 @@ public class TypeChecker extends Visitor {
                         );
                     }
 
-                    EnumTypeBuilder typeBuilder = new EnumTypeBuilder().setName(ed.toString());
+                    EnumTypeBuilder typeBuilder = new EnumTypeBuilder().setName(ed.name());
 
                     if(constant.init().type.isInt())
                         typeBuilder.setConstantType(Discretes.INT);
                     else
                         typeBuilder.setConstantType(Discretes.CHAR);
 
-                    ed.setType(typeBuilder.createEnumType());
+                    ed.setType(typeBuilder.create());
                 }
             }
         }
@@ -1072,18 +1059,18 @@ public class TypeChecker extends Visitor {
             // if the user did not initialize any of the constant values.
             ed.setType(
                 new EnumTypeBuilder()
-                    .setName(ed.toString())
+                    .setName(ed.name())
                     .setConstantType(Discretes.INT)
-                    .createEnumType()
+                    .create()
             );
 
             int currValue = 1;
             for(Var constant : ed.constants()) {
                 constant.setInit(
                     new LiteralBuilder()
-                        .setConstantKind(ConstantKind.INT)
+                        .setConstantKind(ConstantType.INT)
                         .setValue(String.valueOf(currValue))
-                        .createLiteral()
+                        .create()
                 );
                 currValue++;
                 constant.init().type = ed.type();
@@ -1183,26 +1170,26 @@ public class TypeChecker extends Visitor {
      * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) {
-        fe.fieldTarget().visit(this);
+        fe.getTarget().visit(this);
 
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
         //                 so make sure it's assigned a class type
-        if(!fe.fieldTarget().type.isClassOrMultiType()) {
+        if(!fe.getTarget().type.isClassOrMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
                     .addLocation(fe)
                     .addErrorType(MessageType.TYPE_ERROR_435)
-                    .addArgs(fe.fieldTarget(),fe.fieldTarget().type)
+                    .addArgs(fe.getTarget(),fe.getTarget().type)
                     .addSuggestType(MessageType.TYPE_SUGGEST_1433)
                     .error()
             );
         }
 
         Type oldTarget = currentTarget;
-        currentTarget = fe.fieldTarget().type;
-        fe.accessExpr().visit(this);
+        currentTarget = fe.getTarget().type;
+        fe.getAccessExpr().visit(this);
 
-        fe.type = fe.accessExpr().type;
+        fe.type = fe.getAccessExpr().type;
         currentTarget = oldTarget;
         parentFound = false;
     }
@@ -1410,6 +1397,16 @@ public class TypeChecker extends Visitor {
         inControlStmt = prev;
     }
 
+    public void visitImportDecl(ImportDecl im) {
+        String oldFileName = currentFile;
+        SymbolTable oldScope = currentScope;
+
+        im.getCompilationUnit().visit(this);
+
+        currentScope = oldScope;
+        currentFile = oldFileName;
+    }
+
     /**
      * Evaluates input statements.
      * <p>
@@ -1420,7 +1417,7 @@ public class TypeChecker extends Visitor {
      * @param is Input Statement
      */
     public void visitInStmt(InStmt is) {
-        for(Expression e : is.inExprs()) {
+        for(Expression e : is.getInExprs()) {
             e.visit(this);
             // ERROR CHECK #1: Make sure expression is discrete (not enum) or scalar
             if(!(e.type.isDiscreteType() || e.type.isScalarType()) || e.type.isEnumType()) {
@@ -1437,7 +1434,7 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Evaluates the type of a invocation.<br>
+     * Evaluates the type of an invocation.
      * <p>
      *     There are two types of invocations in C Minor. A function
      *     invocation will be checked to see if a valid overload for the
@@ -1450,7 +1447,7 @@ public class TypeChecker extends Visitor {
     public void visitInvocation(Invocation in) {
         StringBuilder funcSignature = new StringBuilder(in + "/");
 
-        for(Expression e : in.arguments()) {
+        for(Expression e : in.getArgs()) {
             e.visit(this);
             funcSignature.append(e.type.typeSignature());
         }
@@ -1459,7 +1456,7 @@ public class TypeChecker extends Visitor {
         if(currentTarget == null && currentClass == null) {
             if(in.toString().equals("length")) {
                 // ERROR CHECK #1: Make sure 'length' call only has one argument
-                if(in.arguments().size() != 1) {
+                if(in.getArgs().size() != 1) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                                 .addLocation(in)
@@ -1468,7 +1465,7 @@ public class TypeChecker extends Visitor {
                     );
                 }
                 // ERROR CHECK #2: Make sure argument evaluates to an array or list
-                if(!(in.arguments().get(0).type.isArrayType() || in.arguments().get(0).type.isListType())) {
+                if(!(in.getArgs().get(0).type.isArrayType() || in.getArgs().get(0).type.isListType())) {
                     errors.add(
                             new ErrorBuilder(generateTypeError,interpretMode)
                                     .addLocation(in)
@@ -1482,16 +1479,16 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #3: Check if function overload exists
             if(!currentScope.hasNameSomewhere(funcSignature.toString())) {
-                String argumentTypes = Type.createTypeString(in.arguments());
+                String argumentTypes = Type.createTypeString(in.getArgs());
                 ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
                                       .addLocation(in)
                                       .addArgs(in,argumentTypes)
                                       .addSuggestType(MessageType.TYPE_SUGGEST_1431)
                                       .addSuggestArgs(in,in+"("+argumentTypes+")");
 
-                if(in.arguments().isEmpty())
+                if(in.getArgs().isEmpty())
                     errors.add(eb.addErrorType(MessageType.TYPE_ERROR_429).error());
-                else if(in.arguments().size() == 1)
+                else if(in.getArgs().size() == 1)
                     errors.add(eb.addErrorType(MessageType.TYPE_ERROR_430).error());
                 else
                     errors.add(eb.addErrorType(MessageType.TYPE_ERROR_431).error());
@@ -1524,11 +1521,11 @@ public class TypeChecker extends Visitor {
                 if(interpretMode)
                     currentTarget = null;
                 errors.add(
-                    new ErrorBuilder(generateScopeError, interpretMode)
-                            .addLocation(in)
-                            .addErrorType(MessageType.SCOPE_ERROR_321)
-                            .addArgs(in.toString())
-                            .error()
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                        .addLocation(in)
+                        .addErrorType(MessageType.SCOPE_ERROR_327)
+                        .addArgs(in)
+                        .error()
                 );
             }
 
@@ -1538,16 +1535,16 @@ public class TypeChecker extends Visitor {
                     if(interpretMode)
                         currentTarget = null;
 
-                    String argumentTypes = Type.createTypeString(in.arguments());
+                    String argumentTypes = Type.createTypeString(in.getArgs());
                     ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
                                           .addLocation(in)
                                           .addArgs(in,className,argumentTypes)
                                           .addSuggestType(MessageType.TYPE_SUGGEST_1432)
                                           .addSuggestArgs(in,className,in+"("+argumentTypes+")");
 
-                    if(in.arguments().isEmpty())
+                    if(in.getArgs().isEmpty())
                         errors.add(eb.addErrorType(MessageType.TYPE_ERROR_432).error());
-                    else if(in.arguments().size() == 1)
+                    else if(in.getArgs().size() == 1)
                         errors.add(eb.addErrorType(MessageType.TYPE_ERROR_433).error());
                     else
                         errors.add(eb.addErrorType(MessageType.TYPE_ERROR_434).error());
@@ -1560,14 +1557,14 @@ public class TypeChecker extends Visitor {
             in.type = md.returnType();
             currentTarget = md.returnType();
         }
-        in.setInvokeSignature(funcSignature.toString());
+        in.setSignature(funcSignature.toString());
     }
 
     /**
      * Evaluates the type of a literal
      * <p>
      *     We will create a type for the literal based on its assigned
-     *     constant kind value. This visit only handles primitive type
+     *     constant kind value. ThisStmt visit only handles primitive type
      *     literals and not structured type literals.
      * </p>
      * @param li Literals
@@ -1610,8 +1607,8 @@ public class TypeChecker extends Visitor {
             Expression curr = ll;
             while(curr.isListLiteral()) {
                 numOfDims += 1;
-                if(!curr.asListLiteral().inits().isEmpty())
-                    curr = curr.asListLiteral().inits().get(0);
+                if(!curr.asListLiteral().getInits().isEmpty())
+                    curr = curr.asListLiteral().getInits().get(0);
                 else
                     break;
             }
@@ -1939,9 +1936,9 @@ public class TypeChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.classType().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().toString()).decl().asTopLevelDecl().asClassDecl();
 
-        for(Var v : ne.args()) {
+        for(Var v : ne.getInitialFields()) {
             Type fType = cd.symbolTable.findName(v.toString()).decl().asFieldDecl().type();
 
             if(fType.isArrayType() && v.init().isArrayLiteral()) {
@@ -1977,7 +1974,7 @@ public class TypeChecker extends Visitor {
      * @param os Output Statement
      */
     public void visitOutStmt(OutStmt os) {
-        for(Expression e : os.outExprs())
+        for(Expression e : os.getOutExprs())
             e.visit(this);
     }
 
@@ -2094,14 +2091,14 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Evaluates the type of a reference to This
+     * Evaluates the type of a reference to ThisStmt
      * <p>
      *     If we have a <code>this</code> written in the code, then the
      *     type will be evaluated to be whatever the current class is.
      * </p>
-     * @param t This
+     * @param t ThisStmt
      */
-    public void visitThis(This t) {
+    public void visitThis(ThisStmt t) {
         t.type = new ClassType(currentClass.toString());
     }
 
@@ -2133,7 +2130,7 @@ public class TypeChecker extends Visitor {
      * @param ue Unary Expression
      */
     public void visitUnaryExpr(UnaryExpr ue) {
-        ue.expr().visit(this);
+        ue.getExpr().visit(this);
 
         /*
             If the unary expression evaluates to be an object, then we might have a
@@ -2141,12 +2138,12 @@ public class TypeChecker extends Visitor {
             to replace the current unary expression and let other visitors handle the
             type checking for us.
         */
-        if(ue.expr().type.isClassOrMultiType()) {
+        if(ue.getExpr().type.isClassOrMultiType()) {
             FieldExpr unaryOverload = new FieldExprBuilder()
-                                          .setTarget(ue.expr())
+                                          .setTarget(ue.getExpr())
                                           .setAccessExpr(
                                               new InvocationBuilder()
-                                              .setName(new Name("operator"+ue.unaryOp()))
+                                              .setName(new Name("operator"+ue.getUnaryOp()))
                                               .setArgs(new Vector<>())
                                               .create()
                                           )
@@ -2156,17 +2153,17 @@ public class TypeChecker extends Visitor {
             return;
         }
 
-        switch(ue.unaryOp().toString()) {
+        switch(ue.getUnaryOp().toString()) {
             case "~":
                 // ERROR CHECK #1: A bitwise negation can only occur with a discrete type
-                if(!ue.expr().type.isDiscreteType()) {
+                if(!ue.getExpr().type.isDiscreteType()) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(ue)
                             .addErrorType(MessageType.TYPE_ERROR_408)
-                            .addArgs(ue.unaryOp(),ue.expr().type)
+                            .addArgs(ue.getUnaryOp(),ue.getExpr().type)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1410)
-                            .addSuggestArgs(ue.unaryOp())
+                            .addSuggestArgs(ue.getUnaryOp())
                             .error()
                     );
                 }
@@ -2174,14 +2171,14 @@ public class TypeChecker extends Visitor {
                 break;
             case "not":
                 // ERROR CHECK #2: A 'not' operation can only occur on a boolean expression
-                if(!ue.expr().type.isBool()) {
+                if(!ue.getExpr().type.isBool()) {
                     errors.add(
                         new ErrorBuilder(generateTypeError,interpretMode)
                             .addLocation(ue)
                             .addErrorType(MessageType.TYPE_ERROR_408)
-                            .addArgs(ue.unaryOp(),ue.expr().type)
+                            .addArgs(ue.getUnaryOp(),ue.getExpr().type)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1411)
-                            .addSuggestArgs(ue.unaryOp())
+                            .addSuggestArgs(ue.getUnaryOp())
                             .error()
                     );
                 }

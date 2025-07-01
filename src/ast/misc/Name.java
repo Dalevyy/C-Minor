@@ -38,5 +38,12 @@ public class Name extends AST {
     public void update(int pos, AST n) { throw new RuntimeException("A name can not be updated."); }
 
     @Override
+    public AST deepCopy() {
+        Name n = new Name(this.getName());
+        n.copyMetaData(this);
+        return n;
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitName(this); }
 }

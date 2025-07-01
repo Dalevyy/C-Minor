@@ -54,5 +54,10 @@ public class ChoiceStmt extends Statement {
     }
 
     @Override
+    public AST deepCopy() {
+        return null;//do later
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitChoiceStmt(this); }
 }

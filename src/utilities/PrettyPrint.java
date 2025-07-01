@@ -1,7 +1,7 @@
 package utilities;
 
 /*
-This is a class that provides ANSI escape sequences. The purpose
+ThisStmt is a class that provides ANSI escape sequences. The purpose
 is to help customize the error messages.
 */
 public final class PrettyPrint {
