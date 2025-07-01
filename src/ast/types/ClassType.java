@@ -16,7 +16,7 @@ _________________________________________________________________
 */
 public class ClassType extends Type {
     private Name className;                        // Only for single type
-    private Vector<Name> inheritedTypes;
+    private Vector<Name> inheritedTypes = new Vector<>();
     private Vector<Type> typeArgs;
 
     public ClassType() { this(new Token(),null,null,null); }
