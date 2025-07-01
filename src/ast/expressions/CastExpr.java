@@ -45,6 +45,7 @@ public class CastExpr extends Expression {
         this.castType = castType;
         this.castExpr = castExpr;
 
+        addChild(this.castType);
         addChild(this.castExpr);
     }
 
@@ -167,6 +168,7 @@ public class CastExpr extends Expression {
          */
         public CastExpr create() {
             super.saveMetaData(ce);
+            ce.addChild(ce.castType);
             ce.addChild(ce.castExpr);
             return ce;
         }

@@ -47,6 +47,7 @@ public class NewExpr extends Expression {
         this.objectType = objectType;
         this.initialFields = initialFields;
 
+        addChild(this.objectType);
         addChild(this.initialFields);
     }
 
@@ -179,6 +180,7 @@ public class NewExpr extends Expression {
          */
         public NewExpr create() {
             super.saveMetaData(ne);
+            ne.addChild(ne.objectType);
             ne.addChild(ne.initialFields);
             return ne;
         }

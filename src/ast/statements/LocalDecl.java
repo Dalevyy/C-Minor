@@ -20,6 +20,7 @@ public class LocalDecl extends Statement implements NameNode {
         this.type = type;
 
         addChild(this.myVar);
+        addChild(this.type);
     }
 
     public Var var() { return myVar; }
@@ -101,6 +102,7 @@ public class LocalDecl extends Statement implements NameNode {
         public LocalDecl create() {
             super.saveMetaData(ld);
             ld.addChild(ld.myVar);
+            ld.addChild(ld.type);
             return ld;
         }
     }
