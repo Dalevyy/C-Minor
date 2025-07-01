@@ -45,7 +45,7 @@ public class NameExpr extends Expression {
     public NameExpr(Token metaData, Name name) {
         super(metaData);
         this.name = name;
-        if(name.toString().equals("parent"))
+        if(name != null && name.toString().equals("parent"))
             this.isParent = true;
 
         addChild(this.name);
