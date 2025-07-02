@@ -29,6 +29,8 @@ public class FieldRewrite extends Visitor {
     /** Current class scope we are in */
     private SymbolTable currentScope;
 
+    private boolean insideFieldExpr = false;
+
     /**
      * Sets the current scope to be the class we are doing a field rewrite for
      * @param cd Class declaration
@@ -44,6 +46,13 @@ public class FieldRewrite extends Visitor {
         super.visitCompilation(c);
     }
 
+    public void visitFieldExpr(FieldExpr fe) {
+        boolean oldInside = insideFieldExpr;
+        insideFieldExpr = true;
+        super.visitFieldExpr(fe);
+        insideFieldExpr = oldInside;
+    }
+
     /**
      * Visits and rewrites all name expressions that correspond to field declarations
      * @param ne Name Expression
@@ -53,7 +62,7 @@ public class FieldRewrite extends Visitor {
             If the current name expression can be traced back to a field declaration,
             then we need to turn the name expression into a field expression.
         */
-        if(currentScope.hasName(ne.toString()) && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+        if(!insideFieldExpr && currentScope.hasName(ne.toString()) && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new ThisStmt())
                                .setAccessExpr(new NameExpr(ne.toString()))
