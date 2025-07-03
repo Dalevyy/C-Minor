@@ -1,10 +1,17 @@
 package micropasses;
 
+import ast.classbody.MethodDecl;
 import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
 import ast.expressions.ThisStmt;
 import ast.misc.Compilation;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.WhileStmt;
 import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.ImportDecl;
 import utilities.SymbolTable;
@@ -30,6 +37,26 @@ public class FieldRewrite extends Visitor {
      * Current scope we are in (either globally or within a class).
      */
     private SymbolTable currentScope;
+
+    /**
+     * Sets the current scope to be inside of a case statement.
+     * @param cs Case Statement
+     */
+    public void visitCaseStmt(CaseStmt cs) {
+        currentScope = cs.symbolTable;
+        super.visitCaseStmt(cs);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be inside of a choice statement.
+     * @param chs Choice Statement
+     */
+    public void visitChoiceStmt(ChoiceStmt chs) {
+        currentScope = chs.symbolTable;
+        super.visitChoiceStmt(chs);
+        currentScope = currentScope.closeScope();
+    }
 
     /**
      * Sets the current scope to be inside of a class.
@@ -61,6 +88,16 @@ public class FieldRewrite extends Visitor {
     }
 
     /**
+     * Sets the current scope to be inside of a do while loop.
+     * @param ds Do Statement
+     */
+    public void visitDoStmt(DoStmt ds) {
+        currentScope = ds.symbolTable;
+        super.visitDoStmt(ds);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
      * Visits and rewrites the target of a field expression.
      * <p><br>
      *     Since an object can be a valid field within a class, we need
@@ -71,6 +108,35 @@ public class FieldRewrite extends Visitor {
      * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) { fe.getTarget().visit(this); }
+
+    /**
+     * Sets the current scope to be inside of a for loop.
+     * @param fs For Statement
+     */
+    public void visitForStmt(ForStmt fs) {
+        currentScope = fs.symbolTable;
+        super.visitForStmt(fs);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be inside of an if statement.
+     * @param is If Statement
+     */
+    public void visitIfStmt(IfStmt is) {
+        is.condition().visit(this);
+        currentScope = is.symbolTableIfBlock;
+        is.ifBlock().visit(this);
+
+        for(IfStmt elifStmt : is.elifStmts())
+            elifStmt.visit(this);
+
+        if(is.elseBlock() != null) {
+            currentScope = is.symbolTableElseBlock;
+            is.elseBlock().visit(this);
+        }
+        currentScope = currentScope.closeScope();
+    }
 
     /**
      * Looks through any imported classes and performs a field rewrite.
@@ -85,6 +151,16 @@ public class FieldRewrite extends Visitor {
     }
 
     /**
+     * Sets the current scope to be inside of a method declaration.
+     * @param md Method Declaration
+     */
+    public void visitMethodDecl(MethodDecl md) {
+        currentScope = md.symbolTable;
+        super.visitMethodDecl(md);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
      * Visits and rewrites all name expressions that correspond to field declarations
      * @param ne Name Expression
      */
@@ -96,5 +172,15 @@ public class FieldRewrite extends Visitor {
                                .create();
             fe.replace(ne);
         }
+    }
+
+    /**
+     * Sets the current scope to be inside of a while loop.
+     * @param ws While Statement
+     */
+    public void visitWhileStmt(WhileStmt ws) {
+        currentScope = ws.symbolTable;
+        super.visitWhileStmt(ws);
+        currentScope = currentScope.closeScope();
     }
 }
