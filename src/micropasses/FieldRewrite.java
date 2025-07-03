@@ -89,7 +89,7 @@ public class FieldRewrite extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+        if(!ne.isParentKeyword() && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new ThisStmt())
                                .setAccessExpr(new NameExpr(ne.toString()))
