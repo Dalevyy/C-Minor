@@ -1,38 +1,65 @@
 package micropasses;
 
+import ast.classbody.MethodDecl;
 import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
 import ast.expressions.ThisStmt;
 import ast.misc.Compilation;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.WhileStmt;
 import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.ImportDecl;
 import utilities.SymbolTable;
 import utilities.Visitor;
 
 /**
- * Micropass #3
- * <br><br>
- * <p>
- *     Once name checking is complete, we want to go back through each class
- *     in a C Minor program and make sure all {@code NameExpr} nodes that
- *     represent fields are rewritten to be {@code FieldExpr} nodes instead.
- *     ThisStmt is needed as we have to internally keep track of whether or not the
- *     {@code NameExpr} refers to a field since during execution, we have to
- *     be able to evaluate the value of the field based on the current object. ThisStmt
- *     will be done by setting the target to be {@code this} when we generate
- *     the replacement {@code FieldExpr}
- * </p>
+ * A {@link Visitor} class that performs field rewrites within a class.
+ * <p><br>
+ *     To access a field within a class, a user can simply write the name
+ *     of the field, and the compiler will parse this as a name expression.
+ *     While this is correct syntax for the user, the compiler needs to rewrite
+ *     all name expressions to be field expressions, so when we go to execute
+ *     the user's code, we know the name we want to access actually refers to
+ *     a field that we need to access from an object. This field rewrite will
+ *     be done by appending a {@link ThisStmt} node to the {@link NameExpr} when
+ *     we create a field expression, and we will replace all instances of the
+ *     {@link NameExpr} with the corresponding field expression in the AST hierarchy.
  * @author Daniel Levy
  */
 public class FieldRewrite extends Visitor {
 
-    /** Current class scope we are in */
+    /**
+     * Current scope we are in (either globally or within a class).
+     */
     private SymbolTable currentScope;
 
-    private boolean insideFieldExpr = false;
+    /**
+     * Sets the current scope to be inside of a case statement.
+     * @param cs Case Statement
+     */
+    public void visitCaseStmt(CaseStmt cs) {
+        currentScope = cs.symbolTable;
+        super.visitCaseStmt(cs);
+        currentScope = currentScope.closeScope();
+    }
 
     /**
-     * Sets the current scope to be the class we are doing a field rewrite for
+     * Sets the current scope to be inside of a choice statement.
+     * @param chs Choice Statement
+     */
+    public void visitChoiceStmt(ChoiceStmt chs) {
+        currentScope = chs.symbolTable;
+        super.visitChoiceStmt(chs);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be inside of a class.
      * @param cd Class declaration
      */
     public void visitClassDecl(ClassDecl cd) {
@@ -41,16 +68,96 @@ public class FieldRewrite extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
+    /**
+     * Begins the field rewrite pass in compilation mode.
+     * <p><br>
+     *     Since field rewrites are only needed for classes, we want
+     *     to make sure this micropass executes for all classes found
+     *     in the main compilation unit alongside any imported classes.
+     * </p>
+     * @param c Compilation Unit
+     */
     public void visitCompilation(Compilation c) {
         currentScope = c.globalTable;
-        super.visitCompilation(c);
+
+        for(ImportDecl id : c.imports())
+            id.visit(this);
+
+        for(ClassDecl cd : c.classDecls())
+            cd.visit(this);
     }
 
-    public void visitFieldExpr(FieldExpr fe) {
-        boolean oldInside = insideFieldExpr;
-        insideFieldExpr = true;
-        super.visitFieldExpr(fe);
-        insideFieldExpr = oldInside;
+    /**
+     * Sets the current scope to be inside of a do while loop.
+     * @param ds Do Statement
+     */
+    public void visitDoStmt(DoStmt ds) {
+        currentScope = ds.symbolTable;
+        super.visitDoStmt(ds);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Visits and rewrites the target of a field expression.
+     * <p><br>
+     *     Since an object can be a valid field within a class, we need
+     *     to make sure the object itself is rewritten to be `this.objName`.
+     *     Thus, we are only going to visit the target expression of the
+     *     current field expression.
+     * </p>
+     * @param fe Field Expression
+     */
+    public void visitFieldExpr(FieldExpr fe) { fe.getTarget().visit(this); }
+
+    /**
+     * Sets the current scope to be inside of a for loop.
+     * @param fs For Statement
+     */
+    public void visitForStmt(ForStmt fs) {
+        currentScope = fs.symbolTable;
+        super.visitForStmt(fs);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be inside of an if statement.
+     * @param is If Statement
+     */
+    public void visitIfStmt(IfStmt is) {
+        is.condition().visit(this);
+        currentScope = is.symbolTableIfBlock;
+        is.ifBlock().visit(this);
+
+        for(IfStmt elifStmt : is.elifStmts())
+            elifStmt.visit(this);
+
+        if(is.elseBlock() != null) {
+            currentScope = is.symbolTableElseBlock;
+            is.elseBlock().visit(this);
+        }
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Looks through any imported classes and performs a field rewrite.
+     * @param im Import Declaration
+     */
+    public void visitImportDecl(ImportDecl im) {
+        SymbolTable oldScope = currentScope;
+
+        im.getCompilationUnit().visit(this);
+
+        currentScope = oldScope;
+    }
+
+    /**
+     * Sets the current scope to be inside of a method declaration.
+     * @param md Method Declaration
+     */
+    public void visitMethodDecl(MethodDecl md) {
+        currentScope = md.symbolTable;
+        super.visitMethodDecl(md);
+        currentScope = currentScope.closeScope();
     }
 
     /**
@@ -58,16 +165,22 @@ public class FieldRewrite extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        /*
-            If the current name expression can be traced back to a field declaration,
-            then we need to turn the name expression into a field expression.
-        */
-        if(!insideFieldExpr && currentScope.hasName(ne.toString()) && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+        if(!ne.isParentKeyword() && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new ThisStmt())
                                .setAccessExpr(new NameExpr(ne.toString()))
                                .create();
             fe.replace(ne);
         }
+    }
+
+    /**
+     * Sets the current scope to be inside of a while loop.
+     * @param ws While Statement
+     */
+    public void visitWhileStmt(WhileStmt ws) {
+        currentScope = ws.symbolTable;
+        super.visitWhileStmt(ws);
+        currentScope = currentScope.closeScope();
     }
 }
