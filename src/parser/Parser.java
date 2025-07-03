@@ -19,6 +19,7 @@ import ast.types.ScalarType.*;
 import ast.types.DiscreteType.*;
 import lexer.*;
 import messages.errors.syntax.SyntaxErrorFactory;
+import micropasses.ImportHandler;
 import token.*;
 import utilities.Vector;
 import utilities.PrettyPrint;
@@ -38,6 +39,7 @@ public class Parser {
     private boolean interpretMode = false;
     private final Vector<Token> tokenStack;
     private final SyntaxErrorFactory generateSyntaxError;
+    private boolean importMode = false;
 
     // Hacks to get IO statements to be parsed correctly... :(
     private boolean insideParen = false;
@@ -57,6 +59,11 @@ public class Parser {
     public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
         this(input,printTokens);
         this.interpretMode = interpretMode;
+    }
+
+    public Parser(Lexer input, boolean printTokens, boolean interpretMode, boolean parseImport) {
+        this(input,printTokens,interpretMode);
+        this.importMode = parseImport;
     }
 
     private String errorPosition(int start, int end) {
@@ -100,7 +107,15 @@ public class Parser {
         Token t = tokenStack.pop();
         input.setText(t);
 
-        if(tokenStack.top() != null) { tokenStack.top().setEndLocation(t.getEndPos()); }
+        if(tokenStack.top() != null)
+            tokenStack.top().setEndLocation(t.getEndPos());
+
+        return t;
+    }
+
+    public Token nodeTokenTop() {
+        Token t = tokenStack.top();
+        input.setText(t);
         return t;
     }
 
@@ -195,6 +210,7 @@ public class Parser {
     */
     private boolean inPrimaryExpressionFOLLOW() {
         return nextLA(TokenType.LBRACK)
+                || nextLA(TokenType.LT)
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.ELVIS)
                 || nextLA(TokenType.PERIOD);
@@ -213,7 +229,16 @@ public class Parser {
                 || nextLA(TokenType.GTEQ);
     }
 
-    // This will be the main method used for parsing when a user
+    private Vector<ImportDecl> handleImports() {
+        ImportHandler importHandler = new ImportHandler(input.getFileName(),interpretMode);
+
+        while(nextLA(TokenType.INCLUDE))
+            importHandler.enqueue(importStmt());
+
+        return importHandler.analyzeImports();
+    }
+
+    // ThisStmt will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
     public Vector<? extends AST> nextNode() throws Exception {
         Vector<? extends AST> nodes;
@@ -221,8 +246,11 @@ public class Parser {
         // Throw an exception if user only wrote a comment
         if(nextLA(TokenType.EOF))
             throw new Exception();
+        // Parse ImportDecl
+        if(nextLA(TokenType.INCLUDE))
+            nodes = handleImports();
         // Parse EnumDecl
-        if(nextLA(TokenType.DEF)
+        else if(nextLA(TokenType.DEF)
                 && nextLA(TokenType.ID,1)
                 && !(nextLA(TokenType.LT,2)
                 || nextLA(TokenType.LPAREN,2)
@@ -243,7 +271,8 @@ public class Parser {
                 && (nextLA(TokenType.PURE,1)
                 || nextLA(TokenType.RECURS,1)
                 || ((nextLA(TokenType.ID,1)
-                && nextLA(TokenType.LPAREN,2))
+                && (nextLA(TokenType.LPAREN,2)
+                || nextLA(TokenType.LT,2)))
                 && ((!nextLA(TokenType.MAIN,1))
                 && (!nextLA(TokenType.MAIN,2)))))) {
             nodes = new Vector<>(function());
@@ -273,9 +302,13 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 1. compilation ::= file_merge* enum_type* global_variable* class_type* function* main
+    // 1. compilation ::= import_stmt* enum_type* global_variable* class_type* function* main
     public Compilation compilation() {
         tokenStack.add(currentLA());
+
+        Vector<ImportDecl> imports = new Vector<>();
+        if(nextLA(TokenType.INCLUDE))
+           imports = handleImports();
 
         Vector<EnumDecl> enums = new Vector<>();
         while(nextLA(TokenType.DEF)
@@ -298,15 +331,17 @@ public class Parser {
         Vector<FuncDecl> funcs = new Vector<>();
         while((nextLA(TokenType.DEF)) && !nextLA(TokenType.MAIN,1)) { funcs.add(function()); }
 
-        MainDecl md = mainFunc();
+        MainDecl md = null;
+        if(!importMode)
+            md = mainFunc();
 
         if(!nextLA(TokenType.EOF)) {
-            System.out.println(PrettyPrint.CYAN + "Syntax Error Detected! Unexpected End of File.");
+            System.out.println(PrettyPrint.CYAN + "Syntax Error Detected! Unexpected End of File in " + input.getFileName() + ".");
             System.exit(1);
         }
         else if(printToks) { System.out.println(currentLA().toString()); }
 
-        return new Compilation(nodeToken(),enums,globals,classes,funcs,md);
+        return new Compilation(nodeToken(),input.getFileName(),imports,enums,globals,classes,funcs,md);
     }
 
     /*
@@ -315,14 +350,15 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 2. file-merge ::= '#include' filename choice? rename
-    private void fileMerge() {
-        Token t = currentLA();
+    // 2. file-merge ::= '#include' STRING_LITERAL
+    private ImportDecl importStmt() {
+        tokenStack.add(currentLA());
 
-        if(nextLA(TokenType.INCLUDE)) {
-            match(TokenType.INCLUDE);
-            match(TokenType.STR_LIT);
-        }
+        match(TokenType.INCLUDE);
+        Name fileName = new Name(currentLA());
+        match(TokenType.STR_LIT);
+
+        return new ImportDecl(nodeToken(),fileName);
     }
 
     /*
@@ -463,7 +499,7 @@ public class Parser {
 
             if(ty.isListType()) {
                 ty.asListType().numOfDims += 1;
-                ty.updateNode(nodeToken());
+                ty.updateMetaData(nodeToken());
                 return ty;
             }
             return new ListType(nodeToken(),ty,1);
@@ -481,7 +517,7 @@ public class Parser {
 
             if(ty.isArrayType()) {
                 ty.asArrayType().numOfDims += 1;
-                ty.updateNode(nodeToken());
+                ty.updateMetaData(nodeToken());
                 return ty;
             }
             return new ArrayType(nodeToken(),ty,1);
@@ -601,7 +637,7 @@ public class Parser {
         }
     }
 
-    // 12. class_name ::= ID ( '<' type ( ',' type )* '>' )?
+    // 12. class_name ::= ID ( type_params? )?
     private ClassType className() {
         tokenStack.add(currentLA());
 
@@ -609,18 +645,24 @@ public class Parser {
         match(TokenType.ID);
 
         if(nextLA(TokenType.LT)) {
-            match(TokenType.LT);
-
-            Vector<Type> typeParams = new Vector<>(type());
-            while(nextLA(TokenType.COMMA)) {
-                match(TokenType.COMMA);
-                typeParams.add(type());
-            }
-
-            match(TokenType.GT);
-            return new ClassType(nodeToken(),n,typeParams);
+            Vector<Type> types = typeParams();
+            return new ClassType(nodeToken(),n,types);
         }
         return new ClassType(nodeToken(),n);
+    }
+
+    // --. type_params : '<' type ( ',' type )* '>'
+    private Vector<Type> typeParams() {
+        match(TokenType.LT);
+        Vector<Type> types = new Vector<>(type());
+
+        while(nextLA(TokenType.COMMA)) {
+            match(TokenType.COMMA);
+            types.add(type());
+        }
+
+        match(TokenType.GT);
+        return types;
     }
 
     /*
@@ -647,8 +689,8 @@ public class Parser {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        Vector<Type> types = new Vector<>();
-        if(nextLA(TokenType.LT)) { types = typeParams(); }
+        Vector<Typeifier> types = new Vector<>();
+        if(nextLA(TokenType.LT)) { types = typeifierParams(); }
 
         ClassType ct = null;
         if(nextLA(TokenType.INHERITS)) { ct = superClass(); }
@@ -657,21 +699,45 @@ public class Parser {
         return new ClassDecl(nodeToken(),m,n,types,ct,body);
     }
 
-    // 14. type_params ::= '<' type ( ',' type )* '>'
-    private Vector<Type> typeParams() {
+    // 15. type_params ::= '<' typeifier ( ',' typeifier )* '>'
+    private Vector<Typeifier> typeifierParams() {
         match(TokenType.LT);
+        Vector<Typeifier> typefs = new Vector<>(typeifier());
 
-        Vector<Type> types = new Vector<>(type());
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
-            types.add(type());
+            typefs.add(typeifier());
         }
-
         match(TokenType.GT);
-        return types;
+
+        return typefs;
     }
 
-    // 15. super_class ::= 'inherits' ID type_params?
+    // 16. typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID
+    private Typeifier typeifier() {
+        tokenStack.add(currentLA());
+
+        PossibleType pt = null;
+        if(nextLA(TokenType.DISCR)) {
+            pt = PossibleType.DISCR;
+            match(TokenType.DISCR);
+        }
+        else if(nextLA(TokenType.SCALAR)) {
+            pt = PossibleType.SCALAR;
+            match(TokenType.SCALAR);
+        }
+        else if(nextLA(TokenType.CLASS)) {
+            pt = PossibleType.CLASS;
+            match(TokenType.CLASS);
+        }
+
+        Name n = new Name(currentLA());
+        match(TokenType.ID);
+
+        return new Typeifier(nodeToken(),pt,n);
+    }
+
+    // 17. super_class ::= 'inherits' ID type_params?
     private ClassType superClass() {
         match(TokenType.INHERITS);
 
@@ -680,12 +746,13 @@ public class Parser {
         match(TokenType.ID);
 
         Vector<Type> vectorOfTypes = new Vector<>();
-        if(nextLA(TokenType.LT)) { vectorOfTypes = typeParams(); }
+        if(nextLA(TokenType.LT))
+            vectorOfTypes = typeParams();
 
         return new ClassType(nodeToken(),superName,vectorOfTypes);
     }
 
-    // 16. class_body ::= '{' data_decl* method_decl* '}'
+    // 18. class_body ::= '{' data_decl* method_decl* '}'
     private ClassBody classBody() {
         tokenStack.add(currentLA());
         match(TokenType.LBRACE);
@@ -706,7 +773,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 17. data_decl ::= ( 'property' | 'protected' | 'public' ) variable_decl
+    // 19. data_decl ::= ( 'property' | 'protected' | 'public' ) variable_decl
     private Vector<FieldDecl> dataDecl() {
         tokenStack.add(currentLA());
 
@@ -743,13 +810,13 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 18. method_decl ::= method_class | operator_class
+    // 20. method_decl ::= method_class | operator_class
     private MethodDecl methodDecl() {
         if(nextLA(TokenType.OPERATOR,1) || nextLA(TokenType.OPERATOR,2)) { return operatorClass(); }
         else { return methodClass(); }
     }
 
-    // 19. method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement
+    // 21. method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement
     private MethodDecl methodClass() {
         tokenStack.add(currentLA());
         Vector<Modifier> mods = new Vector<>(methodModifier());
@@ -776,7 +843,7 @@ public class Parser {
         return new MethodDecl(nodeToken(),mods,mName,null,pd,rt,bs,override);
     }
 
-    // 20. method_modifier : 'protected' | 'public' ;
+    // 22. method_modifier : 'protected' | 'public' ;
     private Modifier methodModifier() {
         tokenStack.add(currentLA());
 
@@ -790,7 +857,7 @@ public class Parser {
         }
     }
 
-    // 21. attribute ::= 'final' | 'pure' | 'recurs'
+    // 23. attribute ::= 'final' | 'pure' | 'recurs'
     private Modifier attribute() {
         tokenStack.add(currentLA());
 
@@ -808,7 +875,7 @@ public class Parser {
         }
     }
 
-    // 22. method-header ::= ID '(' formal-params? ')'
+    // 24. method-header ::= ID '(' formal-params? ')'
     private Vector<Object> methodHeader() {
         Name n = new Name(currentLA());
         match(TokenType.ID);
@@ -827,7 +894,7 @@ public class Parser {
         return header;
     }
 
-    // 23. formal_params : param_modifier Name ':' type ( ',' param_modifier Name ':' type)*
+    // 25. formal_params : param_modifier Name ':' type ( ',' param_modifier Name ':' type)*
     private Vector<ParamDecl> formalParams() {
         tokenStack.add(currentLA());
 
@@ -857,7 +924,7 @@ public class Parser {
         return pd;
     }
 
-    // 24. param_modifier : 'in' | 'out' | 'inout' | 'ref'
+    // 26. param_modifier : 'in' | 'out' | 'inout' | 'ref'
     private Modifier paramModifier() {
         tokenStack.add(currentLA());
 
@@ -879,7 +946,7 @@ public class Parser {
         }
     }
 
-    // 25. return-type ::= Void | type
+    // 27. return-type ::= Void | type
     private Type returnType() {
         if(nextLA(TokenType.VOID)) {
             tokenStack.add(currentLA());
@@ -889,7 +956,7 @@ public class Parser {
         return type();
     }
 
-    // 26. operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement
+    // 28. operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement
     private MethodDecl operatorClass() {
         tokenStack.add(currentLA());
         Vector<Modifier> mods = new Vector<>(methodModifier());
@@ -903,7 +970,6 @@ public class Parser {
         Vector<Object> header = operatorHeader();
         Operator op = (Operator) header.get(0);
         Vector<ParamDecl> pd = (Vector<ParamDecl>) header.get(1);
-        if(pd.isEmpty()) { pd = null; }
 
         match(TokenType.ARROW);
         Type rt = returnType();
@@ -912,7 +978,7 @@ public class Parser {
         return new MethodDecl(nodeToken(),mods,null,op,pd,rt,block,false);
     }
 
-    // 27. operator_header ::= operator_symbol '(' formal-params? ')'
+    // 29. operator_header ::= operator_symbol '(' formal-params? ')'
     private Vector<Object> operatorHeader() {
         Operator op = operatorSymbol();
 
@@ -930,13 +996,13 @@ public class Parser {
         return header;
     }
 
-    // 28. operator_symbol ::= binary_operator | unary_operator
+    // 30. operator_symbol ::= binary_operator | unary_operator
     private Operator operatorSymbol() {
         if(nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) { return unaryOperator(); }
         else { return binaryOperator(); }
     }
 
-    // 29. binary_operator ::= <= | < | > | >= | == | <> | <=> | <: | :> | + | - | * | / | % | **
+    // 31. binary_operator ::= <= | < | > | >= | == | <> | <=> | <: | :> | + | - | * | / | % | **
     private BinaryOp binaryOperator() {
         tokenStack.add(currentLA());
 
@@ -994,7 +1060,7 @@ public class Parser {
         }
     }
 
-    // 30. unary-operator ::= ~ | not
+    // 32. unary-operator ::= ~ | not
     private UnaryOp unaryOperator() {
         tokenStack.add(currentLA());
 
@@ -1014,7 +1080,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 31. function ::= 'def' ( 'pure' | 'recurs' )? function_header '=>' return_type block_statement
+    // 33. function ::= 'def' ( 'pure' | 'recurs' )? function_header '=>' return_type block_statement
     private FuncDecl function() {
         tokenStack.add(currentLA());
         boolean isRecursive = false;
@@ -1043,13 +1109,13 @@ public class Parser {
         return new FuncDecl(nodeToken(),mod,n,typefs,pd,ret,b);
     }
 
-    // 32. function_header ::= ID function_type_params? '(' formal_params? ')'
+    // 34. function_header ::= ID function_type_params? '(' formal_params? ')'
     private Vector<Object> functionHeader() {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
         Vector<Typeifier> typefs = new Vector<>();
-        if(nextLA(TokenType.LT)) { typefs = functionTypeParams(); }
+        if(nextLA(TokenType.LT)) { typefs = typeifierParams(); }
 
         match(TokenType.LPAREN);
         Vector<ParamDecl> params = new Vector<>();
@@ -1064,44 +1130,6 @@ public class Parser {
         header.add(params);
 
         return header;
-    }
-
-    // 33. function_type_params ::= '<' typeifier ( ',' typeifier )* '>'
-    private Vector<Typeifier> functionTypeParams() {
-        match(TokenType.LT);
-        Vector<Typeifier> typefs = new Vector<>(typeifier());
-
-        while(nextLA(TokenType.COMMA)) {
-            match(TokenType.COMMA);
-            typefs.add(typeifier());
-        }
-        match(TokenType.GT);
-
-        return typefs;
-    }
-
-    // 34. typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID
-    private Typeifier typeifier() {
-        tokenStack.add(currentLA());
-
-        Typfiers tf = null;
-        if(nextLA(TokenType.DISCR)) {
-            tf = Typfiers.DISCR;
-            match(TokenType.DISCR);
-        }
-        else if(nextLA(TokenType.SCALAR)) {
-            tf = Typfiers.SCALAR;
-            match(TokenType.SCALAR);
-        }
-        else if(nextLA(TokenType.CLASS)) {
-            tf = Typfiers.CLASS;
-            match(TokenType.CLASS);
-        }
-
-        Name n = new Name(currentLA());
-        match(TokenType.ID);
-
-        return new Typeifier(nodeToken(),tf,n);
     }
 
     /*
@@ -1594,7 +1622,7 @@ public class Parser {
         }
         else if(nextLA(TokenType.ENDL)) {
             match(TokenType.ENDL);
-            return new Endl(nodeToken());
+            return new EndlStmt(nodeToken());
         }
         else {
             match(TokenType.PARENT);
@@ -1624,8 +1652,12 @@ public class Parser {
                     input.setText(tokenStack.top());
                     RHS = new ArrayExpr(tokenStack.top(),LHS,indices);
                 }
-                else if(nextLA(TokenType.LPAREN)) {
+                else if(nextLA(TokenType.LT) || nextLA(TokenType.LPAREN)) {
                     Vector<Expression> args = new Vector<>();
+                    Vector<Type> types = new Vector<>();
+                    if(nextLA(TokenType.LT))
+                        types = typeParams();
+
                     match(TokenType.LPAREN);
 
                     if(!nextLA(TokenType.RPAREN))
@@ -1634,7 +1666,7 @@ public class Parser {
                     match(TokenType.RPAREN);
 
                     input.setText(tokenStack.top());
-                    RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),args);
+                    RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),types,args);
                 }
                 else {
                     boolean oldField = insideField;
@@ -1684,7 +1716,7 @@ public class Parser {
             if(!nextLA(TokenType.RPAREN)) { args = arguments(); }
             match(TokenType.RPAREN);
 
-            return new Invocation(nodeToken(),new Name("length"),args);
+            return new Invocation(nodeToken(),new Name("length"),new Vector<>(),args);
         }
         return postfixExpression();
     }
@@ -1730,7 +1762,7 @@ public class Parser {
                 match(TokenType.EXP);
 
                 Expression right = castExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1763,7 +1795,7 @@ public class Parser {
                 }
 
                 Expression right = powerExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1793,7 +1825,7 @@ public class Parser {
 
                 Expression right = multiplicationExpression();
 
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1821,7 +1853,7 @@ public class Parser {
                 }
 
                 Expression right = additiveExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1858,7 +1890,7 @@ public class Parser {
                 }
 
                 Expression right = shiftExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1891,7 +1923,7 @@ public class Parser {
                 }
 
                 Expression right = relationalExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1919,7 +1951,7 @@ public class Parser {
                 }
 
                 Expression right = instanceOfExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1940,7 +1972,7 @@ public class Parser {
                 match(TokenType.BAND);
 
                 Expression right = equalityExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1961,7 +1993,7 @@ public class Parser {
                 match(TokenType.XOR);
 
                 Expression right = andExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -1982,7 +2014,7 @@ public class Parser {
                 match(TokenType.BOR);
 
                 Expression right = exclusiveOrExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -2003,7 +2035,7 @@ public class Parser {
                 match(TokenType.AND);
 
                 Expression right = inclusiveOrExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -2024,7 +2056,7 @@ public class Parser {
                 match(TokenType.OR);
 
                 Expression right = logicalAndExpression();
-                be = new BinaryExpr(tokenStack.top(),left,right,bo);
+                be = new BinaryExpr(nodeTokenTop(),left,right,bo);
                 left = be;
             }
         }
@@ -2050,7 +2082,7 @@ public class Parser {
         else { return scalarConstant(); }
     }
 
-    // 80. object_constant ::= 'new' ID '(' (object_field ( ',' object_field )* ')'
+    // 80. object_constant ::= 'new' ID (type_params)? '(' (object_field ( ',' object_field )* ')'
     private NewExpr objectConstant() {
         tokenStack.add(currentLA());
         match(TokenType.NEW);
@@ -2058,6 +2090,10 @@ public class Parser {
         Token nameTok = currentLA();
         Name n = new Name(currentLA());
         match(TokenType.ID);
+
+        Vector<Type> typeArgs = new Vector<>();
+        if(nextLA(TokenType.LT))
+            typeArgs = typeParams();
 
         match(TokenType.LPAREN);
         Vector<Var> vars = new Vector<>();
@@ -2070,7 +2106,7 @@ public class Parser {
         }
         match(TokenType.RPAREN);
 
-        return new NewExpr(nodeToken(),new ClassType(nameTok,n),vars);
+        return new NewExpr(nodeToken(),new ClassType(nameTok,n,typeArgs),vars);
     }
 
     // 81. object_field ::= ID '=' expression
@@ -2130,19 +2166,19 @@ public class Parser {
         if(nextLA(TokenType.STR_LIT)) {
             tokenStack.add(currentLA());
             match(TokenType.STR_LIT);
-            return new Literal(nodeToken(), ConstantKind.STR);
+            return new Literal(nodeToken(), ConstantType.STR);
         }
         else if(nextLA(TokenType.TEXT_LIT)) {
             tokenStack.add(currentLA());
             match(TokenType.TEXT_LIT);
-            return new Literal(nodeToken(), ConstantKind.TEXT);
+            return new Literal(nodeToken(), ConstantType.TEXT);
         }
         else if(nextLA(TokenType.REAL_LIT) || (nextLA(TokenType.MINUS) && nextLA(TokenType.REAL_LIT,1))) {
             tokenStack.add(currentLA());
             if(nextLA(TokenType.MINUS))
                 match(TokenType.MINUS);
             match(TokenType.REAL_LIT);
-            return new Literal(nodeToken(), ConstantKind.REAL);
+            return new Literal(nodeToken(), ConstantType.REAL);
         }
         else { return discreteConstant(); }
     }
@@ -2155,14 +2191,14 @@ public class Parser {
             if(nextLA(TokenType.MINUS))
                 match(TokenType.MINUS);
             match(TokenType.INT_LIT);
-            return new Literal(nodeToken(), ConstantKind.INT);
+            return new Literal(nodeToken(), ConstantType.INT);
         }
         else if(nextLA(TokenType.CHAR_LIT)) {
             match(TokenType.CHAR_LIT);
-            return new Literal(nodeToken(), ConstantKind.CHAR);
+            return new Literal(nodeToken(), ConstantType.CHAR);
         }
 
         match(TokenType.BOOL_LIT);
-        return new Literal(nodeToken(), ConstantKind.BOOL);
+        return new Literal(nodeToken(), ConstantType.BOOL);
     }
 }

@@ -5,14 +5,12 @@ import utilities.PrettyPrint;
 
 public class ModError extends Error {
 
-    public ModError() {}
+
+    public boolean isModifierError() { return true; }
+    public ModError asModifierError() { return this; }
 
     @Override
     public String header() {
-        if(fileName != null) {
-            return PrettyPrint.YELLOW + "Modifier error detected in "
-                    + PrettyPrint.RESET + fileName() + "\n";
-        }
-        return PrettyPrint.YELLOW + "Modifier error detected!\n\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.YELLOW + "Modifier Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

@@ -1,6 +1,0 @@
-
-class myClass {
-    public myVar = 3.14 Int
-}
-
-def main() => Void {}

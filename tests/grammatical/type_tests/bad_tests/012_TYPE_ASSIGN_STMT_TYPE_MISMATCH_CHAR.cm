@@ -1,6 +1,0 @@
-
-def global a = 'c' Char
-
-def main() => Void {
-    set a /= True
-}

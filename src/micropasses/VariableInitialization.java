@@ -12,6 +12,7 @@ public class VariableInitialization extends Visitor {
 
     private static final SemanticErrorFactory generateSemanticError = new SemanticErrorFactory();
 
+    public VariableInitialization() {}
     public VariableInitialization(boolean mode) {
         this.interpretMode = mode;
     }

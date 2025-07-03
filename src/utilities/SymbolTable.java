@@ -16,6 +16,7 @@ public class SymbolTable {
     public SymbolTable() {
         varNames = new HashMap<>();
         methodNames = new HashSet<>();
+
     }
 
     public SymbolTable(SymbolTable p) {
@@ -26,7 +27,13 @@ public class SymbolTable {
     public void setParent(SymbolTable p) { parent = p; }
     public SymbolTable getParent() { return parent; }
 
-    public void setImportParent(SymbolTable ip) { importParent = ip; }
+    public void setImportParent(SymbolTable ip) {
+        if(importParent != null)
+            importParent.setImportParent(ip);
+        else
+            importParent = ip;
+    }
+
     public SymbolTable getImportParent() { return importParent; }
 
     public void addName(String name, NameNode n) { varNames.put(name,n); }

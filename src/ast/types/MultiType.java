@@ -1,5 +1,7 @@
 package ast.types;
 
+import ast.AST;
+import ast.misc.Name;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
@@ -12,11 +14,12 @@ import utilities.Visitor;
  */
 public class MultiType extends Type {
 
-    private final ClassType initialType;
-    private final Vector<ClassType> allTypes;
+    private ClassType initialType;
+    private Vector<ClassType> allTypes;
 
     private ClassType runtimeType;      // Used by the interpreter
 
+    public MultiType() { this(null,null); }
     public MultiType(ClassType it, Vector<ClassType> ct) {
         super(new Token());
         this.initialType = it;
@@ -31,6 +34,14 @@ public class MultiType extends Type {
     public ClassType getInitialType() { return initialType; }
     public Vector<ClassType> getAllTypes() { return allTypes; }
 
+    private void setInitialType(ClassType initialType) {
+        this.initialType = initialType;
+    }
+
+    private void setAllTypes(Vector<ClassType> allTypes) {
+        this.allTypes = allTypes;
+    }
+
     public void setRuntimeType(ClassType ct) { this.runtimeType = ct; }
     public ClassType getRuntimeType() { return this.runtimeType; }
 
@@ -44,14 +55,75 @@ public class MultiType extends Type {
     @Override
     public String typeName() {
         StringBuilder sb = new StringBuilder();
-        for(ClassType ct : allTypes)
-            sb.append(ct.toString());
+
+        for(int i = 1; i <= allTypes.size(); i++) {
+            ClassType ct = allTypes.get(i-1);
+            if(i == allTypes.size())
+                sb.append(ct);
+            else
+                sb.append(ct).append("/");
+        }
+
         return sb.toString();
     }
 
     @Override
     public String toString() { return typeName(); }
 
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link MultiType}
+     */
+    @Override
+    public AST deepCopy() {
+        Vector<ClassType> allTypes = new Vector<>();
+        for(ClassType t : this.allTypes)
+            allTypes.add(t.deepCopy().asType().asClassType());
+
+        return new MultiTypeBuilder()
+                   .setMetaData(this)
+                   .setInitialType(this.initialType.deepCopy().asType().asClassType())
+                   .setAllTypes(allTypes)
+                   .create();
+    }
+
     @Override
     public void visit(Visitor v) { v.visitMultiType(this); }
+
+    /**
+     * Internal class that builds a {@link MultiType} object.
+     */
+    public static class MultiTypeBuilder extends NodeBuilder {
+
+        /**
+         * {@link MultiType} object we are building.
+         */
+        private final MultiType mt = new MultiType();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return MultiTypeBuilder
+         */
+        public MultiTypeBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        public MultiTypeBuilder setInitialType(ClassType initialType) {
+            mt.setInitialType(initialType);
+            return this;
+        }
+
+        public MultiTypeBuilder setAllTypes(Vector<ClassType> allTypes) {
+            mt.setAllTypes(allTypes);
+            return this;
+        }
+
+        public MultiType create() {
+            super.saveMetaData(mt);
+            return mt;
+        }
+    }
+
 }

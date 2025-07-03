@@ -35,5 +35,15 @@ public class Modifier extends AST {
     public String toString() { return names[mod.ordinal()]; }
 
     @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A modifier can not be updated."); }
+
+    @Override
+    public AST deepCopy() {
+        Modifier m = new Modifier(this.mod);
+        m.copyMetaData(this);
+        return m;
+    }
+
+    @Override
     public void visit(Visitor v){ v.visitModifier(this); }
 }

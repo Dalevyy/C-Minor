@@ -5,7 +5,12 @@
 // Program
 // -------
 
-compilation: enum_type* global_variable* class_type* function* main ;
+compilation : import_stmt* enum_type* global_variable* class_type* function* main ;
+
+// Imports
+// -------
+
+import_stmt : '#include' String_literal
 
 // Enumeration
 // -----------
@@ -47,9 +52,11 @@ class_name : Name ('<' type (',' type)* '>')? ;
 // Class declaration
 // -----------------
 
-class_type : ('abstr' | 'final')? 'class' name type_params? super_class? class_body ;
+class_type : ('abstr' | 'final')? 'class' name typefier_params? super_class? class_body ;
 
-type_params : '<' type (',' type)* '>' ;
+typefier_params : '<' typefier (',' typefier)* '>' ;
+
+typefier : ('discr' | 'scalar' | 'class')? Name ;
 
 super_class : 'inherits' name type_params? ;
 
@@ -71,7 +78,7 @@ method_class : method_modifier attribute* 'override'? 'method' method_header '=>
 
 method_modifier : 'protected' | 'public' ;
 
-attribute : 'final' | 'pure' | 'recurs' | 'static' | 'virtual' ;
+attribute : 'final' | 'pure' | 'recurs' | 'static' ;
 
 method_header : Name '(' formal_params? ')' ;
 
@@ -90,6 +97,7 @@ operator_header : operator_symbol '(' formal_params? ')' ;
 operator_symbol : binary_operator | unary_operator ;
 
 binary_operator : '=='
+                | '!='
                 | '>'
                 | '>='
                 | '<'
@@ -113,11 +121,7 @@ unary_operator : '~'
 
 function : 'def' ('pure' | 'recurs')? function_header '=>' return_type block_statement ;
 
-function_header : Name type_params? '(' formal_params? ')' ;
-
-type_params : '<' typefier (',' typefier)* '>' ;
-
-typefier : ('discr' | 'scalar' | 'class')? Name ;
+function_header : Name typefier_params? '(' formal_params? ')' ;
 
 // Main function
 // -------------
@@ -195,7 +199,7 @@ choice_statement : 'choice' expression '{' case_statement* 'other' block_stateme
 
 case_statement : 'on' label block_statement ;
 
-label : constant ('..' constant)?
+label : scalar_constant ('..' scalar_constant)?
 
 list_command_statement : 'append' '(' arguments ')'
                        | 'remove' '(' arguments ')'
@@ -220,9 +224,14 @@ primary_expression : Identifier
                    | 'parent'
                    ;
 
-postfix_expression: primary_expression ('[' expression ']' | '(' arguments? ')' | ('.' | '?.') expression)* ;
+postfix_expression: primary_expression ( '[' expression ']'
+                                       | (type_params)? '(' arguments? ')'
+                                       | ('.' | '?.') expression
+                                       )* ;
 
 arguments : expression (',' expression)* ;
+
+type_params : '<' type ( ',' type )* '>'
 
 factor_expression : postfix_expression
                   | 'length' '(' arguments? ')'
@@ -294,7 +303,7 @@ logical_or_expression
 
 constant : object_constant | array_constant | list_constant | scalar_constant ;
 
-object_constant : 'new' Name '(' object_field (',' object_field)* ')' ;
+object_constant : 'new' Name (type_params)? '(' object_field (',' object_field)* ')' ;
 
 object_field : Name '=' expression ;
 

@@ -20,7 +20,10 @@ public class Name extends AST {
         super(t);
         this.ID = t.getText();
     }
-    public Name(String s) { this.ID = s; }
+    public Name(String s) {
+        this.text = s;
+        this.ID = s;
+    }
 
     public void setName(String newID) { ID = newID; }
     public String getName() { return ID; }
@@ -30,6 +33,16 @@ public class Name extends AST {
 
     @Override
     public String toString() { return ID; }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A name can not be updated."); }
+
+    @Override
+    public AST deepCopy() {
+        Name n = new Name(this.getName());
+        n.copyMetaData(this);
+        return n;
+    }
 
     @Override
     public void visit(Visitor v) { v.visitName(this); }

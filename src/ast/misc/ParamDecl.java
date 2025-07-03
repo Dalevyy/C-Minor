@@ -1,7 +1,7 @@
 package ast.misc;
 
 import ast.*;
-import ast.misc.Modifier.Mods;
+import ast.classbody.FieldDecl;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
@@ -17,9 +17,10 @@ public class ParamDecl extends AST implements NameNode {
 
     public Modifiers mod;
 
-    private final Name name;
+    private Name name;
     private Type type;
 
+    public ParamDecl() { this(new Token(),null,null,null); }
     public ParamDecl(Modifier m, Name n, Type type) { this(new Token(),m,n,type); }
 
     public ParamDecl(Token t, Modifier m, Name n, Type type) {
@@ -29,8 +30,6 @@ public class ParamDecl extends AST implements NameNode {
         this.type = type;
 
         addChild(this.name);
-        addChild(this.type);
-        setParent();
     }
 
     public Type type() { return type; }
@@ -45,29 +44,88 @@ public class ParamDecl extends AST implements NameNode {
     public ParamDecl asParamDecl() { return this; }
 
     @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                name = n.asName();
+                break;
+            case 1:
+                type = n.asType();
+                break;
+        }
+    }
+
+    @Override
+    public AST deepCopy() {
+        return new ParamDeclBuilder()
+                   .setMetaData(this)
+                   .setMod(this.mod)
+                   .setName(this.name.deepCopy().asName())
+                   .setType(this.type.deepCopy().asType())
+                   .create();
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitParamDecl(this); }
 
-    public static class ParamDeclBuilder {
-        private Modifier mod;
-        private Name name;
-        private Type type;
+    /**
+     * Internal class that builds a {@link ParamDecl} object.
+     */
+    public static class ParamDeclBuilder extends NodeBuilder {
 
-        public ParamDeclBuilder setModifier(Mods mod) {
-            this.mod = new Modifier(mod);
+        /**
+         * {@link ParamDecl} object we are building.
+         */
+        private final ParamDecl pd = new ParamDecl();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return FieldDeclBuilder
+         */
+        public ParamDeclBuilder setMetaData(AST node) {
+            super.setMetaData(node);
             return this;
         }
 
-        public ParamDeclBuilder setName(String s) {
-            this.name = new Name(s);
+        /**
+         * Sets the parameter declaration's {@link #mod}.
+         * @param mod Modifier representing the passing technique of the parameter
+         * @return ParamDeclBuilder
+         */
+        public ParamDeclBuilder setMod(Modifiers mod) {
+            pd.mod = mod;
             return this;
         }
 
-        public ParamDeclBuilder setType(Type t) {
-            this.type = t;
+        /**
+         * Sets the parameter declaration's {@link #name}.
+         * @param name Name that represents the parameter
+         * @return ParamDeclBuilder
+         */
+        public ParamDeclBuilder setName(Name name) {
+            pd.name = name;
             return this;
         }
 
-        public ParamDecl createParamDecl() { return new ParamDecl(mod,name,type); }
+        /**
+         * Sets the parameter declaration's {@link #type}.
+         * @param type Type representing the data type the parameter represents
+         * @return ParamDeclBuilder
+         */
+        public ParamDeclBuilder setType(Type type) {
+            pd.setType(type);
+            return this;
+        }
 
+        /**
+         * Creates a {@link ParamDecl} object.
+         * @return {@link ParamDecl}
+         */
+        public ParamDecl create() {
+            super.saveMetaData(pd);
+            pd.addChild(pd.name);
+            return pd;
+        }
     }
 }

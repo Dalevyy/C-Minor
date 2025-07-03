@@ -7,6 +7,7 @@ import ast.topleveldecls.EnumDecl;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
+
 import lexer.Lexer;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
@@ -19,7 +20,7 @@ import utilities.Vector;
 
 public class VM {
 
-    public static void runInterpreter() throws IOException {
+    public void runInterpreter() throws IOException {
         System.out.println("C Minor Interpreter");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         Compilation compilationUnit = new Compilation();
@@ -36,14 +37,15 @@ public class VM {
         PropertyMethodGeneration generatePropertyPass = new PropertyMethodGeneration();
         VariableInitialization variableInitPass = new VariableInitialization(true);
         FieldRewrite fieldRewritePass = new FieldRewrite();
+        OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck(true);
         LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
-        ClassToEnumTypeRewrite classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
+        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
         ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
 
         boolean printTokens = false;
         boolean printAST = false;
         boolean printST = false;
-        boolean debug = true;
+        boolean debug = false;
 
         while(true) {
             String input;
@@ -52,14 +54,15 @@ public class VM {
             input = reader.readLine();
 
             if(input.equals("#quit"))
-                System.exit(1);
+                System.exit(0);
             else if(input.equals("#clear")) {
                 compilationUnit = new Compilation();
                 nameChecker = new NameChecker(compilationUnit.globalTable);
-                classToEnumPass = new ClassToEnumTypeRewrite(compilationUnit.globalTable);
+                classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
                 typeChecker = new TypeChecker(compilationUnit.globalTable);
                 modChecker = new ModifierChecker(compilationUnit.globalTable);
                 interpreter = new Interpreter(compilationUnit.globalTable);
+                ImportHandler.clear();
                 continue;
             }
             else if(input.equals("#show-tokens")) {
@@ -93,7 +96,7 @@ public class VM {
                 }
             }
             Vector<? extends AST> nodes;
-            AST currNode = null;
+            AST errorNode = null;
             try {
                 var lexer = new Lexer(program.toString(),true);
                 var parser = new Parser(lexer, printTokens, true);
@@ -101,7 +104,8 @@ public class VM {
                 nodes = parser.nextNode();
 
                 for (AST node : nodes) {
-                    currNode = node;
+                    errorNode = node;
+
                     node.visit(ioRewritePass);
                     if(printAST)
                         node.visit(treePrinter);
@@ -112,8 +116,11 @@ public class VM {
                         System.out.println(compilationUnit.globalTable.toString());
 
                     node.visit(variableInitPass);
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl())
+                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) {
                         node.visit(fieldRewritePass);
+                        node.visit(operatorOverloadPass);
+                    }
+
                     node.visit(loopCheckPass);
                     node.visit(classToEnumPass);
                     node.visit(typeChecker);
@@ -134,14 +141,14 @@ public class VM {
                 }
             }
             catch(Exception e) {
-                generateError(e,currNode,compilationUnit.globalTable);
+                generateError(e,errorNode,compilationUnit.globalTable);
                 if(debug)
                     e.printStackTrace();
             }
         }
     }
 
-    private static void generateError(Exception e, AST location, SymbolTable st) {
+    private void generateError(Exception e, AST location, SymbolTable st) {
         // If a lexer/parser error occurs, do not remove anything from the symbol table.
         if(location != null && !e.getMessage().equals("EOF Not Found") && !e.getMessage().equals("Redeclaration")) {
             if(location.isTopLevelDecl()) {

@@ -1,4 +1,0 @@
-
-def func() => Int {}
-
-def main() => Void {}

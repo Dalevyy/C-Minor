@@ -32,7 +32,7 @@ public abstract class Visitor {
     public void visitContinueStmt(ContinueStmt cs) { cs.visitChildren(this); }
     public void visitDiscreteType(DiscreteType dt) { dt.visitChildren(this); }
     public void visitDoStmt(DoStmt ds) { ds.visitChildren(this); }
-    public void visitEndl(Endl e) { e.visitChildren(this); }
+    public void visitEndl(EndlStmt e) { e.visitChildren(this); }
     public void visitEnumDecl(EnumDecl ed) { ed.visitChildren(this); }
     public void visitEnumType(EnumType et) { et.visitChildren(this); }
     public void visitExprStmt(ExprStmt es) { es.visitChildren(this); }
@@ -42,6 +42,7 @@ public abstract class Visitor {
     public void visitFuncDecl(FuncDecl fd) { fd.visitChildren(this); }
     public void visitGlobalDecl(GlobalDecl gd) { gd.visitChildren(this); }
     public void visitIfStmt(IfStmt is) { is.visitChildren(this); }
+    public void visitImportDecl(ImportDecl im) { im.visitChildren(this); }
     public void visitInitDecl(InitDecl id) { id.visitChildren(this); }
     public void visitInStmt(InStmt ins) { ins.visitChildren(this); }
     public void visitInvocation(Invocation i) { i.visitChildren(this); }
@@ -64,7 +65,7 @@ public abstract class Visitor {
     public void visitRetypeStmt(RetypeStmt rs) { rs.visitChildren(this); }
     public void visitScalarType(ScalarType st) { st.visitChildren(this); }
     public void visitStopStmt(StopStmt ss) { ss.visitChildren(this); }
-    public void visitThis(This t) { t.visitChildren(this); }
+    public void visitThis(ThisStmt t) { t.visitChildren(this); }
     public void visitTypeifier(Typeifier t) { t.visitChildren(this); }
     public void visitUnaryExpr(UnaryExpr ue) { ue.visitChildren(this); }
     public void visitUnaryOp(UnaryOp uo) { uo.visitChildren(this); }

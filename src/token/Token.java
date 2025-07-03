@@ -8,6 +8,7 @@ public class Token {
 
     public Token() { this(TokenType.ID,"",new Location()); }
     public Token(String txt) { this(TokenType.ID,txt,new Location()); }
+    public Token(String txt, Location location) { this(TokenType.ID,txt,location);}
     public Token(TokenType type, String text, Location location) {
         this.type = type;
         this.text = text;
@@ -17,6 +18,7 @@ public class Token {
     public TokenType getTokenType() { return type; }
 
     public void setText(String s) { this.text = s; }
+    public void appendText(String s) { this.text += s; }
     public String getText() { return text; }
 
     public Location getLocation() { return location; }

@@ -4,9 +4,9 @@ import utilities.Vector;
 
 /*
 ________________________________ Modifiers ________________________________
-This is a helper class that is not part of a C Minor AST. Modifiers will
+ThisStmt is a helper class that is not part of a C Minor AST. Modifiers will
 take a single Modifier and/or Modifiers and set the appropriate boolean
-flag to be true. This will aid us when we are performing modifier checking
+flag to be true. ThisStmt will aid us when we are performing modifier checking
 alongside code generation.
 ___________________________________________________________________________
 */

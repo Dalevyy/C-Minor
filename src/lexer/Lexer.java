@@ -11,7 +11,7 @@ import utilities.Vector;
 import utilities.PrettyPrint;
 
 /**
- * This is the {@code Lexer} which is responsible for tokenizing a C
+ * ThisStmt is the {@code Lexer} which is responsible for tokenizing a C
  * Minor program. An instance of the lexer will be contained in the parser,
  * and it will be continually called to generate tokens for the parser until
  * either an error occurs or we have tokenized the EOF symbol.
@@ -25,6 +25,9 @@ public class Lexer {
     /** Current C Minor program we are tokenizing. */
     private final String file;
 
+    /** The file name we are tokenizing */
+    private final String fileName;
+
     /** Current position we are at in {@link Lexer#file}. */
     private int currPos;
 
@@ -32,13 +35,13 @@ public class Lexer {
     private char lookChar;
 
     /** Current location we are at in {@link Lexer#file}.
-     *  This keeps track of both row and column position.*/
+     *  ThisStmt keeps track of both row and column position.*/
     private final Location currLoc;
 
     /** Current text that will be stored when a {@code token} is generated.*/
     private String currText;
 
-    /** A {@code Vector} that stores a C Minor program. This will be used by
+    /** A {@code Vector} that stores a C Minor program. ThisStmt will be used by
      *  the parser in order to generate syntax error messages.*/
     private final Vector<String> lines;
 
@@ -52,8 +55,17 @@ public class Lexer {
      * Creates a new {@code Lexer} instance, will be called by the parser.
      * @param file C Minor program that will be tokenized.
      */
-    public Lexer(final String file) {
+    public Lexer(final String file, String fileName) {
         this.file = file;
+
+        // Get the actual file name depending on the file system.
+        if(fileName.contains("/"))
+            this.fileName = fileName.substring(fileName.lastIndexOf("/")+1);
+        else if(fileName.contains("\\"))
+            this.fileName = fileName.substring(fileName.lastIndexOf("\\")+1);
+        else
+            this.fileName = fileName;
+
         this.currPos = 0;
         this.lookChar = file.charAt(currPos);
         this.currLoc = new Location();
@@ -64,13 +76,15 @@ public class Lexer {
 
     /** Creates a new {@code Lexer} instance in interpretation mode.*/
     public Lexer(final String file, boolean mode) {
-        this(file);
+        this(file,"");
         this.interpretMode = mode;
     }
 
+    public String getFileName() { return fileName; }
+
     /**
      * Sets a token text to be between its starting and ending {@code positions}.
-     * @param tokenForAST This represents the token we are saving into an AST node.
+     * @param tokenForAST ThisStmt represents the token we are saving into an AST node.
      */
     public void setText(Token tokenForAST) {
         Position start = tokenForAST.getStartPos();
@@ -98,7 +112,7 @@ public class Lexer {
         tokenForAST.setText(sb.toString());
     }
 
-    /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
+    /** Prints out the line an error occurs at. ThisStmt will be called by the {@code parser}.*/
     public void printSyntaxError(Position start) { System.out.println(start.line + "| " + lines.get(start.line-1)); }
 
     /** Updates the lookahead character and program text every time there is a valid match.*/
@@ -185,7 +199,7 @@ public class Lexer {
      *    if this forms a valid escape sequence. In C Minor, we currently
      *    support all escape sequences that Java supports. If the escape
      *    sequence is not valid, we will output an error.
-     * @param sb This represents the current Character/String literal we are tokenizing.
+     * @param sb ThisStmt represents the current Character/String literal we are tokenizing.
      */
     private void escapeSequence(StringBuilder sb) {
         update();
@@ -433,7 +447,7 @@ public class Lexer {
     }
 
     /**
-     * This is the main method for the C Minor lexer.<br><br>
+     * ThisStmt is the main method for the C Minor lexer.<br><br>
      * <p>
      *   We will use a greedy algorithm to determine which token to generate next
      *   based on the current input lookahead character. Error tokens will only be

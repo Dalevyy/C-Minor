@@ -1,13 +1,14 @@
 package ast.types;
 
 import ast.*;
+import ast.expressions.Expression;
 import token.*;
 import utilities.Vector;
 
 /*
 __________________________ Type __________________________
 Type is an abstract class that will be inherited by all C
-Minor type nodes. This class contains a bunch of helper
+Minor type nodes. ThisStmt class contains a bunch of helper
 methods to aid in type checking/interpretation including
 type equality and assignment compatibility.
 
@@ -35,6 +36,19 @@ public abstract class Type extends AST {
         else if(this.isArrayType()) return "A";
         else if(this.isClassType()) return this.toString();
         else return "V";
+    }
+
+    public static String createTypeString(Vector<Expression> args) {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 1; i <= args.size(); i++) {
+            if(i == args.size())
+                sb.append(args.get(i - 1).type.typeName());
+            else
+                sb.append(args.get(i-1).type.typeName()).append(", ");
+        }
+
+        return sb.toString();
     }
 
     public static boolean sameTypeName(Type LHS, Type RHS) {
@@ -122,6 +136,7 @@ public abstract class Type extends AST {
     public boolean isDiscreteType() { return false; }
     public boolean isClassType() { return false; }
     public boolean isMultiType() { return false; }
+    public boolean isClassOrMultiType() { return this.isClassType() || this.isMultiType(); }
     public boolean isListType() { return false; }
     public boolean isArrayType() { return false; }
     public boolean isVoidType() { return false; }
@@ -134,4 +149,7 @@ public abstract class Type extends AST {
     public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
     public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
     public EnumType asEnumType() { throw new RuntimeException("Expression can not be casted into an EnumType.\n"); }
+
+    @Override
+    public void update(int pos, AST n) { throw new RuntimeException("A type can not be updated."); }
 }

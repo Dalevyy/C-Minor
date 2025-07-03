@@ -31,7 +31,11 @@ def main() => Void {
     cout << 'Please enter a number:'
     cin >> numToFind
 
-    BinarySearch(numToFind)
+    if(BinarySearch(numToFind)) {
+        cout << numToFind << ' was found in the array!'
+    } else {
+        cout << numToFind << ' was not found...' 
+    }
 
     stop
 }

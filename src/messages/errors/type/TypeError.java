@@ -5,14 +5,11 @@ import utilities.PrettyPrint;
 
 public class TypeError extends Error {
 
-    public TypeError() {}
+    public boolean isTypeError() { return true; }
+    public TypeError asTypeError() { return this; }
 
     @Override
     public String header() {
-        if(fileName != null) {
-            return PrettyPrint.GREEN + "Typing error detected in "
-                    + PrettyPrint.RESET + fileName() + "\n";
-        }
-        return PrettyPrint.GREEN + "Typing error detected!\n\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.GREEN + "Type Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

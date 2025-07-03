@@ -4,8 +4,9 @@ import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.*;
-import ast.misc.NameNode;
+import ast.misc.Compilation;
 import ast.misc.ParamDecl;
+import ast.misc.Typeifier;
 import ast.misc.Var;
 import ast.statements.AssignStmt;
 import ast.statements.BlockStmt;
@@ -22,24 +23,61 @@ import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.EnumDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.ImportDecl;
 import ast.topleveldecls.MainDecl;
-import ast.types.ClassType;
 import java.util.HashSet;
 import messages.errors.ErrorBuilder;
 import messages.MessageType;
+import messages.errors.scope.ScopeErrorBuilder;
 import messages.errors.scope.ScopeErrorFactory;
+import messages.errors.semantic.SemanticErrorFactory;
 import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
 
 /**
- * C Minor - Scope Resolution Pass
+ * C Minor Scope Resolution Pass
+ * <p>
+ *     ThisStmt is the first major semantic pass in C Minor which checks
+ *     if all names within a program can correctly be resolved.
+ * </p>
+ * @author Daniel Levy
  */
 public class NameChecker extends Visitor {
 
+    /**
+     * Current scope we are name checking within.
+     */
     private SymbolTable currentScope;
+
+    /**
+     * Current class we are name checking in (if applicable).
+     */
     private ClassDecl currentClass;
+
+    /**
+     * Current variable declaration we are name checking (for initialization errors)
+     */
+    private String currentVariable = "";
+
+    /**
+     * Current file we are name checking in (set by {@link #visitCompilation(Compilation)}).
+     */
+    private String currentFile = "";
+
+    /**
+     * Error factory to generate scope errors.
+     */
     private final ScopeErrorFactory generateScopeError;
+
+    /**
+     * Error factory to generate semantic errors not specific to scope resolution.
+     */
+    private final SemanticErrorFactory generateSemanticError;
+
+    /**
+     * List of errors we have found.
+     */
     private final Vector<String> errors;
 
     /**
@@ -48,6 +86,7 @@ public class NameChecker extends Visitor {
     public NameChecker() {
         this.currentScope = new SymbolTable();
         this.generateScopeError = new ScopeErrorFactory();
+        this.generateSemanticError = new SemanticErrorFactory();
         this.errors = new Vector<>();
     }
 
@@ -56,78 +95,175 @@ public class NameChecker extends Visitor {
      * @param st Compilation Unit Symbol Table
      */
     public NameChecker(SymbolTable st) {
+        this();
         this.currentScope = st;
         this.interpretMode = true;
-        this.generateScopeError = new ScopeErrorFactory();
-        this.errors = new Vector<>();
     }
 
     /**
-     * Name checks the assignment statement
+     * Updates the {@code currentClass} symbol table to contain all entries from a base class's symbol table.
+     * <p>
+     *     We will go through the base class's symbol table and if there are no errors,
+     *     we will add all fields and methods to the current class, so it knows which
+     *     declarations it has access to. We will also check if the user redeclared any
+     *     fields from the base class since this isn't permitted.
+     * </p>
+     * @param baseClass The base class the user is inheriting from.
+     */
+    private void addBaseClassTable(ClassDecl baseClass) {
+        for(String name : baseClass.symbolTable.getAllNames().keySet()) {
+            AST currentDecl = baseClass.symbolTable.findName(name).decl();
+                if(currentDecl.isFieldDecl()) {
+                    // ERROR CHECK #1: ThisStmt checks if the field was already defined in the class hierarchy.
+                    if(currentScope.hasName(name)) {
+                        errors.add(
+                            new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                                .addLocation(currentClass.symbolTable.findName(name).decl())
+                                .addErrorType(MessageType.SCOPE_ERROR_324)
+                                .addArgs(name,currentClass)
+                                .asScopeErrorBuilder()
+                                .addRedeclaration(currentDecl)
+                                .error()
+                        );
+                    }
+                    currentScope.addName(name,currentDecl.asFieldDecl());
+                }
+                else
+                    currentScope.addMethod(name.substring(0,name.indexOf('/')));
+        }
+    }
+
+    /**
+     * Validates if a user properly overrides methods when using inheritance.
+     * <p>
+     *     ThisStmt method helps to perform error checking when a user overrides
+     *     base class methods. For every method in the class, we want to ensure
+     *     the user correctly uses the 'override' keyword if they are going to
+     *     redefine any methods. ThisStmt ensures the user explicitly understands
+     *     which methods are being overridden to help understand their code better.
+     * </p>
+     * @param baseClass The base class declaration the {@code currentClass} inherits from
+     */
+    private void checkOverriddenMethods(ClassDecl baseClass) {
+        for(MethodDecl subMethod : currentClass.classBlock().getMethods()) {
+            subMethod.visit(this);
+            boolean methodFoundInBaseClass = false;
+
+            if(baseClass != null) {
+                for(MethodDecl baseMethod : baseClass.classBlock().getMethods()) {
+                    if(baseMethod.methodSignature().equals(subMethod.methodSignature())) {
+                        methodFoundInBaseClass = true;
+                        // ERROR CHECK #1: ThisStmt checks if the user marked the method as overridden in the subclass.
+                        if(!subMethod.isOverridden()) {
+                            errors.add(
+                                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                                    .addLocation(subMethod)
+                                    .addErrorType(MessageType.SCOPE_ERROR_311)
+                                    .addArgs(subMethod, baseClass)
+                                    .error()
+                            );
+                        }
+                    }
+                }
+            }
+
+            // ERROR CHECK #2: ThisStmt checks if a user tries to redefine a method not found in the base class.
+            if(!methodFoundInBaseClass && subMethod.isOverridden()) {
+                errors.add(
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                        .addLocation(subMethod)
+                        .addErrorType(MessageType.SCOPE_ERROR_312)
+                        .addArgs(subMethod)
+                        .error()
+                );
+            }
+        }
+    }
+
+    /**
+     * Evaluates the names of an assignment statement.
+     * <p>
+     *     For an assignment statement, we want to make sure the LHS
+     *     evaluates to some variable or name in the program since we
+     *     can only assign to something that takes up a memory location.
+     *     Since this is a more of a semantic issue, we will generate a
+     *     semantic error message to the user if there are any issues.
+     * </p>
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        // ERROR CHECK #1: Make sure the LHS of an assignment is a name, field, or array expression
-        if(!(as.LHS().isNameExpr() || as.LHS().isFieldExpr() || as.LHS().isArrayExpr())) {
+        // ERROR CHECK #1: ThisStmt checks if a valid name was used in the LHS of an assignment statement.
+        if(!as.LHS().isNameExpr() && !as.LHS().isFieldExpr() && !as.LHS().isArrayExpr()) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(as)
-                        .addErrorType(MessageType.SCOPE_ERROR_325)
-                        .addArgs(as.LHS().toString())
-                        .addSuggestType(MessageType.SCOPE_SUGGEST_1302)
-                        .error()
+                new ErrorBuilder(generateSemanticError,currentFile,interpretMode)
+                    .addLocation(as)
+                    .addErrorType(MessageType.SEMANTIC_ERROR_707)
+                    .addArgs(as.LHS())
+                    .addSuggestType(MessageType.SEMANTIC_SUGGEST_1702)
+                    .error()
             );
         }
+
         super.visitAssignStmt(as);
     }
 
     /**
+     * Evaluates the names of a binary expression.
      * <p>
-     *     For a binary expression, we need to check if the
-     *     <code>instanceof</code> and <code>as?</code> operators correctly
-     *     reference a class name on the RHS.
+     *     When visiting a binary expression, we want to specifically check
+     *     if a user properly uses names for the built-in binary operators
+     *     for objects. ThisStmt includes {@code instanceof}, {@code !instanceof},
+     *     and {@code as?}. For all other operators, we will let other
+     *     visits handle the error checking for us.
      * </p>
      * @param be Binary Expression
      */
     public void visitBinaryExpr(BinaryExpr be) {
-        be.LHS().visit(this);
+        be.getLHS().visit(this);
+        be.getRHS().visit(this);
 
-        switch(be.binaryOp().toString()) {
+        String binOp = be.getBinaryOp().toString();
+        switch(binOp) {
             case "instanceof":
             case "!instanceof":
             case "as?":
-                // ERROR CHECK #1: Check if the name has been declared
-                if(!currentScope.hasNameSomewhere(be.RHS().toString())) {
+                // ERROR CHECK #1: ThisStmt checks if the LHS represents a valid variable name.
+                if(!be.getLHS().isNameExpr() && !be.getLHS().isFieldExpr() && !be.getLHS().isArrayExpr()) {
                     errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
+                        new ErrorBuilder(generateSemanticError,currentFile,interpretMode)
                             .addLocation(be)
-                            .addErrorType(MessageType.SCOPE_ERROR_328)
-                            .addArgs(be.RHS().toString())
+                            .addErrorType(MessageType.SEMANTIC_ERROR_708)
+                            .addArgs(be.getLHS(), binOp)
+                            .addSuggestType(MessageType.SEMANTIC_SUGGEST_1703)
+                            .addSuggestArgs(binOp)
                             .error()
                     );
                 }
-                AST cd = currentScope.findName(be.RHS().toString()).decl();
-                // ERROR CHECK #2: Check if the name represents a class
+
+                AST cd = currentScope.findName(be.getRHS().toString()).decl();
+                // ERROR CHECK #2: ThisStmt checks if the RHS represents a class name.
                 if(!cd.isTopLevelDecl() || !cd.asTopLevelDecl().isClassDecl()) {
                     errors.add(
-                        new ErrorBuilder(generateScopeError,interpretMode)
+                        new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                             .addLocation(be)
-                            .addErrorType(MessageType.SCOPE_ERROR_329)
-                            .addArgs(be.RHS().toString())
+                            .addErrorType(MessageType.SCOPE_ERROR_323)
+                            .addArgs(be.getRHS(),binOp)
+                            .addSuggestType(MessageType.SCOPE_SUGGEST_1304)
+                            .addSuggestArgs(binOp)
                             .error()
                     );
                 }
-                break;
-            default:
-                be.RHS().visit(this);
         }
     }
 
     /**
+     * Evaluates the scope of a block statement.
      * <p>
-     *     When we visit a block statement, we will open a scope and visit
-     *     the block's statements. The scope will be closed by whichever AST
-     *     node called this method after the scope is saved into the node.
+     *     When we visit a block statement, a new scope is opened.
+     *     All local declarations and statements will then be visited.
+     *     If {@code visitBlockStatement} was called by another construct,
+     *     that construct will close the {@code currentScope}. Otherwise,
+     *     we will do it here.
      * </p>
      * @param bs Block Statement
      */
@@ -138,13 +274,16 @@ public class NameChecker extends Visitor {
             ld.visit(this);
         for(Statement s : bs.stmts())
             s.visit(this);
+
         if(bs.getParent() == null)
             currentScope = currentScope.closeScope();
     }
 
     /**
+     * Evaluates the scope of a case statement.
      * <p>
-     *     A case statement opens a scope for its block statement.
+     *     A case statement contains one symbol
+     *     table for its block statement.
      * </p>
      * @param cs Case Statement
      */
@@ -157,16 +296,20 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Evaluates the scope of a choice statement.
      * <p>
-     *     A choice statement will visit all of its case statements first.
-     *     Then, a new scope will be opened for the `other` case that is
-     *     stored in the choice statement itself.
+     *     A choice statement contains a symbol table
+     *     for the default branch. All other case
+     *     statements will contain their own individual
+     *     symbol table.
      * </p>
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
         cs.choiceExpr().visit(this);
-        for(CaseStmt c : cs.caseStmts()) { c.visit(this); }
+
+        for(CaseStmt c : cs.caseStmts())
+            c.visit(this);
 
         cs.otherBlock().visit(this);
         cs.symbolTable = currentScope;
@@ -174,143 +317,94 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Checks the scope of a class.<br><br>
+     * Evaluates the scope of a class.
      * <p>
-     *     A class will open a scope to store its fields and methods. During
-     *     this visit, we are primarily focused on checking for the correct
-     *     usage of inheritance.
+     *     A class contains a symbol table for its block statement. During
+     *     this visit, we are primarily concerned with making sure the user
+     *     correctly uses inheritance.
      * </p>
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
         ClassDecl baseClass = null;
 
-        // ERROR CHECK #1: Make sure the class name has not been used yet
+        // ERROR CHECK #1: ThisStmt checks if the class name is already declared in the program.
         if(currentScope.isNameUsedAnywhere(cd.toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(cd)
-                        .addErrorType(MessageType.SCOPE_ERROR_316)
-                        .addArgs(cd.toString())
-                        .error()
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(cd)
+                    .addErrorType(MessageType.SCOPE_ERROR_307)
+                    .addArgs(cd)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(cd.toString()).decl())
+                    .error()
             );
         }
+
         currentScope.addName(cd.toString(),cd);
 
         if(cd.superClass() != null) {
-            // ERROR CHECK #2: Make sure the class isn't inheriting itself
+            // ERROR CHECK #2: ThisStmt checks if the class tries to inherit itself.
             if(cd.toString().equals(cd.superClass().toString())) {
                 errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(cd)
-                            .addErrorType(MessageType.SCOPE_ERROR_317)
-                            .addArgs(cd.toString())
-                            .error()
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                        .addLocation(cd)
+                        .addErrorType(MessageType.SCOPE_ERROR_308)
+                        .addArgs(cd)
+                        .error()
                 );
             }
 
-            // ERROR CHECK #3: Make sure the inherited class exists
+            // ERROR CHECK #3: ThisStmt checks if the inherited class was declared in the program.
             if(!currentScope.hasNameSomewhere(cd.superClass().toString())) {
                 errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(cd)
-                            .addErrorType(MessageType.SCOPE_ERROR_322)
-                            .addArgs(cd.superClass().toString())
-                            .error()
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                        .addLocation(cd)
+                        .addErrorType(MessageType.SCOPE_ERROR_309)
+                        .addArgs(cd,cd.superClass())
+                        .addSuggestType(MessageType.SCOPE_SUGGEST_1301)
+                        .addSuggestArgs(cd.superClass())
+                        .error()
                 );
             }
+
+            baseClass = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
         }
 
         currentScope = currentScope.openNewScope();
         cd.symbolTable = currentScope;
         currentClass = cd;
 
-        for(FieldDecl fd : cd.classBlock().fieldDecls())
+        for(FieldDecl fd : cd.classBlock().getFields())
             fd.visit(this);
 
-        if(cd.superClass() != null) {
-            baseClass = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
-            // Go through each declaration in the base class and add it to the subclass symbol table
-            for(String name : baseClass.symbolTable.getAllNames().keySet()) {
-                AST decl = baseClass.symbolTable.findName(name).decl();
-                if(decl.isFieldDecl()) {
-                    // ERROR CHECK #3: Each field name in a subclass needs to be unique
-                    //                 from the fields declared in the base class
-                    if(currentScope.hasName(name)) {
-                        errors.add(
-                            new ErrorBuilder(generateScopeError, interpretMode)
-                                    .addLocation(cd)
-                                    .addErrorType(MessageType.SCOPE_ERROR_318)
-                                    .addArgs(name)
-                                    .error()
-                        );
-                    }
-
-                    currentScope.addName(name,decl.asFieldDecl());
-                }
-                else
-                    currentScope.addMethod(name.substring(0,name.indexOf('/')));
-
-            }
-        }
-
-        // Magic~~~~~~~~~~~~
-        for(MethodDecl md : cd.classBlock().methodDecls()) {
-            md.visit(this);
-            boolean found = false;
-            if(baseClass != null) {
-                for(MethodDecl baseMethod : baseClass.classBlock().methodDecls()) {
-                    if(md.methodSignature().equals(baseMethod.methodSignature())) {
-                        found = true;
-                        if(!md.isOverridden()) {
-                            errors.add(
-                                    new ErrorBuilder(generateScopeError, interpretMode)
-                                            .addLocation(md)
-                                            .addErrorType(MessageType.SCOPE_ERROR_333)
-                                            .addArgs(md, baseClass)
-                                            .error()
-                            );
-                        }
-                    }
-                }
-            }
-            if(!found && md.isOverridden()) {
-                errors.add(
-                        new ErrorBuilder(generateScopeError, interpretMode)
-                                .addLocation(md)
-                                .addErrorType(MessageType.SCOPE_ERROR_334)
-                                .addArgs(md)
-                                .error()
-                );
-            }
-        }
+        if(baseClass != null)
+            addBaseClassTable(baseClass);
+        checkOverriddenMethods(baseClass);
 
         currentScope = currentScope.closeScope();
         currentClass = null;
     }
 
     /**
-     * Checks to see if the name used for the class type was used
-     * @param ct Class Type
+     * Begins the C Minor scope resolution pass.
+     * <p>
+     *     During compilation mode, {@code visitCompilation} will be the first
+     *     method executed when we start the scope resolution pass.
+     * </p>
+     * @param c Compilation Unit
      */
-    public void visitClassType(ClassType ct) {
-        if(!currentScope.hasNameSomewhere(ct.toString())) {
-            errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(ct)
-                            .addErrorType(MessageType.SCOPE_ERROR_329)
-                            .addArgs(ct.toString())
-                            .error()
-            );
-        }
+    public void visitCompilation(Compilation c) {
+        currentFile = c.getFile();
+        super.visitCompilation(c);
+        c.globalTable = currentScope;
     }
 
     /**
+     * Evaluates the scope of a do statement.
      * <p>
-     *     A do statement will store a symbol table for its block statement.
-     *     We will open a new scope when we visit the do statement's block
-     *     and once the scope is saved into the <code>DoStmt</code> node, we
-     *     will name check its conditional expression.
+     *     A do while loop contains one symbol table
+     *     for its block statement.
      * </p>
      * @param ds Do Statement
      */
@@ -324,84 +418,88 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Evaluates the name of an enum.
      * <p>
-     *     An <code>EnumDecl</code>will be the first construct a user can define in a C Minor
-     *     program. Thus, we want to check if the name bound to an Enum isn't
-     *     already used by another Enum in the same file OR by some other construct
-     *     located in an import file.
-     *     <br><br>
-     *     Additionally, every constant inside an Enum will become global. Thus,
-     *     if we have two or more Enums, all their constants need to have different
-     *     names in order for the program to compile.
+     *     An {@code EnumDecl} is the first construct a user is allowed to define
+     *     in a C Minor. We want to ensure the user hasn't used the enum name before,
+     *     and we also want to make sure each constant name associated with the enum
+     *     hasn't been used before.
      * </p>
      * @param ed Enum Declaration
      */
     public void visitEnumDecl(EnumDecl ed) {
-        // ERROR CHECK #1: Make sure the enum name has not been used yet
+        // ERROR CHECK #1: ThisStmt checks if the enum name was already declared somewhere in the program.
         if(currentScope.hasName(ed.toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                     .addLocation(ed)
-                    .addErrorType(MessageType.SCOPE_ERROR_305)
-                    .addArgs(ed.toString())
+                    .addErrorType(MessageType.SCOPE_ERROR_321)
+                    .addArgs(ed)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(ed.toString()).decl())
                     .error()
             );
         }
+
         currentScope.addName(ed.toString(),ed);
 
-        // ERROR CHECK #2: Each constant name associated with the
-        //                 current enum can not have already been used.
+        // ERROR CHECK #2: ThisStmt checks if each constant name in the enum was already declared somewhere in the program.
         for(Var constant : ed.constants()) {
             if(currentScope.hasName(constant.toString())) {
                 errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                         .addLocation(ed)
-                        .addErrorType(MessageType.SCOPE_ERROR_306)
-                        .addArgs(constant.toString())
+                        .addErrorType(MessageType.SCOPE_ERROR_322)
+                        .addArgs(constant,ed)
+                        .asScopeErrorBuilder()
+                        .addRedeclaration(currentScope.findName(constant.toString()).decl())
                         .error()
                 );
             }
+
             currentScope.addName(constant.toString(),ed);
         }
     }
 
     /**
+     * Evaluates the name of a field declaration.
      * <p>
-     *     When a user declares a field, we want to make sure its name
-     *     doesn't already refer to something else in the class scope.
+     *     When declaring a field inside of a class, we want to make sure the name doesn't
+     *     conflict with any other names previously declared by the user. If there are no
+     *     issues with the field, we will add it to the {@code currentScope} of the class.
      * </p>
      * @param fd Field Declaration
      */
     public void visitFieldDecl(FieldDecl fd) {
-        // ERROR CHECK #1: Make sure the field name has not been used
-        if(currentScope.hasName(fd.toString())) {
+        // ERROR CHECK #1: ThisStmt checks if the field name was used anywhere in the program.
+        if(currentScope.hasNameSomewhere(fd.toString())) {
+            AST varLocation = currentScope.findName(fd.toString()).decl();
+
+            if(interpretMode)
+                currentScope = currentScope.closeScope();
+
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(fd)
-                        .addErrorType(MessageType.SCOPE_ERROR_315)
-                        .addArgs(fd.toString())
-                        .error()
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(fd)
+                    .addErrorType(MessageType.SCOPE_ERROR_310)
+                    .addArgs(fd,currentClass)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(varLocation)
+                    .error()
             );
         }
-        fd.type().visit(this);
+
+        currentScope.addName(fd.toString(),fd);
 
         if(fd.var().init() != null) {
-            // ERROR CHECK #2: Do not allow a field to be initialized to itself
-            if(fd.var().init().toString().equals(fd.toString())) {
-                errors.add(
-                        new ErrorBuilder(generateScopeError,interpretMode)
-                                .addLocation(fd)
-                                .addErrorType(MessageType.SCOPE_ERROR_331)
-                                .addArgs(fd.toString())
-                                .error()
-                );
-            }
+            currentVariable = fd.toString();
             fd.var().init().visit(this);
+            currentVariable = "";
         }
-        currentScope.addName(fd.toString(),fd);
     }
 
     /**
+     * Evaluates the name of a field expression.
      * <p>
      *     For a field expression, we will only check to see if the target's
      *     name can be resolved at this point. We have to wait until we know
@@ -411,15 +509,17 @@ public class NameChecker extends Visitor {
      * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) {
-        if(!fe.fieldTarget().isThis()) { fe.fieldTarget().visit(this); }
+        if(!fe.getTarget().isThisStmt())
+            fe.getTarget().visit(this);
     }
 
     /**
+     * Evaluates the scope of a for statement.
      * <p>
-     *     A for statement will store a symbol table for its block statement.
-     *     In C Minor, the loop control variable will be contained in the
-     *     same scope as the block statement in order to prevent a user from
-     *     redeclaring it.
+     *     A for loop contains a symbol table for its block statement.
+     *     In C Minor, the loop control variable will be stored in the
+     *     scope of the block statement in order to prevent a user from
+     *     redeclaring the variable in the block statement's scope.
      * </p>
      *
      * @param fs For Statement
@@ -431,100 +531,115 @@ public class NameChecker extends Visitor {
         fs.condLHS().visit(this);
         fs.condRHS().visit(this);
 
-        for(LocalDecl ld : fs.forBlock().decls()) { ld.visit(this); }
-        for(Statement s : fs.forBlock().stmts()) { s.visit(this); }
+        for(LocalDecl ld : fs.forBlock().decls())
+            ld.visit(this);
+        for(Statement s : fs.forBlock().stmts())
+            s.visit(this);
 
         fs.symbolTable = currentScope;
         currentScope = currentScope.closeScope();
     }
 
     /**
+     * Evaluates the scope of a function.
      * <p>
-     *     When we visit a function, we want to make sure both the name and
-     *     signature of the function is unique in order to support function
-     *     overloading. From there, we will open a new scope.
+     *     A function contains a symbol table for its block
+     *     statement. For functions, we will be storing their
+     *     signatures internally in order to support function
+     *     overloading, so we will make sure each function that
+     *     is declared has a unique signature.
      * </p>
      * @param fd Function Declaration
      */
     public void visitFuncDecl(FuncDecl fd) {
-        // ERROR CHECK #1: Make sure the function name is not being used already
-        if(currentScope.hasName(fd.toString())) {
-            errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+        for(Typeifier tp : fd.typeParams()) {
+            // ERROR CHECK #1: ThisStmt checks if the type parameter name was already used in the program.
+            if(currentScope.hasNameSomewhere(tp.toString())) {
+                errors.add(
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                         .addLocation(fd)
-                        .addErrorType(MessageType.SCOPE_ERROR_311)
-                        .addArgs(fd.toString())
+                        .addErrorType(MessageType.SCOPE_ERROR_317)
+                        .addArgs(tp,fd)
+                        .asScopeErrorBuilder()
+                        .addRedeclaration(currentScope.findName(tp.toString()).decl())
                         .error()
-            );
+                );
+            }
         }
 
         String funcSignature = fd + "/";
-        if(fd.params() != null) { funcSignature += fd.paramSignature(); }
+        if(fd.params() != null)
+            funcSignature += fd.paramSignature();
 
-        // ERROR CHECK #2: Make sure the function signature is unique to support overloading
+        // ERROR CHECK #2: ThisStmt checks to make sure we are not redeclaring a function with the same type arguments.
         if(currentScope.hasNameSomewhere(funcSignature)) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(fd)
-                        .addErrorType(MessageType.SCOPE_ERROR_312)
-                        .addArgs(fd.toString())
-                        .error()
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(fd)
+                    .addErrorType(MessageType.SCOPE_ERROR_306)
+                    .addArgs(fd)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(funcSignature).decl())
+                    .error()
             );
         }
-        currentScope.addName(funcSignature, fd);
+
+        currentScope.addName(funcSignature,fd);
         currentScope.addMethod(fd.toString());
 
         currentScope = currentScope.openNewScope();
         fd.symbolTable = currentScope;
-        for(ParamDecl pd : fd.params()) { pd.visit(this); }
 
-        for(LocalDecl ld : fd.funcBlock().decls()) { ld.visit(this); }
-        for(Statement s : fd.funcBlock().stmts()) { s.visit(this); }
+        for(Typeifier tp : fd.typeParams())
+            currentScope.addName(tp.toString(),tp);
+        for(ParamDecl pd : fd.params())
+            pd.visit(this);
+        for(LocalDecl ld : fd.funcBlock().decls())
+            ld.visit(this);
+        for(Statement s : fd.funcBlock().stmts())
+            s.visit(this);
 
         currentScope = currentScope.closeScope();
     }
 
     /**
+     * Evaluates the name of a global declaration.
      * <p>
-     *     When a user declares a global variable, we want to make sure its name
-     *     doesn't already refer to something else in the current scope.
+     *     When declaring a global variable, we want to make sure the name doesn't
+     *     conflict with any other names previously declared by the user. If there
+     *     are no issues with the global variable, we will add it to the {@code currentScope}.
      * </p>
      * @param gd Global Declaration
      */
     public void visitGlobalDecl(GlobalDecl gd) {
-        // ERROR CHECK #1: Check if the name was declared in the current scope
+        // ERROR CHECK #1: ThisStmt checks if the user is trying to redeclare a variable with the same name.
         if(currentScope.hasName(gd.toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                     .addLocation(gd)
                     .addErrorType(MessageType.SCOPE_ERROR_302)
-                    .addArgs(gd.toString())
+                    .addArgs(gd)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(gd.toString()).decl())
                     .error()
             );
         }
-        gd.type().visit(this);
+
+        currentScope.addName(gd.toString(), gd);
 
         if(gd.var().init() != null) {
-            // ERROR CHECK #2: Do not allow a global variable to be initialized to itself
-            if(gd.var().init().toString().equals(gd.toString())) {
-                errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(gd)
-                            .addErrorType(MessageType.SCOPE_ERROR_303)
-                            .addArgs(gd.toString())
-                            .error()
-                );
-            }
+            currentVariable = gd.toString();
             gd.var().init().visit(this);
+            currentVariable = "";
         }
-        currentScope.addName(gd.toString(), gd);
     }
 
     /**
+     * Evaluates the scope of an if statement.
      * <p>
-     *     An if statement will have two symbol tables: one for the if branch
-     *     block and one for the else branch block (if it exists). For else if
-     *     statements, only one symbol table will ever exist.
+     *     An if statement contains a symbol table for its if
+     *     branch alongside a symbol table for its else branch
+     *     (if it exists).
      * </p>
      * @param is If Statement
      */
@@ -535,7 +650,8 @@ public class NameChecker extends Visitor {
         is.symbolTableIfBlock = currentScope;
         currentScope = currentScope.closeScope();
 
-        for(IfStmt e : is.elifStmts()) { e.visit(this); }
+        for(IfStmt e : is.elifStmts())
+            e.visit(this);
 
         if(is.elseBlock() != null) {
             is.elseBlock().visit(this);
@@ -545,118 +661,142 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Evaluates the scope of an imported file.
      * <p>
-     *      At this point, an invocation visit only happens if we are visiting
-     *      a function. We can not name check method invocations yet since we
-     *      are going to need to know the types of the target to deduce whether
-     *      the invocation can be executed in the first place. Thus, we only check
-     *      if a function can be called.
+     *     For an import declaration, we will run the {@code NameChecker}
+     *     on its compilation unit and save the compilation unit's symbol
+     *     table into the main symbol table we are working with. ThisStmt will
+     *     allow us to verify if any names used in the imported file conflict
+     *     with any names found in the current file we are checking.
+     * </p>
+     * @param im Import Declaration
+     */
+    public void visitImportDecl(ImportDecl im) {
+        String oldFileName = currentFile;
+        SymbolTable oldScope = currentScope;
+        currentScope = new SymbolTable();
+
+        im.getCompilationUnit().visit(this);
+
+        oldScope.setImportParent(currentScope);
+        currentScope = oldScope;
+        currentFile = oldFileName;
+    }
+
+    /**
+     * Evaluates the name of an invocation.
+     * <p>
+     *     At this point, we do not have enough information to properly name
+     *     check invocations when we are trying to invoke a method. As a result,
+     *     we are only going to be checking if a function invocation was written
+     *     correctly, and we will handle method invocations during type checking instead.
      * </p>
      * @param in Invocation
      */
     public void visitInvocation(Invocation in) {
-        // ERROR CHECK #1: Make sure the function was declared previously
-        if(!currentScope.hasMethodSomewhere(in.toString())) {
-            if(!in.toString().equals("length")) {
-                errors.add(new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.SCOPE_ERROR_319)
-                        .addArgs(in.toString())
-                        .error());
-            }
+        // ERROR CHECK #1: ThisStmt checks to make sure the invocation name was declared in the program.
+        if(!currentScope.hasMethodSomewhere(in.toString()) && !in.isLengthInvocation()) {
+            errors.add(
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(in)
+                    .addErrorType(MessageType.SCOPE_ERROR_325)
+                    .addArgs(in)
+                    .error()
+            );
         }
-        for(Expression e : in.arguments()) { e.visit(this); }
+
+        for(Expression e : in.getArgs())
+            e.visit(this);
     }
 
     /**
+     * Evaluates the name of a local declaration.
      * <p>
-     *     When a user declares a local variable, we want to make sure its name
-     *     doesn't already refer to something else in the current scope.
+     *     When declaring a local variable, we want to make sure the name doesn't
+     *     conflict with any other names previously declared by the user. If there
+     *     are no issues with the local variable, we will add it to the {@code currentScope}.
      * </p>
      * @param ld Local Declaration
      */
     public void visitLocalDecl(LocalDecl ld) {
-        // ERROR CHECK #1: Check if the name was declared in the current scope
+        // ERROR CHECK #1: ThisStmt checks if the user is trying to redeclare a variable with the same name.
         if(currentScope.hasName(ld.toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(ld)
-                        .addErrorType(MessageType.SCOPE_ERROR_300)
-                        .addArgs(ld.toString())
-                        .error()
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(ld)
+                    .addErrorType(MessageType.SCOPE_ERROR_300)
+                    .addArgs(ld)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(ld.toString()).decl())
+                    .error()
             );
         }
-        ld.type().visit(this);
+
+        currentScope.addName(ld.toString(),ld);
 
         if(ld.var().init() != null) {
-            // ERROR CHECK #2: Do not allow a local variable to be initialized to itself
-            if(ld.var().init().toString().equals(ld.toString())) {
-                errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(ld)
-                            .addErrorType(MessageType.SCOPE_ERROR_301)
-                            .addArgs(ld.toString())
-                            .error()
-                );
-            }
+            currentVariable = ld.toString();
             ld.var().init().visit(this);
+            currentVariable = "";
         }
-        currentScope.addName(ld.toString(),ld);
     }
 
     /**
+     * Evaluates the scope of the main function.
      * <p>
-     *     For the main function of the program, we will treat its scope to be
-     *     the same as the global scope. Thus, we are not going to create a new
-     *     scope for the block associated with main. We do this since we want to
-     *     prevent a user from redefining any top level declarations.
+     *     The main function of the C Minor program will share the same
+     *     symbol table that corresponds to the global scope. ThisStmt means
+     *     we do not create a new scope for main since we do not want a
+     *     user to try to redefine any of the top level declarations they
+     *     declared within main.
      * </p>
      * @param md Main Declaration
      */
     public void visitMainDecl(MainDecl md) {
-        for(ParamDecl e : md.args()) { e.visit(this); }
+        for(ParamDecl e : md.args())
+            e.visit(this);
 
-        for(LocalDecl ld : md.mainBody().decls()) { ld.visit(this); }
-        for(Statement s : md.mainBody().stmts()) { s.visit(this); }
+        for(LocalDecl ld : md.mainBody().decls())
+            ld.visit(this);
+        for(Statement s : md.mainBody().stmts())
+            s.visit(this);
 
         md.symbolTable = currentScope;
         currentScope.closeScope();
     }
 
     /**
+     * Evaluates the scope of a method.
      * <p>
-     *     When we visit a method, we want to make sure both the name and
-     *     signature of the method is unique in order to support method
-     *     overloading. From there, we will open a new scope.
+     *     A method contains a symbol table for its block statement.
+     *     For methods, we will be storing their signatures internally
+     *     in order to support method overloading, so we will make sure
+     *     each method declared in the current class has a unique signature.
      * </p>
      * @param md Method Declaration
      */
     public void visitMethodDecl(MethodDecl md) {
-        // ERROR CHECK #1: Make sure the method name has not been used yet
-        if(currentScope.hasName(md.toString())) {
-            errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+        String methodSignature = md + "/";
+        if(md.params() != null)
+            methodSignature += md.paramSignature();
+
+        // ERROR CHECK #1: ThisStmt checks to make sure we are not redeclaring a method with the same type arguments.
+        if(currentScope.hasName(methodSignature)) {
+            // We will only error out if the method was redeclared in the same class twice. If the method overrides
+            // a base class method, then we will check if the method was overridden correctly at a later point.
+            if(currentClass.superClass() == null || !currentClass.symbolTable.hasName(methodSignature)) {
+                if(interpretMode)
+                    currentScope = currentScope.closeScope();
+                errors.add(
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                         .addLocation(md)
                         .addErrorType(MessageType.SCOPE_ERROR_313)
-                        .addArgs(md.toString())
+                        .addArgs(md,currentClass)
+                        .asScopeErrorBuilder()
+                        .addRedeclaration(currentScope.findName(methodSignature).decl())
                         .error()
-            );
-        }
-
-        String methodSignature = md + "/";
-        if(md.params() != null) { methodSignature += md.paramSignature(); }
-
-        // ERROR CHECK #2: Make sure method signature is unique to support overloading
-        if(currentScope.hasName(methodSignature)) {
-            // Make sure to not error out if we are overriding a base class method
-            if(!currentClass.symbolTable.hasName(methodSignature))
-                errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(md)
-                            .addErrorType(MessageType.SCOPE_ERROR_314)
-                            .addArgs(md.toString())
-                            .error()
                 );
+            }
         }
 
         currentScope.addName(methodSignature, md);
@@ -664,83 +804,115 @@ public class NameChecker extends Visitor {
 
         currentScope = currentScope.openNewScope();
         md.symbolTable = currentScope;
-        for(ParamDecl pd : md.params()) { pd.visit(this); }
 
-        for(LocalDecl ld : md.methodBlock().decls()) { ld.visit(this); }
-        for(Statement s : md.methodBlock().stmts()) { s.visit(this); }
+        for(ParamDecl pd : md.params())
+            pd.visit(this);
+        for(LocalDecl ld : md.methodBlock().decls())
+            ld.visit(this);
+        for(Statement s : md.methodBlock().stmts())
+            s.visit(this);
 
         currentScope = currentScope.closeScope();
     }
 
     /**
+     * Evaluates the name representing a name expression.
      * <p>
-     *     For any name, we check if the name can be traced back to a declaration.
-     *     All names without prior declarations will result in scoping errors.
+     *     For all names, we will check if they can be traced back to a declaration
+     *     somewhere in the program. Additionally, we will perform error checks for
+     *     the proper use of the {@code parent} keyword alongside checking if a user
+     *     tries to initialize a variable with itself.
      * </p>
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(ne.toString().equals("this")) return;
-        if(ne.toString().equals("parent")) {
+        if(ne.isParentKeyword()) {
+            // ERROR CHECK #1: ThisStmt checks if the 'parent' keyword was used outside of a class.
             if(currentClass == null) {
                 errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(ne)
-                            .addErrorType(MessageType.SCOPE_ERROR_335)
-                            .error()
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                        .addLocation(ne.getRootParent())
+                        .addErrorType(MessageType.SCOPE_ERROR_318)
+                        .addSuggestType(MessageType.SCOPE_SUGGEST_1302)
+                        .error()
                 );
             }
+            // ERROR CHECK #2: ThisStmt checks if the 'parent' keyword is used in a class with no inherited classes.
             if(currentClass.superClass() == null) {
                 errors.add(
-                        new ErrorBuilder(generateScopeError,interpretMode)
-                                .addLocation(ne)
-                                .addErrorType(MessageType.SCOPE_ERROR_336)
-                                .error()
+                    new ErrorBuilder(generateScopeError,currentFile,interpretMode)
+                        .addLocation(ne.getRootParent())
+                        .addArgs(currentClass)
+                        .addErrorType(MessageType.SCOPE_ERROR_319)
+                        .addSuggestType(MessageType.SCOPE_SUGGEST_1303)
+                        .error()
                 );
             }
         }
-        // ERROR CHECK #1: Check if the name used was previously
-        //                 declared somewhere in the program
+        // ERROR CHECK #3: ThisStmt checks if the name was not declared somewhere in the program.
         else if(!currentScope.isNameUsedAnywhere(ne.toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                    .addLocation(ne)
-                    .addErrorType(MessageType.SCOPE_ERROR_307)
-                    .addArgs(ne.toString())
+                new ErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(ne.getRootParent())
+                    .addErrorType(MessageType.SCOPE_ERROR_304)
+                    .addArgs(ne)
+                    .addSuggestType(MessageType.SCOPE_SUGGEST_1300)
+                    .addSuggestArgs(ne)
                     .error()
             );
         }
         else {
             AST varDecl = currentScope.findName(ne.toString()).decl();
-            // ERROR CHECK #2: Make sure the name does not reference an
-            //                 enumeration when used by itself
-            if(varDecl.isTopLevelDecl()
-                    && (varDecl.asTopLevelDecl().isEnumDecl() && varDecl.toString().equals(ne.toString()))) {
-                errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(ne)
-                        .addErrorType(MessageType.SCOPE_ERROR_326)
-                        .addArgs(ne.toString())
-                        .error()
-                );
+
+            // ERROR CHECK #4: ThisStmt checks if an enum type is used as a name.
+            if(varDecl.isTopLevelDecl()) {
+                if (varDecl.asTopLevelDecl().isEnumDecl() && varDecl.toString().equals(ne.toString())) {
+                    errors.add(
+                        new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                            .addLocation(ne.getRootParent())
+                            .addErrorType(MessageType.SCOPE_ERROR_320)
+                            .addArgs(ne)
+                            .error()
+                    );
+                }
+            }
+
+            // ERROR CHECK #5: ThisStmt checks if any variable declaration contains its own name when initialized.
+            if(!currentVariable.isEmpty() && currentVariable.equals(ne.toString())) {
+                AST decl = currentScope.findName(currentVariable).decl();
+                ErrorBuilder eb = new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                                      .addLocation(decl)
+                                      .addArgs(currentVariable);
+
+                // Global Declaration Error
+                if(decl.isTopLevelDecl())
+                    errors.add(eb.addErrorType(MessageType.SCOPE_ERROR_303).error());
+                // Local Declaration Error
+                else if(decl.isStatement())
+                    errors.add(eb.addErrorType(MessageType.SCOPE_ERROR_301).error());
+                // Field Declaration Error
+                else
+                    errors.add(eb.addErrorType(MessageType.SCOPE_ERROR_326).error());
+
             }
         }
     }
 
     /**
+     * Evaluates the names of a new expression.
      * <p>
      *     When instantiating an object, there are two name checks that need
      *     to be done.
      *     <ol>
      *         <li>
      *             We need to first see if the class has been defined somewhere
-     *             in the scope hierarchy. This could mean either the class
+     *             in the scope hierarchy. ThisStmt could mean either the class
      *             is declared within the main program or in any imports
      *             that the user included.
      *         </li>
      *         <li>
      *             To assign default values to class fields, a user must explicitly
-     *             write what value will be stored into each field. This means we
+     *             write what value will be stored into each field. ThisStmt means we
      *             have to check if the user wrote the appropriate field name, and
      *             they only assigned a value to each field once.
      *         </li>
@@ -749,39 +921,37 @@ public class NameChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        NameNode nn = currentScope.findName(ne.classType().toString());
-        // ERROR CHECK #1: Check if the class exists in the program
-        if(nn == null) {
+        // ERROR CHECK #1: ThisStmt checks if the class was declared in the program.
+        if(!currentScope.hasNameSomewhere(ne.getClassType().toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
-                        .addLocation(ne)
-                        .addErrorType(MessageType.SCOPE_ERROR_308)
-                        .addArgs(ne.classType().toString())
-                        .error()
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(ne)
+                    .addErrorType(MessageType.SCOPE_ERROR_314)
+                    .addArgs(ne.getClassType())
+                    .error()
             );
         }
 
-        ClassDecl cd = nn.decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().toString()).decl().asTopLevelDecl().asClassDecl();
         HashSet<String> seen = new HashSet<>();
-        for(Var v : ne.args()) {
-            // ERROR CHECK #2: Check if the field name was defined in the class
+        for(Var v : ne.getInitialFields()) {
+            // ERROR CHECK #2: ThisStmt checks if the field being initialized was declared in the class.
             if(!cd.symbolTable.hasName(v.toString())) {
                 errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                         .addLocation(ne)
-                        .addErrorType(MessageType.SCOPE_ERROR_309)
-                        .addArgs(v.toString(),ne.classType().toString())
+                        .addErrorType(MessageType.SCOPE_ERROR_315)
+                        .addArgs(v,ne.getClassType())
                         .error()
                 );
             }
-            // ERROR CHECK #3: Check if the field name was already used
-            //                 in the name expression earlier
+            // ERROR CHECK #3: ThisStmt checks if a user tries to initialize a field more than once.
             else if(seen.contains(v.toString())) {
                 errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
+                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                         .addLocation(ne)
-                        .addErrorType(MessageType.SCOPE_ERROR_310)
-                        .addArgs(v.toString())
+                        .addErrorType(MessageType.SCOPE_ERROR_316)
+                        .addArgs(v,ne.getClassType())
                         .error()
                 );
             }
@@ -790,54 +960,53 @@ public class NameChecker extends Visitor {
         }
     }
 
-    public void visitOutStmt(OutStmt os) {
-        for(Expression e : os.outExprs())
-            e.visit(this);
-    }
-
     /**
+     * Evaluates the name of a parameter.
      * <p>
-     *     We will add the parameter to the current function or method symbol
-     *     table. We are not going to allow users to shadow the names of previously
-     *     defined constructs, so they can still be used inside of the function or
-     *     method we are checking the parameter for.
+     *     ThisStmt visit checks if a parameter name has already been used somewhere
+     *     in the user's program. We are not going to allow users to shadow the
+     *     names of previously defined constructs in order to let them be used
+     *     inside either a function or method. If no errors were found, then
+     *     we will add the parameter name to the {@code currentScope} of the function
+     *     or method.
      * </p>
      * @param pd Parameter Declaration
      */
     public void visitParamDecl(ParamDecl pd) {
-        // ERROR CHECK #1: Make sure the parameter name wasn't used already
+        // ERROR CHECK #1: ThisStmt checks if the parameter name was already used somewhere in the program.
         if(currentScope.isNameUsedAnywhere(pd.toString())) {
             errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+                new ScopeErrorBuilder(generateScopeError, currentFile,interpretMode)
                     .addLocation(pd)
-                    .addErrorType(MessageType.SCOPE_ERROR_304)
-                    .addArgs(pd.toString())
+                    .addErrorType(MessageType.SCOPE_ERROR_305)
+                    .addArgs(pd)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(pd.toString()).decl())
                     .error()
             );
         }
-        pd.type().visit(this);
-        
         currentScope.addName(pd.toString(),pd);
     }
 
     /**
-     * Evaluates the names used in a retype statement.<br><br>
+     * Evaluates the names of a retype statement.
      * <p>
      *     For retype statements specifically, we want to make sure
-     *     the LHS evaluates to be a name. This name represents the
-     *     object we want to retype. We will let other visits handle
-     *     the other name checking that is done here.
+     *     the LHS evaluates to be a name. ThisStmt name represents the
+     *     object we want to retype.
      * </p>
      * @param rs Retype Statement
      */
     public void visitRetypeStmt(RetypeStmt rs) {
-        // ERROR CHECK #1: Make sure the LHS represents a name
+        // ERROR CHECK #1: ThisStmt checks to make sure the LHS of a retype statement evaluates to be a name.
         if(!rs.getName().isNameExpr() && !rs.getName().isFieldExpr() && !rs.getName().isArrayExpr()) {
             errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(rs)
-                            .addErrorType(MessageType.SCOPE_ERROR_332)
-                            .error()
+                new ErrorBuilder(generateSemanticError,currentFile,interpretMode)
+                    .addLocation(rs)
+                    .addErrorType(MessageType.SEMANTIC_ERROR_709)
+                    .addArgs(rs.getName())
+                    .addSuggestType(MessageType.SEMANTIC_SUGGEST_1704)
+                    .error()
             );
         }
 
@@ -846,10 +1015,10 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Evaluates the scope of a while statement.
      * <p>
-     *     A while loop will store a symbol table for its block statement.
-     *     We will open a new scope when we visit the block statement and
-     *     save the scope into the <code>WhileStmt</code> node.
+     *     A while loop will contain one symbol table
+     *     representing its block statement.
      * </p>
      * @param ws While Statement
      */

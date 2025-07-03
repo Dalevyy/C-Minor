@@ -10,16 +10,17 @@ import utilities.Vector;
 import utilities.Visitor;
 
 /**
- * This class represents the declaration of an enumeration inside C
+ * ThisStmt class represents the declaration of an enumeration inside C
  * Minor
  * @author Daniel Levy
  */
 public class EnumDecl extends TopLevelDecl implements NameNode {
 
     private EnumType type;
-    private final Name name;
-    private final Vector<Var> constants;
+    private Name name;
+    private Vector<Var> constants;
 
+    public EnumDecl() { this(new Token(),null,null); }
     public EnumDecl(Token t, Name name, Vector<Var> ef) {
         super(t);
         this.name = name;
@@ -27,7 +28,6 @@ public class EnumDecl extends TopLevelDecl implements NameNode {
 
         addChild(this.name);
         addChild(this.constants);
-        setParent();
     }
 
     public Name name() { return name; }
@@ -44,5 +44,49 @@ public class EnumDecl extends TopLevelDecl implements NameNode {
     public String toString() { return name.toString(); }
 
     @Override
+    public AST deepCopy() {
+        Vector<Var> constants = new Vector<>();
+        for(Var v : this.constants)
+            constants.add(v.deepCopy().asVar());
+
+        return new EnumDeclBuilder()
+                   .setMetaData(this)
+                   .setName(this.name.deepCopy().asName())
+                   .setConstants(constants)
+                   .create();
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitEnumDecl(this); }
+
+    public static class EnumDeclBuilder extends NodeBuilder {
+        private final EnumDecl ed = new EnumDecl();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return EnumDeclBuilder
+         */
+        public EnumDeclBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        public EnumDeclBuilder setName(Name name) {
+            ed.name = name;
+            return this;
+        }
+
+        public EnumDeclBuilder setConstants(Vector<Var> constants) {
+            ed.constants = constants;
+            return this;
+        }
+
+        public EnumDecl create() {
+            super.saveMetaData(ed);
+            ed.addChild(ed.name);
+            ed.addChild(ed.constants);
+            return ed;
+        }
+    }
 }

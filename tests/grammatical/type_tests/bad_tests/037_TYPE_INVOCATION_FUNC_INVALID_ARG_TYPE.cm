@@ -1,6 +1,0 @@
-
-def func(in a Int, in b Char) => Void { }
-
-def main() => Void {
-    func(5,3.14)
-}

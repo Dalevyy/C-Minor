@@ -4,14 +4,12 @@ import messages.errors.Error;
 import utilities.PrettyPrint;
 
 public class SemanticError extends Error {
-    public SemanticError() {}
+
+    public boolean isSemanticError() { return true; }
+    public SemanticError asSemanticError() { return this; }
 
     @Override
     public String header() {
-        if(fileName != null) {
-            return PrettyPrint.CYAN + "Semantic error detected in "
-                    + PrettyPrint.RESET + fileName() + "\n";
-        }
-        return PrettyPrint.CYAN + "Semantic error detected\n" + PrettyPrint.RESET;
+        return fileHeader() + PrettyPrint.CYAN + "Semantic Error " + errorNumber() + "\n\n" + PrettyPrint.RESET;
     }
 }

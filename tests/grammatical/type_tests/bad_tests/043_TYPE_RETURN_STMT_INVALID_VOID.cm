@@ -1,6 +1,0 @@
-
-def func() => Void {
-    return 3
-}
-
-def main() => Void {}

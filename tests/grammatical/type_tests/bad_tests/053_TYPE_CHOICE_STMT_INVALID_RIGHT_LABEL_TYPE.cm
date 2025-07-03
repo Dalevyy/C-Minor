@@ -1,9 +1,0 @@
-
-def main() => Void {
-    def local a = 5 Int
-
-    choice(a) {
-        on 5..'c' {}
-        other {}
-    }
-}

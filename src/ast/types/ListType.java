@@ -1,5 +1,6 @@
 package ast.types;
 
+import ast.AST;
 import token.Token;
 import utilities.Visitor;
 
@@ -12,17 +13,15 @@ public class ListType extends Type {
 
     // A list is homogeneous in C Minor which means a list
     // only stores a single data type
-    private final Type baseType;
+    private Type baseType;
     public int numOfDims;
 
+    public ListType() { this(new Token(),null,0); }
     public ListType(Type bt, int num) { this(new Token(),bt,num); }
-    public ListType(Token t, Type bt, int num) {
-        super(t);
+    public ListType(Token metaData, Type bt, int num) {
+        super(metaData);
         this.baseType = bt;
         this.numOfDims = num;
-
-        addChild(this.baseType);
-        setParent();
     }
 
     public boolean isListType() { return true; }
@@ -30,6 +29,14 @@ public class ListType extends Type {
 
     public Type baseType() { return baseType; }
     public int getDims() { return numOfDims; }
+
+    public void setBaseType(Type baseType) {
+        this.baseType = baseType;
+    }
+
+    public void setNumOfDims(int numOfDims) {
+        this.numOfDims = numOfDims;
+    }
 
     public boolean baseTypeCompatible(Type t) { return Type.assignmentCompatible(baseType,t); }
 
@@ -45,11 +52,87 @@ public class ListType extends Type {
             return this.baseTypeCompatible(ct.asListType().baseType);
     }
 
-    public String typeName() { return "List: " + baseType.typeName(); }
+    @Override
+    public String typeName() {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 0; i <= numOfDims; i++) {
+            if(i == numOfDims)
+                sb.append(baseType.typeName());
+            else
+                sb.append("List[");
+        }
+
+        sb.append("]".repeat(Math.max(0, numOfDims)));
+        return sb.toString();
+    }
 
     @Override
-    public String toString()  { return "List: " + baseType.typeName(); }
+    public String toString()  { return typeName(); }
+
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link ListType}
+     */
+    @Override
+    public AST deepCopy() {
+        return new ListTypeBuilder()
+                .setMetaData(this)
+                .setBaseType(this.baseType.deepCopy().asType())
+                .setNumOfDims(this.numOfDims)
+                .create();
+    }
 
     @Override
     public void visit(Visitor v) { v.visitListType(this); }
+
+    /**
+     * Internal class that builds a {@link ListType} object.
+     */
+    public static class ListTypeBuilder extends NodeBuilder {
+
+        /**
+         * {@link ListType} object we are building.
+         */
+        private final ListType lt = new ListType();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return ListTypeBuilder
+         */
+        public ListTypeBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        /**
+         * Sets the list type's {@link #baseType}.
+         * @param baseType Type that represents the values stored by the list
+         * @return ListTypeBuilder
+         */
+        public ListTypeBuilder setBaseType(Type baseType) {
+            lt.setBaseType(baseType);
+            return this;
+        }
+
+        /**
+         * Sets the list type's {@link #numOfDims}.
+         * @param numOfDims Int representing how many dimensions the list has
+         * @return ListTypeBuilder
+         */
+        public ListTypeBuilder setNumOfDims(int numOfDims) {
+            lt.setNumOfDims(numOfDims);
+            return this;
+        }
+
+        /**
+         * Creates a {@link ListType} object.
+         * @return {@link ListType}
+         */
+        public ListType create() {
+            super.saveMetaData(lt);
+            return lt;
+        }
+    }
 }

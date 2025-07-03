@@ -1,6 +1,0 @@
-
-def main() => Void {
-    def local a = 3 Int
-
-    not a
-}

@@ -2,6 +2,8 @@ package ast.misc;
 
 import ast.AST;
 import ast.expressions.*;
+import ast.statements.ForStmt;
+import ast.statements.WhileStmt;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
@@ -18,12 +20,13 @@ ___________________________________________________________
 */
 public class Var extends AST {
 
-    private final Name name;
+    private Name name;
     private Expression init;
     private Type type;
 
     private boolean uninit;
 
+    public Var() { this(new Token(),null,null,null,false); }
     public Var(Token t, Name name) { this(t,name,null,null,false); }
     public Var(Token t, Name name, Expression init) { this(t,name,null,init,false); }
     public Var(Token t, Name name, Type type, boolean uninit) { this(t,name,type,null,uninit); }
@@ -53,8 +56,72 @@ public class Var extends AST {
     public void setInit(Expression e) { this.init = e; }
 
     @Override
+    public void update(int pos, AST n) {
+        switch(pos) {
+            case 0:
+                name = n.asName();
+                break;
+            case 1:
+                setInit(n.asExpression());
+                break;
+            case 2:
+                setType(n.asType());
+                break;
+        }
+    }
+
+    @Override
     public String toString() { return this.name.toString(); }
 
     @Override
+    public AST deepCopy() {
+        VarBuilder vb = new VarBuilder();
+        if(!this.uninit)
+            vb.setInit(this.init.deepCopy().asExpression());
+
+        return vb.setMetaData(this)
+                 .setName(this.name.deepCopy().asName())
+                 .setType(this.type.deepCopy().asType())
+                 .create();
+    }
+
+    @Override
     public void visit(Visitor v) { v.visitVar(this); }
+
+    public static class VarBuilder extends NodeBuilder {
+        private final Var v = new Var();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return VarBuilder
+         */
+        public VarBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        public VarBuilder setName(Name name) {
+            v.name = name;
+            return this;
+        }
+
+        public VarBuilder setInit(Expression init) {
+            v.init = init;
+            v.uninit = false;
+            return this;
+        }
+
+        public VarBuilder setType(Type type) {
+            v.type = type;
+            return this;
+        }
+
+        public Var create() {
+            super.saveMetaData(v);
+            v.addChild(v.name);
+            v.addChild(v.init);
+            return v;
+        }
+    }
 }

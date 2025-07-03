@@ -1,5 +1,11 @@
 package messages.errors;
 
+import messages.errors.mod.ModError;
+import messages.errors.runtime.RuntimeError;
+import messages.errors.scope.ScopeError;
+import messages.errors.semantic.SemanticError;
+import messages.errors.syntax.SyntaxError;
+import messages.errors.type.TypeError;
 import messages.Message;
 import messages.MessageType;
 import utilities.PrettyPrint;
@@ -11,36 +17,39 @@ public abstract class Error extends Message {
 
     public abstract String header();
 
+    public String fileHeader() {
+        if(!fileName.isEmpty())
+            return "In " + fileName + ": ";
+        return "";
+    }
+
+    protected String errorNumber() {
+        return error.toString().substring(error.toString().lastIndexOf("_")+1);
+    }
+
     public String createMessage() {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(this.header());
-        if(this.location() != null)
-            sb.append(this.location().line());
-        sb.append(this.buildError());
-        if(this.suggest != null) {
-            sb.append("\n");
-            sb.append(this.buildSuggestion());
-        }
-        System.out.println(sb);
+        sb.append(header());
+        if(location != null)
+            sb.append(location.header());
+
+        sb.append(buildError());
+        if(suggest != null)
+            sb.append("\n").append(buildSuggestion());
+
+        return sb.toString();
+    }
+
+    public String printMessage() {
+        System.out.println(createMessage());
 
         if(!interpretMode)
             System.exit(1);
-        // If we have a redeclaration error, then throw an exception indicating
-        // we had a redeclaration in order to prevent the removal of the name
-        else if(this.errorType() == MessageType.SCOPE_ERROR_300
-                || this.errorType() == MessageType.SCOPE_ERROR_302
-                || this.errorType() == MessageType.SCOPE_ERROR_304
-                || this.errorType() == MessageType.SCOPE_ERROR_305
-                || this.errorType() == MessageType.SCOPE_ERROR_311
-                || this.errorType() == MessageType.SCOPE_ERROR_312
-                || this.errorType() == MessageType.SCOPE_ERROR_316
-                || this.errorType() == MessageType.SCOPE_ERROR_329)
-            throw new RuntimeException("Redeclaration");
         else
             throw new RuntimeException("Error");
         
-        return sb.toString();
+        return "";
     }
 
     private String buildError() {
@@ -55,7 +64,7 @@ public abstract class Error extends Message {
     }
 
     private String buildSuggestion() {
-        String suggestMsg = PrettyPrint.RED + this.suggest.getMessage() + PrettyPrint.RESET;
+        String suggestMsg = "\nSuggestion:\n" + PrettyPrint.RED + this.suggest.getMessage() + PrettyPrint.RESET;
         if(this.argsForSuggestions != null) {
             for(int i = 0; i < this.argsForSuggestions.length; i++) {
                 String arg = "<arg" + i + ">";
@@ -65,9 +74,28 @@ public abstract class Error extends Message {
         return suggestMsg;
     }
 
-    public void setErrorType(MessageType et) { this.error = et; }
-    public MessageType errorType() { return this.error; }
+    public void setErrorType(MessageType et) { error = et; }
+    public MessageType errorType() { return error; }
 
-    public void setSuggestType(MessageType et) { this.suggest = et; }
-    public MessageType suggestType() { return this.suggest; }
+    public void setSuggestType(MessageType et) { suggest = et; }
+    public MessageType suggestType() { return suggest; }
+
+    // Helper Methods
+    public boolean isModifierError() { return false; }
+    public ModError asModifierError() { throw new RuntimeException("The following error does not represent a modifier error"); }
+
+    public boolean isRuntimeError() { return false; }
+    public RuntimeError asRuntimeError() { throw new RuntimeException("The following error does not represent a runtime error"); }
+
+    public boolean isScopeError() { return false; }
+    public ScopeError asScopeError() { throw new RuntimeException("The following error does not represent a scope error"); }
+
+    public boolean isSemanticError() { return false; }
+    public SemanticError asSemanticError() { throw new RuntimeException("The following error does not represent a semantic error"); }
+
+    public boolean isSyntaxError() { return false; }
+    public SyntaxError asSyntaxError() { throw new RuntimeException("The following error does not represent a syntax error"); }
+
+    public boolean isTypeError() { return false; }
+    public TypeError asTypeError() { throw new RuntimeException("The following error does not represent a type error"); }
 }

@@ -13,7 +13,7 @@ import java.util.ArrayList;
  * Micropass #4
  * <br><br>
  *
- * This pass is a continuation of name checking and concerns the usage of <code>break</code>
+ * ThisStmt pass is a continuation of name checking and concerns the usage of <code>break</code>
  * and <code>continue</code> inside of a C Minor program. In order to use these keywords,
  * they must be found inside a loop statement and if they are not, we have to generate a
  * scoping error.

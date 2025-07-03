@@ -1,5 +1,7 @@
 package ast.types;
 
+import ast.AST;
+import ast.operators.UnaryOp;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
@@ -16,23 +18,81 @@ public class DiscreteType extends Type {
     public enum Discretes { INT, CHAR, BOOL, ENUM }
     private static final Vector<String> names = new Vector<>(new String[]{ "Int", "Char", "Bool", "Enum" });
 
-    protected Discretes dType;
+    protected Discretes specificType;
 
+    public DiscreteType() { this(new Token(),null); }
     public DiscreteType(Discretes d) { this(new Token(),d); }
     public DiscreteType(Token t, Discretes d) {
         super(t);
-        this.dType = d;
+        this.specificType = d;
     }
 
     public boolean isDiscreteType() { return true; }
     public DiscreteType asDiscreteType() { return this; }
-    public Discretes getDiscreteType() { return dType; }
+    public Discretes getDiscreteType() { return specificType; }
 
-    public String typeName() { return names.get(dType.ordinal()); }
+    private void setSpecificType(Discretes specificType) {
+        this.specificType = specificType;
+    }
 
     @Override
-    public String toString() { return names.get(dType.ordinal()); }
+    public String typeName() { return names.get(specificType.ordinal()); }
+
+    @Override
+    public String toString() { return typeName(); }
+
+    /**
+     * {@code deepCopy} method.
+     * @return Deep copy of the current {@link DiscreteType}
+     */
+    @Override
+    public AST deepCopy() {
+        return new DiscreteTypeBuilder()
+                   .setMetaData(this)
+                   .setSpecificDiscreteType(this.specificType)
+                   .create();
+    }
 
     @Override
     public void visit(Visitor v) { v.visitDiscreteType(this); }
+
+    /**
+     * Internal class that builds a {@link DiscreteType} object.
+     */
+    public static class DiscreteTypeBuilder extends NodeBuilder {
+
+        /**
+         * {@link DiscreteType} object we are building.
+         */
+        private final DiscreteType dt = new DiscreteType();
+
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return DiscreteTypeBuilder
+         */
+        public DiscreteTypeBuilder setMetaData(AST node) {
+            super.setMetaData(node);
+            return this;
+        }
+
+        /**
+         * Sets the discrete type's {@link #specificType}.
+         * @param specificType {@link Discretes} representing the actual type the discrete type represents
+         * @return DiscreteTypeBuilder
+         */
+        public DiscreteTypeBuilder setSpecificDiscreteType(Discretes specificType) {
+            dt.setSpecificType(specificType);
+            return this;
+        }
+
+        /**
+         * Creates a {@link DiscreteType} object.
+         * @return {@link DiscreteType}
+         */
+        public DiscreteType create() {
+            super.saveMetaData(dt);
+            return dt;
+        }
+    }
 }
