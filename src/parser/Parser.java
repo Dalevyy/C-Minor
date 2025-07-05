@@ -210,12 +210,12 @@ public class Parser {
                 || nextLA(TokenType.STRING,1)
                 || nextLA(TokenType.ID,1)
                 || nextLA(TokenType.LIST,1)
-                || nextLA(TokenType.ARRAY,1);
+                || nextLA(TokenType.ARRAY);
     }
 
     private boolean inPrimaryExpressionFOLLOW() {
         return nextLA(TokenType.LBRACK)
-                || nextLA(TokenType.LT)
+              //  || nextLA(TokenType.LT)
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.ELVIS)
                 || nextLA(TokenType.PERIOD);
