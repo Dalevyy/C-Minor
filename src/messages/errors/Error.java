@@ -10,6 +10,8 @@ import messages.Message;
 import messages.MessageType;
 import utilities.PrettyPrint;
 
+import java.util.Objects;
+
 public abstract class Error extends Message {
 
     protected MessageType error;
@@ -18,7 +20,7 @@ public abstract class Error extends Message {
     public abstract String header();
 
     public String fileHeader() {
-        if(fileName != null)
+        if(!Objects.equals(fileName, ""))
             return "In " + fileName + ": ";
         return "";
     }
@@ -48,7 +50,7 @@ public abstract class Error extends Message {
             System.exit(1);
         else
             throw new RuntimeException("Error");
-        
+
         return "";
     }
 
