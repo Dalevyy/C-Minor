@@ -20,7 +20,7 @@ public abstract class Error extends Message {
     public abstract String header();
 
     public String fileHeader() {
-        if(!Objects.equals(fileName, ""))
+        if(fileName != null && !fileName.isEmpty())
             return "In " + fileName + ": ";
         return "";
     }
