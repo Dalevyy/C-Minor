@@ -18,7 +18,7 @@ public abstract class Error extends Message {
     public abstract String header();
 
     public String fileHeader() {
-        if(!fileName.isEmpty())
+        if(fileName != null)
             return "In " + fileName + ": ";
         return "";
     }

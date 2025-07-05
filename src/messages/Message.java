@@ -4,7 +4,7 @@ import ast.AST;
 
 public abstract class Message {
 
-    protected String fileName = "";
+    protected String fileName;
     protected AST location;
     protected String msg;
     protected Object[] args;
