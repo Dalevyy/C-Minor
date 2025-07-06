@@ -44,17 +44,16 @@ import ast.topleveldecls.ImportDecl;
 import ast.types.ClassType;
 import ast.types.DiscreteType;
 import ast.types.Type;
-
+import interpreter.value.RuntimeList;
+import interpreter.value.RuntimeObject;
+import interpreter.value.Value;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import messages.MessageType;
 import messages.errors.ErrorBuilder;
 import messages.errors.runtime.RuntimeErrorFactory;
-import interpreter.value.RuntimeObject;
-import interpreter.value.RuntimeList;
 import utilities.RuntimeStack;
 import utilities.SymbolTable;
-import interpreter.value.Value;
 import utilities.Vector;
 import utilities.Visitor;
 
@@ -123,12 +122,12 @@ public class Interpreter extends Visitor {
                 if(!al.getArrayDims().isEmpty())
                     al.getArrayDims().get(i).visit(this);
                 else
-                    currentValue = new Value(lst.size()-1,new DiscreteType(DiscreteType.Discretes.INT));
+                    currentValue = new Value(lst.size(),new DiscreteType(DiscreteType.Discretes.INT));
             } else
-                currentValue = new Value(lst.size()-1,new DiscreteType(DiscreteType.Discretes.INT));
+                currentValue = new Value(lst.size(),new DiscreteType(DiscreteType.Discretes.INT));
 
-
-            if (offset <= 0 || offset > currentValue.asInt()) {
+            // error check yay
+            if(offset <= 0 || offset > currentValue.asInt()) {
                 new ErrorBuilder(generateRuntimeError,interpretMode)
                     .addLocation(ae.getRootParent())
                     .addErrorType(MessageType.RUNTIME_ERROR_603)
@@ -870,7 +869,7 @@ public class Interpreter extends Visitor {
 
     /**
      * Executes a list statement command.
-     * <p>
+     * <p><br>
      *     This method will execute the current list command based on the
      *     provided arguments. If there are any issues, then we will produce
      *     an exception for the user.
@@ -878,52 +877,54 @@ public class Interpreter extends Visitor {
      * @param ls The current list statement we will be executing.
      */
     public void visitListStmt(ListStmt ls) {
-        // Obtain the list from the stack
-//        ls.getListName().visit(this);
-//        Vector<Object> lst = (Vector<Object>) currValue;
-//        int index = lst.size();
-//
-//        ls.getAllArgs().get(1).visit(this);
-//        switch(ls.getCommand()) {
-//            case INSERT:
-//                index = (int) currValue;
-//                // ERROR CHECK #1: Make sure a valid position was given for an element to be inserted at
-//                if(index+1 <= 1 || index > lst.size()-1) {
-//                    new ErrorBuilder(generateRuntimeError,interpretMode)
-//                            .addLocation(ls)
-//                            .addErrorType(MessageType.RUNTIME_ERROR_605)
-//                            .addArgs(ls.getListName(),lst.size()-1,index)
-//                            .error();
-//                }
-//                ls.getAllArgs().get(2).visit(this);
-//            case APPEND:
-//                if(currValue instanceof Vector) {
-//                    Vector<Object> sublist = (Vector<Object>) currValue;
-//                    if(ls.getListType().numOfDims - ((ListLiteral)sublist.get(0)).type.asListType().numOfDims > 0)
-//                        lst.add(index,currValue);
-//                    else {
-//                        for(int i = 1; i < ((Vector)currValue).size();i++) {
-//                            lst.add(index,((Vector)currValue).get(i));
-//                            index += 1;
-//                        }
-//                    }
-//                }
-//                else
-//                    lst.add(index,currValue);
-//                break;
-//            case REMOVE:
-//                if(currValue instanceof Vector) {
-//                    Vector<Object> removeElements = (Vector) currValue;
-//                    if(ls.getListType().numOfDims - ((ListLiteral)removeElements.get(0)).type.asListType().numOfDims > 0)
-//                        lst.removeAll(currValue);
-//                    else
-//                        for(Object o : removeElements)
-//                            lst.removeAll(o);
-//                }
-//                else
-//                    lst.remove((int)currValue);
-//                break;
-//        }
+        // Obtain list from the stack
+        ls.getListName().visit(this);
+        RuntimeList lst = currentValue.asList();
+
+        ls.getAllArgs().get(1).visit(this);
+        switch(ls.getCommand()) {
+            case APPEND:
+                lst.add(currentValue);
+                break;
+            case INSERT:
+                Value index = currentValue;
+                if(index.asInt() < 1 || index.asInt() > lst.size()) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.RUNTIME_ERROR_605)
+                        .addArgs(ls.getListName(),lst.size(),index.asInt())
+                        .error();
+                }
+                ls.getAllArgs().get(2).visit(this);
+                lst.insertElement(index.asInt(),currentValue);
+                break;
+            case REMOVE:
+                boolean successfulRemoval = true;
+                if(currentValue.isList()) {
+                    if(currentValue.asList().size() == 1)
+                        successfulRemoval = lst.remove(currentValue.asList().get(0));
+                }
+                else if(currentValue.getType().isInt()) {
+                    if(currentValue.asInt() < 1 || currentValue.asInt() > lst.size()) {
+                        new ErrorBuilder(generateRuntimeError,interpretMode)
+                            .addLocation(ls)
+                            .addErrorType(MessageType.RUNTIME_ERROR_608)
+                            .error();
+                    }
+                    lst.remove(currentValue.asInt());
+                }
+                else
+                    successfulRemoval = lst.remove(currentValue);
+
+                if(!successfulRemoval) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.RUNTIME_ERROR_609)
+                        .addArgs(ls.getAllArgs().get(1),ls.getListName())
+                        .error();
+                }
+
+        }
     }
 
     /**
