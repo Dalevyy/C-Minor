@@ -129,12 +129,12 @@ public class RuntimeList extends Value {
      */
     public static void buildList(RuntimeList lst, StringBuilder sb) {
         sb.append("[");
-        for(int i = 1; i < lst.size(); i++) {
+        for(int i = 1; i <= lst.size(); i++) {
             if(lst.get(i).isList())
                 buildList(lst.get(i).asList(),sb);
             else
                 sb.append(lst.get(i));
-            if(i != lst.size()-1)
+            if(i != lst.size())
                 sb.append(", ");
         }
         sb.append("]");
