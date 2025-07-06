@@ -60,7 +60,7 @@ public class RuntimeList extends Value {
      * </p>
      * @param val {@link Value}
      */
-    public void addElement(Value val) {
+    public void insertElement(Value val) {
         if(offset != -1) {
             arr.set(offset,val);
             offset = -1;
@@ -71,10 +71,10 @@ public class RuntimeList extends Value {
 
     /**
      * Adds a value to a specific position in the list.
-     * @param offset Position we want to add a value to.
+     * @param pos Position we want to add a value to.
      * @param val {@link Value}
      */
-    public void addElement(int offset, Value val) { arr.add(offset,val); }
+    public void insertElement(int pos, Value val) { arr.add(pos,val); }
 
     /**
      * Retrieves a value from the list based on the current offset.
@@ -82,6 +82,31 @@ public class RuntimeList extends Value {
      * @return {@link Value}
      */
     public Value get(int offset) { return arr.get(offset); }
+
+    /**
+     * Removes a value from the current {@link #arr} based on a position.
+     * @param index Position we want to remove a value from
+     */
+    public void remove(int index) { arr.remove(index); }
+
+    /**
+     * Removes the first occurrence of a value in {@link #arr}.
+     * @param valToRemove {@link Value} we want to remove
+     */
+    public boolean remove(Value valToRemove) {
+        for(int i = 1; i < arr.size(); i++) {
+            Value curr = arr.get(i);
+            if(curr.isList()) {
+                if(curr.asList().remove(valToRemove))
+                    return true;
+            }
+            else if(curr.equals(valToRemove)) {
+                arr.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Retrieves either a {@link ast.expressions.ArrayLiteral} or {@link ast.expressions.ListLiteral}.
@@ -94,7 +119,7 @@ public class RuntimeList extends Value {
     public Literal getMetaData() { return this.metaData; }
 
     /**
-     * Sets an internal offset value (only applicable for {@link ast.statements.AssignStmt}.
+     * Sets an internal offset value (only applicable for {@link ast.statements.AssignStmt}).
      * @param offset Position we want to access in the list
      */
     public void setOffset(int offset) { this.offset = offset; }
