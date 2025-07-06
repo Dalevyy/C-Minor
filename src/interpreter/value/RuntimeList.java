@@ -62,7 +62,7 @@ public class RuntimeList extends Value {
      */
     public void addElement(Value val) {
         if(offset != -1) {
-            addElement(offset,val);
+            arr.set(offset,val);
             offset = -1;
         }
         else
@@ -74,7 +74,7 @@ public class RuntimeList extends Value {
      * @param offset Position we want to add a value to.
      * @param val {@link Value}
      */
-    public void addElement(int offset, Value val) { arr.set(offset,val); }
+    public void addElement(int offset, Value val) { arr.add(offset,val); }
 
     /**
      * Retrieves a value from the list based on the current offset.
