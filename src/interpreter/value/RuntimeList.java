@@ -40,6 +40,7 @@ public class RuntimeList extends Value {
         // Start list with one element to make index calculations easier to do.
         this.arr = new Vector<>(new Value());
         this.metaData = metaData;
+        this.offset = -1;
         this.type = this.metaData.getConstantKind().equals(Literal.ConstantType.ARR) ? new ArrayType() : new ListType();
     }
 
@@ -60,12 +61,12 @@ public class RuntimeList extends Value {
      * @param val {@link Value}
      */
     public void addElement(Value val) {
-        if(offset != -1)
-            arr.add(val);
-        else {
+        if(offset != -1) {
             addElement(offset,val);
             offset = -1;
         }
+        else
+            arr.add(val);
     }
 
     /**
