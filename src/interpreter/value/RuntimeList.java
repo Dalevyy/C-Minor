@@ -36,12 +36,12 @@ public class RuntimeList extends Value {
      * @param metaData {@link ast.expressions.ArrayLiteral} or {@link ast.expressions.ListLiteral}
      */
     public RuntimeList(Literal metaData) {
-        super(metaData);
+        super();
         // Start list with one element to make index calculations easier to do.
         this.arr = new Vector<>(new Value());
         this.metaData = metaData;
         this.offset = -1;
-        this.type = this.metaData.getConstantKind().equals(Literal.ConstantType.ARR) ? new ArrayType() : new ListType();
+        this.type = metaData.type;
     }
 
     /**
@@ -49,6 +49,18 @@ public class RuntimeList extends Value {
      * @return Int
      */
     public int size() { return arr.size()-1; }
+
+    public void add(Value val) {
+        if(val.isList()) {
+            if(this.getType().asListType().numOfDims == val.asList().getType().asListType().numOfDims)
+                for(int i = 1; i <= val.asList().size(); i++)
+                    arr.add(val.asList().get(i));
+            else
+                arr.add(val);
+        }
+        else
+            arr.add(val);
+    }
 
     /**
      * Adds a value to the list.
@@ -60,7 +72,7 @@ public class RuntimeList extends Value {
      * </p>
      * @param val {@link Value}
      */
-    public void insertElement(Value val) {
+    public void addElement(Value val) {
         if(offset != -1) {
             arr.set(offset,val);
             offset = -1;
