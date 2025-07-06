@@ -48,7 +48,7 @@ public class RuntimeList extends Value {
      * Returns the size of the current {@link #arr}.
      * @return Int
      */
-    public int size() { return arr.size(); }
+    public int size() { return arr.size()-1; }
 
     /**
      * Adds a value to the list.
