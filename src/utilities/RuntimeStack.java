@@ -45,20 +45,6 @@ public class RuntimeStack {
     }
 
     /**
-     * Adds a new value to the stack based on a variable name.
-     * @param name Variable name
-     * @param val {@link Value}
-     */
-    public void addValue(String name, Value val) { stack.put(name,val); }
-
-    /**
-     * Adds a new value to the stack based on an AST node.
-     * @param node AST node
-     * @param val {@link Value}
-     */
-    public void addValue(AST node, Value val) { addValue(node.toString(),val); }
-
-    /**
      * Checks if the stack is storing a variable.
      * @param name Variable name
      * @return Boolean
@@ -73,6 +59,18 @@ public class RuntimeStack {
     }
 
     /**
+     * Adds a new value to the stack based on a variable name.
+     * @param name Variable name
+     * @param val {@link Value}
+     */
+    public void addValue(String name, Value val) { stack.put(name,val); }
+
+    /**
+     * See {@link #addValue(String,Value)}.
+     */
+    public void addValue(AST node, Value val) { addValue(node.toString(),val); }
+
+    /**
      * Sets the value for a variable on the stack.
      * @param name Variable name we want to set a new value for
      * @param value {@link Value} to save
@@ -85,9 +83,7 @@ public class RuntimeStack {
     }
 
     /**
-     * Sets the value for an AST node on the stack.
-     * @param node AST node
-     * @param value {@link Value} to save
+     * See {@link #setValue(String, Value)}.
      */
     public void setValue(AST node, Value value) { setValue(node.toString(),value); }
 
@@ -106,9 +102,7 @@ public class RuntimeStack {
     }
 
     /**
-     * Retrieves a value from the stack for an AST node.
-     * @param node AST node
-     * @return {@link Value}
+     * See {@link #getValue(String)}.
      */
     public Value getValue(AST node) { return this.getValue(node.toString()); }
 
