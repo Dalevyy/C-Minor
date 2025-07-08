@@ -1608,7 +1608,10 @@ public class TypeChecker extends Visitor {
      * @param ll List Literal
      */
     public void visitListLiteral(ListLiteral ll) {
+        // Special case where we have a list literal by itself
         if(currentTarget == null || !currentTarget.isListType()) {
+            // Since a list is dynamic, we need to manually figure out the size of the literal
+            // This figures out how many dimensions are in the list
             int numOfDims = 0;
             Expression curr = ll;
             while(curr.isListLiteral()) {
@@ -1618,6 +1621,7 @@ public class TypeChecker extends Visitor {
                 else
                     break;
             }
+
             if(curr.isListLiteral())
                 listAssignmentCompatibility(numOfDims, new VoidType(), ll);
             else {
