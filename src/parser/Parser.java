@@ -124,13 +124,6 @@ public class Parser {
                     FIRST SETS
     _________________________________________
     */
-    private boolean inTypeFIRST() {
-        return inScalarTypeFIRST()
-                || nextLA(TokenType.ID)
-                || nextLA(TokenType.LIST)
-                || nextLA(TokenType.TUPLE);
-    }
-
     private boolean inScalarTypeFIRST() {
         return nextLA(TokenType.STRING)
                 || nextLA(TokenType.REAL)
@@ -208,9 +201,21 @@ public class Parser {
                     FOLLOW SETS
     _________________________________________
     */
+
+    private boolean inTypeFOLLOW() {
+        return nextLA(TokenType.INT,1)
+                || nextLA(TokenType.CHAR,1)
+                || nextLA(TokenType.BOOL,1)
+                || nextLA(TokenType.REAL,1)
+                || nextLA(TokenType.STRING,1)
+                || nextLA(TokenType.ID,1)
+                || nextLA(TokenType.LIST,1)
+                || nextLA(TokenType.ARRAY);
+    }
+
     private boolean inPrimaryExpressionFOLLOW() {
         return nextLA(TokenType.LBRACK)
-                || nextLA(TokenType.LT)
+              //  || nextLA(TokenType.LT)
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.ELVIS)
                 || nextLA(TokenType.PERIOD);
@@ -1655,7 +1660,7 @@ public class Parser {
                 else if(nextLA(TokenType.LT) || nextLA(TokenType.LPAREN)) {
                     Vector<Expression> args = new Vector<>();
                     Vector<Type> types = new Vector<>();
-                    if(nextLA(TokenType.LT))
+                    if(nextLA(TokenType.LT) && inTypeFOLLOW())
                         types = typeParams();
 
                     match(TokenType.LPAREN);

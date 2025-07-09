@@ -85,6 +85,17 @@ public class FieldExpr extends Expression {
     public Expression getAccessExpr() { return this.accessExpr; }
 
     /**
+     * Returns the final field that the current expression will access.
+     * @return String
+     */
+    public String getFieldName() {
+        Expression fe = this;
+        while(fe.isFieldExpr())
+            fe = fe.asFieldExpr().getAccessExpr();
+        return fe.toString();
+    }
+
+    /**
      * Setter for {@link #target}.
      * @param target Expression
      */

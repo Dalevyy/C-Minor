@@ -60,10 +60,8 @@ public abstract class Type extends AST {
     }
 
     public static boolean assignmentCompatible(Type LHS, Type RHS) {
-        if(Type.typeEqual(LHS,RHS))
-            return true;
-        else if(LHS.isClassType() && RHS.isClassType())
-            return LHS.asClassType().toString().equals(RHS.asClassType().toString());
+        if(LHS.isClassType() && RHS.isClassType())
+            return LHS.asClassType().equals(RHS.asClassType());
         else if(LHS.isEnumType() && RHS.isEnumType())
             return LHS.asEnumType().toString().equals(RHS.asEnumType().toString());
         else if(LHS.isListType() && RHS.isListType()) {
@@ -76,7 +74,7 @@ public abstract class Type extends AST {
             ArrayType rType = RHS.asArrayType();
             return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
         }
-        else if((LHS.isMultiType() || RHS.isMultiType()) && (LHS.isClassType() || RHS.isClassType())) {
+        else if(LHS.isClassOrMultiType() && RHS.isClassOrMultiType()) {
             Vector<ClassType> possibleTypes;
             if(LHS.isMultiType()) {
                 possibleTypes = LHS.asMultiType().getAllTypes();
@@ -95,7 +93,7 @@ public abstract class Type extends AST {
             return false;
         }
         else
-            return false;
+            return Type.typeEqual(LHS,RHS);
     }
 
 

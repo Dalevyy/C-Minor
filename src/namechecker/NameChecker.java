@@ -113,24 +113,25 @@ public class NameChecker extends Visitor {
     private void addBaseClassTable(ClassDecl baseClass) {
         for(String name : baseClass.symbolTable.getAllNames().keySet()) {
             AST currentDecl = baseClass.symbolTable.findName(name).decl();
-                if(currentDecl.isFieldDecl()) {
-                    // ERROR CHECK #1: This checks if the field was already defined in the class hierarchy.
-                    if(currentScope.hasName(name)) {
-                        errors.add(
-                            new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
-                                .addLocation(currentClass.symbolTable.findName(name).decl())
-                                .addErrorType(MessageType.SCOPE_ERROR_324)
-                                .addArgs(name,currentClass)
-                                .asScopeErrorBuilder()
-                                .addRedeclaration(currentDecl)
-                                .error()
-                        );
-                    }
-                    currentScope.addName(name,currentDecl.asFieldDecl());
+            if(currentDecl.isFieldDecl()) {
+                // ERROR CHECK #1: This checks if the field was already defined in the class hierarchy.
+                if(currentScope.hasName(name)) {
+                    errors.add(
+                        new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                            .addLocation(currentClass.symbolTable.findName(name).decl())
+                            .addErrorType(MessageType.SCOPE_ERROR_324)
+                            .addArgs(name,currentClass)
+                            .asScopeErrorBuilder()
+                            .addRedeclaration(currentDecl)
+                            .error()
+                    );
                 }
-                else
-                    currentScope.addMethod(name.substring(0,name.indexOf('/')));
+                currentScope.addName(name,currentDecl.asFieldDecl());
+            }
         }
+
+        for(String name : baseClass.symbolTable.getMethodNames())
+            currentScope.addMethod(name);
     }
 
     /**
@@ -145,9 +146,11 @@ public class NameChecker extends Visitor {
      * @param baseClass The base class declaration the {@code currentClass} inherits from
      */
     private void checkOverriddenMethods(ClassDecl baseClass) {
+        // Visit each method defined in the current class we are in
         for(MethodDecl subMethod : currentClass.classBlock().getMethods()) {
-            subMethod.visit(this);
             boolean methodFoundInBaseClass = false;
+
+            subMethod.visit(this);
 
             if(baseClass != null) {
                 for(MethodDecl baseMethod : baseClass.classBlock().getMethods()) {
@@ -698,7 +701,7 @@ public class NameChecker extends Visitor {
      */
     public void visitInvocation(Invocation in) {
         // ERROR CHECK #1: This checks to make sure the invocation name was declared in the program.
-        if(!currentScope.hasMethodSomewhere(in.toString()) && !in.isLengthInvocation()) {
+        if(currentClass == null && !currentScope.hasMethodSomewhere(in.toString()) && !in.isLengthInvocation()) {
             errors.add(
                 new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                     .addLocation(in)
@@ -934,7 +937,6 @@ public class NameChecker extends Visitor {
                     .error()
             );
         }
-
         ClassDecl cd = currentScope.findName(ne.getClassType().getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
         HashSet<String> seen = new HashSet<>();
         for(Var v : ne.getInitialFields()) {
@@ -976,15 +978,15 @@ public class NameChecker extends Visitor {
      * @param pd Parameter Declaration
      */
     public void visitParamDecl(ParamDecl pd) {
-        // ERROR CHECK #1: This checks if the parameter name was already used somewhere in the program.
-        if(currentScope.isNameUsedAnywhere(pd.toString())) {
+        // ERROR CHECK #1: This checks if the parameter name was already used as another parameter.
+        if(currentScope.hasName(pd.toString())) {
             errors.add(
                 new ScopeErrorBuilder(generateScopeError, currentFile,interpretMode)
                     .addLocation(pd)
                     .addErrorType(MessageType.SCOPE_ERROR_305)
                     .addArgs(pd)
                     .asScopeErrorBuilder()
-                    .addRedeclaration(currentScope.findName(pd.toString()).decl())
+                    .addRedeclaration(currentScope.findName(pd).decl())
                     .error()
             );
         }

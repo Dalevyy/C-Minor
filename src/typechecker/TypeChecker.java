@@ -277,29 +277,31 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Checks if a list literal is assignment compatible with a list type.<br><br>
-     * <p>
-     *     ThisStmt is a recursive algorithm to check if a list literal can be assigned
-     *     to a list type in C Minor. ThisStmt algorithm is based on the algorithm used
+     * Checks if a list literal is assignment compatible with a list type.
+     * <p><br>
+     *     This is a recursive algorithm to check if a list literal can be assigned
+     *     to a list type in C Minor. This algorithm is based on the algorithm used
      *     for array assignment compatibility albeit it's simpler and has less error checks.
      * </p>
-     * @param currDepth Current level of recursion (final depth is 10
+     * @param currDepth Current level of recursion (final depth is 1)
      * @param baseType Base type of the list
      * @param curr List literal aka the current list literal we are checking
      * @return Boolean - True if assignment compatible and False otherwise
      */
     private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
         if(currDepth == 1) {
-            for(Expression e : curr.getInits()) {
-                e.visit(this);
-                // ERROR CHECK #1: Make sure the current expression matches the type of the list
-                if(!Type.assignmentCompatible(baseType,e.type)) {
+            for(Expression init : curr.getInits()) {
+                init.visit(this);
+                // ERROR CHECK #1: This checks to see if the current expression's type matches the list's base type.
+                if(!Type.assignmentCompatible(baseType,init.type)) {
                     errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(curr)
-                                .addErrorType(MessageType.TYPE_ERROR_445)
-                                .addArgs(baseType,e.type)
-                                .error()
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(curr.getRootParent())
+                            .addErrorType(MessageType.TYPE_ERROR_447)
+                            .addArgs(baseType,init.type)
+                            .addSuggestType(MessageType.TYPE_SUGGEST_1444)
+                            .addSuggestArgs(baseType)
+                            .error()
                     );
                     return false;
                 }
@@ -309,12 +311,13 @@ public class TypeChecker extends Visitor {
         else if(currDepth > 1) {
             for(Expression e : curr.getInits()) {
                 if(!e.isListLiteral()) {
-                    // ERROR CHECK #2: Make sure everything is a list if we're not at depth = 1
+                    // ERROR CHECK #2: This checks to make sure we have nested lists if the current list is multidimensional.
                     errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(curr)
-                                .addErrorType(MessageType.TYPE_ERROR_455)
-                                .error()
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(curr.getRootParent())
+                            .addErrorType(MessageType.TYPE_ERROR_448)
+                            .addArgs(curr)
+                            .error()
                     );
                     return false;
                 }
@@ -376,7 +379,7 @@ public class TypeChecker extends Visitor {
         else {
             // ERROR CHECK #3: Make sure the number of indices matches
             //                 the number of dimensions for the list
-            if(currType.asListType().numOfDims != ae.getArrayIndex().size()) {
+            if(currType.asListType().numOfDims < ae.getArrayIndex().size()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,interpretMode)
                         .addLocation(ae)
@@ -966,11 +969,14 @@ public class TypeChecker extends Visitor {
             cd.addBaseClass(base.name());
         }
 
+        SymbolTable oldScope = currentScope;
+        ClassDecl oldClass = currentClass;
         currentScope = cd.symbolTable;
         currentClass = cd;
-        super.visitClassDecl(cd);
-        currentClass = null;
-        currentScope = currentScope.closeScope();
+        if(cd.typeParams().isEmpty())
+            super.visitClassDecl(cd);
+        currentClass = oldClass;
+        currentScope = oldScope;
     }
 
     public void visitCompilation(Compilation c) {
@@ -1513,7 +1519,7 @@ public class TypeChecker extends Visitor {
             else if(currentClass != null)
                 cd = currentClass;
             else
-                cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+                cd = currentScope.findName(currentTarget.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
 
             String className = cd.toString();
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
@@ -1602,7 +1608,10 @@ public class TypeChecker extends Visitor {
      * @param ll List Literal
      */
     public void visitListLiteral(ListLiteral ll) {
+        // Special case where we have a list literal by itself
         if(currentTarget == null || !currentTarget.isListType()) {
+            // Since a list is dynamic, we need to manually figure out the size of the literal
+            // This figures out how many dimensions are in the list
             int numOfDims = 0;
             Expression curr = ll;
             while(curr.isListLiteral()) {
@@ -1612,6 +1621,7 @@ public class TypeChecker extends Visitor {
                 else
                     break;
             }
+
             if(curr.isListLiteral())
                 listAssignmentCompatibility(numOfDims, new VoidType(), ll);
             else {
@@ -1628,19 +1638,18 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Checks the type of a list statement.<br><br>
-     * <p>
-     *     In C Minor, there are 3 list statements: append, insert, and remove.
-     *     For each statement, we will ensure that a list was passed as an argument
-     *     an
+     * Checks the type of a list statement.
+     * <p><br>
+     *     In C Minor, there are 3 list statements: {@code append}, {@code insert},
+     *     and {@code remove}. For each statement, we will do a type check to make
+     *     sure the appropriate values were passed for us to execute the list statement
+     *     at runtime.
      * </p>
      * @param ls List Statement
      */
     public void visitListStmt(ListStmt ls) {
-        int argSize;
         String func;
-
-        argSize = switch (ls.getCommand()) {
+        int argSize = switch (ls.getCommand()) {
             case APPEND -> {
                 func = "append";
                 yield 2;
@@ -1655,58 +1664,46 @@ public class TypeChecker extends Visitor {
             }
         };
 
-        // ERROR CHECK #1: Make sure list function has the right amount of arguments
+        // ERROR CHECK #1: This checks if the right amount of arguments was passed to the list statement.
         if(ls.getAllArgs().size() != argSize) {
             errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ls)
-                        .addErrorType(MessageType.TYPE_ERROR_457)
-                        .addArgs(func,argSize,ls.getAllArgs().size())
-                        .error()
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    .addLocation(ls)
+                    .addErrorType(MessageType.TYPE_ERROR_449)
+                    .addArgs(func,argSize,ls.getAllArgs().size())
+                    .error()
             );
         }
 
         ls.getListName().visit(this);
-        Type lstType = ls.getListName().type;
-        // ERROR CHECK #2: Make sure the variable name represents a list
-        if(!lstType.isListType()) {
+        // ERROR CHECK #2: This checks if the first argument represents a list.
+        if(!ls.getListName().type.isListType()) {
             errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ls)
-                        .addErrorType(MessageType.TYPE_ERROR_458)
-                        .addArgs(func)
-                        .error()
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    .addLocation(ls)
+                    .addErrorType(MessageType.TYPE_ERROR_450)
+                    .addArgs(ls.getListName(),func)
+                    .addSuggestType(MessageType.TYPE_SUGGEST_1445)
+                    .addSuggestArgs(func)
+                    .error()
             );
         }
 
         Type itemType;
         ls.getSecondArg().visit(this);
         if(func.equals("insert")) {
-            // ERROR CHECK #3: Make sure the insert position is an Int
+            // ERROR CHECK #3: This checks to make sure the second argument for 'insert' is an integer position.
             if(!ls.getAllArgs().get(1).type.isInt()) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(ls)
-                            .addErrorType(MessageType.TYPE_ERROR_460)
-                            .error()
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_451)
+                        .addArgs(ls.getAllArgs().get(1))
+                        .addSuggestType(MessageType.TYPE_SUGGEST_1446)
+                        .error()
                 );
             }
             ls.getThirdArg().visit(this);
-            itemType = ls.getThirdArg().type;
-        }
-        else
-            itemType = ls.getSecondArg().type;
-
-        // ERROR CHECK #4: Make sure the item we are trying to add/delete
-        //                 represents a sublist for the current list
-        if(!lstType.asListType().isSubList(itemType)) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(ls)
-                        .addErrorType(MessageType.TYPE_ERROR_459)
-                        .addArgs(func)
-                        .error()
-            );
         }
     }
 
@@ -1872,11 +1869,11 @@ public class TypeChecker extends Visitor {
                     if(interpretMode)
                         currentTarget = null;
                     errors.add(
-                        new ErrorBuilder(generateScopeError,interpretMode)
-                                .addLocation(ne)
-                                .addErrorType(MessageType.SCOPE_ERROR_309)
-                                .addArgs(ne.toString(),targetName)
-                                .error()
+                        new ErrorBuilder(generateScopeError,currentFile,interpretMode)
+                            .addLocation(ne.getRootParent())
+                            .addErrorType(MessageType.SCOPE_ERROR_329)
+                            .addArgs(ne,targetName)
+                            .error()
                     );
                 }
             }
@@ -1936,7 +1933,7 @@ public class TypeChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.getClassType().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
 
         for(Var v : ne.getInitialFields()) {
             Type fType = cd.symbolTable.findName(v.toString()).decl().asFieldDecl().type();
@@ -1965,8 +1962,11 @@ public class TypeChecker extends Visitor {
                 }
             }
         }
-        ne.type = new ClassType(cd.toString());
+        ne.type = ne.getClassType();
         ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
+
+        if(ne.templatedClass != null)
+            ne.templatedClass.visit(this);
     }
 
     /**

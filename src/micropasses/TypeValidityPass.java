@@ -20,7 +20,10 @@ import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.Type;
 import messages.MessageType;
 import messages.errors.ErrorBuilder;
+import messages.errors.scope.ScopeErrorBuilder;
+import messages.errors.scope.ScopeErrorFactory;
 import messages.errors.type.TypeErrorFactory;
+import namechecker.NameChecker;
 import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
@@ -29,9 +32,9 @@ import utilities.Visitor;
  * Micropass #5
  * <br><br>
  * The parser generates a <code>ClassType</code> node when a name is used for a <i>type</i> regardless
- * if the name represents a <i>Class</i> or <i>Enum</i>. ThisStmt means we have to do a pass to change all
+ * if the name represents a <i>Class</i> or <i>Enum</i>. This means we have to do a pass to change all
  * <code>ClassType</code> nodes to be <code>EnumType</code> nodes if the name represents an <i>Enum</i>.
- * ThisStmt pass needs to be completed before typechecking or else we can't properly run the assignment
+ * This pass needs to be completed before typechecking or else we can't properly run the assignment
  * compatibility method.
  * <br><br>
  * The following is a list of declarations this micropass will run on.
@@ -46,9 +49,12 @@ public class TypeValidityPass extends Visitor {
 
     private SymbolTable currentScope;
     private String currentFile = "";
+
     private FuncDecl currentFunction;
-    private ClassDecl currentClass;
-    private boolean typeParam;
+    private ClassDecl currentTemplate;
+    private Vector<Type> typeArgs;
+    private Vector<Typeifier> currentTypeParams;
+    private final ScopeErrorFactory generateScopeError;
     private final TypeErrorFactory generateTypeError;
     private final Vector<String> errors;
 
@@ -57,6 +63,7 @@ public class TypeValidityPass extends Visitor {
      */
     public TypeValidityPass() {
         this.currentScope = null;
+        this.generateScopeError = new ScopeErrorFactory();
         this.generateTypeError = new TypeErrorFactory();
         this.errors = new Vector<>();
     }
@@ -73,12 +80,32 @@ public class TypeValidityPass extends Visitor {
     }
 
     /**
+     * Checks if a variable name corresponds to a type parameter name.
+     * <p><br>
+     *     Similarly to how C++ handles the scope resolution of type parameters,
+     *     C Minor will follow a similar approach and prevent a user from shadowing
+     *     the type parameter by using the name in a different construct within a
+     *     class or function. This method will check for us whether or not a name
+     *     shadows a type parameter, so we can know if we need to generate an error.
+     * </p>
+     * @param name String representation of a variable name
+     * @return Boolean
+     */
+    private boolean nameShadowsTypeParam(String name) {
+        for(Typeifier tp : currentTypeParams)
+            if(name.equals(tp.toString()))
+                return true;
+
+        return false;
+    }
+
+    /**
      * Rewrites a {@code ClassType} into an {@code EnumType} (if applicable).
      * <p>
      *     Since the parser does not distinguish the difference between class
      *     and enum types, we have to do a manual rewrite of any class types that
      *     actually represent an enum type in order to do proper type checking.
-     *     ThisStmt method handles the rewrite for us if it needs to be done.
+     *     This method handles the rewrite for us if it needs to be done.
      * </p>
      * @param t Type we might need to rewrite
      * @return A type representing the original {@code ClassType} or a new {@code EnumType}.
@@ -86,12 +113,24 @@ public class TypeValidityPass extends Visitor {
     private Type rewriteClassType(Type t) {
         t.visit(this);
 
-        AST typeDecl = currentScope.findName(t.toString()).decl();
+        AST typeDecl = currentScope.findName(t.asClassType().getClassName().toString()).decl();
         if(typeDecl.isTopLevelDecl() && typeDecl.asTopLevelDecl().isEnumDecl())
             return buildEnumType(typeDecl.asTopLevelDecl().asEnumDecl());
 
         if(t.asClassType().isTemplatedType())
             checkTemplateType(t.asClassType());
+
+        // If we are visiting a newly created template, then we want to replace
+        // all type parameters with the correct type arguments
+        if(currentTemplate != null && !currentTemplate.typeParams().isEmpty()) {
+            for(int i = 0; i < currentTemplate.typeParams().size(); i++) {
+                Typeifier param = currentTemplate.typeParams().get(i).asTypeifier();
+                if(param.toString().equals(t.asClassType().getClassName().toString())) {
+                    t = typeArgs.get(i);
+                    break;
+                }
+            }
+        }
 
         return t;
     }
@@ -99,7 +138,7 @@ public class TypeValidityPass extends Visitor {
     /**
      * Builds a new {@code EnumType} node.
      * <p>
-     *     ThisStmt method will create a new type for an enum declaration. ThisStmt
+     *     This method will create a new type for an enum declaration. This
      *     type is specifically an {@code EnumType} that will contain the
      *     name of the enum followed by the type of data stored in the enum's
      *     constants.
@@ -132,12 +171,12 @@ public class TypeValidityPass extends Visitor {
      * @param ct Class type representing a templated type.
      */
     private void checkTemplateType(ClassType ct) {
-        ClassDecl cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ct.getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
 
-        // ERROR CHECK #1: ThisStmt checks if both the class and the class type have the same number of type parameters.
+        // ERROR CHECK #1: This checks if both the class and the class type have the same number of type parameters.
         if(cd.typeParams().size() != ct.typeArgs().size()) {
-            // ThisStmt error message is generated when a user tries to instantiate a non-templated class.
-            if (cd.typeParams().isEmpty()) {
+            // This error message is generated when a user tries to instantiate a non-templated class.
+            if(cd.typeParams().isEmpty()) {
                 errors.add(
                         new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                                 .addLocation(ct.getRootParent())
@@ -146,7 +185,7 @@ public class TypeValidityPass extends Visitor {
                                 .error()
                 );
             }
-            // ThisStmt error message is generated when a user tries to instantiate a templated class.
+            // This error message is generated when a user tries to instantiate a templated class.
             else {
                 ErrorBuilder eb = new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                         .addLocation(ct.getRootParent())
@@ -164,8 +203,8 @@ public class TypeValidityPass extends Visitor {
         // We now look through each type parameter for the corresponding class.
         for (int i = 0; i < cd.typeParams().size(); i++) {
             Typeifier tp = cd.typeParams().get(i);
-            // ERROR CHECK #2: ThisStmt checks if the correct type was passed as an argument (if applicable).
-            if (tp.hasPossibleType() && !tp.isValidType(ct.typeArgs().get(i))) {
+            // ERROR CHECK #2: This checks if the correct type was passed as an argument (if applicable).
+            if(tp.hasPossibleType() && !tp.isValidType(ct.typeArgs().get(i))) {
                 errors.add(
                     new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                         .addLocation(ct.getRootParent())
@@ -179,6 +218,39 @@ public class TypeValidityPass extends Visitor {
         }
     }
 
+    private ClassDecl instantiatesTemplate(ClassType ct) {
+        ClassDecl originalClass = currentScope.findName(ct.getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl copy = originalClass.deepCopy().asTopLevelDecl().asClassDecl();
+        copy.visit(new NameChecker());
+        ClassDecl oldTemplate = currentTemplate;
+        Vector<Type> oldArgs = typeArgs;
+
+        currentTemplate = copy;
+        typeArgs = ct.typeArgs();
+
+        copy.visit(this);
+
+        currentTemplate = oldTemplate;
+        typeArgs = oldArgs;
+        copy.removeTypeParams();
+        return copy;
+    }
+
+    /**
+     * Sets the current scope to be inside of a class.
+     * @param cd Class Declaration
+     */
+    public void visitClassDecl(ClassDecl cd) {
+        currentScope = cd.symbolTable;
+
+        if(cd.isTemplate())
+            currentTypeParams = cd.typeParams();
+
+        super.visitClassDecl(cd);
+        currentScope = currentScope.closeScope();
+        currentTypeParams = null;
+    }
+
     /**
      * Checks the validity of a class type.
      * <p>
@@ -188,8 +260,8 @@ public class TypeValidityPass extends Visitor {
      * @param ct Class Type
      */
     public void visitClassType(ClassType ct) {
-        // ERROR CHECK #1: ThisStmt checks if the type written was actually declared in the program.
-        if(!currentScope.hasNameSomewhere(ct.toString())) {
+        // ERROR CHECK #1: This checks if the type written was actually declared in the program.
+        if(!currentScope.hasNameSomewhere(ct.getClassName().toString())) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ct)
@@ -223,6 +295,9 @@ public class TypeValidityPass extends Visitor {
     public void visitFieldDecl(FieldDecl fd) {
         if(fd.type().isClassType())
             fd.setType(rewriteClassType(fd.type()));
+
+        if(fd.var().init() != null)
+            fd.var().init().visit(this);
     }
 
     public void visitFuncDecl(FuncDecl fd) {
@@ -237,6 +312,9 @@ public class TypeValidityPass extends Visitor {
     public void visitGlobalDecl(GlobalDecl gd) {
         if(gd.type().isClassType())
             gd.setType(rewriteClassType(gd.type()));
+
+        if(gd.var().init() != null)
+            gd.var().init().visit(this);
     }
 
     /**
@@ -281,8 +359,23 @@ public class TypeValidityPass extends Visitor {
      * @param ld Local Declaration
      */
     public void visitLocalDecl(LocalDecl ld) {
+        // ERROR CHECK #1: This checks if the local variable's name shadows a declared type parameter.
+        if(currentTypeParams != null && nameShadowsTypeParam(ld.toString())) {
+            errors.add(
+                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                    .addLocation(ld)
+                    .addErrorType(MessageType.SCOPE_ERROR_328)
+                    .addArgs(ld)
+                    .asScopeErrorBuilder()
+                    .addRedeclaration(currentScope.findName(ld).decl())
+                    .error()
+            );
+        }
+
         if(ld.type().isClassType())
             ld.setType(rewriteClassType(ld.type()));
+        if(ld.var().init() != null)
+            ld.var().init().visit(this);
     }
 
     /**
@@ -297,11 +390,11 @@ public class TypeValidityPass extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        if(ne.createsFromTemplate())
+        if(ne.createsFromTemplate()) {
             checkTemplateType(ne.getClassType());
-
-        ClassDecl cd = currentClass.deepCopy().asTopLevelDecl().asClassDecl();
-        System.out.println("HI");
+            ne.templatedClass = instantiatesTemplate(ne.getClassType());
+            currentScope.addNameToRootTable(ne.getClassType().toString(),ne.templatedClass);
+        }
     }
 
     /**

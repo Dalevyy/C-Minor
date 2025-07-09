@@ -20,7 +20,7 @@ public class EnumDecl extends TopLevelDecl implements NameNode {
     private Name name;
     private Vector<Var> constants;
 
-    public EnumDecl() { this(new Token(),null,null); }
+    public EnumDecl() { this(new Token(),null,new Vector<>()); }
     public EnumDecl(Token t, Name name, Vector<Var> ef) {
         super(t);
         this.name = name;

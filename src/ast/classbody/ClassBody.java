@@ -31,7 +31,7 @@ public class ClassBody extends AST {
     /**
      * Default constructor for {@link ClassBody}.
      */
-    public ClassBody() { this(new Token(),null,null); }
+    public ClassBody() { this(new Token(),new Vector<>(),new Vector<>()); }
 
     /**
      * Main constructor for {@link ClassBody}.

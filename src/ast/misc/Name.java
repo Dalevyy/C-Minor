@@ -31,6 +31,8 @@ public class Name extends AST {
     public boolean isName() { return true; }
     public Name asName() { return this; }
 
+    public boolean equals(Name n) { return this.toString().equals(n.toString()); }
+
     @Override
     public String toString() { return ID; }
 

@@ -26,7 +26,7 @@ public class MethodDecl extends AST implements NameNode {
     private boolean isOverridden;
     public boolean isOperatorOverload;
 
-    public MethodDecl() { this(new Token(),null,null,null,null,null,null,false); }
+    public MethodDecl() { this(new Token(),new Vector<>(),null,null,new Vector<>(),null,null,false); }
     public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         this(new Token(),m,n,null,p,rt,b,false);
     }
@@ -165,6 +165,7 @@ public class MethodDecl extends AST implements NameNode {
             mdb.setOverridden();
 
         return mdb.setMetaData(this)
+                  .setMods(this.mods)
                   .setParams(params)
                   .setReturnType(this.returnType.deepCopy().asType())
                   .setBlockStmt(this.methodBlock.deepCopy().asStatement().asBlockStmt())

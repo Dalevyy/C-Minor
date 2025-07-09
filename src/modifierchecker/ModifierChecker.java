@@ -133,30 +133,32 @@ public class ModifierChecker extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        AST LHS = currentScope.findName(as.LHS().toString()).decl();
+        if(!as.LHS().isFieldExpr()) {
+            AST LHS = currentScope.findName(as.LHS().toString()).decl();
 
-        if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
-            // ERROR CHECK #1: A constant can not be updated after its declaration
-            if(LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
+            if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
+                // ERROR CHECK #1: A constant can not be updated after its declaration
+                if (LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
+                    errors.add(
+                            new ErrorBuilder(generateModError, interpretMode)
+                                    .addLocation(as)
+                                    .addErrorType(MessageType.MOD_ERROR_505)
+                                    .addArgs(as.LHS().toString())
+                                    .addSuggestType(MessageType.MOD_SUGGEST_1505)
+                                    .error()
+                    );
+                }
+            }
+            // ERROR CHECK #2: An enum constant can not be reassigned its value
+            else if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
                 errors.add(
-                    new ErrorBuilder(generateModError,interpretMode)
-                            .addLocation(as)
-                            .addErrorType(MessageType.MOD_ERROR_505)
-                            .addArgs(as.LHS().toString())
-                            .addSuggestType(MessageType.MOD_SUGGEST_1505)
-                            .error()
+                        new ErrorBuilder(generateModError, interpretMode)
+                                .addLocation(as)
+                                .addErrorType(MessageType.MOD_ERROR_508)
+                                .addArgs(as.LHS().toString())
+                                .error()
                 );
             }
-        }
-        // ERROR CHECK #2: An enum constant can not be reassigned its value
-        else if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
-            errors.add(
-                new ErrorBuilder(generateModError,interpretMode)
-                        .addLocation(as)
-                        .addErrorType(MessageType.MOD_ERROR_508)
-                        .addArgs(as.LHS().toString())
-                        .error()
-            );
         }
     }
 
@@ -230,7 +232,8 @@ public class ModifierChecker extends Visitor {
                 checkAbstrClassImplementation(cd,superDecl);
         }
         this.currentClass = cd;
-        super.visitClassDecl(cd);
+        if(cd.typeParams().isEmpty())
+            super.visitClassDecl(cd);
         this.currentClass = null;
         currentScope = currentScope.closeScope();
     }
@@ -444,7 +447,7 @@ public class ModifierChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: An abstract class can not be instantiated
         if(cd.mod.isAbstract()) {
@@ -458,6 +461,8 @@ public class ModifierChecker extends Visitor {
             );
         }
         super.visitNewExpr(ne);
+        if(ne.templatedClass != null)
+            ne.templatedClass.visit(this);
     }
 
     public void visitOutStmt(OutStmt os) {

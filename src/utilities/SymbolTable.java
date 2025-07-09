@@ -1,11 +1,12 @@
 package utilities;
 
+import ast.AST;
 import ast.misc.NameNode;
 
 import java.util.HashMap;
 import java.util.HashSet;
 
-// SymbolTable needs to be fixed for imports
+// SymbolTable needs to be fixed for imports... no lol
 public class SymbolTable {
 
     private final HashMap<String, NameNode> varNames;
@@ -37,6 +38,13 @@ public class SymbolTable {
     public SymbolTable getImportParent() { return importParent; }
 
     public void addName(String name, NameNode n) { varNames.put(name,n); }
+    public void addNameToRootTable(String name, NameNode n) {
+        if(parent != null)
+            parent.addNameToRootTable(name,n);
+        else
+            this.addName(name,n);
+    }
+
     public void addMethod(String methodName) { methodNames.add(methodName); }
 
     public NameNode findName(String name) {
@@ -46,6 +54,8 @@ public class SymbolTable {
         else if(importParent != null) return importParent.findName(name);
         else return null;
     }
+
+    public NameNode findName(AST node) { return findName(node.toString()); }
 
     public boolean hasName(String name) {
         return varNames.containsKey(name) || hasNameInImportTable(name);

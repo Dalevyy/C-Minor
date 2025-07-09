@@ -1,5 +1,5 @@
 package ast.expressions;
-
+import ast.topleveldecls.ClassDecl;
 import ast.AST;
 import ast.misc.Var;
 import token.Token;
@@ -21,6 +21,8 @@ import utilities.Visitor;
  */
 public class NewExpr extends Expression {
 
+    public ClassDecl templatedClass;
+
     /**
      * {@link ClassType} representing the type of the created object.
      */
@@ -34,7 +36,7 @@ public class NewExpr extends Expression {
     /**
      * Default constructor for {@link NewExpr}.
      */
-    public NewExpr() { this(new Token(),null,null); }
+    public NewExpr() { this(new Token(),null,new Vector<>()); }
 
     /**
      * Main constructor for {@link NewExpr}.
@@ -92,6 +94,13 @@ public class NewExpr extends Expression {
      * @return NewExpr
      */
     public NewExpr asNewExpr() { return this; }
+
+    /**
+     * {@code toString} method.
+     * @return String representing the name of the class being instantiated.
+     */
+    @Override
+    public String toString() { return this.objectType.toString(); }
 
     /**
      * {@code update} method.

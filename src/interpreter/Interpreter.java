@@ -1,52 +1,23 @@
 package interpreter;
 
-import ast.AST;
 import ast.classbody.InitDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.ArrayExpr;
-import ast.expressions.ArrayLiteral;
-import ast.expressions.BinaryExpr;
-import ast.expressions.BreakStmt;
-import ast.expressions.CastExpr;
-import ast.expressions.ContinueStmt;
-import ast.expressions.Expression;
-import ast.expressions.FieldExpr;
-import ast.expressions.InStmt;
-import ast.expressions.Invocation;
-import ast.expressions.ListLiteral;
-import ast.expressions.Literal;
-import ast.expressions.NameExpr;
-import ast.expressions.NewExpr;
-import ast.expressions.OutStmt;
-import ast.expressions.ThisStmt;
-import ast.expressions.UnaryExpr;
+import ast.expressions.*;
 import ast.misc.Compilation;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
-import ast.statements.AssignStmt;
-import ast.statements.BlockStmt;
-import ast.statements.CaseStmt;
-import ast.statements.ChoiceStmt;
-import ast.statements.DoStmt;
-import ast.statements.ForStmt;
-import ast.statements.IfStmt;
-import ast.statements.ListStmt;
-import ast.statements.LocalDecl;
-import ast.statements.ReturnStmt;
-import ast.statements.RetypeStmt;
-import ast.statements.Statement;
-import ast.statements.StopStmt;
-import ast.statements.WhileStmt;
-import ast.topleveldecls.ClassDecl;
-import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
-import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.ImportDecl;
+import ast.statements.*;
+import ast.topleveldecls.*;
 import ast.types.ClassType;
+import ast.types.DiscreteType;
+import ast.types.ScalarType;
 import ast.types.Type;
+import interpreter.value.RuntimeList;
+import interpreter.value.RuntimeObject;
+import interpreter.value.Value;
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import messages.MessageType;
@@ -57,297 +28,191 @@ import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
 
+// TODO: How to only have one this pointer per object? :?
+
 public class Interpreter extends Visitor {
 
     private RuntimeStack stack;
     private SymbolTable currentScope;
-    private Object currValue;
-    private Type currTarget;
+    private Value currentValue;
     private final RuntimeErrorFactory generateRuntimeError;
-    private boolean inAssignStmt;
+    private boolean insideAssignment;
+    private boolean output;
     private boolean returnFound;
     private boolean breakFound;
     private boolean continueFound;
 
     /**
-     * Creates interpreter for the VM.des
+     * Creates interpreter for the VM.
      * @param st Symbol Table
      */
     public Interpreter(SymbolTable st) {
-        stack = new RuntimeStack();
-        generateRuntimeError = new RuntimeErrorFactory();
-        this.interpretMode = true;
-        returnFound = false;
-        breakFound = false;
-        continueFound = false;
+        this.stack = new RuntimeStack();
         this.currentScope = st;
+        this.generateRuntimeError = new RuntimeErrorFactory();
+        this.interpretMode = true;
+        this.returnFound = false;
+        this.breakFound = false;
+        this.continueFound = false;
     }
 
     /**
-     * Builds string that will output the contents of an array or list.<br><br>
-     * <p>
-     *     To avoid users needing to create for loops to view individual contents
-     *     of an array or list, C Minor will allow a user to output the array or
-     *     list directly in order to see what they are storing. ThisStmt method aids
-     *     in generating the output for the user.
-     * </p>
-     * @param arr Current array we are building the output for
-     * @param sb String builder
+     * Resets the {@link #currentValue} to prevent any unwarranted errors to occur.
+     *
      */
-    private void printList(Vector<Object> arr,StringBuilder sb) {
-        sb.append("[");
-        for(int i = 1; i < arr.size(); i++) {
-            if(arr.get(i) instanceof Vector)
-                printList((Vector<Object>)arr.get(i),sb);
-            else
-                sb.append(arr.get(i));
-            if(i != arr.size()-1)
-                sb.append(", ");
+    public void reset() {
+        this.currentValue = null;
+        this.insideAssignment = false;
+        if(this.output) {
+            this.output = false;
+            System.out.println();
         }
-        sb.append("]");
     }
 
-    /*
-    _________________________ Array Expressions _________________________
-    For an array expression, we want to retrieve the array from the stack
-    and access the specific value the user wants by using the provided
-    index. Additionally, C Minor starts indexing at 1, not 0.
-    _____________________________________________________________________
-    */
+    /**
+     * Evaluates an array expression.
+     * <p><br>
+     *     We will retrieve the array from the stack, and we will access whatever
+     *     value is stored at the position specified. In C Minor, arrays and lists
+     *     are indexed starting at 1, not 0, so we will factor that into our runtime
+     *     error checking.
+     * </p>
+     * @param ae Array Expression
+     */
     public void visitArrayExpr(ArrayExpr ae) {
-        Vector<Object> arr;
-        if(currValue instanceof HashMap)
-            arr = (Vector<Object>) ((HashMap<String,Object>) currValue).get(ae.toString());
-        else {
-            ae.getArrayTarget().visit(this);
-            arr = (Vector<Object>) currValue;
-        }
-                   Vector<Object> curr = arr;
+        ae.getArrayTarget().visit(this);
+        RuntimeList lst = currentValue.asList();
 
         for(int i = 0; i < ae.getArrayIndex().size(); i++) {
             ae.getArrayIndex().get(i).visit(this);
-            int offset = (int) currValue;
+            int offset = currentValue.asInt();
 
-            if(arr.get(0) instanceof ArrayLiteral) {
-                ArrayLiteral al = (ArrayLiteral)arr.get(0);
+            // Figures out the maximum size of the current array/list
+            if(lst.isArray()) {
+                ArrayLiteral al = lst.getMetaData().asArrayLiteral();
                 if(!al.getArrayDims().isEmpty())
                     al.getArrayDims().get(i).visit(this);
-                else if(i == 0)
-                    currValue = arr.size() -1;
                 else
-                    currValue = arr.size()-1;
-            }
-            else if(i==0)
-                currValue = arr.size()-1;
-            else
-                currValue = arr.size()-1;
+                    currentValue = new Value(lst.size(),new DiscreteType(DiscreteType.Discretes.INT));
+            } else
+                currentValue = new Value(lst.size(),new DiscreteType(DiscreteType.Discretes.INT));
 
-            if (offset <= 0 || offset > (int)currValue) {
-                    new ErrorBuilder(generateRuntimeError, interpretMode)
-                            .addLocation(ae)
-                            .addErrorType(MessageType.RUNTIME_ERROR_603)
-                            .error();
+            // error check yay
+            if(offset <= 0 || offset > currentValue.asInt()) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ae.getRootParent())
+                    .addErrorType(MessageType.RUNTIME_ERROR_603)
+                    .error();
             }
 
-
-            Object v = curr.get(offset);
-            if(v instanceof Vector)
-                curr = (Vector) v;
-            else {
-                currValue = v;
-                if(inAssignStmt) { currValue = new Vector<>(new Object[]{curr,offset}); }
+            currentValue = lst.get(offset);
+            if(currentValue.isList())
+                lst = currentValue.asList();
+            else if(insideAssignment) {
+                lst.setOffset(offset);
+                currentValue = lst;
             }
         }
     }
 
     /**
-     * Evaluates an array literal.<br><br>
-     * <p>
+     * Evaluates an array literal.
+     * <p><br>
      *     Arrays are static in C Minor, so a user can not change its size
      *     once an array literal is declared. We will evaluate every expression
-     *     for the current array literal and store it in a <code>Vector</code>.
-     *     ThisStmt will emulate the array during runtime.
+     *     for the current array literal and store it in a {@link RuntimeList}
+     *     This will emulate an array in memory during runtime.
      * </p>
      * @param al Array Literal
      */
     public void visitArrayLiteral(ArrayLiteral al) {
-        Vector<Object> arr = new Vector<>();
+        RuntimeList arr = new RuntimeList(al);
 
         for(Expression e : al.getArrayInits()) {
             e.visit(this);
-            arr.add(currValue);
+            arr.addElement(currentValue);
         }
 
-        // Add the array literal to the Vector, so its
-        // dimensions can be used during a visit to ArrayExpr
-        arr.add(0,al);
-        currValue = arr;
+        currentValue = arr;
     }
 
     /**
-     * Executes an assignment statement.<br><br>
-     * <p>
-     *     We will first evaluate the LHS of the assignment, so we can access
-     *     the correct variable in the runtime stack. Then, we will evaluate
-     *     the RHS and assign its value into the current call frame.
+     * Executes an assignment statement.
+     * <p><br>
+     *     We will evaluate the LHS and RHS of the {@link AssignStmt}, so we
+     *     can calculate the new value we need to assign. We will then store
+     *     the resulting value into the stack.
      * </p>
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        String name = as.LHS().toString();
+        String assignOp = as.assignOp().toString();
+
+        as.LHS().visit(this);
+        Value oldValue = currentValue;
 
         as.RHS().visit(this);
-        Object newValue = currValue;
+        Value newValue = currentValue;
 
-        String aOp = as.assignOp().toString();
-
-        if(as.LHS().isArrayExpr()) {
-            inAssignStmt = true;
-            as.LHS().visit(this);
-            Vector<Object> arr = (Vector) ((Vector)currValue).get(0);
-            int index = (int) ((Vector)currValue).get(1);
-            switch(aOp) {
-                case "=": {
-                    arr.set(index, newValue);
-                    break;
-                }
-                case "+=":
-                case "-=":
-                case "*=":
-                case "/=":
-                case "%=":
-                case "**=": {
-                    if (as.RHS().type.isInt()) {
-                        int oldVal = (int) arr.get(index);
-                        int val = (int) newValue;
-                        switch (aOp) {
-                            case "+=" -> arr.set(index, oldVal + val);
-                            case "-=" -> arr.set(index, oldVal - val);
-                            case "*=" -> arr.set(index, oldVal * val);
-                            case "/=" -> arr.set(index, oldVal / val);
-                            case "%=" -> arr.set(index, oldVal % val);
-                            case "**=" -> arr.set(index, Math.pow(oldVal, val));
-                        }
-                        break;
-                    } else if (as.RHS().type.isReal()) {
-                        BigDecimal oldVal = (BigDecimal) arr.get(index);
-                        BigDecimal val = (BigDecimal) newValue;
-                        switch (aOp) {
-                            case "+=" -> arr.set(index, oldVal.add(val));
-                            case "-=" -> arr.set(index, oldVal.subtract(val));
-                            case "*=" -> arr.set(index, oldVal.multiply(val));
-                            case "/=" -> arr.set(index, oldVal.divide(val));
-                            case "%=" -> arr.set(index, oldVal.remainder(val));
-                            case "**=" -> arr.set(index, oldVal.pow(val.toBigInteger().intValue()));
-                        }
-                        break;
-                    } else if (as.RHS().type.isString()) {
-                        String oldVal = (String) arr.get(index);
-                        String val = (String) newValue;
-                        arr.set(index, oldVal + val);
-                        break;
+        switch(assignOp) {
+            case "=":
+                break;
+            default:
+                if(as.RHS().type.isInt()) {
+                    switch (assignOp) {
+                        case "+=" -> newValue = new Value(oldValue.asInt() + newValue.asInt(), newValue.getType());
+                        case "-=" -> newValue = new Value(oldValue.asInt() - newValue.asInt(), newValue.getType());
+                        case "*=" -> newValue = new Value(oldValue.asInt() * newValue.asInt(), newValue.getType());
+                        case "/=" -> newValue = new Value(oldValue.asInt() / newValue.asInt(), newValue.getType());
+                        case "%=" -> newValue = new Value(oldValue.asInt() % newValue.asInt(), newValue.getType());
+                        case "**=" -> newValue = new Value(Math.round(Math.pow(oldValue.asInt(), newValue.asInt())), newValue.getType());
                     }
-                }
-            }
-            inAssignStmt = false;
-            return;
+                } else if(as.RHS().type.isReal()) {
+                    switch(assignOp) {
+                        case "+=" -> newValue = new Value(oldValue.asReal().add(newValue.asReal()), newValue.getType());
+                        case "-=" -> newValue = new Value(oldValue.asReal().subtract(newValue.asReal()), newValue.getType());
+                        case "*=" -> newValue = new Value(oldValue.asReal().multiply(newValue.asReal()), newValue.getType());
+                        case "/=" -> newValue = new Value(oldValue.asReal().divide(newValue.asReal()), newValue.getType());
+                        case "%=" -> newValue = new Value(oldValue.asReal().remainder(newValue.asReal()), newValue.getType());
+                        case "**=" -> newValue = new Value(oldValue.asReal().pow(newValue.asReal().toBigInteger().intValue()), newValue.getType());
+                    }
+                } else if(as.RHS().type.isString())
+                    newValue = new Value(newValue.asString() + oldValue.asString(), newValue.getType());
         }
 
-        HashMap<String,Object> instance = null;
-        if(as.LHS().isFieldExpr() && as.LHS().asFieldExpr().getTarget().isThisStmt())
-            instance = (HashMap<String,Object>) stack.getValue("this");
-
-        // TODO: Operator Overloads as well
-
-        switch(aOp) {
-            case "=":
-                if(instance != null)
-                    instance.put(name,newValue);
-                else
-                    stack.setValue(name,newValue);
-                break;
-            case "+=":
-            case "-=":
-            case "*=":
-            case "/=":
-            case "%=":
-            case "**=":
-                if(as.RHS().type.isInt()) {
-                    int oldVal;
-                    if(instance != null)
-                        oldVal = (int) instance.get(name);
-                    else
-                        oldVal = (int) stack.getValue(name);
-                    int val = (int) newValue;
-                    int nextVal = 0;
-                    switch(aOp) {
-                        case "+=" -> nextVal = oldVal+val;
-                        case "-=" -> nextVal = oldVal-val;
-                        case "*=" -> nextVal = oldVal*val;
-                        case "/=" -> nextVal = oldVal/val;
-                        case "%=" -> nextVal = oldVal%val;
-                        case "**=" -> nextVal = (int)Math.pow(oldVal,val);
-                    }
-                    if(instance != null)
-                        instance.put(name,nextVal);
-                    else
-                        stack.setValue(name,nextVal);
-                    break;
-                }
-                else if(as.RHS().type.isReal()) {
-                    BigDecimal oldVal;
-                    if(instance != null)
-                        oldVal = (BigDecimal) instance.get(name);
-                    else
-                        oldVal = (BigDecimal) stack.getValue(name);
-                    BigDecimal val = (BigDecimal) newValue;
-                    BigDecimal nextVal = null;
-                    switch(aOp) {
-                        case "+=" -> nextVal = oldVal.add(val);
-                        case "-=" -> nextVal = oldVal.subtract(val);
-                        case "*=" -> nextVal = oldVal.multiply(val);
-                        case "/=" -> nextVal = oldVal.divide(val);
-                        case "%=" -> nextVal = oldVal.remainder(val);
-                        case "**=" -> nextVal = oldVal.pow(val.toBigInteger().intValue());
-                    }
-                    if(instance != null)
-                        instance.put(name,nextVal);
-                    else
-                        stack.setValue(name,nextVal);
-                    break;
-                }
-                else {
-                    String oldVal = "";
-                    if(instance != null)
-                        oldVal = instance.get(name).toString();
-                    else
-                        stack.getValue(name).toString();
-                    String val = newValue.toString();
-                    if(instance != null)
-                            instance.put(name,oldVal+val);
-                    else
-                        stack.setValue(name,oldVal+val);
-                }
+        if(as.LHS().isNameExpr())
+            stack.setValue(as.LHS(), newValue);
+        else if(as.LHS().isFieldExpr()) {
+            insideAssignment = true;
+            as.LHS().visit(this);
+            currentValue.asObject().setField(as.LHS().asFieldExpr().getFieldName(),newValue);
+            insideAssignment = false;
+        }
+        else if(as.LHS().isArrayExpr()) {
+            insideAssignment = true;
+            as.LHS().visit(this);
+            currentValue.asList().addElement(newValue);
+            insideAssignment = false;
         }
     }
 
     /**
-     * Evaluates a binary expression.<br><br>
-     * <p>
-     *     We will first evaluate the LHS and the RHS of the binary expression.
-     *     Then, we will evaluate the binary expression based on the LHS and RHS
-     *     types.
+     * Evaluates a binary expression.
+     * <p><br>
+     *     We first need to evaluate the values of the LHS and RHS of the current
+     *     binary expression. Then, we will perform the correct binary operation
+     *     based on the type the binary expression evaluates to.
      * </p>
      * @param be Binary Expression
      */
     public void visitBinaryExpr(BinaryExpr be) {
+        String binOp = be.getBinaryOp().toString();
+
         be.getLHS().visit(this);
-        Object LHS = currValue;
+        Value LHS = currentValue;
 
         be.getRHS().visit(this);
-        Object RHS = currValue;
-
-        String binOp = be.getBinaryOp().toString();
+        Value RHS = currentValue;
 
         switch(binOp) {
             case "+":
@@ -355,184 +220,140 @@ public class Interpreter extends Visitor {
             case "*":
             case "/":
             case "%":
-            case "**": {
+            case "**":
                 if(be.type.isInt()) {
-                    int lValue = (int) LHS;
-                    int rValue = (int) RHS;
                     switch(binOp) {
-                        case "+" -> currValue = lValue + rValue;
-                        case "-" -> currValue = lValue - rValue;
-                        case "*" -> currValue = lValue * rValue;
-                        case "/" -> currValue = lValue / rValue;
-                        case "%" -> currValue = lValue % rValue;
-                        case "**" -> currValue = (int) Math.pow(lValue,rValue);
+                        case "+" -> currentValue = new Value(LHS.asInt() + RHS.asInt(),be.type);
+                        case "-" -> currentValue = new Value(LHS.asInt() - RHS.asInt(),be.type);
+                        case "*" -> currentValue = new Value(LHS.asInt() * RHS.asInt(),be.type);
+                        case "/" -> currentValue = new Value(LHS.asInt() / RHS.asInt(),be.type);
+                        case "%" -> currentValue = new Value(LHS.asInt() % RHS.asInt(),be.type);
+                        case "**" -> currentValue = new Value(Math.round(Math.pow(LHS.asInt(),RHS.asInt())),be.type);
                     }
                     break;
                 }
                 else if(be.type.isReal()) {
-                    BigDecimal lValue = new BigDecimal(LHS.toString());
-                    BigDecimal rValue = new BigDecimal(RHS.toString());
                     switch(binOp) {
-                        case "+" -> currValue = lValue.add(rValue);
-                        case "-" -> currValue = lValue.subtract(rValue);
-                        case "*" -> currValue = lValue.multiply(rValue);
-                        case "/" -> currValue = lValue.divide(rValue);
-                        case "%" -> currValue = lValue.remainder(rValue);
-                        case "**" -> currValue = lValue.pow(rValue.toBigInteger().intValue());
+                        case "+" -> currentValue = new Value(LHS.asReal().add(RHS.asReal()),be.type);
+                        case "-" -> currentValue = new Value(LHS.asReal().subtract(RHS.asReal()),be.type);
+                        case "*" -> currentValue = new Value(LHS.asReal().multiply(RHS.asReal()),be.type);
+                        case "/" -> currentValue = new Value(LHS.asReal().divide(RHS.asReal()),be.type);
+                        case "%" -> currentValue = new Value(LHS.asReal().remainder(RHS.asReal()),be.type);
+                        case "**" -> currentValue = new Value(LHS.asReal().pow(RHS.asReal().toBigInteger().intValue()),be.type);
                     }
                     break;
                 }
                 else if(be.type.isString()) {
-                    String lValue = (String) LHS;
-                    String rValue = (String) RHS;
-                    currValue = lValue + rValue;
+                    currentValue = new Value(LHS.asString() + RHS.asString(),be.type);
                     break;
                 }
-            }
             case "==":
-            case "!=": {
-                if(be.getLHS().type.isBool() && be.getRHS().type.isBool()) {
-                    boolean lValue = (boolean) LHS;
-                    boolean rValue = (boolean) RHS;
-                    switch(binOp) {
-                        case "==" -> currValue = lValue == rValue;
-                        case "!=" -> currValue = lValue != rValue;
-                    }
-                    break;
+            case "!=":
+                switch(binOp) {
+                    case "==" -> currentValue = new Value(LHS.equals(RHS),be.type);
+                    case "!=" -> currentValue = new Value(!LHS.equals(RHS),be.type);
                 }
-                else if(be.getLHS().type.isString() && be.getRHS().type.isString()) {
-                    String lValue = (String) LHS;
-                    String rValue = (String) RHS;
-                    switch(binOp) {
-                        case "==" -> currValue = lValue.equals(rValue);
-                        case "!=" -> currValue = !lValue.equals(rValue);
-                    }
-                    break;
-                }
-                else if(be.getLHS().type.isInt() && be.getRHS().type.isInt()) {
-                    int lValue = (int) LHS;
-                    int rValue = (int) RHS;
-                    switch(binOp) {
-                        case "==" -> currValue = lValue == rValue;
-                        case "!=" -> currValue = lValue != rValue;
-                    }
-                    break;
-                }
-                else if(be.getLHS().type.isChar() && be.getRHS().type.isChar()) {
-                    char lValue = LHS.toString().charAt(0);
-                    char rValue = RHS.toString().charAt(0);
-                    switch(binOp) {
-                        case "==" -> currValue = lValue == rValue;
-                        case "!=" -> currValue = lValue != rValue;
-                    }
-                    break;
-                }
-                else if(be.getLHS().type.isReal() && be.getRHS().type.isReal()) {
-                    BigDecimal lValue = (BigDecimal) LHS;
-                    BigDecimal rValue = (BigDecimal) RHS;
-                    switch(binOp) {
-                        case "==" -> currValue = lValue.compareTo(rValue) == 0;
-                        case "!=" -> currValue = lValue.compareTo(rValue) != 0;
-                    }
-                    break;
-                }
-            }
+                break;
             case "<":
             case "<=":
             case ">":
-            case ">=": {
-                if(be.getLHS().type.isInt() && be.getRHS().type.isInt()) {
-                    int lValue = (int) LHS;
-                    int rValue = (int) RHS;
+            case ">=":
+                if(be.getRHS().type.isInt()) {
                     switch (binOp) {
-                        case "<" -> currValue = lValue < rValue;
-                        case "<=" -> currValue = lValue <= rValue;
-                        case ">" -> currValue = lValue > rValue;
-                        case ">=" -> currValue = lValue >= rValue;
+                        case "<" -> currentValue = new Value(LHS.asInt() < RHS.asInt(),be.type);
+                        case "<=" -> currentValue = new Value(LHS.asInt() <= RHS.asInt(),be.type);
+                        case ">" -> currentValue = new Value(LHS.asInt() > RHS.asInt(),be.type);
+                        case ">=" -> currentValue = new Value(LHS.asInt() >= RHS.asInt(),be.type);
                     }
                     break;
                 }
-                else if(be.getLHS().type.isReal() && be.getRHS().type.isReal()) {
-                    BigDecimal lValue = new BigDecimal(LHS.toString());
-                    BigDecimal rValue = new BigDecimal(RHS.toString());
+                else if(be.getRHS().type.isReal()) {
                     switch (binOp) {
-                        case "<" -> currValue = lValue.compareTo(rValue) < 0;
-                        case "<=" -> currValue = lValue.compareTo(rValue) <= 0;
-                        case ">" -> currValue = lValue.compareTo(rValue) > 0;
-                        case ">=" -> currValue = lValue.compareTo(rValue) >= 0;
+                        case "<" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) < 0, be.type);
+                        case "<=" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) <= 0, be.type);
+                        case ">" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) > 0, be.type);
+                        case ">=" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) >= 0, be.type);
                     }
                     break;
                 }
-            }
             case "and":
-            case "or": {
-                boolean lValue = (boolean) LHS;
-                boolean rValue = (boolean) RHS;
+            case "or":
                 switch(binOp) {
-                    case "and" -> currValue = lValue && rValue;
-                    case "or" -> currValue = lValue || rValue;
+                    case "and" -> currentValue = new Value(LHS.asBool() && RHS.asBool(),be.type);
+                    case "or" -> currentValue = new Value(LHS.asBool() || RHS.asBool(),be.type);
                 }
                 break;
-            }
             case "<<":
             case ">>":
+                switch(binOp) {
+                    case "<<" -> currentValue = new Value(LHS.asInt() << RHS.asInt(), be.type);
+                    case ">>" -> currentValue = new Value(LHS.asInt() >> RHS.asInt(), be.type);
+                }
+                break;
             case "&":
             case "|":
-            case "^": {
-                if(be.type.isInt()) {
-                    int lValue = (int) LHS;
-                    int rValue = (int) RHS;
+            case "^":
+                if(be.getRHS().type.isInt()) {
                     switch(binOp) {
-                        case "<<" -> currValue = lValue << rValue;
-                        case ">>" -> currValue = lValue >> rValue;
-                        case "^" -> currValue = lValue ^ rValue;
+                        case "&" -> currentValue = new Value(LHS.asInt() & RHS.asInt(),be.type);
+                        case "|" -> currentValue = new Value(LHS.asInt() | RHS.asInt(),be.type);
+                        case "^" -> currentValue = new Value(LHS.asInt() ^ RHS.asInt(),be.type);
                     }
                     break;
                 }
-                else if(be.type.isBool()) {
-                    boolean lValue = (boolean) LHS;
-                    boolean rValue = (boolean) RHS;
+                else if(be.getRHS().type.isInt()) {
                     switch(binOp) {
-                        case "&" -> currValue = lValue & rValue;
-                        case "|" -> currValue = lValue | rValue;
+                        case "&" -> currentValue = new Value(LHS.asChar() & RHS.asChar(),be.type);
+                        case "|" -> currentValue = new Value(LHS.asChar() | RHS.asChar(),be.type);
+                        case "^" -> currentValue = new Value(LHS.asChar() ^ RHS.asChar(),be.type);
                     }
                     break;
                 }
-            }
+                else if(be.getRHS().type.isBool()) {
+                    switch (binOp) {
+                        case "&" -> currentValue = new Value(LHS.asBool() & RHS.asBool(),be.type);
+                        case "|" -> currentValue = new Value(LHS.asBool() | RHS.asBool(),be.type);
+                        case "^" -> currentValue = new Value(LHS.asBool() ^ RHS.asBool(),be.type);
+                    }
+                    break;
+                }
             case "instanceof":
             case "!instanceof":
-                ClassType objType;
-                if(be.getLHS().type.isMultiType())
-                    objType = be.getLHS().type.asMultiType().getRuntimeType();
-                else
-                    objType = be.getLHS().type.asClassType();
+                ClassType objType = LHS.asObject().getCurrentType();
+                ClassType classType = be.getRHS().type.asClassType();
 
-                currValue = ClassType.classAssignmentCompatibility(objType,be.getRHS().type.asClassType());
-                if(binOp.equals("!instanceof"))
-                    currValue = !(boolean)currValue;
+                switch(binOp) {
+                    case "instanceof" -> currentValue = new Value(ClassType.classAssignmentCompatibility(objType,classType),be.type);
+                    case "!instanceof" -> currentValue = new Value(!ClassType.classAssignmentCompatibility(objType,classType),be.type);
+                }
                 break;
         }
     }
 
     /**
-     * Executes a block statement.<br><br>
-     * <p>
-     *     For every block statement, we will create a new call frame on
-     *     the runtime stack. We will then visit every declaration and
-     *     statement found inside the block statement. Depending on the
-     *     flags we find, we will also terminate executing the block
-     *     statement early if needed.
+     * Executes a block statement.
+     * <p><br>
+     *     We will create a new call frame on the {@link #stack} every time
+     *     we visit a block statement. We then individually visit each statement
+     *     found in the block statement. First we execute all local declaration
+     *     statements followed by the remaining statements in the block. Once each
+     *     statement has been visited (or if we encounter a statement that requires
+     *     us to terminate the execution of the block), we will destroy the call frame.
      * </p>
      * @param bs Block Statement
      */
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
-        for(AST decl : bs.decls())
+        for(LocalDecl decl : bs.decls())
             decl.visit(this);
 
         for(Statement s : bs.stmts()) {
             s.visit(this);
+            /*
+                The `break`, `continue`, and `return` keywords will terminate
+                the execution of the current block statement we are in.
+            */
             if(returnFound || breakFound || continueFound)
                 break;
         }
@@ -541,121 +362,92 @@ public class Interpreter extends Visitor {
     }
 
     /**
-     * Executes a break statement.<br><br>
-     * <p>
-     *     When a break statement is found, we will set the {@code breakFound}
-     *     flag to be true. ThisStmt will allow us to terminate the loop early, and
-     *     we can move on to execute a different part of the program.
-     * </p>
+     * Executes a break statement.
+     * <p><br>
+     *     When a break statement is executed, we will set the {@link #breakFound}
+     *     flag to be true. This means we will need to terminate the current loop
+     *     statement that is executing.
      * @param bs Break Statement
      */
     public void visitBreakStmt(BreakStmt bs) { breakFound = true; }
 
-    /*
-    _____________________ Cast Expressions _____________________
-    For cast expressions, we just evaluate the value we want to
-    cast and then do the explicit type cast.
-    ____________________________________________________________
-    */
+    /**
+     * Evaluates a cast expression.
+     * <p><br>
+     *     We will evaluate the cast expression's value and
+     *     typecast it to the appropriate type.
+     * </p>
+     * @param cs Cast Expression
+     */
     public void visitCastExpr(CastExpr cs) {
         cs.getCastExpr().visit(this);
         if(cs.getCastType().isInt()) {
-            if(cs.getCastExpr().type.isReal()) { currValue = ((BigDecimal) currValue).intValue(); }
-            else if(cs.getCastExpr().type.isChar()) {
-                if(currValue.toString().charAt(1) != '/') { currValue = (int) currValue.toString().charAt(1); }
-                else { currValue = (int) currValue.toString().charAt(1) + (int) currValue.toString().charAt(2); }
-            }
+            if(cs.getCastExpr().type.isReal())
+                currentValue = new Value(currentValue.asReal().intValue(),cs.type);
+            else
+                currentValue = new Value((int) currentValue.asChar(),cs.type);
         }
         else if(cs.getCastType().isReal()) {
-            if(cs.getCastExpr().type.isInt()) { currValue = new BigDecimal(currValue.toString()); }
+            if(cs.getCastExpr().type.isInt())
+                currentValue = new Value(new BigDecimal(currentValue.asInt()),cs.type);
         }
         else if(cs.getCastType().isString()) {
-            if(cs.getCastType().isChar()) { currValue = currValue.toString(); }
+            if(cs.getCastType().isChar())
+                currentValue = new Value(currentValue.asChar(),cs.type);
         }
     }
 
-    /*
-    _________________________ Choice Statements  _________________________
-    We first evaluate the value of the choice expression. Then, we check
-    which case's label corresponds to the initial choice value to determine
-    which case statement to execute. If none of the case statements match
-    the value, then we will execute the default case statement.
-    ______________________________________________________________________
-    */
+    /**
+     * Executes a choice statement.
+     * <p><br>
+     *     We will first evaluate the choice value. Then, we will go through
+     *     each case statement and find which label the choice value belongs to
+     *     in order to determine which case statement to execute. If the value
+     *     does not belong to any label, then we will execute the default statement.
+     * </p>
+     * @param cs Choice Statement
+     */
     public void visitChoiceStmt(ChoiceStmt cs) {
         cs.choiceExpr().visit(this);
 
-        Object choiceVal = currValue;
+        Value choice = currentValue;
+
         for(int i = 0; i <= cs.caseStmts().size(); i++) {
+            Value label, rightLabel;
             // Default Case Execution
             if(i == cs.caseStmts().size()) {
                 cs.otherBlock().visit(this);
                 break;
             }
+
             CaseStmt currCase = cs.caseStmts().get(i);
 
-            // Int Case
-            if(cs.choiceExpr().type.isInt()) {
-                int val = (int) choiceVal;
+            currCase.choiceLabel().leftLabel().visit(this);
+            label = currentValue;
 
-                currCase.choiceLabel().leftLabel().visit(this);
-                int label = (int) currValue;
-
-                if(currCase.choiceLabel().rightLabel() != null) {
-                    currCase.choiceLabel().rightLabel().visit(this);
-                    int rLabel = (int) currValue;
-                    if(val >= label  && val <= rLabel) {
-                        currCase.visit(this);
-                        break;
-                    }
-                }
-                else {
-                    if(val == label) {
-                        currCase.visit(this);
-                        break;
-                    }
-                }
-            }
-            // Character Case
-            else if(cs.choiceExpr().type.isChar()) {
-                char val = choiceVal.toString().charAt(0);
-
-                currCase.choiceLabel().leftLabel().visit(this);
-                char label = currValue.toString().charAt(0);
-
-                if(currCase.choiceLabel().rightLabel() != null) {
-                    currCase.choiceLabel().rightLabel().visit(this);
-                    char rLabel = currValue.toString().charAt(0);
-                    if(val >= label  && val <= rLabel) {
-                        currCase.visit(this);
-                        break;
-                    }
-                }
-                else {
-                    if(val == label) {
-                        currCase.visit(this);
-                        break;
-                    }
-                }
-            }
-            // String Case
-            else if(cs.choiceExpr().type.isString()) {
-                String val = choiceVal.toString();
-
-                currCase.choiceLabel().leftLabel().visit(this);
-                String label = currValue.toString();
-
-                if(val.equals(label)) {
+            if(currCase.choiceLabel().rightLabel() != null) {
+                currCase.choiceLabel().rightLabel().visit(this);
+                rightLabel = currentValue;
+                if((cs.choiceExpr().type.isInt() && (choice.asInt() >= label.asInt() && choice.asInt() <= rightLabel.asInt()))
+                || (cs.choiceExpr().type.isChar() && (choice.asChar() >= label.asChar() && choice.asChar() <= rightLabel.asChar()))) {
                     currCase.visit(this);
                     break;
                 }
+            } else {
+                if(cs.choiceExpr().type.isInt() && (choice.asInt() == label.asInt())
+                || cs.choiceExpr().type.isChar() && (choice.asChar() == label.asChar())
+                || cs.choiceExpr().type.isString() && (choice.asString().equals(label.asString()))) {
+                    currCase.visit(this);
+                    break;
+                }
+
             }
         }
     }
 
     /**
      * Begins the execution of a program in compilation mode.
-     * <p>
+     * <p><br>
      *     For the time being, we are going to execute programs via
      *     the interpreter if a user is in compilation mode instead of
      *     generating bytecode. When we do this, we want to make sure to
@@ -682,235 +474,209 @@ public class Interpreter extends Visitor {
     }
 
     /**
-     * Executes a continue statement.<br><br>
-     * <p>
-     *     When a continue is found, we will set the {@code continueFound}
-     *     flag to be true. ThisStmt will allow us to stop executing the current
-     *     iteration of the loop and move on to the next iteration.
-     * </p>
+     * Executes a continue statement.
+     * <p><br>
+     *     When a continue statement is executed, we will set the {@link #continueFound}
+     *     flag to be true. This means we will need to end the current loop iteration early
+     *     and move on to the next iteration.
      * @param cs Continue Statement
      */
     public void visitContinueStmt(ContinueStmt cs) { continueFound = true; }
 
     /**
-     * Executes a do while loop.<br><br>
-     * <p>
-     *     For a do while loop, we will execute the loop body once and then
-     *     we will continue executing the body as long as the do while's
-     *     condition evaluates to be true.
+     * Executes a do while loop.
+     * <p><br>
+     *     A do while loop requires the loop to execute at least once and
+     *     then the loop will continue to be executed until the condition
+     *     evaluates to be false. Internally, we will be using a Java do
+     *     while loop to help us execute the code.
      * </p>
      * @param ds Do Statement
      */
     public void visitDoStmt(DoStmt ds) {
         do {
             ds.doBlock().visit(this);
-            if(breakFound || returnFound) {
-                breakFound = false;
-                break;
-            }
-            else if(continueFound)
-                continueFound = false;
 
+            if(breakFound || returnFound)
+                break;
+
+            continueFound = false;
             ds.condition().visit(this);
-        } while ((boolean) currValue);
+        } while(currentValue.asBool());
+
+        breakFound = false;
     }
 
     /**
-     * When visiting an <code>EnumDecl</code>, we will evaluate each constant
-     * and store the constants into the runtime stack.
-     * @param ed Current enumeration
+     * Executes an enum declaration.
+     * <p>
+     *     We will evaluate each constant in the enumeration and store
+     *     each constant into the runtime stack.
+     * </p>
+     * @param ed Enum Declaration
      */
     public void visitEnumDecl(EnumDecl ed) {
         for(Var constant : ed.constants()) {
             constant.init().visit(this);
-            stack.addValue(constant.toString(),currValue);
+            stack.addValue(constant, currentValue);
         }
     }
 
     /**
-     * Evaluates a field expression.<br><br>
-     * <p>
-     *     We will evaluate the target for the field expression first. From there,
-     *     the next evaluation will be based on what the target is trying to access
-     *     <ul>
-     *      <li>Name Expression: Evaluate access expression here.</li>
-     *      <li>Everything Else: Evaluate at a different visit</li>
-     *     </ul>
+     * Evaluates a field expression.
+     * <p><br>
+     *     We will evaluate the target expression first to get the
+     *     object we need and then we will evaluates its access expression.
+     *     If we need to save any value into the object itself, then we
+     *     will make sure to set {@link #currentValue} to be the object.
      * </p>
      * @param fe Field Expression
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.getTarget().visit(this);
-        HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
+        RuntimeObject obj = currentValue.asObject();
 
-        if(fe.getAccessExpr().isNameExpr()) {
-            currValue = instance.get(fe.getAccessExpr().toString());
-            if(currValue == null) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(fe)
-                        .addErrorType(MessageType.RUNTIME_ERROR_606)
-                        .addArgs(fe.getAccessExpr(),fe.getTarget().type.asMultiType().getRuntimeType())
-                        .error();
-            }
-        }
-        else {
-            Type oldTarget = currTarget;
-            if(fe.getTarget().type.isMultiType())
-                currTarget = fe.getTarget().type.asMultiType().getRuntimeType();
-            else
-                currTarget = fe.getTarget().type;
+        // If the field expression starts with parent, we have to change the object's type
+        // to be the parent type in order for us to call the correct method
+        if(fe.getTarget().isNameExpr() && fe.getTarget().asNameExpr().isParentKeyword()) {
+            Type oldType = obj.getCurrentType();
+            obj.setType(fe.getTarget().type.asClassType());
             fe.getAccessExpr().visit(this);
-            currTarget = oldTarget;
-        }
-    }
+            obj.setType(oldType.asClassType());
+        } else
+            fe.getAccessExpr().visit(this);
 
-    /*
-    ___________________________ For Statements ___________________________
-    Since for loops are static, we will evaluate the LHS/RHS of the
-    conditional statement to determine the number of iterations we need to
-    do. From there, we will just execute the loop body and update our
-    iteration counter in the stack.
-    ______________________________________________________________________
-    */
-    public void visitForStmt(ForStmt fs) {
-        if(fs.condLHS().type.isInt() || fs.condLHS().type.isEnumType()) {
-            int LHS, RHS;
-            fs.condLHS().visit(this);
-            LHS = (int) currValue;
-
-            fs.condRHS().visit(this);
-            RHS = (int) currValue;
-
-            switch(fs.loopOp().toString()) {
-                case "<..":
-                    LHS += 1;
-                    break;
-                case "..<":
-                    RHS -= 1;
-                    break;
-                case "<..<":
-                    LHS += 1;
-                    RHS -= 1;
-                    break;
-            }
-            stack = stack.createCallFrame();
-            stack.addValue(fs.loopVar().toString(),LHS);
-            for(int i = LHS; i <= RHS; i++) {
-                stack.setValue(fs.loopVar().toString(),i);
-                fs.forBlock().visit(this);
-            }
-            stack = stack.destroyCallFrame();
-        }
-        else if(fs.condRHS().type.isChar()) {
-            char LHS, RHS;
-            fs.condLHS().visit(this);
-            LHS = (char) currValue;
-
-            fs.condRHS().visit(this);
-            RHS = (char) currValue;
-
-            switch(fs.loopOp().toString()) {
-                case "<..":
-                    LHS += 1;
-                    break;
-                case "..<":
-                    RHS -= 1;
-                    break;
-                case "<..<":
-                    LHS += 1;
-                    RHS -= 1;
-                    break;
-            }
-
-            stack = stack.createCallFrame();
-            stack.addValue(fs.loopVar().toString(),LHS);
-            for(char i = LHS; i <= RHS; i++) {
-                stack.setValue(fs.loopVar().toString(),i);
-                fs.forBlock().visit(this);
-            }
-            stack = stack.destroyCallFrame();
-        }
-        else {
-
+        // If we're executing an assignment statement and a field expression appears on the LHS,
+        // we have to make sure we can save the value into the object instead of just getting a field value.
+        if(insideAssignment) {
+            currentValue = obj;
+            insideAssignment = false;
         }
     }
 
     /**
-     * Executes a global declaration statement.<br><br>
-     * <p>
-     *     By executing a global declaration, we will be adding a new
-     *     global variable to the runtime stack. If no initial value was
-     *     given to the variable by the user, then the variable will
-     *     automatically be assigned to be null.
+     * Executes a for statement.
+     * <p><br>
+     *     Since for loops are static in C Minor, we will evaluate the LHS and
+     *     the RHS expressions to determine how many iterations are needed. We
+     *     then simply execute the for loop's body until either the for loop
+     *     terminates early or once all iterations are completed.
+     * </p>
+     * @param fs For Statement
+     */
+    public void visitForStmt(ForStmt fs) {
+        String loopOp = fs.loopOp().toString();
+
+        fs.condLHS().visit(this);
+        Value LHS = currentValue;
+
+        fs.condRHS().visit(this);
+        Value RHS = currentValue;
+
+        // Handles both iterating over Ints and Chars
+        switch(loopOp) {
+            case "<.." -> LHS = new Value(LHS.asInt() + 1, fs.condLHS().type);
+            case "..<" -> RHS = new Value(RHS.asInt() - 1, fs.condRHS().type);
+            case "<..<" -> {
+                LHS = new Value(LHS.asInt() + 1, fs.condLHS().type);
+                RHS = new Value(RHS.asInt() - 1, fs.condRHS().type);
+            }
+        }
+
+        stack.createCallFrame();
+        stack.addValue(fs.loopVar(),LHS);
+
+        for(int i = LHS.asInt(); i <= RHS.asInt(); i++) {
+            stack.setValue(fs.loopVar(),new Value(i,fs.condLHS().type));
+            fs.forBlock().visit(this);
+
+            if(breakFound || returnFound)
+                break;
+
+            continueFound = false;
+        }
+
+        stack.destroyCallFrame();
+        breakFound = false;
+    }
+
+    /**
+     * Executes a global declaration statement.
+     * <p><br>
+     *     By executing a global declaration, we will allocate
+     *     space on the runtime stack to store a new global value.
      * </p>
      * @param gd Global Declaration
      */
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.var().init() == null)
-            currValue = null;
-        else
+        if(gd.var().init() != null)
             gd.var().init().visit(this);
-
-        stack.addValue(gd.var().toString(),currValue);
+        stack.addValue(gd.var(), currentValue);
     }
 
     /**
-     * Executes an if statement.<br><br>
-     * <p>
-     *     For an if statement, we will evaluate the condition first
-     *     to determine which block of the if statement we will need
-     *     to execute.
+     * Executes an if statement.
+     * <p><br>
+     *     An if statement is only executed if its condition evaluates to be true.
+     *     We will check each condition for every if statement contained in {@link IfStmt}
+     *     and if none of them evaluates to be true, then we will simply execute the
+     *     else statement (if applicable).
      * </p>
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        boolean found = false;
         is.condition().visit(this);
-        boolean condition = (boolean) currValue;
-        if(condition)
+
+        if(currentValue.asBool())
             is.ifBlock().visit(this);
-        else if(!is.elifStmts().isEmpty()){
-            for(int i = 0; i < is.elifStmts().size(); i++) {
-                IfStmt e = is.elifStmts().get(i);
-                e.condition().visit(this);
-                if ((boolean) currValue) {
-                    found = true;
-                    e.ifBlock().visit(this);
-                    break;
+        else {
+            if(!is.elifStmts().isEmpty()) {
+                for(int i = 0; i < is.elifStmts().size(); i++) {
+                    IfStmt elif = is.elifStmts().get(i);
+                    elif.condition().visit(this);
+                    if(currentValue.asBool()) {
+                        elif.ifBlock().visit(this);
+                        return;
+                    }
                 }
             }
+            if(is.elseBlock() != null)
+                is.elseBlock().visit(this);
         }
-        if(!condition && is.elseBlock() != null && !found)
-            is.elseBlock().visit(this);
     }
 
     /**
-     * Executes a constructor declaration.<br><br>
-     * <p>
-     *     A constructor declaration is only visited during a {@code visitNewExpr}
-     *     when we are trying to instantiate a new object. For all fields not
-     *     specified in the new expression, we will add these fields with an initial
-     *     value to the object's hash map.
+     * Executes a constructor declaration.
+     * <p><br>
+     *     A constructor declaration is only visited after a {@code visitNewExpr}
+     *     call is completed. This visit will initialize the remaining fields that
+     *     the user didn't initialize for the newly created object.
      * </p>
      * @param id Init Declaration
      */
     public void visitInitDecl(InitDecl id) {
-        HashMap<String,Object> instance = (HashMap<String,Object>) currValue;
+        RuntimeObject obj = currentValue.asObject();
 
         for(AssignStmt as : id.assignStmts()) {
-            if(!instance.containsKey(as.LHS().toString())) {
+            if(!obj.hasField(as.LHS())) {
                 as.RHS().visit(this);
-                instance.put(as.LHS().toString(),currValue);
+                obj.setField(as.LHS(), currentValue);
             }
         }
 
-        currValue = instance;
+        currentValue = obj;
     }
 
-    /*
-    ___________________________ In Statements ___________________________
-    _____________________________________________________________________
-    */
+    /**
+     * Executes an input statement.
+     * <p><br>
+     *     In C Minor, the interpreter will handle all runtime errors for the
+     *     programmer. This means that if a user incorrectly writes a value that
+     *     needs to be stored, we will automatically generate an error and terminate
+     *     the program.
+     * </p>
+     * @param in Input Statement
+     */
     public void visitInStmt(InStmt in) {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String input = "";
@@ -924,82 +690,78 @@ public class Interpreter extends Visitor {
         }
         vals.add(input);
 
-        // ERROR CHECK #1: Make sure the number of input arguments matches the number
-        //                 of expected input values that should be written
+        // ERROR CHECK #1: This checks if the user inputted the expected number of input values.
         if(vals.size() != in.getInExprs().size()) {
             new ErrorBuilder(generateRuntimeError,interpretMode)
-                    .addLocation(in)
-                    .addErrorType(MessageType.RUNTIME_ERROR_600)
-                    .error();
+                .addLocation(in)
+                .addErrorType(MessageType.RUNTIME_ERROR_600)
+                .error();
         }
+
         for(int i = 0; i < vals.size(); i++) {
             String currVal = vals.get(i);
             Expression currExpr = in.getInExprs().get(i);
             try {
-                if(currExpr.type.isInt()) {
-                    if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
-                    else { stack.setValue(currExpr.toString(),Integer.parseInt(currVal)); }
-                }
-                else if(currExpr.type.isReal()) {
-                    if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),new BigDecimal(currVal.substring(1)).multiply(new BigDecimal(-1))); }
-                    else { stack.setValue(currExpr.toString(), new BigDecimal(currVal)); }
-                }
-                else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
-                else { stack.setValue(currExpr.toString(), currVal); }
+                if(currExpr.type.isInt())
+                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.INT)));
+                else if(currExpr.type.isReal())
+                    stack.setValue(currExpr,new Value(new BigDecimal(currVal),new ScalarType(ScalarType.Scalars.REAL)));
+                else if(currExpr.type.isChar())
+                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.CHAR)));
+                else if(currExpr.type.isString())
+                    stack.setValue(currExpr,new Value(currVal,new ScalarType(ScalarType.Scalars.STR)));
+                else
+                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.BOOL)));
             } catch(Exception e) {
                 // ERROR CHECK #2: Make sure user input matches the type of the input variable
                 new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(in)
-                        .addErrorType(MessageType.RUNTIME_ERROR_601)
-                        .addArgs(currExpr.type)
-                        .error();
+                    .addLocation(in)
+                    .addErrorType(MessageType.RUNTIME_ERROR_601)
+                    .addArgs(currExpr.type)
+                    .error();
             }
         }
     }
 
-    public void visitImportDecl(ImportDecl im) {
-        im.getCompilationUnit().visit(this);
-    }
+    /**
+     * Executes an import declaration.
+     * <p><br>
+     *     For an import declaration, we simply want to execute its compilation unit
+     *     and add all of its top level declarations into the interpreter.
+     * </p>
+     * @param im Import Declaration
+     */
+    public void visitImportDecl(ImportDecl im) { im.getCompilationUnit().visit(this); }
 
-    /*
-    ____________________________ Invocations ____________________________
-    For invocations, we will first evaluate each argument we are passing
-    and store each value into a separate list.
-
-    Then, we determine whether the invocation is for a function or a
-    method. In either case, we will create a new call frame to store the
-    values for each parameter and then execute the function/method body.
-
-    At the end, we will save the parameter results if the parameters have
-    the appropriate modifiers.
-    _____________________________________________________________________
-    */
+    /**
+     * Evaluates an invocation.
+     * <p>
+     *     An invocation will result in a call to a function or a method. In
+     *     either case, we will evaluate all arguments and save each argument
+     *     as their respective parameter in the stack. This means we will create
+     *     and destroy a call frame manually instead of visiting {@link BlockStmt}
+     *     to handle it for us.
+     * </p>
+     * @param in Invocation
+     */
     public void visitInvocation(Invocation in) {
-        Vector<Object> args = new Vector<>();
+        RuntimeObject obj = null;
+        if(currentValue != null && currentValue.isObject())
+            obj = currentValue.asObject();
+        else if(stack.getValue("this") != null)
+            obj = stack.getValue("this").asObject();
+
         Vector<ParamDecl> params;
-        HashMap<String,Object> vals = new HashMap<>();
+        Vector<Value> args = new Vector<>();
+        SymbolTable oldScope = currentScope;
 
-        HashMap<String,Object> obj = null;
-        if(in.targetType.isClassType()) {
-            if(!(currValue instanceof HashMap))
-                obj = (HashMap<String,Object>) stack.getValue("this");
-            else
-                obj = (HashMap<String,Object>) currValue;
-        }
+        stack = stack.createCallFrame();
 
+        // Evaluates all arguments
         for(Expression arg : in.getArgs()) {
             arg.visit(this);
-            args.add(currValue);
+            args.add(currentValue);
         }
-
-        if(in.toString().equals("length")) {
-            Vector<Object> arr = (Vector<Object>) currValue;
-            currValue = arr.size() - 1;
-            return;
-        }
-
-        SymbolTable oldScope = currentScope;
-        stack = stack.createCallFrame();
 
         // Function Invocation
         if(in.targetType.isVoidType()) {
@@ -1007,253 +769,269 @@ public class Interpreter extends Visitor {
             params = fd.params();
             currentScope = fd.symbolTable;
 
+            // Save arguments into respective parameters and add to the stack.
             for(int i = 0; i < in.getArgs().size(); i++)
-                stack.addValue(params.get(i).toString(),args.get(i));
+                stack.addValue(params.get(i),args.get(i));
 
             fd.funcBlock().visit(this);
         }
         // Method Invocation
         else {
-            // ERROR CHECK #1: Generate an exception if the current object type
-            //                 is not assignment compatible with the target type
-            if(!ClassType.classAssignmentCompatibility(currTarget.asClassType(),in.targetType.asClassType())) {
+            // ERROR CHECK #1: This checks if the object's type is assignment compatible with the expected object type.
+            if(!ClassType.classAssignmentCompatibility(obj.getCurrentType(),in.targetType.asClassType())) {
                 new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(in)
+                        .addLocation(in.getRootParent())
                         .addErrorType(MessageType.RUNTIME_ERROR_604)
-                        .addArgs(in.toString(),currTarget,in.targetType)
+                        .addArgs(in.toString(),obj.getCurrentType(),in.targetType)
                         .error();
             }
 
-            ClassDecl cd = currentScope.findName(currTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+            // Find the class that contains the specific method we want to call
+            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
             while(!cd.symbolTable.hasName(in.getSignature()))
-                cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+                cd = currentScope.findName(cd.superClass()).decl().asTopLevelDecl().asClassDecl();
 
             MethodDecl md = cd.symbolTable.findName(in.getSignature()).decl().asMethodDecl();
             params = md.params();
             currentScope = md.symbolTable;
 
-            if(obj != null) { stack.addValue("this",obj); }
+            // Create a 'this' pointer when we invoke an object's method for the first time
+            stack.addValue("this",obj);
 
-            for(int i = 0; i < in.getArgs().size(); i++) {
-                ParamDecl currParam = md.params().get(i);
-                stack.addValue(currParam.toString(),args.get(i));
-            }
+            // Save arguments into respective parameters and add to the stack.
+            for(int i = 0; i < in.getArgs().size(); i++)
+                stack.addValue(params.get(i),args.get(i));
 
             md.methodBlock().visit(this);
         }
 
-        returnFound = false;
+        // Figure out which variables need to be updated.
+        HashMap<String,Value> varsToUpdate = new HashMap<>();
         for(int i = 0; i < in.getArgs().size(); i++) {
             if(in.getArgs().get(i).isNameExpr()) {
                 String argName = in.getArgs().get(i).toString();
                 ParamDecl currParam = params.get(i);
 
                 if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
-                    vals.put(argName,stack.getValue(currParam.toString()));
+                    varsToUpdate.put(argName,stack.getValue(currParam));
             }
         }
 
         currentScope = oldScope;
+        returnFound = false;
         stack = stack.destroyCallFrame();
 
-        for(String s : vals.keySet()) { stack.setValue(s,vals.get(s)); }
-    }
-
-    public void visitListLiteral(ListLiteral ll) {
-        Vector<Object> lst = new Vector<>();
-
-        for(Expression e : ll.getInits()) {
-            e.visit(this);
-            lst.add(currValue);
-        }
-
-        lst.add(0,ll);
-        currValue = lst;
+        // Update variables with new values before finishing visit.
+        for(String varName : varsToUpdate.keySet())
+            stack.setValue(varName,varsToUpdate.get(varName));
     }
 
     /**
-     * Executes a list statement command.<br><br>
-     * <p>
-     *     ThisStmt method will execute the current list command based on the
+     * Evaluates a list literal.
+     * <p><br>
+     *     Lists are dynamic in C Minor, so a user may change the size of
+     *     the list during the runtime execution of their program. Similarly
+     *     to {@link #visitArrayLiteral(ArrayLiteral)}, we will evaluate every
+     *     expression in the current list literal and store it into a
+     *     {@link RuntimeList} to emulate a list in memory during runtime.
+     * </p>
+     * @param ll List Literal
+     */
+    public void visitListLiteral(ListLiteral ll) {
+        RuntimeList lst = new RuntimeList(ll);
+
+        for(Expression e : ll.getInits()) {
+            e.visit(this);
+            lst.addElement(currentValue);
+        }
+
+        currentValue = lst;
+    }
+
+    /**
+     * Executes a list statement command.
+     * <p><br>
+     *     This method will execute the current list command based on the
      *     provided arguments. If there are any issues, then we will produce
      *     an exception for the user.
      * </p>
      * @param ls The current list statement we will be executing.
      */
     public void visitListStmt(ListStmt ls) {
-        // Obtain the list from the stack
+        // Obtain list from the stack
         ls.getListName().visit(this);
-        Vector<Object> lst = (Vector<Object>) currValue;
-        int index = lst.size();
+        RuntimeList lst = currentValue.asList();
 
         ls.getAllArgs().get(1).visit(this);
         switch(ls.getCommand()) {
+            case APPEND:
+                lst.add(currentValue);
+                break;
             case INSERT:
-                index = (int) currValue;
-                // ERROR CHECK #1: Make sure a valid position was given for an element to be inserted at
-                if(index+1 <= 1 || index > lst.size()-1) {
+                Value index = currentValue;
+                if(index.asInt() < 1 || index.asInt() > lst.size()) {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
-                            .addLocation(ls)
-                            .addErrorType(MessageType.RUNTIME_ERROR_605)
-                            .addArgs(ls.getListName(),lst.size()-1,index)
-                            .error();
+                        .addLocation(ls)
+                        .addErrorType(MessageType.RUNTIME_ERROR_605)
+                        .addArgs(ls.getListName(),lst.size(),index.asInt())
+                        .error();
                 }
                 ls.getAllArgs().get(2).visit(this);
-            case APPEND:
-                if(currValue instanceof Vector) {
-                    Vector<Object> sublist = (Vector<Object>) currValue;
-                    if(ls.getListType().numOfDims - ((ListLiteral)sublist.get(0)).type.asListType().numOfDims > 0)
-                        lst.add(index,currValue);
-                    else {
-                        for(int i = 1; i < ((Vector)currValue).size();i++) {
-                            lst.add(index,((Vector)currValue).get(i));
-                            index += 1;
-                        }
-                    }
-                }
-                else
-                    lst.add(index,currValue);
+                lst.insertElement(index.asInt(),currentValue);
                 break;
             case REMOVE:
-                if(currValue instanceof Vector) {
-                    Vector<Object> removeElements = (Vector) currValue;
-                    if(ls.getListType().numOfDims - ((ListLiteral)removeElements.get(0)).type.asListType().numOfDims > 0)
-                        lst.removeAll(currValue);
-                    else
-                        for(Object o : removeElements)
-                            lst.removeAll(o);
+                boolean successfulRemoval = true;
+                if(currentValue.isList()) {
+                    if(currentValue.asList().size() == 1)
+                        successfulRemoval = lst.remove(currentValue.asList().get(0));
+                }
+                else if(currentValue.getType().isInt()) {
+                    if(currentValue.asInt() < 1 || currentValue.asInt() > lst.size()) {
+                        new ErrorBuilder(generateRuntimeError,interpretMode)
+                            .addLocation(ls)
+                            .addErrorType(MessageType.RUNTIME_ERROR_608)
+                            .error();
+                    }
+                    lst.remove(currentValue.asInt());
                 }
                 else
-                    lst.remove((int)currValue);
-                break;
+                    successfulRemoval = lst.remove(currentValue);
+
+                if(!successfulRemoval) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.RUNTIME_ERROR_609)
+                        .addArgs(ls.getAllArgs().get(1),ls.getListName())
+                        .error();
+                }
+
         }
     }
 
     /**
-     * Evaluates a literal.<br><br>
-     * <p>
-     *     We will interpret the value of the literal
-     *     and save it into the {@code currValue}.
+     * Evaluates a literal.
+     * <p><br>
+     *     We create a new value to represent the literal
+     *     and store the result into {@link #currentValue}.
      * </p>
      * @param li Literal
      */
-    public void visitLiteral(Literal li) {
-        switch(li.getConstantKind()) {
-            case INT:
-                currValue = Integer.parseInt(li.text);
-                break;
-            case CHAR:
-                if(li.text.length() == 0)
-                    currValue = "";
-                else
-                    currValue = li.text.charAt(1);
-                break;
-            case BOOL:
-                currValue = Boolean.parseBoolean(li.text);
-                break;
-            case REAL:
-                currValue = new BigDecimal(li.text);
-                break;
-            case STR:
-                if(li.text.length()== 0)
-                    currValue = "";
-                else
-                    currValue = li.text.substring(1,li.text.length()-1); // Removes quotes
-                break;
-            default:
-                if(li.type.asEnumType().constantType().isInt())
-                    currValue = Integer.parseInt(li.text);
-                else
-                    currValue = li.text.charAt(1);
-        }
-    }
+    public void visitLiteral(Literal li) { currentValue = new Value(li); }
 
     /**
-     * Executes a local declaration statement.<br><br>
-     * <p>
-     *     By executing a local declaration, we will allocate space
-     *     on the runtime stack to store a new local value. If there is
-     *     no value to store (i.e. if a user did not assign any value to
-     *     the variable), we will just store null.
+     * Executes a local declaration statement.
+     * <p><br>
+     *     By executing a local declaration, we will allocate
+     *     space on the runtime stack to store a new local value.
      * </p>
      * @param ld Local Declaration
      */
     public void visitLocalDecl(LocalDecl ld) {
-        if(ld.var().init() == null)
-            currValue = null;
-        else
+        if(ld.var().init() != null)
             ld.var().init().visit(this);
-
-        stack.addValue(ld.var().toString(),currValue);
+        stack.addValue(ld.var(), currentValue);
     }
 
     /**
-     * Evaluates a name expression.<br><br>
-     * <p>
-     *     By evaluating a name expression, we are trying to access the
-     *     value stored at its memory location in the runtime stack.
+     * Evaluates a name expression.
+     * <p><br>
+     *     Any time the interpreter encounters a name, it will access
+     *     the value the name refers to in the runtime stack. If we have
+     *     an object, then we want to access the name within the object
+     *     unless it doesn't exist.
      * </p>
      * @param ne Name Expression
      */
-    public void visitNameExpr(NameExpr ne) { currValue = stack.getValue(ne.toString()); }
+    public void visitNameExpr(NameExpr ne) {
+        if(!ne.isParentKeyword()) {
+            if(currentValue != null && currentValue.isObject() && ne.getParent().isExpression()
+                    && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
+                // ERROR CHECK #1: This checks if the field exists for the current object.
+                if(!currentValue.asObject().hasField(ne)) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ne.getRootParent())
+                        .addErrorType(MessageType.RUNTIME_ERROR_606)
+                        .addArgs(ne, currentValue.asObject().getCurrentType())
+                        .error();
+                }
+                currentValue = currentValue.asObject().getField(ne);
+            } else {
+                currentValue = stack.getValue(ne);
+                // ERROR CHECK #2: This checks if we are trying to access an object that wasn't initialized.
+                // The calls to 'findName' were needed to avoid an error being generated when we have a class name
+                // (such as when we execute an 'instanceof' operation)
+                if(currentValue == null && ne.type.isClassOrMultiType() && (currentScope.findName(ne).decl().isTopLevelDecl()
+                        && !currentScope.findName(ne).decl().asTopLevelDecl().isClassDecl())) {
+                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                        .addLocation(ne.getRootParent())
+                        .addErrorType(MessageType.RUNTIME_ERROR_607)
+                        .addArgs(ne)
+                        .error();
+                }
+            }
+        }
+    }
 
     /**
-     * Evaluates a new expression.<br><br>
-     * <p>
-     *     When we are instantiating a new object, we will use a hash map to
-     *     keep track of the internal state of the object. During this visit,
-     *     we will store all fields the user chose to initialize prior to
-     *     calling the constructor to handle the rest of the field initializations.
+     * Evaluates a new expression.
+     * <p><br>
+     *     We will create a {@link RuntimeObject} whenever we visit a {@link NewExpr}.
+     *     During this visit, we will initialize the fields the user explicitly initialized
+     *     for the object before we visit an {@link InitDecl} to handle the initialization
+     *     of the rest of the fields.
      * </p>
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.getClassType().typeName()).decl().asTopLevelDecl().asClassDecl();
+        RuntimeObject obj = new RuntimeObject(ne.type);
+        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
 
-        HashMap<String,Object> instance = new HashMap<>();
-        for(Var v : ne.getInitialFields()) {
-            v.init().visit(this);
-            instance.put(v.toString(),currValue);
+        for(Var field : ne.getInitialFields()) {
+            field.init().visit(this);
+            obj.setField(field, currentValue);
         }
-        currValue = instance;
 
-        if(cd.constructor() != null)
-            cd.constructor().visit(this);
+        currentValue = obj;
+        cd.constructor().visit(this);
     }
 
     /**
-     * Evaluates expressions that will be printed inside the VM.<br><br>
-     * <p>
-     *     We will visit every expression contained in the current
-     *     output statement and print each value to the terminal.
+     * Executes an output statement.
+     * <p><br>
+     *     We will visit every expression  in the current output
+     *     statement and print each value to the terminal.
      * </p>
      * @param os Output Statement
      */
     public void visitOutStmt(OutStmt os) {
         for(Expression e : os.getOutExprs()) {
             e.visit(this);
-            if(e.isEndl())
+            if(e.isEndl()) {
                 System.out.println();
-            else if(e.type.isArrayType() || e.type.isListType()) {
-                Vector<Object> arr = (Vector<Object>) currValue;
-                StringBuilder sb = new StringBuilder();
-                printList(arr,sb);
-                System.out.print(sb);
+                output = false;
             }
-            else
-                System.out.print(currValue);
+            else if(currentValue.isList()) {
+                StringBuilder sb = new StringBuilder();
+                RuntimeList.buildList(currentValue.asList(),sb);
+                System.out.print(sb);
+                output = true;
+            }
+            else {
+                System.out.print(currentValue);
+                output = true;
+            }
         }
-        System.out.println();
     }
 
     /**
-     * Executes a return statement.<br><br>
-     * <p>
-     *     When we encounter a return statement, we will evaluate the expression
-     *     that will be returned (if there is any) and set the {@code returnFound}
-     *     flag to be true.
+     * Executes a return statement.
+     * <p><br>
+     *     When we encounter a return statement, we will set the
+     *     {@link #returnFound} flag to be true, so we know to stop
+     *     the current function or method execution. Additionally, we
+     *     will evaluate the value that needs to be returned (if applicable).
      * </p>
-     * @param rs Return Statements
+     * @param rs Return Statement
      */
     public void visitReturnStmt(ReturnStmt rs) {
         if(rs.expr() != null)
@@ -1261,28 +1039,23 @@ public class Interpreter extends Visitor {
         returnFound = true;
     }
 
-    public void visitRetypeStmt(RetypeStmt rs) {
-        rs.getNewObject().visit(this);
-        stack.setValue(rs.getName().toString(),currValue);
-
-        AST decl = currentScope.findName(rs.getName().toString()).decl();
-        if(decl.isTopLevelDecl()) {
-            if (decl.asTopLevelDecl().asGlobalDecl().type().isMultiType())
-                decl.asTopLevelDecl().asGlobalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        }
-        else if(decl.isFieldDecl()) {
-            if(decl.asFieldDecl().type().isMultiType())
-                decl.asFieldDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        }
-        else {
-            if(decl.asStatement().asLocalDecl().type().isMultiType())
-                decl.asStatement().asLocalDecl().type().asMultiType().setRuntimeType(rs.getNewObject().type.asClassType());
-        }
+    /**
+     * Executes a retype statement.
+     * <p><br>
+     *     By executing a retype statement, we are creating a new instance
+     *     of the object and saving the object into the stack.
+     * </p>
+     * @param rt Retype Statement
+     */
+    public void visitRetypeStmt(RetypeStmt rt) {
+        rt.getNewObject().visit(this);
+        stack.setValue(rt.getName(), currentValue);
+        currentValue = null;
     }
 
     /**
-     * Executes a stop statement.<br><br>
-     * <p>
+     * Executes a stop statement.
+     * <p><br>
      *     If a stop statement is written by the user, we
      *     will simply terminate the C Minor interpreter.
      * </p>
@@ -1291,21 +1064,21 @@ public class Interpreter extends Visitor {
     public void visitStopStmt(StopStmt ss) { System.exit(1); }
 
     /**
-     * Executes a {@code ThisStmt} statement.<br><br>
-     * <p>
-     *     When we are inside of a class, we want to make sure we access the
-     *     correct fields and methods for the current object. ThisStmt will be done
-     *     by
+     * Executes a {@link ThisStmt}.
+     * <p><br>
+     *     When we are executing code related to an object, we want to make sure we
+     *     are accessing the correct fields and methods for the current {@link RuntimeObject}.
+     *     This will be done by internally keeping track of a "this" pointer whenever
+     *     we are inside of a class.
      * </p>
-     * @param t ThisStmt Statement
+     * @param ts ThisStmt
      */
-    public void visitThis(ThisStmt t) { currValue = stack.getValue("this"); }
+    public void visitThis(ThisStmt ts) { currentValue = stack.getValue("this"); }
 
     /**
-     * Evaluates a unary expression.<br><br>
-     * <p>
-     *     We will evaluate the unary expression and store
-     *     the result into the {@code currValue} variable.
+     * Evaluates a unary expression.
+     * <p><br>
+     *     We will evaluate the unary expression and save its value.
      * </p>
      * @param ue Unary Expression
      */
@@ -1314,36 +1087,34 @@ public class Interpreter extends Visitor {
         
         switch(ue.getUnaryOp().toString()) {
             case "~":
-                if(ue.type.isInt())
-                    currValue = ~((int) currValue);
-                else
-                    currValue = ~((char) currValue);
+                currentValue = ue.getExpr().type.isInt() ? new Value(~(currentValue.asInt()),ue.type) : new Value(~currentValue.asChar(),ue.type);
                 break;
             case "not":
-                currValue = !((boolean) currValue);
+                currentValue = new Value(!currentValue.asBool(),ue.type);
                 break;
         }
     }
 
     /**
-     * Executes a while loop.<br><br>
-     * <p>
-     *     For a while loop, we will evaluates its condition and executes its
-     *     body as long as its condition remains true.
+     * Executes a while loop.
+     * <p><br>
+     *     A while loop will be executed as long as its condition remains true.
+     *     We will be using a Java while loop internally to help us execute the code.
      * </p>
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
         ws.condition().visit(this);
-        while((boolean)currValue) {
+
+        while(currentValue.asBool()) {
             ws.whileBlock().visit(this);
-            if(breakFound || returnFound) {
-                breakFound = false;
+
+            if(breakFound || returnFound)
                 break;
-            }
-            else if(continueFound)
-                continueFound = false;
+
+            continueFound = false;
             ws.condition().visit(this);
         }
+        breakFound = false;
     }
 }

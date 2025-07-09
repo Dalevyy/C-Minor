@@ -1,6 +1,7 @@
 package ast.statements;
 
 import ast.AST;
+import ast.classbody.MethodDecl;
 import ast.expressions.*;
 import token.*;
 import utilities.Visitor;
@@ -48,6 +49,7 @@ public class DoStmt extends Statement {
                    .setMetaData(this)
                    .setBlockStmt(this.doBlock.deepCopy().asStatement().asBlockStmt())
                    .setCondition(this.cond.deepCopy().asExpression())
+                   .setSymbolTable(this.symbolTable)
                    .create();
     }
 
@@ -74,6 +76,11 @@ public class DoStmt extends Statement {
 
         public DoStmtBuilder setCondition(Expression cond) {
             ds.cond = cond;
+            return this;
+        }
+
+        public DoStmtBuilder setSymbolTable(SymbolTable st) {
+            ds.symbolTable = st;
             return this;
         }
 
