@@ -806,7 +806,7 @@ public class Interpreter extends Visitor {
             }
 
             // Find the class that contains the specific method we want to call
-            ClassDecl cd = currentScope.findName(obj.getCurrentType()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
             while(!cd.symbolTable.hasName(in.getSignature()))
                 cd = currentScope.findName(cd.superClass()).decl().asTopLevelDecl().asClassDecl();
 
@@ -1003,7 +1003,7 @@ public class Interpreter extends Visitor {
      */
     public void visitNewExpr(NewExpr ne) {
         RuntimeObject obj = new RuntimeObject(ne.type);
-        ClassDecl cd = currentScope.findName(ne).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
 
         for(Var field : ne.getInitialFields()) {
             field.init().visit(this);

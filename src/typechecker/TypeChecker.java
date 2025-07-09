@@ -1519,7 +1519,7 @@ public class TypeChecker extends Visitor {
             else if(currentClass != null)
                 cd = currentClass;
             else
-                cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
+                cd = currentScope.findName(currentTarget.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
 
             String className = cd.toString();
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
