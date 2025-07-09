@@ -64,7 +64,8 @@ public class Value {
                 val = new BigDecimal(li.text);
                 break;
             case STR:
-                val = li.text.substring(1,li.text.length()-1);
+                if(!li.text.isEmpty())
+                    val = li.text.substring(1,li.text.length()-1);
                 break;
             case ENUM:
                 if(li.type.asEnumType().constantType().isInt())
