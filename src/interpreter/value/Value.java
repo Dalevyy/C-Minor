@@ -54,7 +54,8 @@ public class Value {
                 val = Integer.parseInt(li.text);
                 break;
             case CHAR:
-                val = li.text.charAt(1) == '\\' ? (char) ('\\' + li.text.charAt(2)) : li.text.charAt(1);
+                if(!li.text.isEmpty())
+                    val = li.text.charAt(1) == '\\' ? (char) ('\\' + li.text.charAt(2)) : li.text.charAt(1);
                 break;
             case BOOL:
                 val = Boolean.parseBoolean(li.text);
