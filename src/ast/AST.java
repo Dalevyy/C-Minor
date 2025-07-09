@@ -125,6 +125,8 @@ public abstract class AST {
     public AST getParent() { return parent; }
 
     public AST getRootParent() {
+//        if(curr == null)
+//            return this;
         AST curr = parent;
         while(curr.parent != null) {
             if(curr.isStatement() && curr.asStatement().isExprStmt())
@@ -152,7 +154,9 @@ public abstract class AST {
     }
 
     public <T extends AST> void addChild(Vector<T> nodes) {
-        for(AST node : nodes) { this.addChild(node); }
+        if(!nodes.isEmpty())
+            for(AST node : nodes)
+                this.addChild(node);
     }
 
     public AST removeChild() {

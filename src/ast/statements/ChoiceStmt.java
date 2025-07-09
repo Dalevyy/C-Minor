@@ -16,7 +16,7 @@ public class ChoiceStmt extends Statement {
     private final Vector<CaseStmt> caseStmts;
     private BlockStmt otherBlock;
 
-    public ChoiceStmt(Token t, Expression e, BlockStmt b) { this(t,e,null,b); }
+    public ChoiceStmt(Token t, Expression e, BlockStmt b) { this(t,e,new Vector<>(),b); }
 
     public ChoiceStmt(Token t, Expression e, Vector<CaseStmt> cs, BlockStmt b) {
         super(t);

@@ -32,7 +32,7 @@ public class ArrayExpr extends Expression {
     /**
      * Default constructor for {@link ArrayExpr}.
      */
-    public ArrayExpr() { this(new Token(),null,null); }
+    public ArrayExpr() { this(new Token(),null,new Vector<>()); }
 
     /**
      * Main constructor for {@link ArrayExpr}.

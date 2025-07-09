@@ -17,7 +17,7 @@ public class ListStmt extends Statement {
     private Vector<Expression> args;
 
 
-    public ListStmt() { this(new Token(),null,null); }
+    public ListStmt() { this(new Token(),null,new Vector<>()); }
     public ListStmt(Token t, Commands c, Vector<Expression> args) {
         super(t);
         this.commandType = c;
@@ -29,7 +29,7 @@ public class ListStmt extends Statement {
     public Commands getCommand() { return this.commandType; }
     public Vector<Expression> getAllArgs() { return this.args; }
 
-    public NameExpr getListName() { return this.args.get(0).asNameExpr(); }
+    public Expression getListName() { return this.args.get(0); }
     public ListType getListType() { return this.args.get(0).type.asListType(); }
     public Expression getSecondArg() { return this.args.get(1); }
     public Expression getThirdArg() { return this.args.get(2); }

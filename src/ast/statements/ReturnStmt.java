@@ -3,7 +3,6 @@ package ast.statements;
 import ast.AST;
 import ast.expressions.*;
 import token.*;
-import utilities.Vector;
 import utilities.Visitor;
 
 public class ReturnStmt extends Statement {

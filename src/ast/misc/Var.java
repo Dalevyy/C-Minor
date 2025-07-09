@@ -26,7 +26,7 @@ public class Var extends AST {
 
     private boolean uninit;
 
-    public Var() { this(new Token(),null,null,null,false); }
+    public Var() { this(new Token(),null,null,null,true); }
     public Var(Token t, Name name) { this(t,name,null,null,false); }
     public Var(Token t, Name name, Expression init) { this(t,name,null,init,false); }
     public Var(Token t, Name name, Type type, boolean uninit) { this(t,name,type,null,uninit); }
@@ -76,7 +76,7 @@ public class Var extends AST {
     @Override
     public AST deepCopy() {
         VarBuilder vb = new VarBuilder();
-        if(!this.uninit)
+        if(this.init != null)
             vb.setInit(this.init.deepCopy().asExpression());
 
         return vb.setMetaData(this)

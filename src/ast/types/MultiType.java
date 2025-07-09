@@ -19,7 +19,7 @@ public class MultiType extends Type {
 
     private ClassType runtimeType;      // Used by the interpreter
 
-    public MultiType() { this(null,null); }
+    public MultiType() { this(null,new Vector<>()); }
     public MultiType(ClassType it, Vector<ClassType> ct) {
         super(new Token());
         this.initialType = it;

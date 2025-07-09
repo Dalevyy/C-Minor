@@ -19,7 +19,7 @@ public class ClassType extends Type {
     private Vector<Name> inheritedTypes = new Vector<>();
     private Vector<Type> typeArgs;
 
-    public ClassType() { this(new Token(),null,null,null); }
+    public ClassType() { this(new Token(),null,new Vector<>(),new Vector<>()); }
     public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
     public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
     public ClassType(Token t, Name n) { this(t,n,new Vector<>(),new Vector<>()); }
@@ -56,9 +56,30 @@ public class ClassType extends Type {
      */
     public boolean isTemplatedType() { return !typeArgs.isEmpty(); }
 
+    public boolean equals(ClassType ct) {
+        if(this.isTemplatedType() && ct.isTemplatedType()) {
+            if(!this.className.equals(ct.className) || this.typeArgs.size() != ct.typeArgs.size())
+                return false;
+
+            for(int i = 0; i < this.typeArgs.size(); i++) {
+                Type LHS = this.typeArgs.get(i);
+                Type RHS = ct.typeArgs.get(i);
+                if(!Type.typeEqual(LHS,RHS))
+                    return false;
+            }
+            return true;
+        }
+        else if(this.isTemplatedType() || ct.isTemplatedType())
+            return false;
+        else
+            return this.className.equals(ct.className);
+    }
+
     public static boolean classAssignmentCompatibility(Type ct1, ClassType ct2) {
         if(ct1.isMultiType())
             return ClassType.isSuperClass(ct2,ct1.asMultiType().getInitialType());
+        else if(ct1.asClassType().isTemplatedType() && ct1.asClassType().getClassNameAsString().equals(ct2.getClassNameAsString()))
+            return true;
         else if(ct1.asClassType().getInheritedTypes().size() > ct2.getInheritedTypes().size())
             return ClassType.isSuperClass(ct1.asClassType(),ct2);
         else
@@ -76,8 +97,25 @@ public class ClassType extends Type {
         return false;
     }
 
+    public String getClassNameAsString() {
+        return this.className.toString();
+    }
+
     @Override
-    public String typeName() { return className.toString(); }
+    public String typeName() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(this.className);
+
+        if(!this.typeArgs.isEmpty()) {
+            sb.append("<");
+            for(int i = 0; i < this.typeArgs.size()-1; i++)
+                sb.append(this.typeArgs.get(i)).append(", ");
+            sb.append(this.typeArgs.top());
+            sb.append(">");
+        }
+
+        return sb.toString();
+    }
 
     @Override
     public String toString() { return typeName(); }

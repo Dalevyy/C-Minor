@@ -11,7 +11,7 @@ import utilities.Visitor;
 public class InitDecl extends AST {
     private Vector<AssignStmt> inits;
 
-    public InitDecl() { this(null); }
+    public InitDecl() { this(new Vector<>()); }
     public InitDecl(Vector<AssignStmt> p) { this.inits = p; }
 
     public Vector<AssignStmt> assignStmts() { return this.inits; }

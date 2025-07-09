@@ -56,7 +56,7 @@ public class Invocation extends Expression {
     /**
      * Default constructor for {@link Invocation}.
      */
-    public Invocation() { this(new Token(),null,null,null); }
+    public Invocation() { this(new Token(),null,new Vector<>(),new Vector<>()); }
 
     /**
      * Main constructor for {@link Invocation}.
@@ -70,7 +70,8 @@ public class Invocation extends Expression {
         this.name = name;
         this.typeParams = typeParams;
         this.args = args;
-        this.isLengthInvocation = toString().equals("length");
+        if(name != null)
+            this.isLengthInvocation = toString().equals("length");
 
         addChild(this.name);
         addChild(this.args);
@@ -173,7 +174,7 @@ public class Invocation extends Expression {
                 break;
             default:
                 args.remove(pos-1);
-                args.add(pos+1,node.asExpression());
+                args.add(pos-1,node.asExpression());
         }
     }
 

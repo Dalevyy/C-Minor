@@ -4,6 +4,7 @@ import ast.AST;
 import token.Token;
 import utilities.Visitor;
 
+
 /**
  * An {@link AST} node class representing a constant value.
  * <p><br>
@@ -55,7 +56,7 @@ public class Literal extends Expression {
      * Gets the value of the constant as an int.
      * @return Int
      */
-    public int asInt() { return this.kind == ConstantType.INT ? Integer.parseInt(this.toString()) : '\0'; }
+    public int asInt() { return this.kind == ConstantType.INT ? Integer.parseInt(this.text) : '\0'; }
 
     /**
      * Gets the value of the constant as a char.

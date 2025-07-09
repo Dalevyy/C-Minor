@@ -4,6 +4,7 @@ import ast.classbody.FieldDecl;
 import ast.classbody.InitDecl.InitDeclBuilder;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr.NameExprBuilder;
+import ast.expressions.NewExpr;
 import ast.expressions.ThisStmt;
 import ast.operators.AssignOp.AssignOpBuilder;
 import ast.operators.AssignOp.AssignType;
@@ -66,5 +67,10 @@ public class ConstructorGeneration extends Visitor {
                 .setInits(initParams)
                 .create()
         );
+    }
+
+    public void visitNewExpr(NewExpr ne) {
+        if(ne.templatedClass != null)
+            ne.templatedClass.visit(this);
     }
 }

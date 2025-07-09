@@ -30,7 +30,7 @@ public class OutStmt extends Expression {
     /**
      * Default constructor for {@link OutStmt}.
      */
-    public OutStmt() { this(new Token(),null); }
+    public OutStmt() { this(new Token(),new Vector<>()); }
 
     /**
      * Main constructor for {@link OutStmt}.

@@ -17,7 +17,7 @@ public class IfStmt extends Statement {
     private Vector<IfStmt> elifStmts;
     private BlockStmt elseBlock;
 
-    public IfStmt(){ this(new Token(),null,null,null,null); }
+    public IfStmt(){ this(new Token(),null,null,new Vector<>(),null); }
     public IfStmt(Token t, Expression c, BlockStmt ib) { this(t,c,ib,new Vector<>(),null); }
     public IfStmt(Token t, Expression c, BlockStmt ib, Vector<IfStmt> es) { this(t,c,ib,es,null); }
     public IfStmt(Token t, Expression c, BlockStmt ib, Vector<IfStmt> es, BlockStmt eb) {
@@ -72,13 +72,16 @@ public class IfStmt extends Statement {
         for(IfStmt is : this.elifStmts)
             elifStmts.add(is.deepCopy().asStatement().asIfStmt());
 
-        if(this.elseBlock != null)
+        if(this.elseBlock != null) {
             isb.setElseBlock(this.elseBlock.deepCopy().asStatement().asBlockStmt());
+            isb.setElseSymbolTable(this.symbolTableElseBlock);
+        }
 
         return isb.setMetaData(this)
                   .setCondition(this.cond.deepCopy().asExpression())
                   .setIfBlock(this.ifBlock.deepCopy().asStatement().asBlockStmt())
                   .setElifStmts(elifStmts)
+                  .setIfSymbolTable(this.symbolTableIfBlock)
                   .create();
     }
 
@@ -115,6 +118,17 @@ public class IfStmt extends Statement {
 
         public IfStmtBuilder setElseBlock(BlockStmt elseBlock) {
             is.elseBlock = elseBlock;
+            return this;
+        }
+
+        public IfStmtBuilder setIfSymbolTable(SymbolTable st) {
+            is.symbolTableIfBlock = st;
+            return this;
+        }
+
+
+        public IfStmtBuilder setElseSymbolTable(SymbolTable st) {
+            is.symbolTableElseBlock = st;
             return this;
         }
 

@@ -52,6 +52,7 @@ public class WhileStmt extends Statement {
                    .setMetaData(this)
                    .setCondition(this.cond.deepCopy().asExpression())
                    .setBlockStmt(this.whileBlock.deepCopy().asStatement().asBlockStmt())
+                   .setSymbolTable(this.symbolTable)
                    .create();
     }
 
@@ -78,6 +79,11 @@ public class WhileStmt extends Statement {
 
         public WhileStmtBuilder setBlockStmt(BlockStmt whileBlock) {
             ws.whileBlock = whileBlock;
+            return this;
+        }
+
+        public WhileStmtBuilder setSymbolTable(SymbolTable st) {
+            ws.symbolTable = st;
             return this;
         }
 

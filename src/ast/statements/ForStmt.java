@@ -73,6 +73,7 @@ public class ForStmt extends Statement {
                    .setRHS(this.RHS.deepCopy().asExpression())
                    .setLoopOp(this.lOp.deepCopy().asOperator().asLoopOp())
                    .setLoopBlock(this.body.deepCopy().asStatement().asBlockStmt())
+                   .setSymbolTable(this.symbolTable)
                    .create();
     }
 
@@ -114,6 +115,11 @@ public class ForStmt extends Statement {
 
         public ForStmtBuilder setLoopBlock(BlockStmt bs) {
             fs.body = bs;
+            return this;
+        }
+
+        public ForStmtBuilder setSymbolTable(SymbolTable st) {
+            fs.symbolTable = st;
             return this;
         }
 

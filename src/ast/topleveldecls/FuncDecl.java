@@ -21,7 +21,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     private Type retType;
     private BlockStmt block;
 
-    public FuncDecl() { this(new Token(),null,null,null,null,null,null); }
+    public FuncDecl() { this(new Token(),null,null,new Vector<>(),new Vector<>(),null,null); }
     public FuncDecl(Token t, Modifier m, Name n, Vector<Typeifier> tp, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         super(t);
         this.mod = new Modifiers(m);
@@ -86,6 +86,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
                    .setParams(params)
                    .setReturnType(this.retType.deepCopy().asType())
                    .setBlockStmt(this.block.deepCopy().asStatement().asBlockStmt())
+                   .setSymbolTable(this.symbolTable)
                    .create();
     }
 
@@ -169,6 +170,11 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
          */
         public FuncDeclBuilder setBlockStmt(BlockStmt funcBlock) {
             fd.block = funcBlock;
+            return this;
+        }
+
+        public FuncDeclBuilder setSymbolTable(SymbolTable st) {
+            fd.symbolTable = st;
             return this;
         }
 

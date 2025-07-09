@@ -27,7 +27,7 @@ public class InStmt extends Expression {
     /**
      * Default constructor for {@link InStmt}.
      */
-    public InStmt() { this(new Token(),null); }
+    public InStmt() { this(new Token(),new Vector<>()); }
 
     /**
      * Main constructor for {@link InStmt}.

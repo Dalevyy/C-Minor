@@ -3,7 +3,6 @@ package ast.topleveldecls;
 import ast.*;
 import ast.classbody.*;
 import ast.misc.*;
-import ast.statements.BlockStmt;
 import ast.types.*;
 import token.*;
 import utilities.*;
@@ -25,7 +24,7 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
 
     private Vector<Name> inheritedClasses;
 
-    public ClassDecl() { this(new Token(),null,null,null,null,null); }
+    public ClassDecl() { this(new Token(),null,null,new Vector<>(),null,null); }
     public ClassDecl(Token t, Modifier m, Name n, ClassBody b) { this(t,m,n,null,null,b); }
 
     public ClassDecl(Token t, Modifier m, Name n, Vector<Typeifier> tp, ClassType sc, ClassBody b) {
@@ -64,8 +63,20 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
         return false;
     }
 
+    /**
+     * Checks if the current class represents a template.
+     * @return Boolean
+     */
+    public boolean isTemplate() { return !typeParams.isEmpty();}
+
     public boolean isClassDecl() { return true; }
     public ClassDecl asClassDecl() { return this; }
+
+    public void removeTypeParams(){
+        for(Typeifier tp : this.typeParams)
+            symbolTable.removeName(tp.toString());
+        this.typeParams = new Vector<>();
+    }
 
     @Override
     public String header() {
@@ -74,7 +85,7 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
             endColumn = typeParams.top().location.end.column;
         else
             endColumn = name.location.end.column;
-        return  startLine() + "| " + text.substring(0,endColumn);
+        return  startLine() + "| " + text.substring(0,endColumn) + "\n";
     }
 
     @Override
@@ -92,11 +103,11 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
             cdb.setSuperClass(this.superClass.deepCopy().asType().asClassType());
 
         return cdb.setMetaData(this)
-                .setMods(this.mod)
-                .setClassName(this.name.deepCopy().asName())
-                .setTypeArgs(typeParams)
-                .setClassBody(this.body.deepCopy().asClassBody())
-                .create();
+                  .setMods(this.mod)
+                  .setClassName(this.name.deepCopy().asName())
+                  .setTypeArgs(typeParams)
+                  .setClassBody(this.body.deepCopy().asClassBody())
+                  .create();
     }
 
     @Override
@@ -169,6 +180,12 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
          */
         public ClassDeclBuilder setClassBody(ClassBody body) {
             cd.body = body;
+            if(cd.symbolTable != null) {
+                for(FieldDecl fd : body.getFields())
+                    cd.symbolTable.addName(fd.toString(),fd);
+                for(MethodDecl md : body.getMethods())
+                    cd.symbolTable.addName(md+"/"+md.paramSignature(),md);
+            }
             return this;
         }
 
