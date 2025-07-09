@@ -2,51 +2,22 @@ package interpreter;
 
 import ast.classbody.InitDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.ArrayExpr;
-import ast.expressions.ArrayLiteral;
-import ast.expressions.BinaryExpr;
-import ast.expressions.BreakStmt;
-import ast.expressions.CastExpr;
-import ast.expressions.ContinueStmt;
-import ast.expressions.Expression;
-import ast.expressions.FieldExpr;
-import ast.expressions.InStmt;
-import ast.expressions.Invocation;
-import ast.expressions.ListLiteral;
-import ast.expressions.Literal;
-import ast.expressions.NameExpr;
-import ast.expressions.NewExpr;
-import ast.expressions.OutStmt;
-import ast.expressions.ThisStmt;
-import ast.expressions.UnaryExpr;
+import ast.expressions.*;
 import ast.misc.Compilation;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
-import ast.statements.AssignStmt;
-import ast.statements.BlockStmt;
-import ast.statements.CaseStmt;
-import ast.statements.ChoiceStmt;
-import ast.statements.DoStmt;
-import ast.statements.ForStmt;
-import ast.statements.IfStmt;
-import ast.statements.ListStmt;
-import ast.statements.LocalDecl;
-import ast.statements.ReturnStmt;
-import ast.statements.RetypeStmt;
-import ast.statements.Statement;
-import ast.statements.StopStmt;
-import ast.statements.WhileStmt;
-import ast.topleveldecls.ClassDecl;
-import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
-import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.ImportDecl;
+import ast.statements.*;
+import ast.topleveldecls.*;
 import ast.types.ClassType;
 import ast.types.DiscreteType;
+import ast.types.ScalarType;
 import ast.types.Type;
 import interpreter.value.RuntimeList;
 import interpreter.value.RuntimeObject;
 import interpreter.value.Value;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import messages.MessageType;
@@ -696,50 +667,60 @@ public class Interpreter extends Visitor {
         currentValue = obj;
     }
 
+    /**
+     * Executes an input statement.
+     * <p><br>
+     *     In C Minor, the interpreter will handle all runtime errors for the
+     *     programmer. This means that if a user incorrectly writes a value that
+     *     needs to be stored, we will automatically generate an error and terminate
+     *     the program.
+     * </p>
+     * @param in Input Statement
+     */
     public void visitInStmt(InStmt in) {
-//        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-//        String input = "";
-//        try { input = br.readLine(); }
-//        catch(IOException e) { System.out.println("Error! Input was not recognized"); }
-//
-//        Vector<String> vals = new Vector<>();
-//        while(input.indexOf(' ') != -1) {
-//            vals.add(input.substring(0,input.indexOf(' ')));
-//            input = input.substring(input.indexOf(' ')+1);
-//        }
-//        vals.add(input);
-//
-//        // ERROR CHECK #1: Make sure the number of input arguments matches the number
-//        //                 of expected input values that should be written
-//        if(vals.size() != in.getInExprs().size()) {
-//            new ErrorBuilder(generateRuntimeError,interpretMode)
-//                    .addLocation(in)
-//                    .addErrorType(MessageType.RUNTIME_ERROR_600)
-//                    .error();
-//        }
-//        for(int i = 0; i < vals.size(); i++) {
-//            String currVal = vals.get(i);
-//            Expression currExpr = in.getInExprs().get(i);
-//            try {
-//                if(currExpr.type.isInt()) {
-//                    //       if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),-1*Integer.parseInt(currVal.substring(1))); }
-//                    //         else { stack.setValue(currExpr.toString(),Integer.parseInt(currVal)); }
-//                }
-//                else if(currExpr.type.isReal()) {
-//                    //      if(currVal.charAt(0) == '~') { stack.setValue(currExpr.toString(),new BigDecimal(currVal.substring(1)).multiply(new BigDecimal(-1))); }
-//                    //       else { stack.setValue(currExpr.toString(), new BigDecimal(currVal)); }
-//                }
-//                //  else if(currExpr.type.isChar() || currExpr.type.isString()) { stack.setValue(currExpr.toString(),currVal); }
-//                //   //   else { stack.setValue(currExpr.toString(), currVal); }
-//            } catch(Exception e) {
-//                // ERROR CHECK #2: Make sure user input matches the type of the input variable
-//                new ErrorBuilder(generateRuntimeError,interpretMode)
-//                        .addLocation(in)
-//                        .addErrorType(MessageType.RUNTIME_ERROR_601)
-//                        .addArgs(currExpr.type)
-//                        .error();
-//            }
-//        }
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String input = "";
+        try { input = br.readLine(); }
+        catch(IOException e) { System.out.println("Error! Input was not recognized"); }
+
+        Vector<String> vals = new Vector<>();
+        while(input.indexOf(' ') != -1) {
+            vals.add(input.substring(0,input.indexOf(' ')));
+            input = input.substring(input.indexOf(' ')+1);
+        }
+        vals.add(input);
+
+        // ERROR CHECK #1: This checks if the user inputted the expected number of input values.
+        if(vals.size() != in.getInExprs().size()) {
+            new ErrorBuilder(generateRuntimeError,interpretMode)
+                .addLocation(in)
+                .addErrorType(MessageType.RUNTIME_ERROR_600)
+                .error();
+        }
+
+        for(int i = 0; i < vals.size(); i++) {
+            String currVal = vals.get(i);
+            Expression currExpr = in.getInExprs().get(i);
+            try {
+                if(currExpr.type.isInt())
+                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.INT)));
+                else if(currExpr.type.isReal())
+                    stack.setValue(currExpr,new Value(new BigDecimal(currVal),new ScalarType(ScalarType.Scalars.REAL)));
+                else if(currExpr.type.isChar())
+                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.CHAR)));
+                else if(currExpr.type.isString())
+                    stack.setValue(currExpr,new Value(currVal,new ScalarType(ScalarType.Scalars.STR)));
+                else
+                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.BOOL)));
+            } catch(Exception e) {
+                // ERROR CHECK #2: Make sure user input matches the type of the input variable
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(in)
+                    .addErrorType(MessageType.RUNTIME_ERROR_601)
+                    .addArgs(currExpr.type)
+                    .error();
+            }
+        }
     }
 
     /**
