@@ -1933,7 +1933,7 @@ public class TypeChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.getClassType().getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().toString()).decl().asTopLevelDecl().asClassDecl();
 
         for(Var v : ne.getInitialFields()) {
             Type fType = cd.symbolTable.findName(v.toString()).decl().asFieldDecl().type();
