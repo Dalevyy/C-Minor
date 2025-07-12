@@ -612,6 +612,16 @@ public class Interpreter extends Visitor {
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.getTarget().visit(this);
+
+        // ERROR CHECK #1: This makes sure any object accessed in a field expression was indeed initialized.
+        if(currentValue == null) {
+            new ErrorBuilder(generateRuntimeError,interpretMode)
+                .addLocation(fe.getRootParent())
+                .addErrorType(MessageType.RUNTIME_ERROR_607)
+                .addArgs(fe.getTarget())
+                .error();
+        }
+        
         RuntimeObject obj = currentValue.asObject();
 
         // If the field expression starts with parent, we have to change the object's type
@@ -1021,33 +1031,27 @@ public class Interpreter extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(!ne.isParentKeyword()) {
-            if(currentValue != null && currentValue.isObject() && ne.getParent().isExpression()
-                    && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
-                // ERROR CHECK #1: This checks if the field exists for the current object.
-                if(!currentValue.asObject().hasField(ne)) {
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(ne.getRootParent())
-                        .addErrorType(MessageType.RUNTIME_ERROR_606)
-                        .addArgs(ne, currentValue.asObject().getCurrentType())
-                        .error();
-                }
-                currentValue = currentValue.asObject().getField(ne);
-            } else {
-                currentValue = stack.getValue(ne);
-                // ERROR CHECK #2: This checks if we are trying to access an object that wasn't initialized.
-                // The calls to 'findName' were needed to avoid an error being generated when we have a class name
-                // (such as when we execute an 'instanceof' operation)
-                if(currentValue == null && ne.type.isClassOrMultiType() && (currentScope.findName(ne).decl().isTopLevelDecl()
-                        && !currentScope.findName(ne).decl().asTopLevelDecl().isClassDecl())) {
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(ne.getRootParent())
-                        .addErrorType(MessageType.RUNTIME_ERROR_607)
-                        .addArgs(ne)
-                        .error();
-                }
+        // Ignore any names that refer to 'parent' keyword.
+        if(ne.isParentKeyword())
+            return;
+
+        // Special Case: If we are evaluating a complex field expression, trigger this code
+        if(currentValue != null
+        && currentValue.isObject() && ne.getParent().isExpression()
+        && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())
+        ) {
+            // ERROR CHECK #1: This checks if the field exists for the current object.
+            if(!currentValue.asObject().hasField(ne)) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ne.getRootParent())
+                    .addErrorType(MessageType.RUNTIME_ERROR_606)
+                    .addArgs(ne, currentValue.asObject().getCurrentType())
+                    .error();
             }
+            currentValue = currentValue.asObject().getField(ne);
         }
+        else
+            currentValue = stack.getValue(ne);
     }
 
     /**
