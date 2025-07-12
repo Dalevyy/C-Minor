@@ -289,7 +289,8 @@ public class Interpreter extends Visitor {
         be.getLHS().visit(this);
         Value LHS = currentValue;
 
-        be.getRHS().visit(this);
+        if(!binOp.equals("instanceof") && !binOp.equals("!instanceof"))
+            be.getRHS().visit(this);
         Value RHS = currentValue;
 
         switch(binOp) {
@@ -612,16 +613,6 @@ public class Interpreter extends Visitor {
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.getTarget().visit(this);
-
-        // ERROR CHECK #1: This makes sure any object accessed in a field expression was indeed initialized.
-        if(currentValue == null) {
-            new ErrorBuilder(generateRuntimeError,interpretMode)
-                .addLocation(fe.getRootParent())
-                .addErrorType(MessageType.RUNTIME_ERROR_607)
-                .addArgs(fe.getTarget())
-                .error();
-        }
-        
         RuntimeObject obj = currentValue.asObject();
 
         // If the field expression starts with parent, we have to change the object's type
@@ -957,6 +948,8 @@ public class Interpreter extends Visitor {
                 break;
             case INSERT:
                 Value index = currentValue;
+
+                // ERROR CHECK #1: This makes sure the passed index is in the list's memory range.
                 if(index.asInt() < 1 || index.asInt() > lst.size()) {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ls)
@@ -964,27 +957,28 @@ public class Interpreter extends Visitor {
                         .addArgs(ls.getListName(),lst.size(),index.asInt())
                         .error();
                 }
+
                 ls.getAllArgs().get(2).visit(this);
                 lst.insertElement(index.asInt(),currentValue);
                 break;
             case REMOVE:
                 boolean successfulRemoval = true;
-                if(currentValue.isList()) {
-                    if(currentValue.asList().size() == 1)
-                        successfulRemoval = lst.remove(currentValue.asList().get(0));
-                }
-                else if(currentValue.getType().isInt()) {
+
+                // ERROR CHECK #2: This also makes sure the passed index is in the list's memory range
+                if(currentValue.getType().isInt()) {
                     if(currentValue.asInt() < 1 || currentValue.asInt() > lst.size()) {
                         new ErrorBuilder(generateRuntimeError,interpretMode)
                             .addLocation(ls)
                             .addErrorType(MessageType.RUNTIME_ERROR_608)
                             .error();
                     }
+
                     lst.remove(currentValue.asInt());
                 }
                 else
                     successfulRemoval = lst.remove(currentValue);
 
+                // ERROR CHECK #3: This will throw an exception to the user if an element couldn't be removed.
                 if(!successfulRemoval) {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ls)
@@ -1035,11 +1029,10 @@ public class Interpreter extends Visitor {
         if(ne.isParentKeyword())
             return;
 
-        // Special Case: If we are evaluating a complex field expression, trigger this code
+        // Special Case: If we are evaluating a complex field expression, execute this branch
         if(currentValue != null
-        && currentValue.isObject() && ne.getParent().isExpression()
-        && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())
-        ) {
+            && currentValue.isObject() && ne.getParent().isExpression()
+            && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
             // ERROR CHECK #1: This checks if the field exists for the current object.
             if(!currentValue.asObject().hasField(ne)) {
                 new ErrorBuilder(generateRuntimeError,interpretMode)
@@ -1050,8 +1043,17 @@ public class Interpreter extends Visitor {
             }
             currentValue = currentValue.asObject().getField(ne);
         }
-        else
+        else {
             currentValue = stack.getValue(ne);
+            // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
+            if(currentValue == null) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ne.getRootParent())
+                    .addErrorType(MessageType.RUNTIME_ERROR_607)
+                    .addArgs(ne)
+                    .error();
+            }
+        }
     }
 
     /**
