@@ -2,12 +2,45 @@ package interpreter;
 
 import ast.classbody.InitDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.*;
+import ast.expressions.ArrayExpr;
+import ast.expressions.ArrayLiteral;
+import ast.expressions.BinaryExpr;
+import ast.expressions.BreakStmt;
+import ast.expressions.CastExpr;
+import ast.expressions.ContinueStmt;
+import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
+import ast.expressions.InStmt;
+import ast.expressions.Invocation;
+import ast.expressions.ListLiteral;
+import ast.expressions.Literal;
+import ast.expressions.NameExpr;
+import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
+import ast.expressions.ThisStmt;
+import ast.expressions.UnaryExpr;
 import ast.misc.Compilation;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
-import ast.statements.*;
-import ast.topleveldecls.*;
+import ast.statements.AssignStmt;
+import ast.statements.BlockStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.ListStmt;
+import ast.statements.LocalDecl;
+import ast.statements.ReturnStmt;
+import ast.statements.RetypeStmt;
+import ast.statements.Statement;
+import ast.statements.StopStmt;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.ImportDecl;
 import ast.types.ClassType;
 import ast.types.DiscreteType;
 import ast.types.ScalarType;
@@ -28,19 +61,62 @@ import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
 
-// TODO: How to only have one this pointer per object? :?
-
+/**
+ * A {@link Visitor} class that executes a C Minor program.
+ * <p><br>
+ *     When a user is in interpretation mode, a program will be
+ *     evaluated and executed by this class. Currently, compilation
+ *     mode will also execute the program through this class, though
+ *     this is only temporary.
+ * </p>
+ * @author Daniel Levy
+ */
 public class Interpreter extends Visitor {
 
+    /**
+     * An imitation of a {@link RuntimeStack}
+     */
     private RuntimeStack stack;
+
+    /**
+     * {@link SymbolTable} to denote the current scope we are in for calling functions/methods.
+     */
     private SymbolTable currentScope;
+
+    /**
+     * Stores the current value the interpreter is evaluating.
+     */
     private Value currentValue;
+
+    /**
+     * Error factory that generates runtime errors.
+     */
     private final RuntimeErrorFactory generateRuntimeError;
-    private boolean insideAssignment;
-    private boolean output;
-    private boolean returnFound;
+
+    /**
+     * Flag set when a {@code break} statement is found.
+     */
     private boolean breakFound;
+
+    /**
+     * Flag set when a {@code continue} statement is found.
+     */
     private boolean continueFound;
+
+    /**
+     * Flag set when the {@link Interpreter} executes an assignment statement.
+     */
+    private boolean insideAssignment;
+
+    /**
+     * Flag set when the {@link Interpreter} executes an output statement.
+     */
+    private boolean output;
+
+    /**
+     * Flag set when a {@code return} statement is found.
+     */
+    private boolean returnFound;
 
     /**
      * Creates interpreter for the VM.
@@ -51,9 +127,11 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
         this.generateRuntimeError = new RuntimeErrorFactory();
         this.interpretMode = true;
-        this.returnFound = false;
         this.breakFound = false;
         this.continueFound = false;
+        this.insideAssignment = false;
+        this.output = false;
+        this.returnFound = false;
     }
 
     /**
