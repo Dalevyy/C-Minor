@@ -345,7 +345,6 @@ public class Lexer {
 
             case "abstr" -> new Token(TokenType.ABSTR, "abstr", currLoc.copy());
             case "and" -> new Token(TokenType.AND, "and", currLoc.copy());
-            case "append" -> new Token(TokenType.APPEND, "append", currLoc.copy());
             case "Array" -> new Token(TokenType.ARRAY, "Array", currLoc.copy());
             case "Bool" -> new Token(TokenType.BOOL, "Bool", currLoc.copy());
             case "break" -> new Token(TokenType.BREAK, "break", currLoc.copy());
@@ -372,9 +371,7 @@ public class Lexer {
             case "inherits" -> new Token(TokenType.INHERITS, "inherits", currLoc.copy());
             case "inout" -> new Token(TokenType.INOUT, "inout", currLoc.copy());
             case "inrev" -> new Token(TokenType.INREV, "inrev", currLoc.copy());
-            case "insert" -> new Token(TokenType.INSERT, "insert", currLoc.copy());
             case "instanceof" -> new Token(TokenType.INSTANCEOF, "instanceof", currLoc.copy());
-            case "length" -> new Token(TokenType.LENGTH, "length", currLoc.copy());
             case "List" -> new Token(TokenType.LIST, "List", currLoc.copy());
             case "local" -> new Token(TokenType.LOCAL, "local", currLoc.copy());
             case "loop" -> new Token(TokenType.LOOP, "loop", currLoc.copy());
@@ -398,7 +395,6 @@ public class Lexer {
             case "Real" -> new Token(TokenType.REAL, "Real", currLoc.copy());
             case "recurs" -> new Token(TokenType.RECURS, "recurs", currLoc.copy());
             case "ref" -> new Token(TokenType.REF, "ref", currLoc.copy());
-            case "remove" -> new Token(TokenType.REMOVE, "remove", currLoc.copy());
             case "rename" -> new Token(TokenType.RENAME, "rename", currLoc.copy());
             case "return" -> new Token(TokenType.RETURN, "return", currLoc.copy());
             case "retype" -> new Token(TokenType.RETYPE, "retype", currLoc.copy());

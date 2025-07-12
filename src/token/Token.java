@@ -29,6 +29,8 @@ public class Token {
 
     public void setStartLocation(Position start) { this.location.start = start; }
     public void setEndLocation(Position end) { this.location.end = end; }
+
+    public boolean equals(String lexeme) { return this.text.equals(lexeme); }
     
     @Override
     public String toString() {

@@ -99,6 +99,7 @@ public class Parser {
     private Token currentLA(int nextPos) { return lookaheads[(lookPos+nextPos)%k]; }
 
     private boolean nextLA(TokenType expectedTok) { return currentLA().getTokenType() == expectedTok; }
+    private boolean nextLA(String expectedLexeme) { return currentLA().equals(expectedLexeme); }
     private boolean nextLA(TokenType expectedTok, int nextPos) {
         return currentLA(nextPos).getTokenType() == expectedTok;
     }
@@ -156,9 +157,9 @@ public class Parser {
                 || nextLA(TokenType.FOR)
                 || nextLA(TokenType.DO)
                 || nextLA(TokenType.CHOICE)
-                || nextLA(TokenType.APPEND)
-                || nextLA(TokenType.REMOVE)
-                || nextLA(TokenType.INSERT)
+                || nextLA("append")
+                || nextLA("remove")
+                || nextLA("insert")
                 || nextLA(TokenType.CIN)
                 || nextLA(TokenType.COUT)
                 || nextLA(TokenType.BREAK)
@@ -176,7 +177,7 @@ public class Parser {
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.ID)
                 || nextLA(TokenType.SLICE)
-                || nextLA(TokenType.LENGTH)
+                || nextLA("length")
                 || nextLA(TokenType.CAST)
                 || nextLA(TokenType.BREAK)
                 || nextLA(TokenType.CONTINUE)
@@ -1244,7 +1245,7 @@ public class Parser {
             return forStatement();
         else if(nextLA(TokenType.CHOICE))
             return choiceStatement();
-        else if(nextLA(TokenType.APPEND) || nextLA(TokenType.REMOVE) || nextLA(TokenType.INSERT))
+        else if(nextLA("append") || nextLA("remove") || nextLA("insert"))
             return listCommandStatement();
         else
             return assignmentStatement();
@@ -1519,16 +1520,16 @@ public class Parser {
         tokenStack.add(currentLA());
         ListStmt.Commands command;
 
-        if(nextLA(TokenType.APPEND)) {
-            match(TokenType.APPEND);
+        if(nextLA("append")) {
+            match(TokenType.ID);
             command = ListStmt.Commands.APPEND;
         }
-        else if(nextLA(TokenType.REMOVE)) {
-            match(TokenType.REMOVE);
+        else if(nextLA("remove")) {
+            match(TokenType.ID);
             command = ListStmt.Commands.REMOVE;
         }
         else {
-            match(TokenType.INSERT);
+            match(TokenType.ID);
             command = ListStmt.Commands.INSERT;
         }
 
@@ -1712,9 +1713,9 @@ public class Parser {
 
     // 63. factor_expression ::= 'length' '(' arguments ')' | postfix_expression
     private Expression factorExpression() {
-        if(nextLA(TokenType.LENGTH)) {
+        if(nextLA("length")) {
             tokenStack.add(currentLA());
-            match(TokenType.LENGTH);
+            match(TokenType.ID);
             match(TokenType.LPAREN);
 
             Vector<Expression> args = new Vector<>();
