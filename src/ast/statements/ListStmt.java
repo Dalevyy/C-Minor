@@ -2,7 +2,6 @@ package ast.statements;
 
 import ast.AST;
 import ast.expressions.Expression;
-import ast.expressions.NameExpr;
 import ast.types.ListType;
 import token.Token;
 import utilities.Vector;
@@ -15,7 +14,6 @@ public class ListStmt extends Statement {
 
     private Commands commandType;
     private Vector<Expression> args;
-
 
     public ListStmt() { this(new Token(),null,new Vector<>()); }
     public ListStmt(Token t, Commands c, Vector<Expression> args) {
