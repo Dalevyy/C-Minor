@@ -1,59 +1,162 @@
 package parser;
 
-import ast.*;
-import ast.misc.*;
-import ast.misc.Typeifier.*;
-import ast.misc.Modifier.*;
-import ast.classbody.*;
-import ast.expressions.*;
-import ast.expressions.Literal.*;
-import ast.operators.*;
-import ast.operators.AssignOp.*;
-import ast.operators.BinaryOp.*;
-import ast.operators.LoopOp.*;
-import ast.operators.UnaryOp.*;
-import ast.statements.*;
-import ast.topleveldecls.*;
-import ast.types.*;
-import ast.types.ScalarType.*;
-import ast.types.DiscreteType.*;
-import lexer.*;
+import ast.AST;
+import ast.classbody.ClassBody;
+import ast.classbody.FieldDecl;
+import ast.classbody.MethodDecl;
+import ast.expressions.ArrayExpr;
+import ast.expressions.ArrayLiteral;
+import ast.expressions.BinaryExpr;
+import ast.expressions.BreakStmt;
+import ast.expressions.CastExpr;
+import ast.expressions.ContinueStmt;
+import ast.expressions.EndlStmt;
+import ast.expressions.Expression;
+import ast.expressions.FieldExpr;
+import ast.expressions.InStmt;
+import ast.expressions.Invocation;
+import ast.expressions.ListLiteral;
+import ast.expressions.Literal;
+import ast.expressions.Literal.ConstantType;
+import ast.expressions.NameExpr;
+import ast.expressions.NewExpr;
+import ast.expressions.OutStmt;
+import ast.expressions.UnaryExpr;
+import ast.misc.Compilation;
+import ast.misc.Label;
+import ast.misc.Modifier;
+import ast.misc.Modifier.Mods;
+import ast.misc.Name;
+import ast.misc.ParamDecl;
+import ast.misc.Typeifier;
+import ast.misc.Typeifier.PossibleType;
+import ast.misc.Var;
+import ast.operators.AssignOp;
+import ast.operators.AssignOp.AssignType;
+import ast.operators.BinaryOp;
+import ast.operators.BinaryOp.BinaryType;
+import ast.operators.LoopOp;
+import ast.operators.LoopOp.LoopType;
+import ast.operators.Operator;
+import ast.operators.UnaryOp;
+import ast.operators.UnaryOp.UnaryType;
+import ast.statements.AssignStmt;
+import ast.statements.BlockStmt;
+import ast.statements.CaseStmt;
+import ast.statements.ChoiceStmt;
+import ast.statements.DoStmt;
+import ast.statements.ExprStmt;
+import ast.statements.ForStmt;
+import ast.statements.IfStmt;
+import ast.statements.ListStmt;
+import ast.statements.LocalDecl;
+import ast.statements.ReturnStmt;
+import ast.statements.RetypeStmt;
+import ast.statements.Statement;
+import ast.statements.StopStmt;
+import ast.statements.WhileStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.topleveldecls.EnumDecl;
+import ast.topleveldecls.FuncDecl;
+import ast.topleveldecls.GlobalDecl;
+import ast.topleveldecls.ImportDecl;
+import ast.topleveldecls.MainDecl;
+import ast.types.ArrayType;
+import ast.types.ClassType;
+import ast.types.DiscreteType;
+import ast.types.DiscreteType.Discretes;
+import ast.types.ListType;
+import ast.types.ScalarType;
+import ast.types.ScalarType.Scalars;
+import ast.types.Type;
+import ast.types.VoidType;
+import lexer.Lexer;
 import messages.errors.syntax.SyntaxErrorFactory;
 import micropasses.ImportHandler;
-import token.*;
-import utilities.Vector;
+import token.Token;
+import token.TokenType;
 import utilities.PrettyPrint;
+import utilities.Vector;
 
-/*
----------------------------------------------------------
-                     C Minor Parser
----------------------------------------------------------
-*/
+/**
+ * A parser class responsible for checking if a C Minor program is syntactically valid.
+ * <p><br>
+ *     This is a handwritten LL(3) parser that interfaces with the {@link Lexer} to
+ *     determine if a user correctly wrote a program. The parser is handwritten as
+ *     suppose to tool-generated in order to facilitate the generation of more specific
+ *     and meaningful error messages in the future.
+ * </p>
+ * @author Daniel Levy
+ */
 public class Parser {
 
-    private final Lexer input;              // Lexer
-    private final int k = 3;                // k = # of lookaheads
-    private int lookPos;                    // Current lookahead position
-    private final Token[] lookaheads;       // Array of k lookaheads
-    private final boolean printToks;        // Flag to print tokens to user
-    private boolean interpretMode = false;
+    /**
+     * Instance of the {@link Lexer} that the parser requests tokens from.
+     */
+    private final Lexer input;
+
+    /**
+     * Number of lookaheads the parser uses, currently set to 3.
+     */
+    private final int k = 3;
+
+    /**
+     * {@link Vector} of tokens containing the current lookaheads we are using.
+     */
+    private final Vector<Token> lookaheads;
+
+    /**
+     * Current lookahead position in the {@link #lookaheads} vector.
+     */
+    private int lookPos;
+
+    /**
+     * Stack that keeps track of all tokens we are currently parsing.
+     */
     private final Vector<Token> tokenStack;
+
+    /**
+     * {@link SyntaxErrorFactory} to generate syntax errors.
+     */
     private final SyntaxErrorFactory generateSyntaxError;
-    private boolean importMode = false;
+
+    /**
+     * Flag set when a user wants to see every token that is parsed.
+     */
+    private final boolean printToks;
+
+    /**
+     * Flag set when the parser is executed by the {@link interpreter.VM}.
+     */
+    private boolean interpretMode;
+
+    /**
+     * Flag set when the parser begins to parse an imported file.
+     */
+    private boolean importMode;
 
     // Hacks to get IO statements to be parsed correctly... :(
-    private boolean insideParen = false;
-    private boolean insideIO = false;
-    private boolean insideField = false;
+    private boolean insideParen;
+    private boolean insideIO;
+    private boolean insideField;
 
     public Parser(Lexer input, boolean printTokens) {
         this.input = input;
         this.lookPos = 0;
-        this.lookaheads = new Token[k];
-        this.printToks = printTokens;
+        this.lookaheads = new Vector<>();
         this.tokenStack = new Vector<>();
-        for(int i = 0; i < k; i++) { consume(); }
         this.generateSyntaxError = new SyntaxErrorFactory();
+        this.printToks = printTokens;
+        this.interpretMode = false;
+        this.importMode = false;
+        this.insideParen = false;
+        this.insideIO = false;
+        this.insideField = false;
+
+        for(int i = 0; i < k; i++) {
+            this.lookaheads.add(new Token());
+            consume();
+        }
     }
 
     public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
@@ -74,7 +177,7 @@ public class Parser {
     }
 
     private void consume() {
-        lookaheads[lookPos] = this.input.nextToken();
+        lookaheads.set(lookPos,this.input.nextToken());
         lookPos = (lookPos + 1) % k;
     }
 
@@ -95,8 +198,8 @@ public class Parser {
         }
     }
 
-    private Token currentLA() { return lookaheads[lookPos%k]; }
-    private Token currentLA(int nextPos) { return lookaheads[(lookPos+nextPos)%k]; }
+    private Token currentLA() { return lookaheads.get(lookPos%k); }
+    private Token currentLA(int nextPos) { return lookaheads.get((lookPos+nextPos)%k); }
 
     private boolean nextLA(TokenType expectedTok) { return currentLA().getTokenType() == expectedTok; }
     private boolean nextLA(String expectedLexeme) { return currentLA().equals(expectedLexeme); }
@@ -705,7 +808,7 @@ public class Parser {
         return new ClassDecl(nodeToken(),m,n,types,ct,body);
     }
 
-    // 15. type_params ::= '<' typeifier ( ',' typeifier )* '>'
+    // 14. type_params ::= '<' typeifier ( ',' typeifier )* '>'
     private Vector<Typeifier> typeifierParams() {
         match(TokenType.LT);
         Vector<Typeifier> typefs = new Vector<>(typeifier());
@@ -719,7 +822,7 @@ public class Parser {
         return typefs;
     }
 
-    // 16. typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID
+    // 15. typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID
     private Typeifier typeifier() {
         tokenStack.add(currentLA());
 
@@ -743,7 +846,7 @@ public class Parser {
         return new Typeifier(nodeToken(),pt,n);
     }
 
-    // 17. super_class ::= 'inherits' ID type_params?
+    // 16. super_class ::= 'inherits' ID type_params?
     private ClassType superClass() {
         match(TokenType.INHERITS);
 
@@ -758,7 +861,7 @@ public class Parser {
         return new ClassType(nodeToken(),superName,vectorOfTypes);
     }
 
-    // 18. class_body ::= '{' data_decl* method_decl* '}'
+    // 17. class_body ::= '{' data_decl* method_decl* '}'
     private ClassBody classBody() {
         tokenStack.add(currentLA());
         match(TokenType.LBRACE);
@@ -779,7 +882,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 19. data_decl ::= ( 'property' | 'protected' | 'public' ) variable_decl
+    // 18. data_decl ::= ( 'property' | 'protected' | 'public' ) variable_decl
     private Vector<FieldDecl> dataDecl() {
         tokenStack.add(currentLA());
 
@@ -816,13 +919,13 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 20. method_decl ::= method_class | operator_class
+    // 19. method_decl ::= method_class | operator_class
     private MethodDecl methodDecl() {
         if(nextLA(TokenType.OPERATOR,1) || nextLA(TokenType.OPERATOR,2)) { return operatorClass(); }
         else { return methodClass(); }
     }
 
-    // 21. method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement
+    // 20. method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement
     private MethodDecl methodClass() {
         tokenStack.add(currentLA());
         Vector<Modifier> mods = new Vector<>(methodModifier());
@@ -849,7 +952,7 @@ public class Parser {
         return new MethodDecl(nodeToken(),mods,mName,null,pd,rt,bs,override);
     }
 
-    // 22. method_modifier : 'protected' | 'public' ;
+    // 21. method_modifier : 'protected' | 'public' ;
     private Modifier methodModifier() {
         tokenStack.add(currentLA());
 
@@ -863,7 +966,7 @@ public class Parser {
         }
     }
 
-    // 23. attribute ::= 'final' | 'pure' | 'recurs'
+    // 22. attribute ::= 'final' | 'pure' | 'recurs'
     private Modifier attribute() {
         tokenStack.add(currentLA());
 
@@ -881,7 +984,7 @@ public class Parser {
         }
     }
 
-    // 24. method-header ::= ID '(' formal-params? ')'
+    // 23. method-header ::= ID '(' formal-params? ')'
     private Vector<Object> methodHeader() {
         Name n = new Name(currentLA());
         match(TokenType.ID);
@@ -900,7 +1003,7 @@ public class Parser {
         return header;
     }
 
-    // 25. formal_params : param_modifier Name ':' type ( ',' param_modifier Name ':' type)*
+    // 24. formal_params : param_modifier Name ':' type ( ',' param_modifier Name ':' type)*
     private Vector<ParamDecl> formalParams() {
         tokenStack.add(currentLA());
 
@@ -930,7 +1033,7 @@ public class Parser {
         return pd;
     }
 
-    // 26. param_modifier : 'in' | 'out' | 'inout' | 'ref'
+    // 25. param_modifier : 'in' | 'out' | 'inout' | 'ref'
     private Modifier paramModifier() {
         tokenStack.add(currentLA());
 
@@ -952,7 +1055,7 @@ public class Parser {
         }
     }
 
-    // 27. return-type ::= Void | type
+    // 26. return-type ::= Void | type
     private Type returnType() {
         if(nextLA(TokenType.VOID)) {
             tokenStack.add(currentLA());
@@ -962,7 +1065,7 @@ public class Parser {
         return type();
     }
 
-    // 28. operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement
+    // 27. operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement
     private MethodDecl operatorClass() {
         tokenStack.add(currentLA());
         Vector<Modifier> mods = new Vector<>(methodModifier());
@@ -984,7 +1087,7 @@ public class Parser {
         return new MethodDecl(nodeToken(),mods,null,op,pd,rt,block,false);
     }
 
-    // 29. operator_header ::= operator_symbol '(' formal-params? ')'
+    // 28. operator_header ::= operator_symbol '(' formal-params? ')'
     private Vector<Object> operatorHeader() {
         Operator op = operatorSymbol();
 
@@ -1002,13 +1105,13 @@ public class Parser {
         return header;
     }
 
-    // 30. operator_symbol ::= binary_operator | unary_operator
+    // 29. operator_symbol ::= binary_operator | unary_operator
     private Operator operatorSymbol() {
         if(nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) { return unaryOperator(); }
         else { return binaryOperator(); }
     }
 
-    // 31. binary_operator ::= <= | < | > | >= | == | <> | <=> | <: | :> | + | - | * | / | % | **
+    // 30. binary_operator ::= <= | < | > | >= | == | <> | <=> | <: | :> | + | - | * | / | % | **
     private BinaryOp binaryOperator() {
         tokenStack.add(currentLA());
 
@@ -1066,7 +1169,7 @@ public class Parser {
         }
     }
 
-    // 32. unary-operator ::= ~ | not
+    // 31. unary-operator ::= ~ | not
     private UnaryOp unaryOperator() {
         tokenStack.add(currentLA());
 
@@ -1086,7 +1189,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 33. function ::= 'def' ( 'pure' | 'recurs' )? function_header '=>' return_type block_statement
+    // 32. function ::= 'def' ( 'pure' | 'recurs' )? function_header '=>' return_type block_statement
     private FuncDecl function() {
         tokenStack.add(currentLA());
         boolean isRecursive = false;
@@ -1115,7 +1218,7 @@ public class Parser {
         return new FuncDecl(nodeToken(),mod,n,typefs,pd,ret,b);
     }
 
-    // 34. function_header ::= ID function_type_params? '(' formal_params? ')'
+    // 33. function_header ::= ID function_type_params? '(' formal_params? ')'
     private Vector<Object> functionHeader() {
         Name n = new Name(currentLA());
         match(TokenType.ID);
@@ -1144,7 +1247,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 35. main ::= 'def' 'main' args? '=>' return_type block_statement
+    // 34. main ::= 'def' 'main' args? '=>' return_type block_statement
     private MainDecl mainFunc() {
         tokenStack.add(currentLA());
 
@@ -1161,7 +1264,7 @@ public class Parser {
         return new MainDecl(nodeToken(),args,rt,b);
     }
 
-    // 36. args ::= '(' formal_params? ')'
+    // 35. args ::= '(' formal_params? ')'
     private Vector<ParamDecl> args() {
         match(TokenType.LPAREN);
         Vector<ParamDecl> pd = new Vector<>();
@@ -1172,7 +1275,7 @@ public class Parser {
         return pd;
     }
 
-    // 37. block-statement ::= '{' declaration* statement* '}'
+    // 36. block-statement ::= '{' declaration* statement* '}'
     private BlockStmt blockStatement() {
         tokenStack.add(currentLA());
         match(TokenType.LBRACE);
@@ -1187,7 +1290,7 @@ public class Parser {
         return new BlockStmt(nodeToken(),vd,st);
     }
 
-    // 38. declaration ::= 'def' 'local'? variable_decl
+    // 37. declaration ::= 'def' 'local'? variable_decl
     private Vector<LocalDecl> declaration() {
         tokenStack.add(currentLA());
 
@@ -1214,7 +1317,7 @@ public class Parser {
     */
 
     /*
-       39. statement ::= 'stop'
+       38. statement ::= 'stop'
                        | return_statement
                        | assignment_statement
                        | block_statement
@@ -1251,7 +1354,7 @@ public class Parser {
             return assignmentStatement();
     }
 
-    // 40. return_statement ::= expression?
+    // 39. return_statement ::= expression?
     private ReturnStmt returnStatement() {
         tokenStack.add(currentLA());
 
@@ -1292,7 +1395,7 @@ public class Parser {
         return new ExprStmt(nodeToken(),e);
     }
 
-    // 42. assignment_operator ::= '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='
+    // 40. assignment_operator ::= '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**='
     private AssignOp assignmentOperator() {
         tokenStack.add(currentLA());
 
@@ -1326,7 +1429,7 @@ public class Parser {
         }
     }
 
-    // 43. if_statement ::= if expression block_statement ( elseif_statement )* ( 'else' block_statement)?
+    // 41. if_statement ::= if expression block_statement ( elseif_statement )* ( 'else' block_statement)?
     private IfStmt ifStatement() {
         tokenStack.add(currentLA());
 
@@ -1352,7 +1455,7 @@ public class Parser {
         return new IfStmt(nodeToken(),e,b,elifStmts);
     }
 
-    // 44. elseif_statement ::= 'else' 'if' expression block_statement
+    // 42. elseif_statement ::= 'else' 'if' expression block_statement
     private IfStmt elseIfStatement() {
         tokenStack.add(currentLA());
 
@@ -1365,7 +1468,7 @@ public class Parser {
         return new IfStmt(nodeToken(),e,b);
     }
 
-    // 45. while_statement ::= 'while' expression block_statement
+    // 43. while_statement ::= 'while' expression block_statement
     private WhileStmt whileStatement() {
         tokenStack.add(currentLA());
 
@@ -1376,7 +1479,7 @@ public class Parser {
         return new WhileStmt(nodeToken(),e,b);
     }
 
-    // 46. do_while_statement ::= 'do' block_statement 'while' expression
+    // 44. do_while_statement ::= 'do' block_statement 'while' expression
     private DoStmt doWhileStatement() {
         tokenStack.add(currentLA());
 
@@ -1389,7 +1492,7 @@ public class Parser {
         return new DoStmt(nodeToken(),b,e);
     }
 
-    // 47. for_statement : 'for' '(' range_iterator | array_iterator')' block_statement
+    // 45. for_statement : 'for' '(' range_iterator | array_iterator')' block_statement
     private ForStmt forStatement() {
         tokenStack.add(currentLA());
 
@@ -1408,7 +1511,7 @@ public class Parser {
         return new ForStmt(nodeToken(),forVar,LHS,RHS,loopOp,b);
     }
 
-    // 48. range_iterator : 'def' Name 'in' expression range_operator expression ;
+    // 46. range_iterator : 'def' Name 'in' expression range_operator expression ;
     private Vector<AST> rangeIterator() {
         tokenStack.add(currentLA());
         Vector<AST> forComponents = new Vector<>();
@@ -1425,7 +1528,7 @@ public class Parser {
         return forComponents;
     }
 
-    // 49. range_operator : inclusive | exclusive_right | exclusive_left | exclusive ;
+    // 47. range_operator : inclusive | exclusive_right | exclusive_left | exclusive ;
     private LoopOp rangeOperator() {
         if(nextLA(TokenType.INC) && nextLA(TokenType.LT,1)) { return exclusiveRight(); }
         else if(nextLA(TokenType.INC)) { return inclusive(); }
@@ -1437,14 +1540,14 @@ public class Parser {
         else { return exclusiveLeft(); }
     }
 
-    // 50. inclusive : '..' ;
+    // 48. inclusive : '..' ;
     private LoopOp inclusive() {
         tokenStack.add(currentLA());
         match(TokenType.INC);
         return new LoopOp(nodeToken(),LoopType.INCL);
     }
 
-    // 51. exclusive_right : '..<' ;
+    // 49. exclusive_right : '..<' ;
     private LoopOp exclusiveRight() {
         tokenStack.add(currentLA());
         match(TokenType.INC);
@@ -1453,7 +1556,7 @@ public class Parser {
 
     }
 
-    // 52. exclusive_left : '<..' ;
+    // 50. exclusive_left : '<..' ;
     private LoopOp exclusiveLeft() {
         tokenStack.add(currentLA());
         match(TokenType.LT);
@@ -1461,7 +1564,7 @@ public class Parser {
         return new LoopOp(nodeToken(),LoopType.EXCL_L);
     }
 
-    // 53. exclusive : '<..<'
+    // 51. exclusive : '<..<'
     private LoopOp exclusive() {
         tokenStack.add(currentLA());
         match(TokenType.LT);
@@ -1470,7 +1573,7 @@ public class Parser {
         return new LoopOp(nodeToken(),LoopType.EXCL);
     }
 
-    // 54. choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}'
+    // 52. choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}'
     private ChoiceStmt choiceStatement() {
         tokenStack.add(currentLA());
 
@@ -1488,7 +1591,7 @@ public class Parser {
         return new ChoiceStmt(nodeToken(),e,cStmts,b);
     }
 
-    // 55. case_statement ::= 'on' label block_statement
+    // 53. case_statement ::= 'on' label block_statement
     private CaseStmt caseStatement() {
         tokenStack.add(currentLA());
 
@@ -1499,7 +1602,7 @@ public class Parser {
         return new CaseStmt(nodeToken(),l,b);
     }
 
-    // 56. label ::= scalar_constant ('..' scalar_constant)?
+    // 54. label ::= scalar_constant ('..' scalar_constant)?
     private Label label() {
         tokenStack.add(currentLA());
         Literal lConstant = scalarConstant();
@@ -1513,7 +1616,7 @@ public class Parser {
         return new Label(nodeToken(),lConstant);
     }
 
-    // 57. list_command_statement ::= 'append' '(' arguments ')'
+    // 55. list_command_statement ::= 'append' '(' arguments ')'
     //                              | 'remove' '(' arguments ')'
     //                              | 'insert' '(' arguments ')'
     private ListStmt listCommandStatement() {
@@ -1539,7 +1642,7 @@ public class Parser {
         return new ListStmt(nodeToken(),command,args);
     }
 
-    // 58. input_statement ::= 'cin' ( '>>' expression )+
+    // 56. input_statement ::= 'cin' ( '>>' expression )+
     private InStmt inputStatement() {
         tokenStack.add(currentLA());
 
@@ -1558,7 +1661,7 @@ public class Parser {
         return new InStmt(nodeToken(),inputExprs);
     }
 
-    // 59. output_statement ::= 'cout' ( '<<' expression )+
+    // 57. output_statement ::= 'cout' ( '<<' expression )+
     private OutStmt outputStatement() {
         tokenStack.add(currentLA());
 
@@ -1584,7 +1687,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 60. primary_expression ::= ID
+    // 58. primary_expression ::= ID
     //                          | constant
     //                          | '(' expression ')'
     //                          | input_statement
@@ -1636,7 +1739,7 @@ public class Parser {
         }
     }
 
-    // 61. postfix_expression ::= primary_expression ( '[' expression ']'
+    // 59. postfix_expression ::= primary_expression ( '[' expression ']'
     //                                               | '(' arguments? ')'
     //                                               |  ( '.' | '?.' ) expression )*
     private Expression postfixExpression() {
@@ -1699,7 +1802,7 @@ public class Parser {
         return LHS;
     }
 
-    // 62. arguments ::= expression ( ',' expression )*
+    // 60. arguments ::= expression ( ',' expression )*
     private Vector<Expression> arguments() {
         Vector<Expression> ex = new Vector<>();
         ex.add(expression());
@@ -1711,7 +1814,7 @@ public class Parser {
         return ex;
     }
 
-    // 63. factor_expression ::= 'length' '(' arguments ')' | postfix_expression
+    // 61. factor_expression ::= 'length' '(' arguments ')' | postfix_expression
     private Expression factorExpression() {
         if(nextLA("length")) {
             tokenStack.add(currentLA());
@@ -1727,7 +1830,7 @@ public class Parser {
         return postfixExpression();
     }
 
-    // 64. unary_expression ::= unary_operator cast_expression | factor_expression
+    // 62. unary_expression ::= unary_operator cast_expression | factor_expression
     private Expression unaryExpression() {
         if((nextLA(TokenType.BNOT) || nextLA(TokenType.NOT)) && !insideField) {
             tokenStack.add(currentLA());
@@ -1740,7 +1843,7 @@ public class Parser {
         return factorExpression();
     }
 
-    // 65. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
+    // 63. cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression
     private Expression castExpression() {
         if(inScalarTypeFIRST() && !insideField) {
             tokenStack.add(currentLA());
@@ -1756,7 +1859,7 @@ public class Parser {
         return unaryExpression();
     }
 
-    // 66. power_expression ::= cast_expression ( '**' cast_expression )*
+    // 64. power_expression ::= cast_expression ( '**' cast_expression )*
     private Expression powerExpression() {
         tokenStack.add(currentLA());
         Expression left = castExpression();
@@ -1777,7 +1880,7 @@ public class Parser {
         return left;
     }
 
-    // 67. multiplication_expression ::= power_expression ( ( '*' | '/' | '%' ) power_expression )*
+    // 65. multiplication_expression ::= power_expression ( ( '*' | '/' | '%' ) power_expression )*
     private Expression multiplicationExpression() {
         tokenStack.add(currentLA());
         Expression left = powerExpression();
@@ -1810,7 +1913,7 @@ public class Parser {
         return left;
     }
 
-    // 68. additive_expression ::= multiplication_expression ( ( '+' | '-' ) multiplication_expression )*
+    // 66. additive_expression ::= multiplication_expression ( ( '+' | '-' ) multiplication_expression )*
     private Expression additiveExpression() {
         tokenStack.add(currentLA());
         Expression left = multiplicationExpression();
@@ -1840,7 +1943,7 @@ public class Parser {
         return left;
     }
 
-    // 69. shift_expression ::= additive_expression ( ( '<<' | '>>' ) additive_expression )*
+    // 67. shift_expression ::= additive_expression ( ( '<<' | '>>' ) additive_expression )*
     private Expression shiftExpression() {
         tokenStack.add(currentLA());
         Expression left = additiveExpression();
@@ -1868,7 +1971,7 @@ public class Parser {
         return left;
     }
 
-    // 70. relational_expression ::= shift_expression ( ( '<' | '>' | '<=' | '>=' ) shift_expression )*
+    // 68. relational_expression ::= shift_expression ( ( '<' | '>' | '<=' | '>=' ) shift_expression )*
     private Expression relationalExpression() {
         tokenStack.add(currentLA());
         Expression left = shiftExpression();
@@ -1905,7 +2008,7 @@ public class Parser {
         return left;
     }
 
-    // 71. instanceof_expression ::= relational_expression ( ( 'instanceof' | '!instanceof' | 'as?' ) relational_expression )*
+    // 69. instanceof_expression ::= relational_expression ( ( 'instanceof' | '!instanceof' | 'as?' ) relational_expression )*
     private Expression instanceOfExpression() {
         tokenStack.add(currentLA());
         Expression left = relationalExpression();
@@ -1938,7 +2041,7 @@ public class Parser {
         return left;
     }
 
-    // 72. equality_expression ::= instanceof_expression ( ( '==' | '!=' ) instanceof_expression )*
+    // 70. equality_expression ::= instanceof_expression ( ( '==' | '!=' ) instanceof_expression )*
     private Expression equalityExpression() {
         tokenStack.add(currentLA());
         Expression left = instanceOfExpression();
@@ -1966,7 +2069,7 @@ public class Parser {
         return left;
     }
 
-    // 73. and_expression ::= equality_expression ( '&' equality_expression )*
+    // 71. and_expression ::= equality_expression ( '&' equality_expression )*
     private Expression andExpression() {
         tokenStack.add(currentLA());
         Expression left = equalityExpression();
@@ -1987,7 +2090,7 @@ public class Parser {
         return left;
     }
 
-    // 74. exclusive_or_expression ::= and_expression ( '^' and_expression )*
+    // 72. exclusive_or_expression ::= and_expression ( '^' and_expression )*
     private Expression exclusiveOrExpression() {
         tokenStack.add(currentLA());
         Expression left = andExpression();
@@ -2008,7 +2111,7 @@ public class Parser {
         return left;
     }
 
-    // 75. inclusive_or_expression ::= exclusive_or_expression ( '|' exclusive_or_expression )*
+    // 73. inclusive_or_expression ::= exclusive_or_expression ( '|' exclusive_or_expression )*
     private Expression inclusiveOrExpression() {
         tokenStack.add(currentLA());
         Expression left = exclusiveOrExpression();
@@ -2029,7 +2132,7 @@ public class Parser {
         return left;
     }
 
-    // 76. logical_and_expression ::= inclusive_or_expression ( 'and' inclusive_or_expression )*
+    // 74. logical_and_expression ::= inclusive_or_expression ( 'and' inclusive_or_expression )*
     private Expression logicalAndExpression() {
         tokenStack.add(currentLA());
         Expression left = inclusiveOrExpression();
@@ -2050,7 +2153,7 @@ public class Parser {
         return left;
     }
 
-    // 77. logical_or_expression ::= logical_and_expression ( 'or' logical_and_expression )*
+    // 75. logical_or_expression ::= logical_and_expression ( 'or' logical_and_expression )*
     private Expression logicalOrExpression() {
         tokenStack.add(currentLA());
         Expression left = logicalAndExpression();
@@ -2071,7 +2174,7 @@ public class Parser {
         return left;
     }
 
-    // 78. expression ::= logical_or_expression
+    // 76. expression ::= logical_or_expression
     private Expression expression() { return logicalOrExpression(); }
 
     /*
@@ -2080,7 +2183,7 @@ public class Parser {
     ____________________________________________________________
     */
 
-    // 79. constant ::= object_constant | array_constant | list_constant | scalar_constant
+    // 77. constant ::= object_constant | array_constant | list_constant | scalar_constant
     private Expression constant() {
         if(nextLA(TokenType.NEW)) { return objectConstant(); }
         else if(nextLA(TokenType.ARRAY)) { return arrayConstant(); }
@@ -2088,7 +2191,7 @@ public class Parser {
         else { return scalarConstant(); }
     }
 
-    // 80. object_constant ::= 'new' ID (type_params)? '(' (object_field ( ',' object_field )* ')'
+    // 78. object_constant ::= 'new' ID (type_params)? '(' (object_field ( ',' object_field )* ')'
     private NewExpr objectConstant() {
         tokenStack.add(currentLA());
         match(TokenType.NEW);
@@ -2115,7 +2218,7 @@ public class Parser {
         return new NewExpr(nodeToken(),new ClassType(nameTok,n,typeArgs),vars);
     }
 
-    // 81. object_field ::= ID '=' expression
+    // 79. object_field ::= ID '=' expression
     private Var objectField() {
         tokenStack.add(currentLA());
 
@@ -2128,7 +2231,7 @@ public class Parser {
         return new Var(nodeToken(),n,e);
     }
 
-    // 82. array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')'
+    // 80. array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')'
     private ArrayLiteral arrayConstant() {
         tokenStack.add(currentLA());
         match(TokenType.ARRAY);
@@ -2147,7 +2250,7 @@ public class Parser {
         return new ArrayLiteral(nodeToken(),exprs,args);
     }
 
-    // 83. list_constant ::= 'List' '(' expression (',' expression)* ')'
+    // 81. list_constant ::= 'List' '(' expression (',' expression)* ')'
     private ListLiteral listConstant() {
         tokenStack.add(currentLA());
 
@@ -2167,7 +2270,7 @@ public class Parser {
         return new ListLiteral(nodeToken(),exprs);
     }
 
-    // 84. scalar_constant ::= discrete_constant | STRING_LITERAL | TEXT_LITERAL | REAL_LITERAL
+    // 82. scalar_constant ::= discrete_constant | STRING_LITERAL | TEXT_LITERAL | REAL_LITERAL
     private Literal scalarConstant() {
         if(nextLA(TokenType.STR_LIT)) {
             tokenStack.add(currentLA());
@@ -2189,7 +2292,7 @@ public class Parser {
         else { return discreteConstant(); }
     }
 
-    // 85. discrete_constant ::= INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL
+    // 83. discrete_constant ::= INT_LITERAL | CHAR_LITERAL | BOOL_LITERAL
     private Literal discreteConstant() {
         tokenStack.add(currentLA());
 
