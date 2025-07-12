@@ -1,0 +1,24 @@
+/*
+    Field Expression Test #4
+
+    This tests if complex field expressions can be evaluated
+    when a field is present.
+
+    Output:
+        x = 3
+        x = 5
+*/
+
+class B {
+    protected x:Int
+    public method create() => B { 
+        return new B(x=5) 
+    }
+    public method print() => Void { 
+        cout << 'x = ' << x << endl 
+    }
+}
+
+def b:B = new B(x=3)        
+b.print()
+b.create().print()

@@ -1,0 +1,17 @@
+/*
+    Field Expression Test #3
+
+    This tests if a complex field expression 
+    will be evaluated.
+
+    Output:
+        Hi there 
+*/
+
+class A {
+    public method create() => A { return new A() }
+    public method print() => Void { cout << 'Hi there' << endl }
+}
+
+def a:A = new A()
+a.create().print()

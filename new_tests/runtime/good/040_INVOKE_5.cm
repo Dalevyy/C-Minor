@@ -1,0 +1,25 @@
+/*
+    Invocation Test #5
+
+    This tests if a function invocation can be 
+    done when the function parameters are set 
+    to be in `In` mode.
+
+    Output:
+        Before func1 call: val = 3, val2 = 3.14
+        After func1 call: val = 3, val2 = 3.14
+*/
+
+def func1(in a:Int, in b:Real) => Void {
+    set a += 5
+    set b += 2.18
+}
+
+def val:Int = 3  
+def val2:Real = 3.14 
+
+cout << 'Before func1 call: val = ' << val << ', val2 = ' << val2 
+
+func1(val,val2)
+
+cout << 'After func1 call: val = ' << val << ', val2 = ' << val2 

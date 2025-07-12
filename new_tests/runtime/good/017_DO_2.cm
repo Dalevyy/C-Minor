@@ -1,0 +1,25 @@
+/*
+    Do Statement Test #2
+
+    This tests if a nested while loop will 
+    work inside of a do while loop.
+
+    Output:
+        1 4 7 10
+*/
+
+def a:Bool = True 
+def b:Int = 1
+
+do {
+    cout << b << ' ' 
+    while(b%3 != 0) {
+        set b += 1
+    }
+
+    if(b >= 10) {
+        break
+    }
+
+    set b+= 1
+} while(a)

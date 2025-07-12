@@ -1,0 +1,26 @@
+/*
+    Retype Statement Test #7
+
+    This tests if the correct method is
+    called when using retype statements.
+
+    Output:
+        Hi 
+        Hey 
+        Hi
+*/
+
+class A {
+    public method print() => Void { cout << 'Hi' }
+}
+
+class B inherits A {
+    public override method print() => Void { cout << 'Hey' }
+}
+
+def a:A = new A()
+a.print()
+retype a = new B()
+a.print()
+retype a = new A()
+a.print()

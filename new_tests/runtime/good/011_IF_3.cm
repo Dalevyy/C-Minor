@@ -1,0 +1,22 @@
+/*
+    If Statement Test #3 
+
+    This tests if an else if block will be executed.
+
+    Output:
+        a == 2
+*/
+
+def a:Int = 2
+
+if(a == 0) { 
+    cout << 'a == 0'
+} else if(a == 1) { 
+    cout << 'a == 1'
+} else if(a == 2) { 
+    cout << 'a == 2'
+} else if(a == 3) { 
+    cout << 'a == 3'
+} else {
+    cout << 'a < 0 or a >= 4'
+}

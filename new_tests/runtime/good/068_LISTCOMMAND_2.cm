@@ -1,0 +1,15 @@
+/*
+    List Statement Test #2 
+
+    This tests if we can use the append 
+    list command on a 2D list.
+
+    Output:
+        [[1,2,3], [4,5]]
+*/
+
+def a:List[List[Int]] = List(List(1,2,3))
+
+append(a,List(4,5))
+
+cout << a

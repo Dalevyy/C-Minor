@@ -1,0 +1,14 @@
+/*
+    If Statement Test #1 
+
+    This tests if the if block will be executed.
+
+    Output:
+        This is correct. 
+*/
+
+def a:Int = 5
+
+if(a >= 5) {
+    cout << 'This is correct.'
+}

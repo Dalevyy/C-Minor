@@ -1,0 +1,25 @@
+/*
+    Local Declaration Test #1
+
+    This checks if we are able to declare 
+    and access local variables.
+
+    Output:
+        a = 4
+        b = c 
+        c = false 
+        d = 3.14
+        e = hello world 
+*/
+
+def a:Int = 4
+def b:Char = 'c'
+def c:Bool = False
+def d:Real = 3.14
+def e:String = 'hello world'
+
+cout << 'a = ' << a 
+cout << 'b = ' << b
+cout << 'c = ' << c 
+cout << 'd = ' << d 
+cout << 'e = ' << e 

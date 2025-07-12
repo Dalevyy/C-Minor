@@ -1,0 +1,25 @@
+/*
+    Global Declaration Test #1
+
+    This checks if we are able to declare 
+    and access global variables.
+
+    Output:
+        a = 4
+        b = c 
+        c = false 
+        d = 3.14
+        e = hello world 
+*/
+
+def global a:Int = 4
+def global b:Char = 'c'
+def global c:Bool = False
+def global d:Real = 3.14
+def global e:String = 'hello world'
+
+cout << 'a = ' << a 
+cout << 'b = ' << b
+cout << 'c = ' << c 
+cout << 'd = ' << d 
+cout << 'e = ' << e 

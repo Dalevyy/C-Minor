@@ -1,0 +1,31 @@
+/*
+    Retype Statement Test #5
+
+    This tests if fields can be accessed 
+    when using retype statements.
+
+    Output:
+        a.y = 3.14
+*/
+
+class A {
+    public x:Int 
+}
+
+class B inherits A {
+    public y:Real
+}
+
+class C inherits A {
+    public z:Bool
+}
+
+def a:A = uninit 
+if(3<5) {
+    retype a = new B(x=5,y=3.14)
+} else {
+    retype a = new C(z=True,x=3)
+}
+
+cout << 'a.y = ' << a.y 
+

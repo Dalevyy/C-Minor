@@ -1,0 +1,16 @@
+/*
+    New Expression Test #1 
+
+    This tests if an object can be 
+    instantiated with a single field.
+
+    Output:
+        a.x = 3
+*/
+
+class A {
+    public x:Int 
+}
+
+def a:A = new A(x=3)
+cout << 'a.x = ' << a.x 
