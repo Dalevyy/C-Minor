@@ -1616,9 +1616,9 @@ public class Parser {
         return new Label(nodeToken(),lConstant);
     }
 
-    // 55. list_command_statement ::= 'append' '(' arguments ')'
-    //                              | 'remove' '(' arguments ')'
-    //                              | 'insert' '(' arguments ')'
+    // 55. list_command_statement ::= 'append' '(' arguments? ')'
+    //                              | 'remove' '(' arguments? ')'
+    //                              | 'insert' '(' arguments? ')'
     private ListStmt listCommandStatement() {
         tokenStack.add(currentLA());
         ListStmt.Commands command;
@@ -1637,7 +1637,9 @@ public class Parser {
         }
 
         match(TokenType.LPAREN);
-        Vector<Expression> args = arguments();
+        Vector<Expression> args = new Vector<>();
+        if(!nextLA(TokenType.RPAREN))
+            args = arguments();
         match(TokenType.RPAREN);
         return new ListStmt(nodeToken(),command,args);
     }

@@ -201,9 +201,9 @@ case_statement : 'on' label block_statement ;
 
 label : scalar_constant ('..' scalar_constant)?
 
-list_command_statement : 'append' '(' arguments ')'
-                       | 'remove' '(' arguments ')'
-                       | 'insert' '(' arguments ')'
+list_command_statement : 'append' '(' arguments? ')'
+                       | 'remove' '(' arguments? ')'
+                       | 'insert' '(' arguments? ')'
                        ;
 
 input_statement : 'cin' ('>>' expression)+ ;
