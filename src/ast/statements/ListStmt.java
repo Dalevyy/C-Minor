@@ -27,12 +27,16 @@ public class ListStmt extends Statement {
     public Commands getCommand() { return this.commandType; }
     public Vector<Expression> getAllArgs() { return this.args; }
 
-    public int getExpectedNumOfArgs() { return (this.commandType == Commands.INSERT) ? 3 : 2; }
+    public int getExpectedNumOfArgs() { return isInsert() ? 3 : 2; }
 
     public Expression getList() { return this.args.get(0); }
     public ListType getListType() { return this.args.get(0).type.asListType(); }
     public Expression getSecondArg() { return this.args.get(1); }
     public Expression getThirdArg() { return this.args.get(2); }
+
+    public boolean isAppend() { return this.commandType == Commands.APPEND; }
+    public boolean isInsert() { return this.commandType == Commands.INSERT; }
+    public boolean isRemove() { return this.commandType == Commands.REMOVE; }
 
     public boolean isListStmt() { return true; }
     public ListStmt asListStmt() { return this;}
