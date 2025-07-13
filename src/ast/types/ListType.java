@@ -68,6 +68,20 @@ public class ListType extends Type {
             return this.baseTypeCompatible(currentType) && this.numOfDims == 1;
     }
 
+    public String validSublist() {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 1; i <= numOfDims; i++) {
+            if(i == numOfDims)
+                sb.append(baseType.typeName());
+            else
+                sb.append("List[");
+        }
+
+        sb.append("]".repeat(Math.max(0, numOfDims-1)));
+        return sb.toString();
+    }
+
     @Override
     public String typeName() {
         StringBuilder sb = new StringBuilder();
