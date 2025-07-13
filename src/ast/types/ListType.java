@@ -1,6 +1,7 @@
 package ast.types;
 
 import ast.AST;
+import ast.statements.ListStmt;
 import token.Token;
 import utilities.Visitor;
 
@@ -40,16 +41,31 @@ public class ListType extends Type {
 
     public boolean baseTypeCompatible(Type t) { return Type.assignmentCompatible(baseType,t); }
 
-    public boolean isSubList(Type ct) {
-        if(!ct.isListType()) {
-            if(this.numOfDims == 1)
-                return this.baseTypeCompatible(ct);
-            return false;
+    /**
+     * Checks if a passed type can represent a sublist type of the current {@link ListType}.
+     * <p><br>
+     *     This method is primary used by the {@link typechecker.TypeChecker#visitListStmt(ListStmt)} method
+     *     to type check the value that is added or removed by the list.
+     * </p>
+     * @param currentType Generic {@link Type}
+     * @return Boolean
+     */
+    public boolean isSubList(Type currentType) {
+        if(currentType.isListType()) {
+            // If the lists are assignment compatible, then the passed list type is the same type
+            // as the current list type. Thus, two lists of the same type can be sublists of each other.
+            if(Type.assignmentCompatible(this,currentType))
+                return true;
+
+            // If the lists aren't assignment compatible, then we check if the passed list type has one
+            // less dimension than the current list and if their base types are the same. This means the
+            // passed list type is a proper sublist if both evaluate to be true.
+            return currentType.asListType().numOfDims+1 == this.numOfDims
+                        && this.baseTypeCompatible(currentType.asListType().baseType);
         }
-        else if(this.numOfDims-ct.asListType().numOfDims < 0 || this.numOfDims-ct.asListType().numOfDims > 1)
-            return false;
         else
-            return this.baseTypeCompatible(ct.asListType().baseType);
+            // For a 1D list, a single value can act as a sublist.
+            return this.baseTypeCompatible(currentType) && this.numOfDims == 1;
     }
 
     @Override
