@@ -27,7 +27,9 @@ public class ListStmt extends Statement {
     public Commands getCommand() { return this.commandType; }
     public Vector<Expression> getAllArgs() { return this.args; }
 
-    public Expression getListName() { return this.args.get(0); }
+    public int getExpectedNumOfArgs() { return (this.commandType == Commands.INSERT) ? 3 : 2; }
+
+    public Expression getList() { return this.args.get(0); }
     public ListType getListType() { return this.args.get(0).type.asListType(); }
     public Expression getSecondArg() { return this.args.get(1); }
     public Expression getThirdArg() { return this.args.get(2); }
