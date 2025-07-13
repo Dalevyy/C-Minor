@@ -937,8 +937,13 @@ public class Interpreter extends Visitor {
      * @param ls The current list statement we will be executing.
      */
     public void visitListStmt(ListStmt ls) {
+        if(ls.getInvocation() != null) {
+            ls.getInvocation().visit(this);
+            return;
+        }
+
         // Obtain list from the stack
-        ls.getListName().visit(this);
+        ls.getList().visit(this);
         RuntimeList lst = currentValue.asList();
 
         ls.getAllArgs().get(1).visit(this);
@@ -954,7 +959,7 @@ public class Interpreter extends Visitor {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ls)
                         .addErrorType(MessageType.RUNTIME_ERROR_605)
-                        .addArgs(ls.getListName(),lst.size(),index.asInt())
+                        .addArgs(ls.getList(),lst.size(),index.asInt())
                         .error();
                 }
 
@@ -983,7 +988,7 @@ public class Interpreter extends Visitor {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ls)
                         .addErrorType(MessageType.RUNTIME_ERROR_609)
-                        .addArgs(ls.getAllArgs().get(1),ls.getListName())
+                        .addArgs(ls.getAllArgs().get(1),ls.getList())
                         .error();
                 }
 

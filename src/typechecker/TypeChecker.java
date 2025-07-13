@@ -38,6 +38,7 @@ import ast.types.DiscreteType;
 import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.ListType;
+import ast.types.ListType.ListTypeBuilder;
 import ast.types.MultiType;
 import ast.types.ScalarType;
 import ast.types.ScalarType.Scalars;
@@ -292,6 +293,7 @@ public class TypeChecker extends Visitor {
         if(currDepth == 1) {
             for(Expression init : curr.getInits()) {
                 init.visit(this);
+
                 // ERROR CHECK #1: This checks to see if the current expression's type matches the list's base type.
                 if(!Type.assignmentCompatible(baseType,init.type)) {
                     errors.add(
@@ -306,6 +308,12 @@ public class TypeChecker extends Visitor {
                     return false;
                 }
             }
+
+            curr.type = new ListTypeBuilder()
+                            .setMetaData(curr)
+                            .setBaseType(baseType)
+                            .setNumOfDims(currDepth)
+                            .create();
             return true;
         }
         else if(currDepth > 1) {
@@ -323,6 +331,13 @@ public class TypeChecker extends Visitor {
                 }
                 listAssignmentCompatibility(currDepth-1,baseType,e.asListLiteral());
             }
+
+            curr.type = new ListTypeBuilder()
+                            .setMetaData(curr)
+                            .setBaseType(baseType)
+                            .setNumOfDims(currDepth)
+                            .create();
+
             return true;
         }
         else
@@ -517,7 +532,8 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * <p>
+     * Evaluates the type of a binary expression.
+     * <p><br>
      *     Since C Minor does not support type coercion, we are going to be
      *     strict about which types are allowed for every binary operator.
      *     <br><br>
@@ -1640,60 +1656,77 @@ public class TypeChecker extends Visitor {
     /**
      * Checks the type of a list statement.
      * <p><br>
-     *     In C Minor, there are 3 list statements: {@code append}, {@code insert},
-     *     and {@code remove}. For each statement, we will do a type check to make
-     *     sure the appropriate values were passed for us to execute the list statement
-     *     at runtime.
+     *     In C Minor, there are currently 3 list commands: {@code append}, {@code insert},
+     *     and {@code remove}. This method will type check all arguments passed to the command
+     *     to ensure the user correctly wrote the command. For {@code remove}, we will not type
+     *     check the value that is removed since we will throw a runtime exception if the value
+     *     can not be removed from the list.
      * </p>
      * @param ls List Statement
      */
     public void visitListStmt(ListStmt ls) {
-        String func;
-        int argSize = switch (ls.getCommand()) {
-            case APPEND -> {
-                func = "append";
-                yield 2;
-            }
-            case INSERT -> {
-                func = "insert";
-                yield 3;
-            }
-            case REMOVE -> {
-                func = "remove";
-                yield 2;
-            }
-        };
+        // SPECIAL CASE!!!
+        // If a user writes their own function/method using the list command name, we want to rewrite
+        // the current list statement as an invocation for better type checking.
+        if(currentScope.hasMethodSomewhere(ls.toString())) {
+            StringBuilder commandSignature = new StringBuilder(ls + "/");
 
-        // ERROR CHECK #1: This checks if the right amount of arguments was passed to the list statement.
-        if(ls.getAllArgs().size() != argSize) {
+            for(Expression e : ls.getAllArgs()) {
+                e.visit(this);
+                commandSignature.append(e.type.typeSignature());
+            }
+
+            if(currentScope.hasNameSomewhere(commandSignature.toString())) {
+                Invocation in = new InvocationBuilder()
+                                .setMetaData(ls)
+                                .setName(new Name(ls.toString()))
+                                .setArgs(ls.getAllArgs())
+                                .create();
+
+                in.replace(ls);
+                in.visit(this);
+
+                // This is needed because the list statement reference will still be stored by the VM
+                // if the list statement was the only line of code the user wrote. We want to call the newly
+                // created invocation and not the list statement, so this is the best solution I came up with...
+                if(ls.getRootParent() == null)
+                    ls.setInvocation(in);
+
+                return;
+            }
+        }
+
+        // ERROR CHECK #1: This ensures the correct number of arguments were passed to the list command.
+        //                 append/remove => 2 args, insert => 3 args
+        if(ls.getAllArgs().size() != ls.getExpectedNumOfArgs()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ls)
                     .addErrorType(MessageType.TYPE_ERROR_449)
-                    .addArgs(func,argSize,ls.getAllArgs().size())
+                    .addArgs(ls,ls.getExpectedNumOfArgs(),ls.getAllArgs().size())
                     .error()
             );
         }
 
-        ls.getListName().visit(this);
-        // ERROR CHECK #2: This checks if the first argument represents a list.
-        if(!ls.getListName().type.isListType()) {
+        ls.getList().visit(this);
+        // ERROR CHECK #2: The first argument in a list command must be the list the command acts on.
+        if(!ls.getList().type.isListType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ls)
                     .addErrorType(MessageType.TYPE_ERROR_450)
-                    .addArgs(ls.getListName(),func)
+                    .addArgs(ls.getList(),ls)
                     .addSuggestType(MessageType.TYPE_SUGGEST_1445)
-                    .addSuggestArgs(func)
+                    .addSuggestArgs(ls)
                     .error()
             );
         }
 
-        Type itemType;
         ls.getSecondArg().visit(this);
-        if(func.equals("insert")) {
-            // ERROR CHECK #3: This checks to make sure the second argument for 'insert' is an integer position.
-            if(!ls.getAllArgs().get(1).type.isInt()) {
+        Type finalArgType = ls.getSecondArg().type;
+        // ERROR CHECK #3: The second argument for the insert command must be an integer.
+        if(ls.isInsert()) {
+            if(!finalArgType.isInt()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ls)
@@ -1703,7 +1736,25 @@ public class TypeChecker extends Visitor {
                         .error()
                 );
             }
+
             ls.getThirdArg().visit(this);
+            finalArgType = ls.getThirdArg().type;
+        }
+
+        // ERROR CHECK #4: The final argument for the append/insert command needs to be a value
+        //                 that can either be stored or merged into the list.
+        if(ls.isAppend() || ls.isInsert()) {
+            if(!ls.getListType().isSubList(finalArgType)) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_452)
+                        .addArgs(ls.getList(), ls.getListType(), ls, finalArgType)
+                        .addSuggestType(MessageType.TYPE_SUGGEST_1447)
+                        .addSuggestArgs(ls, ls.getList(), ls.getListType(), ls.getListType().validSublist())
+                        .error()
+                );
+            }
         }
     }
 
@@ -2043,24 +2094,28 @@ public class TypeChecker extends Visitor {
         returnFound = true;
     }
 
-    public void visitRetypeStmt(RetypeStmt rs) {
-        rs.getName().visit(this);
-        Type objType = rs.getName().type;
+    /**
+     * Evaluates the type of a retype statement.
+     * @param rt Retype Statement
+     */
+    public void visitRetypeStmt(RetypeStmt rt) {
+        rt.getName().visit(this);
+        Type objType = rt.getName().type;
 
         // ERROR CHECK #1: Make sure the LHS does represent an object
         if(!objType.isClassOrMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(rs)
+                    .addLocation(rt)
                     .addErrorType(MessageType.TYPE_ERROR_441)
-                    .addArgs(rs.getName(),objType)
+                    .addArgs(rt.getName(),objType)
                     .addSuggestType(MessageType.TYPE_SUGGEST_1438)
                     .error()
             );
         }
 
-        rs.getNewObject().visit(this);
-        ClassType newObjType = rs.getNewObject().type.asClassType();
+        rt.getNewObject().visit(this);
+        ClassType newObjType = rt.getNewObject().type.asClassType();
         Type objBaseType = objType.isMultiType() ? objType.asMultiType().getInitialType() : objType;
 
         // ERROR CHECK #2: Make sure the types are class assignment compatible
@@ -2069,11 +2124,11 @@ public class TypeChecker extends Visitor {
 
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(rs)
+                        .addLocation(rt)
                         .addErrorType(MessageType.TYPE_ERROR_442)
-                        .addArgs(rs.getName(),newObjType)
+                        .addArgs(rt.getName(),newObjType)
                         .addSuggestType(MessageType.TYPE_SUGGEST_1439)
-                        .addSuggestArgs(rs.getName())
+                        .addSuggestArgs(rt.getName())
                         .error()
             );
         }
@@ -2083,11 +2138,11 @@ public class TypeChecker extends Visitor {
                 objType.asMultiType().addType(newObjType);
             else {
                 MultiType mt = MultiType.create(objType.asClassType(),newObjType);
-                setVarType(rs.getName().toString(),mt);
+                setVarType(rt.getName().toString(),mt);
             }
         }
         else
-            setVarType(rs.getName().toString(),newObjType);
+            setVarType(rt.getName().toString(),newObjType);
     }
 
     /**
@@ -2098,9 +2153,7 @@ public class TypeChecker extends Visitor {
      * </p>
      * @param t ThisStmt
      */
-    public void visitThis(ThisStmt t) {
-        t.type = new ClassType(currentClass.toString());
-    }
+    public void visitThis(ThisStmt t) { t.type = new ClassType(currentClass.toString()); }
 
     /**
      * Evaluates the type of a unary expression
