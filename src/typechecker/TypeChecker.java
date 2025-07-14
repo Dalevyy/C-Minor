@@ -33,6 +33,7 @@ import ast.topleveldecls.MainDecl;
 import ast.topleveldecls.TopLevelDecl;
 import ast.types.Type;
 import ast.types.ArrayType;
+import ast.types.ArrayType.ArrayTypeBuilder;
 import ast.types.ClassType;
 import ast.types.DiscreteType;
 import ast.types.DiscreteType.Discretes;
@@ -145,136 +146,188 @@ public class TypeChecker extends Visitor {
      *     be assigned to an array type in C Minor. ThisStmt algorithm was based off
      *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
      * </p>
-     * @param currDepth Current level of recursion (final depth is 1)
-     * @param t Array type
+     * @param depth Current level of recursion (final depth is 1)
+     * @param baseType Array type
      * @param dims Expressions representing the dimensions for the array
-     * @param curr Array Literal aka the current array literal we are checking
+     * @param currArr Array Literal aka the current array literal we are checking
      * @return Boolean - True if assignment compatible and False otherwise
      */
-    private boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
-        if(currDepth == 1) {
-            // ERROR CHECK #1: If we are checking a single dimension array, then we
-            //                 want to ensure there are not 2 or more dimensions specified
-            if(curr.getArrayDims().size() > 1) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(curr)
-                        .addErrorType(MessageType.TYPE_ERROR_443)
-                        .error());
+    private boolean arrayAssignmentCompatibility(int depth, Type baseType, Vector<Expression> dims, ArrayLiteral currArr) {
+        if(depth == 1) {
+            // ERROR CHECK #1: This makes sure the user only specified one dimension for a 1D array.
+            if(currArr.getArrayDims().size() > 1) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                        .addLocation(currArr.getRootParent())
+                        .addErrorType(MessageType.TYPE_ERROR_455)
+                        .error()
+                );
                 return false;
             }
-            else if(curr.getArrayDims().size() == 1) {
-                Expression dim = curr.getArrayDims().get(0);
-                dim.visit(this);
 
-                // ERROR CHECK #2: If a user specified a size for the 1D array, then we want to make sure
-                //                 that value is either an integer literal or integer constant
-                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_435)
-                            .error());
-                    return false;
-                }
-                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(dim.asLiteral().toString())) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_446)
-                            .error());
-                    return false;
-                }
-                // ERROR CHECK #4: We will also check if the arguments passed into the array
-                //                 matches the specified size for the array
-                if(Integer.parseInt(dim.asLiteral().toString()) != curr.getArrayInits().size()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_444)
-                            .error());
-                    return false;
-                }
-            }
-            else if(!dims.isEmpty()) {
-                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.getArrayInits().size()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_444)
-                            .error());
+            if(currArr.getArrayDims().size() == 1)
+                checkArrayDims(depth, dims, currArr.getArrayDims().get(0), currArr);
+//            else if(!dims.isEmpty()) {
+//                if(dims.get(dims.size()-depth).asLiteral().) != currArr.getArrayInits().size()) {
+//                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+//                            .addLocation(currArr)
+//                            .addErrorType(MessageType.TYPE_ERROR_444)
+//                            .error());
+//                    return false;
+//                }
+//            }
+
+            for(Expression init : currArr.getArrayInits()) {
+                init.visit(this);
+
+                // ERROR CHECK #2: For every initial value in the array, we check to make sure the
+                //                 value's type is assignment compatible with the array's base type.
+                if(!Type.assignmentCompatible(baseType,init.type)) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(currArr)
+                            .addErrorType(MessageType.TYPE_ERROR_459)
+                            .addArgs(init.type,baseType)
+                            .error()
+                    );
                     return false;
                 }
             }
 
-            Vector<Expression> inits = curr.getArrayInits();
-            for(int i = 0; i < inits.size(); i++) {
-                Expression val = inits.get(i);
-                val.visit(this);
-                // ERROR CHECK #5: For each argument value for the array, we will make sure its
-                //                 base type corresponds to the type declared
-                if(!Type.assignmentCompatible(t,val.type)) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_445)
-                            .addArgs(t,val.type)
-                            .error());
-                    return false;
-                }
-            }
+            currArr.type = new ArrayTypeBuilder()
+                               .setMetaData(currArr)
+                               .setBaseType(baseType)
+                               .setNumOfDims(depth)
+                               .create();
             return true;
         }
-        else if(currDepth > 1) {
-            ArrayLiteral al = curr.asArrayLiteral();
+        else if(depth > 1) {
+            ArrayLiteral al = currArr.asArrayLiteral();
 
-            // ERROR CHECK #1: For all n-dimensional array literals (where n>1), we need to make sure the user
+            // ERROR CHECK #3: For all n-dimensional array literals (where n>1), we need to make sure the user
             //                 explicitly writes down the size given for each possible dimension.
-            if(al.getArrayDims().size() != currDepth) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(al)
-                        .addErrorType(MessageType.TYPE_ERROR_442)
-                        .error());
+            if(al.getArrayDims().size() != depth) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                        .addLocation(al.getRootParent())
+                        .addErrorType(MessageType.TYPE_ERROR_460)
+                        .error()
+                );
                 return false;
             }
 
-            for(int i = 0; i < al.getArrayDims().size(); i++) {
-                Expression dim = al.getArrayDims().get(i);
-                dim.visit(this);
-                // ERROR CHECK #: Make sure its integer constant
-                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_435)
-                            .error());
+            for(Expression dim : al.getArrayDims())
+                checkArrayDims(depth,dims,dim,currArr);
+
+            for(Expression init : al.getArrayInits()) {
+                // ERROR CHECK #4: For every initial value in the multidimensional array, we need to make
+                //                 sure the initial value is an array itself.
+                if(!init.isArrayLiteral()) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(currArr)
+                            .addErrorType(MessageType.TYPE_ERROR_461)
+                            .error()
+                    );
                     return false;
                 }
+
+                arrayAssignmentCompatibility(depth-1,baseType,dims,init.asArrayLiteral());
             }
 
-            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(curr)
-                        .addErrorType(MessageType.TYPE_ERROR_446)
-                        .error());
-                return false;
-            }
-
-            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.getArrayInits().size()) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(curr)
-                        .addErrorType(MessageType.TYPE_ERROR_444)
-                        .error());
-                return false;
-            }
-
-            for(int i = 0; i < al.getArrayInits().size(); i++) {
-                if(!al.getArrayInits().get(i).isArrayLiteral()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_447)
-                            .error());
-                    return false;
-                }
-                arrayAssignmentCompatibility(currDepth-1,t,dims,al.getArrayInits().get(i).asArrayLiteral());
-            }
+            currArr.type = new ArrayTypeBuilder()
+                        .setMetaData(currArr)
+                        .setBaseType(baseType)
+                        .setNumOfDims(depth)
+                        .create();
             return true;
         }
         else
             return false;
+    }
+
+    private boolean checkArrayDims(int depth, Vector<Expression> dims, Expression dim,ArrayLiteral currArr) {
+        dim.visit(this);
+
+        // ERROR CHECK #1: The given array dimension has to be an Int constant since the size of the array
+        //                 must be known at compile-time. An Int constant in this context is either an Int
+        //                 literal or a global Int constant.
+        if(!dim.type.isInt() || (!dim.isLiteral() && !isGlobalConstant(dim))) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    .addLocation(dim.getRootParent())
+                    .addErrorType(MessageType.TYPE_ERROR_456)
+                    .addArgs(dim)
+                    .addSuggestType(MessageType.TYPE_SUGGEST_1448)
+                    .error()
+            );
+            return false;
+        }
+
+        int dimValue;
+        if(dim.isLiteral())
+            dimValue = dim.asLiteral().asInt();
+        else
+            dimValue = currentScope.findName(dim).decl().asTopLevelDecl().asGlobalDecl().var().init().asLiteral().asInt();
+
+        // yeah idk what this is
+        // #TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
+
+        // ERROR CHECK #9:
+        //if(dims.get(dims.size()-currDepth).asListLiteral().toString().equals())
+//        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
+//            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+//                    .addLocation(currArr.getRootParent())
+//                    .addErrorType(MessageType.TYPE_ERROR_457)
+//                    .error());
+//            return false;
+//        }
+//
+//        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != currArr.getArrayInits().size()) {
+//            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+//                    .addLocation(currArr)
+//                    .addErrorType(MessageType.TYPE_ERROR_444)
+//                    .error());
+//            return false;
+//        }
+
+        // ERROR CHECK #2: This checks if the user correctly initialized the array based on its size.
+        if(currArr.getArrayInits().size() > dimValue) {
+            errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(currArr.getRootParent())
+                            .addErrorType(MessageType.TYPE_ERROR_458)
+                            .addArgs(dimValue, currArr.getArrayInits().size())
+                            .error()
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks if a given {@link Expression} represents a global constant.
+     * <p><br>
+     *     This is a helper method for {@link #checkArrayDims(int, Vector, Expression)} to
+     *     determine if a given array dimension actually represents a global constant declared
+     *     by the user. Since constants will always have the same value, this means the compiler
+     *     can definitively know the size of an array.
+     * </p>
+     * @param expr Expression
+     * @return Boolean
+     */
+    private boolean isGlobalConstant(Expression expr) {
+        if(!expr.isNameExpr())
+            return false;
+
+        AST decl = currentScope.findName(expr.asNameExpr()).decl();
+        if(!decl.isTopLevelDecl())
+            return false;
+        else if(!decl.asTopLevelDecl().isGlobalDecl())
+            return false;
+        else
+            return decl.asTopLevelDecl().asGlobalDecl().isConstant();
     }
 
     /**
@@ -358,48 +411,45 @@ public class TypeChecker extends Visitor {
     public void visitArrayExpr(ArrayExpr ae) {
         ae.getArrayTarget().visit(this);
 
-        // ERROR CHECK #1: Make sure the target represents an array or list
+        // ERROR CHECK #1: This checks if the target represents a valid Array or List type.
         if(!ae.getArrayTarget().type.isArrayType() && !ae.getArrayTarget().type.isListType()) {
             errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ae)
-                    .addErrorType(MessageType.TYPE_ERROR_434)
-                    .addArgs(ae.getArrayTarget().toString())
+                    .addErrorType(MessageType.TYPE_ERROR_453)
+                    .addArgs(ae.getArrayTarget())
                     .error()
             );
         }
 
-        Type currType;
-        if(currentTarget != null) {
-            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            currType = cd.symbolTable.findName(ae.getArrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
-        }
+        Type arrType;
+        if(currentTarget == null)
+            arrType = currentScope.findName(ae.getArrayTarget()).decl().getType();
         else {
-            currType = currentScope.findName(ae.getArrayTarget().toString()).decl().getType();
+            ClassDecl cd = currentScope.findName(currentTarget).decl().asTopLevelDecl().asClassDecl();
+            arrType = cd.symbolTable.findName(ae.getArrayTarget()).decl().asFieldDecl().type().asArrayType();
         }
 
-        if(currType.isArrayType()) {
-            // ERROR CHECK #2: Make sure the number of indices matches
-            //                 the number of dimensions for the array
-            if(currType.asArrayType().numOfDims != ae.getArrayIndex().size()) {
+        if(arrType.isArrayType()) {
+            // ERROR CHECK #2: This checks if the number of indices exceeds the number of dimensions for the array.
+            if(ae.getArrayIndex().size() > arrType.asArrayType().numOfDims) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.getArrayTarget().toString(),currType.asArrayType().numOfDims,ae.getArrayIndex().size())
+                        .addArgs("array", ae.getArrayTarget(), arrType.asArrayType().numOfDims, ae.getArrayIndex().size())
                         .error()
                 );
             }
         }
         else {
-            // ERROR CHECK #3: Make sure the number of indices matches
-            //                 the number of dimensions for the list
-            if(currType.asListType().numOfDims < ae.getArrayIndex().size()) {
+            // ERROR CHECK #3: Same as the previous error check, but for lists instead.
+            if(ae.getArrayIndex().size() > arrType.asListType().numOfDims) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.getArrayTarget().toString(),currType.asListType().numOfDims,ae.getArrayIndex().size())
+                        .addArgs("list", ae.getArrayTarget(), arrType.asListType().numOfDims, ae.getArrayIndex().size())
                         .error()
                 );
             }
@@ -414,18 +464,26 @@ public class TypeChecker extends Visitor {
             //                 value evaluates to be an Int
             if(!e.type.isInt()) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_430)
+                        .addErrorType(MessageType.TYPE_ERROR_454)
                         .addArgs(e.type)
                         .error()
                 );
             }
         }
-        if(currType.isArrayType())
-            ae.type = currType.asArrayType().baseType();
-        else
-            ae.type = currType.asListType().baseType();
+        if(arrType.isArrayType()) {
+            if(arrType.asArrayType().numOfDims != ae.getArrayIndex().size())
+                ae.type = new ArrayType(arrType.asArrayType().baseType(),ae.getArrayIndex().size());
+            else
+                ae.type = arrType.asArrayType().baseType();
+        }
+        else {
+            if(arrType.asListType().numOfDims != ae.getArrayIndex().size())
+                ae.type = new ListType(arrType.asListType().baseType(),ae.getArrayIndex().size());
+            else
+                ae.type = arrType.asListType().baseType();
+        }
     }
 
     /**
