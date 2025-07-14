@@ -8,11 +8,15 @@ public class Warning extends Message {
 
     private MessageType warning;
 
-    protected String warningHeader() {
+    /**
+     * Generates a header displaying the warning identification.
+     * @return String
+     */
+    private String warningHeader() {
         return PrettyPrint.PINK
                 + "Warning "
                 + warning.toString().substring(warning.toString().lastIndexOf("_")+1)
-                + "\n"
+                + "\n\n"
                 + PrettyPrint.RESET;
     }
 
@@ -30,12 +34,12 @@ public class Warning extends Message {
     }
 
     public String printMessage() {
-        if(interpretMode) {
-            System.out.println(createMessage());
-            return "";
-        }
-        System.out.println(createMessage());
-        return "";
+        String warnMsg = createMessage();
+
+        if(interpretMode)
+            System.out.println(warnMsg);
+
+        return warnMsg;
     }
 
     private String buildWarning() {
@@ -50,4 +54,6 @@ public class Warning extends Message {
     }
 
     public void setWarningType(MessageType warning) { this.warning = warning; }
+
+    public boolean isWarning() { return true; }
 }

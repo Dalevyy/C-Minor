@@ -7,14 +7,19 @@ public class WarningBuilder {
 
     private final Warning warning;
 
-    public WarningBuilder(WarningFactory wf) { this.warning = wf.createWarning(); }
-
-    public WarningBuilder(WarningFactory wf, String file) {
+    public WarningBuilder(WarningFactory wf, boolean mode) {
         this.warning = wf.createWarning();
+        this.warning.setInterpretMode(mode);
+    }
+
+    public WarningBuilder(WarningFactory wf, String file, boolean mode) {
+        this(wf,mode);
         this.warning.setFileName(file);
     }
 
     public String warning() { return this.warning.printMessage(); }
+
+    public Warning create() { return this.warning; }
 
     public WarningBuilder addLocation(AST node) {
         this.warning.setLocation(node);

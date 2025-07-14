@@ -72,6 +72,8 @@ public abstract class Error extends Message {
     public void setSuggestType(MessageType et) { suggest = et; }
     public MessageType suggestType() { return suggest; }
 
+    public boolean isError() { return true; }
+
     // Helper Methods
     public boolean isModifierError() { return false; }
     public ModError asModifierError() { throw new RuntimeException("The following error does not represent a modifier error"); }
