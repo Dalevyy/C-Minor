@@ -11,6 +11,7 @@ import ast.types.*;
 public abstract class Visitor {
 
     protected boolean interpretMode;
+    protected String currentFile;
 
     public void visitArrayExpr(ArrayExpr ae) { ae.visitChildren(this); }
     public void visitArrayLiteral(ArrayLiteral al) { al.visitChildren(this); }
