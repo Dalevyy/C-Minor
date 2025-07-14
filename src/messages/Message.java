@@ -13,6 +13,7 @@ public abstract class Message {
     protected boolean interpretMode;
 
     public abstract String createMessage();
+    public abstract String printMessage();
 
     public void setFileName(String fn) { this.fileName = fn; }
     public String fileName() { return this.fileName; }
@@ -30,4 +31,10 @@ public abstract class Message {
     public Object[] suggests() { return this.argsForSuggestions; }
 
     public void setInterpretMode(boolean mode) { this.interpretMode = mode; }
+
+    public String fileHeader() {
+        if(fileName != null && !fileName.isEmpty())
+            return "In " + fileName + ": ";
+        return "";
+    }
 }
