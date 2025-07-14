@@ -41,6 +41,7 @@ public class VM {
         LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
         TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
         ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
+        PureKeywordPass purePass = new PureKeywordPass();
 
         boolean printTokens = false;
         boolean printAST = false;
@@ -126,6 +127,7 @@ public class VM {
                     node.visit(typeChecker);
                     node.visit(generateConstructorPass);
                     node.visit(modChecker);
+                    node.visit(purePass);
 
                     if (node.isTopLevelDecl()) {
                         if(node.asTopLevelDecl().isClassDecl())
