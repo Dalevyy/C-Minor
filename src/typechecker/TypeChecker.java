@@ -526,7 +526,7 @@ public class TypeChecker extends Visitor {
         //                 a variable storing an array
         if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
             errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                             .addLocation(as)
                             .addErrorType(MessageType.TYPE_ERROR_450)
                             .error()
@@ -548,7 +548,7 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
             errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(as)
                     .addErrorType(MessageType.TYPE_ERROR_403)
                     .addArgs(as.LHS().toString(),lType,rType)
@@ -564,10 +564,10 @@ public class TypeChecker extends Visitor {
                 //                 are Int, Real, and String
                 if (lType.isBool() || lType.isChar() || lType.isClassOrMultiType())
                     errors.add(
-                        new ErrorBuilder(generateTypeError, interpretMode)
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                             .addLocation(as)
                             .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(as.assignOp(), lType)
+                            .addArgs(as.LHS().toString(),lType,rType)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1402)
                             .error()
                     );
@@ -577,7 +577,7 @@ public class TypeChecker extends Visitor {
                 //                 only supported types are Int and Real
                 if(lType.isBool() || lType.isChar() || lType.isString() || lType.isClassOrMultiType())
                     errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                             .addLocation(as)
                             .addErrorType(MessageType.TYPE_ERROR_404)
                             .addArgs(as.assignOp(),lType)

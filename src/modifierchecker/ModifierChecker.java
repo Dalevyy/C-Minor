@@ -471,7 +471,7 @@ public class ModifierChecker extends Visitor {
     }
 
     /**
-     * Sets current scope inside while block
+     * Sets current scope inside while block.
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
