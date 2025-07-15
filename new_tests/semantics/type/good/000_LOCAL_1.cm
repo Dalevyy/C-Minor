@@ -1,0 +1,6 @@
+
+def a:Int = 5
+def b:Char = 'c'
+def c:Bool = True
+def d:Real = 3.14
+def e:String = 'hi there'
