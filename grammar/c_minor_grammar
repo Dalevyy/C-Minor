@@ -231,7 +231,7 @@ postfix_expression: primary_expression ( '[' expression ']'
 
 arguments : expression (',' expression)* ;
 
-type_params : '<' type ( ',' type )* '>'
+type_params : '@' type ( ',' type )* '@'
 
 factor_expression : postfix_expression
                   | 'length' '(' arguments? ')'
