@@ -33,11 +33,13 @@ import ast.topleveldecls.MainDecl;
 import ast.topleveldecls.TopLevelDecl;
 import ast.types.Type;
 import ast.types.ArrayType;
+import ast.types.ArrayType.ArrayTypeBuilder;
 import ast.types.ClassType;
 import ast.types.DiscreteType;
 import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.ListType;
+import ast.types.ListType.ListTypeBuilder;
 import ast.types.MultiType;
 import ast.types.ScalarType;
 import ast.types.ScalarType.Scalars;
@@ -144,136 +146,188 @@ public class TypeChecker extends Visitor {
      *     be assigned to an array type in C Minor. ThisStmt algorithm was based off
      *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
      * </p>
-     * @param currDepth Current level of recursion (final depth is 1)
-     * @param t Array type
+     * @param depth Current level of recursion (final depth is 1)
+     * @param baseType Array type
      * @param dims Expressions representing the dimensions for the array
-     * @param curr Array Literal aka the current array literal we are checking
+     * @param currArr Array Literal aka the current array literal we are checking
      * @return Boolean - True if assignment compatible and False otherwise
      */
-    private boolean arrayAssignmentCompatibility(int currDepth, Type t, Vector<Expression> dims, ArrayLiteral curr) {
-        if(currDepth == 1) {
-            // ERROR CHECK #1: If we are checking a single dimension array, then we
-            //                 want to ensure there are not 2 or more dimensions specified
-            if(curr.getArrayDims().size() > 1) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(curr)
-                        .addErrorType(MessageType.TYPE_ERROR_443)
-                        .error());
+    private boolean arrayAssignmentCompatibility(int depth, Type baseType, Vector<Expression> dims, ArrayLiteral currArr) {
+        if(depth == 1) {
+            // ERROR CHECK #1: This makes sure the user only specified one dimension for a 1D array.
+            if(currArr.getArrayDims().size() > 1) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                        .addLocation(currArr.getRootParent())
+                        .addErrorType(MessageType.TYPE_ERROR_455)
+                        .error()
+                );
                 return false;
             }
-            else if(curr.getArrayDims().size() == 1) {
-                Expression dim = curr.getArrayDims().get(0);
-                dim.visit(this);
 
-                // ERROR CHECK #2: If a user specified a size for the 1D array, then we want to make sure
-                //                 that value is either an integer literal or integer constant
-                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_435)
-                            .error());
-                    return false;
-                }
-                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(dim.asLiteral().toString())) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_446)
-                            .error());
-                    return false;
-                }
-                // ERROR CHECK #4: We will also check if the arguments passed into the array
-                //                 matches the specified size for the array
-                if(Integer.parseInt(dim.asLiteral().toString()) != curr.getArrayInits().size()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_444)
-                            .error());
-                    return false;
-                }
-            }
-            else if(!dims.isEmpty()) {
-                if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.getArrayInits().size()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_444)
-                            .error());
+            if(currArr.getArrayDims().size() == 1)
+                checkArrayDims(depth, dims, currArr.getArrayDims().get(0), currArr);
+//            else if(!dims.isEmpty()) {
+//                if(dims.get(dims.size()-depth).asLiteral().) != currArr.getArrayInits().size()) {
+//                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+//                            .addLocation(currArr)
+//                            .addErrorType(MessageType.TYPE_ERROR_444)
+//                            .error());
+//                    return false;
+//                }
+//            }
+
+            for(Expression init : currArr.getArrayInits()) {
+                init.visit(this);
+
+                // ERROR CHECK #2: For every initial value in the array, we check to make sure the
+                //                 value's type is assignment compatible with the array's base type.
+                if(!Type.assignmentCompatible(baseType,init.type)) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(currArr)
+                            .addErrorType(MessageType.TYPE_ERROR_459)
+                            .addArgs(init.type,baseType)
+                            .error()
+                    );
                     return false;
                 }
             }
 
-            Vector<Expression> inits = curr.getArrayInits();
-            for(int i = 0; i < inits.size(); i++) {
-                Expression val = inits.get(i);
-                val.visit(this);
-                // ERROR CHECK #5: For each argument value for the array, we will make sure its
-                //                 base type corresponds to the type declared
-                if(!Type.assignmentCompatible(t,val.type)) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_445)
-                            .addArgs(t,val.type)
-                            .error());
-                    return false;
-                }
-            }
+            currArr.type = new ArrayTypeBuilder()
+                               .setMetaData(currArr)
+                               .setBaseType(baseType)
+                               .setNumOfDims(depth)
+                               .create();
             return true;
         }
-        else if(currDepth > 1) {
-            ArrayLiteral al = curr.asArrayLiteral();
+        else if(depth > 1) {
+            ArrayLiteral al = currArr.asArrayLiteral();
 
-            // ERROR CHECK #1: For all n-dimensional array literals (where n>1), we need to make sure the user
+            // ERROR CHECK #3: For all n-dimensional array literals (where n>1), we need to make sure the user
             //                 explicitly writes down the size given for each possible dimension.
-            if(al.getArrayDims().size() != currDepth) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(al)
-                        .addErrorType(MessageType.TYPE_ERROR_442)
-                        .error());
+            if(al.getArrayDims().size() != depth) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                        .addLocation(al.getRootParent())
+                        .addErrorType(MessageType.TYPE_ERROR_460)
+                        .error()
+                );
                 return false;
             }
 
-            for(int i = 0; i < al.getArrayDims().size(); i++) {
-                Expression dim = al.getArrayDims().get(i);
-                dim.visit(this);
-                // ERROR CHECK #: Make sure its integer constant
-                if(!(dim.type.isInt() && (dim.isLiteral() || dim.isTopLevelDecl() && dim.asTopLevelDecl().asGlobalDecl().isConstant()))) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_435)
-                            .error());
+            for(Expression dim : al.getArrayDims())
+                checkArrayDims(depth,dims,dim,currArr);
+
+            for(Expression init : al.getArrayInits()) {
+                // ERROR CHECK #4: For every initial value in the multidimensional array, we need to make
+                //                 sure the initial value is an array itself.
+                if(!init.isArrayLiteral()) {
+                    errors.add(
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(currArr)
+                            .addErrorType(MessageType.TYPE_ERROR_461)
+                            .error()
+                    );
                     return false;
                 }
+
+                arrayAssignmentCompatibility(depth-1,baseType,dims,init.asArrayLiteral());
             }
 
-            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(curr)
-                        .addErrorType(MessageType.TYPE_ERROR_446)
-                        .error());
-                return false;
-            }
-
-            if(Integer.parseInt(dims.get(dims.size()-currDepth).asLiteral().toString()) != curr.getArrayInits().size()) {
-                errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(curr)
-                        .addErrorType(MessageType.TYPE_ERROR_444)
-                        .error());
-                return false;
-            }
-
-            for(int i = 0; i < al.getArrayInits().size(); i++) {
-                if(!al.getArrayInits().get(i).isArrayLiteral()) {
-                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(curr)
-                            .addErrorType(MessageType.TYPE_ERROR_447)
-                            .error());
-                    return false;
-                }
-                arrayAssignmentCompatibility(currDepth-1,t,dims,al.getArrayInits().get(i).asArrayLiteral());
-            }
+            currArr.type = new ArrayTypeBuilder()
+                        .setMetaData(currArr)
+                        .setBaseType(baseType)
+                        .setNumOfDims(depth)
+                        .create();
             return true;
         }
         else
             return false;
+    }
+
+    private boolean checkArrayDims(int depth, Vector<Expression> dims, Expression dim,ArrayLiteral currArr) {
+        dim.visit(this);
+
+        // ERROR CHECK #1: The given array dimension has to be an Int constant since the size of the array
+        //                 must be known at compile-time. An Int constant in this context is either an Int
+        //                 literal or a global Int constant.
+        if(!dim.type.isInt() || (!dim.isLiteral() && !isGlobalConstant(dim))) {
+            errors.add(
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    .addLocation(dim.getRootParent())
+                    .addErrorType(MessageType.TYPE_ERROR_456)
+                    .addArgs(dim)
+                    .addSuggestType(MessageType.TYPE_SUGGEST_1448)
+                    .error()
+            );
+            return false;
+        }
+
+        int dimValue;
+        if(dim.isLiteral())
+            dimValue = dim.asLiteral().asInt();
+        else
+            dimValue = currentScope.findName(dim).decl().asTopLevelDecl().asGlobalDecl().var().init().asLiteral().asInt();
+
+        // yeah idk what this is
+        // #TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
+
+        // ERROR CHECK #9:
+        //if(dims.get(dims.size()-currDepth).asListLiteral().toString().equals())
+//        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
+//            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+//                    .addLocation(currArr.getRootParent())
+//                    .addErrorType(MessageType.TYPE_ERROR_457)
+//                    .error());
+//            return false;
+//        }
+//
+//        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != currArr.getArrayInits().size()) {
+//            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+//                    .addLocation(currArr)
+//                    .addErrorType(MessageType.TYPE_ERROR_444)
+//                    .error());
+//            return false;
+//        }
+
+        // ERROR CHECK #2: This checks if the user correctly initialized the array based on its size.
+        if(currArr.getArrayInits().size() > dimValue) {
+            errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                            .addLocation(currArr.getRootParent())
+                            .addErrorType(MessageType.TYPE_ERROR_458)
+                            .addArgs(dimValue, currArr.getArrayInits().size())
+                            .error()
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks if a given {@link Expression} represents a global constant.
+     * <p><br>
+     *     This is a helper method for {@link #checkArrayDims(int, Vector, Expression)} to
+     *     determine if a given array dimension actually represents a global constant declared
+     *     by the user. Since constants will always have the same value, this means the compiler
+     *     can definitively know the size of an array.
+     * </p>
+     * @param expr Expression
+     * @return Boolean
+     */
+    private boolean isGlobalConstant(Expression expr) {
+        if(!expr.isNameExpr())
+            return false;
+
+        AST decl = currentScope.findName(expr.asNameExpr()).decl();
+        if(!decl.isTopLevelDecl())
+            return false;
+        else if(!decl.asTopLevelDecl().isGlobalDecl())
+            return false;
+        else
+            return decl.asTopLevelDecl().asGlobalDecl().isConstant();
     }
 
     /**
@@ -292,6 +346,7 @@ public class TypeChecker extends Visitor {
         if(currDepth == 1) {
             for(Expression init : curr.getInits()) {
                 init.visit(this);
+
                 // ERROR CHECK #1: This checks to see if the current expression's type matches the list's base type.
                 if(!Type.assignmentCompatible(baseType,init.type)) {
                     errors.add(
@@ -306,6 +361,12 @@ public class TypeChecker extends Visitor {
                     return false;
                 }
             }
+
+            curr.type = new ListTypeBuilder()
+                            .setMetaData(curr)
+                            .setBaseType(baseType)
+                            .setNumOfDims(currDepth)
+                            .create();
             return true;
         }
         else if(currDepth > 1) {
@@ -323,6 +384,13 @@ public class TypeChecker extends Visitor {
                 }
                 listAssignmentCompatibility(currDepth-1,baseType,e.asListLiteral());
             }
+
+            curr.type = new ListTypeBuilder()
+                            .setMetaData(curr)
+                            .setBaseType(baseType)
+                            .setNumOfDims(currDepth)
+                            .create();
+
             return true;
         }
         else
@@ -343,48 +411,45 @@ public class TypeChecker extends Visitor {
     public void visitArrayExpr(ArrayExpr ae) {
         ae.getArrayTarget().visit(this);
 
-        // ERROR CHECK #1: Make sure the target represents an array or list
+        // ERROR CHECK #1: This checks if the target represents a valid Array or List type.
         if(!ae.getArrayTarget().type.isArrayType() && !ae.getArrayTarget().type.isListType()) {
             errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ae)
-                    .addErrorType(MessageType.TYPE_ERROR_434)
-                    .addArgs(ae.getArrayTarget().toString())
+                    .addErrorType(MessageType.TYPE_ERROR_453)
+                    .addArgs(ae.getArrayTarget())
                     .error()
             );
         }
 
-        Type currType;
-        if(currentTarget != null) {
-            ClassDecl cd = currentScope.findName(currentTarget.toString()).decl().asTopLevelDecl().asClassDecl();
-            currType = cd.symbolTable.findName(ae.getArrayTarget().toString()).decl().asFieldDecl().type().asArrayType();
-        }
+        Type arrType;
+        if(currentTarget == null)
+            arrType = currentScope.findName(ae.getArrayTarget()).decl().getType();
         else {
-            currType = currentScope.findName(ae.getArrayTarget().toString()).decl().getType();
+            ClassDecl cd = currentScope.findName(currentTarget).decl().asTopLevelDecl().asClassDecl();
+            arrType = cd.symbolTable.findName(ae.getArrayTarget()).decl().asFieldDecl().type().asArrayType();
         }
 
-        if(currType.isArrayType()) {
-            // ERROR CHECK #2: Make sure the number of indices matches
-            //                 the number of dimensions for the array
-            if(currType.asArrayType().numOfDims != ae.getArrayIndex().size()) {
+        if(arrType.isArrayType()) {
+            // ERROR CHECK #2: This checks if the number of indices exceeds the number of dimensions for the array.
+            if(ae.getArrayIndex().size() > arrType.asArrayType().numOfDims) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.getArrayTarget().toString(),currType.asArrayType().numOfDims,ae.getArrayIndex().size())
+                        .addArgs("array", ae.getArrayTarget(), arrType.asArrayType().numOfDims, ae.getArrayIndex().size())
                         .error()
                 );
             }
         }
         else {
-            // ERROR CHECK #3: Make sure the number of indices matches
-            //                 the number of dimensions for the list
-            if(currType.asListType().numOfDims < ae.getArrayIndex().size()) {
+            // ERROR CHECK #3: Same as the previous error check, but for lists instead.
+            if(ae.getArrayIndex().size() > arrType.asListType().numOfDims) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ae)
                         .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs(ae.getArrayTarget().toString(),currType.asListType().numOfDims,ae.getArrayIndex().size())
+                        .addArgs("list", ae.getArrayTarget(), arrType.asListType().numOfDims, ae.getArrayIndex().size())
                         .error()
                 );
             }
@@ -399,18 +464,26 @@ public class TypeChecker extends Visitor {
             //                 value evaluates to be an Int
             if(!e.type.isInt()) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_430)
+                        .addErrorType(MessageType.TYPE_ERROR_454)
                         .addArgs(e.type)
                         .error()
                 );
             }
         }
-        if(currType.isArrayType())
-            ae.type = currType.asArrayType().baseType();
-        else
-            ae.type = currType.asListType().baseType();
+        if(arrType.isArrayType()) {
+            if(arrType.asArrayType().numOfDims != ae.getArrayIndex().size())
+                ae.type = new ArrayType(arrType.asArrayType().baseType(),ae.getArrayIndex().size());
+            else
+                ae.type = arrType.asArrayType().baseType();
+        }
+        else {
+            if(arrType.asListType().numOfDims != ae.getArrayIndex().size())
+                ae.type = new ListType(arrType.asListType().baseType(),ae.getArrayIndex().size());
+            else
+                ae.type = arrType.asListType().baseType();
+        }
     }
 
     /**
@@ -453,7 +526,7 @@ public class TypeChecker extends Visitor {
         //                 a variable storing an array
         if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
             errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                             .addLocation(as)
                             .addErrorType(MessageType.TYPE_ERROR_450)
                             .error()
@@ -475,7 +548,7 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
             errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(as)
                     .addErrorType(MessageType.TYPE_ERROR_403)
                     .addArgs(as.LHS().toString(),lType,rType)
@@ -491,10 +564,10 @@ public class TypeChecker extends Visitor {
                 //                 are Int, Real, and String
                 if (lType.isBool() || lType.isChar() || lType.isClassOrMultiType())
                     errors.add(
-                        new ErrorBuilder(generateTypeError, interpretMode)
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                             .addLocation(as)
                             .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(as.assignOp(), lType)
+                            .addArgs(as.LHS().toString(),lType,rType)
                             .addSuggestType(MessageType.TYPE_SUGGEST_1402)
                             .error()
                     );
@@ -504,7 +577,7 @@ public class TypeChecker extends Visitor {
                 //                 only supported types are Int and Real
                 if(lType.isBool() || lType.isChar() || lType.isString() || lType.isClassOrMultiType())
                     errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                             .addLocation(as)
                             .addErrorType(MessageType.TYPE_ERROR_404)
                             .addArgs(as.assignOp(),lType)
@@ -517,7 +590,8 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * <p>
+     * Evaluates the type of a binary expression.
+     * <p><br>
      *     Since C Minor does not support type coercion, we are going to be
      *     strict about which types are allowed for every binary operator.
      *     <br><br>
@@ -1640,60 +1714,77 @@ public class TypeChecker extends Visitor {
     /**
      * Checks the type of a list statement.
      * <p><br>
-     *     In C Minor, there are 3 list statements: {@code append}, {@code insert},
-     *     and {@code remove}. For each statement, we will do a type check to make
-     *     sure the appropriate values were passed for us to execute the list statement
-     *     at runtime.
+     *     In C Minor, there are currently 3 list commands: {@code append}, {@code insert},
+     *     and {@code remove}. This method will type check all arguments passed to the command
+     *     to ensure the user correctly wrote the command. For {@code remove}, we will not type
+     *     check the value that is removed since we will throw a runtime exception if the value
+     *     can not be removed from the list.
      * </p>
      * @param ls List Statement
      */
     public void visitListStmt(ListStmt ls) {
-        String func;
-        int argSize = switch (ls.getCommand()) {
-            case APPEND -> {
-                func = "append";
-                yield 2;
-            }
-            case INSERT -> {
-                func = "insert";
-                yield 3;
-            }
-            case REMOVE -> {
-                func = "remove";
-                yield 2;
-            }
-        };
+        // SPECIAL CASE!!!
+        // If a user writes their own function/method using the list command name, we want to rewrite
+        // the current list statement as an invocation for better type checking.
+        if(currentScope.hasMethodSomewhere(ls.toString())) {
+            StringBuilder commandSignature = new StringBuilder(ls + "/");
 
-        // ERROR CHECK #1: This checks if the right amount of arguments was passed to the list statement.
-        if(ls.getAllArgs().size() != argSize) {
+            for(Expression e : ls.getAllArgs()) {
+                e.visit(this);
+                commandSignature.append(e.type.typeSignature());
+            }
+
+            if(currentScope.hasNameSomewhere(commandSignature.toString())) {
+                Invocation in = new InvocationBuilder()
+                                .setMetaData(ls)
+                                .setName(new Name(ls.toString()))
+                                .setArgs(ls.getAllArgs())
+                                .create();
+
+                in.replace(ls);
+                in.visit(this);
+
+                // This is needed because the list statement reference will still be stored by the VM
+                // if the list statement was the only line of code the user wrote. We want to call the newly
+                // created invocation and not the list statement, so this is the best solution I came up with...
+                if(ls.getRootParent() == null)
+                    ls.setInvocation(in);
+
+                return;
+            }
+        }
+
+        // ERROR CHECK #1: This ensures the correct number of arguments were passed to the list command.
+        //                 append/remove => 2 args, insert => 3 args
+        if(ls.getAllArgs().size() != ls.getExpectedNumOfArgs()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ls)
                     .addErrorType(MessageType.TYPE_ERROR_449)
-                    .addArgs(func,argSize,ls.getAllArgs().size())
+                    .addArgs(ls,ls.getExpectedNumOfArgs(),ls.getAllArgs().size())
                     .error()
             );
         }
 
-        ls.getListName().visit(this);
-        // ERROR CHECK #2: This checks if the first argument represents a list.
-        if(!ls.getListName().type.isListType()) {
+        ls.getList().visit(this);
+        // ERROR CHECK #2: The first argument in a list command must be the list the command acts on.
+        if(!ls.getList().type.isListType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ls)
                     .addErrorType(MessageType.TYPE_ERROR_450)
-                    .addArgs(ls.getListName(),func)
+                    .addArgs(ls.getList(),ls)
                     .addSuggestType(MessageType.TYPE_SUGGEST_1445)
-                    .addSuggestArgs(func)
+                    .addSuggestArgs(ls)
                     .error()
             );
         }
 
-        Type itemType;
         ls.getSecondArg().visit(this);
-        if(func.equals("insert")) {
-            // ERROR CHECK #3: This checks to make sure the second argument for 'insert' is an integer position.
-            if(!ls.getAllArgs().get(1).type.isInt()) {
+        Type finalArgType = ls.getSecondArg().type;
+        // ERROR CHECK #3: The second argument for the insert command must be an integer.
+        if(ls.isInsert()) {
+            if(!finalArgType.isInt()) {
                 errors.add(
                     new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                         .addLocation(ls)
@@ -1703,7 +1794,25 @@ public class TypeChecker extends Visitor {
                         .error()
                 );
             }
+
             ls.getThirdArg().visit(this);
+            finalArgType = ls.getThirdArg().type;
+        }
+
+        // ERROR CHECK #4: The final argument for the append/insert command needs to be a value
+        //                 that can either be stored or merged into the list.
+        if(ls.isAppend() || ls.isInsert()) {
+            if(!ls.getListType().isSubList(finalArgType)) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                        .addLocation(ls)
+                        .addErrorType(MessageType.TYPE_ERROR_452)
+                        .addArgs(ls.getList(), ls.getListType(), ls, finalArgType)
+                        .addSuggestType(MessageType.TYPE_SUGGEST_1447)
+                        .addSuggestArgs(ls, ls.getList(), ls.getListType(), ls.getListType().validSublist())
+                        .error()
+                );
+            }
         }
     }
 
@@ -1933,7 +2042,7 @@ public class TypeChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.getClassType().getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().toString()).decl().asTopLevelDecl().asClassDecl();
 
         for(Var v : ne.getInitialFields()) {
             Type fType = cd.symbolTable.findName(v.toString()).decl().asFieldDecl().type();
@@ -2043,24 +2152,28 @@ public class TypeChecker extends Visitor {
         returnFound = true;
     }
 
-    public void visitRetypeStmt(RetypeStmt rs) {
-        rs.getName().visit(this);
-        Type objType = rs.getName().type;
+    /**
+     * Evaluates the type of a retype statement.
+     * @param rt Retype Statement
+     */
+    public void visitRetypeStmt(RetypeStmt rt) {
+        rt.getName().visit(this);
+        Type objType = rt.getName().type;
 
         // ERROR CHECK #1: Make sure the LHS does represent an object
         if(!objType.isClassOrMultiType()) {
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(rs)
+                    .addLocation(rt)
                     .addErrorType(MessageType.TYPE_ERROR_441)
-                    .addArgs(rs.getName(),objType)
+                    .addArgs(rt.getName(),objType)
                     .addSuggestType(MessageType.TYPE_SUGGEST_1438)
                     .error()
             );
         }
 
-        rs.getNewObject().visit(this);
-        ClassType newObjType = rs.getNewObject().type.asClassType();
+        rt.getNewObject().visit(this);
+        ClassType newObjType = rt.getNewObject().type.asClassType();
         Type objBaseType = objType.isMultiType() ? objType.asMultiType().getInitialType() : objType;
 
         // ERROR CHECK #2: Make sure the types are class assignment compatible
@@ -2069,11 +2182,11 @@ public class TypeChecker extends Visitor {
 
             errors.add(
                 new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(rs)
+                        .addLocation(rt)
                         .addErrorType(MessageType.TYPE_ERROR_442)
-                        .addArgs(rs.getName(),newObjType)
+                        .addArgs(rt.getName(),newObjType)
                         .addSuggestType(MessageType.TYPE_SUGGEST_1439)
-                        .addSuggestArgs(rs.getName())
+                        .addSuggestArgs(rt.getName())
                         .error()
             );
         }
@@ -2083,11 +2196,11 @@ public class TypeChecker extends Visitor {
                 objType.asMultiType().addType(newObjType);
             else {
                 MultiType mt = MultiType.create(objType.asClassType(),newObjType);
-                setVarType(rs.getName().toString(),mt);
+                setVarType(rt.getName().toString(),mt);
             }
         }
         else
-            setVarType(rs.getName().toString(),newObjType);
+            setVarType(rt.getName().toString(),newObjType);
     }
 
     /**
@@ -2098,9 +2211,7 @@ public class TypeChecker extends Visitor {
      * </p>
      * @param t ThisStmt
      */
-    public void visitThis(ThisStmt t) {
-        t.type = new ClassType(currentClass.toString());
-    }
+    public void visitThis(ThisStmt t) { t.type = new ClassType(currentClass.toString()); }
 
     /**
      * Evaluates the type of a unary expression

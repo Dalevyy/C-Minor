@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.HashMap;
 import messages.MessageType;
 import messages.errors.ErrorBuilder;
@@ -28,19 +29,62 @@ import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
 
-// TODO: How to only have one this pointer per object? :?
-
+/**
+ * A {@link Visitor} class that executes a C Minor program.
+ * <p><br>
+ *     When a user is in interpretation mode, a program will be
+ *     evaluated and executed by this class. Currently, compilation
+ *     mode will also execute the program through this class, though
+ *     this is only temporary.
+ * </p>
+ * @author Daniel Levy
+ */
 public class Interpreter extends Visitor {
 
+    /**
+     * An imitation of a {@link RuntimeStack}
+     */
     private RuntimeStack stack;
+
+    /**
+     * {@link SymbolTable} to denote the current scope we are in for calling functions/methods.
+     */
     private SymbolTable currentScope;
+
+    /**
+     * Stores the current value the interpreter is evaluating.
+     */
     private Value currentValue;
+
+    /**
+     * Error factory that generates runtime errors.
+     */
     private final RuntimeErrorFactory generateRuntimeError;
-    private boolean insideAssignment;
-    private boolean output;
-    private boolean returnFound;
+
+    /**
+     * Flag set when a {@code break} statement is found.
+     */
     private boolean breakFound;
+
+    /**
+     * Flag set when a {@code continue} statement is found.
+     */
     private boolean continueFound;
+
+    /**
+     * Flag set when the {@link Interpreter} executes an assignment statement.
+     */
+    private boolean insideAssignment;
+
+    /**
+     * Flag set when the {@link Interpreter} executes an output statement.
+     */
+    private boolean output;
+
+    /**
+     * Flag set when a {@code return} statement is found.
+     */
+    private boolean returnFound;
 
     /**
      * Creates interpreter for the VM.
@@ -51,9 +95,11 @@ public class Interpreter extends Visitor {
         this.currentScope = st;
         this.generateRuntimeError = new RuntimeErrorFactory();
         this.interpretMode = true;
-        this.returnFound = false;
         this.breakFound = false;
         this.continueFound = false;
+        this.insideAssignment = false;
+        this.output = false;
+        this.returnFound = false;
     }
 
     /**
@@ -172,9 +218,9 @@ public class Interpreter extends Visitor {
                         case "+=" -> newValue = new Value(oldValue.asReal().add(newValue.asReal()), newValue.getType());
                         case "-=" -> newValue = new Value(oldValue.asReal().subtract(newValue.asReal()), newValue.getType());
                         case "*=" -> newValue = new Value(oldValue.asReal().multiply(newValue.asReal()), newValue.getType());
-                        case "/=" -> newValue = new Value(oldValue.asReal().divide(newValue.asReal()), newValue.getType());
+                        case "/=" -> newValue = new Value(oldValue.asReal().divide(newValue.asReal(), MathContext.DECIMAL128), newValue.getType());
                         case "%=" -> newValue = new Value(oldValue.asReal().remainder(newValue.asReal()), newValue.getType());
-                        case "**=" -> newValue = new Value(oldValue.asReal().pow(newValue.asReal().toBigInteger().intValue()), newValue.getType());
+                        case "**=" -> newValue = new Value(oldValue.asReal().pow(newValue.asReal().toBigInteger().intValue(),MathContext.DECIMAL128), newValue.getType());
                     }
                 } else if(as.RHS().type.isString())
                     newValue = new Value(newValue.asString() + oldValue.asString(), newValue.getType());
@@ -211,7 +257,8 @@ public class Interpreter extends Visitor {
         be.getLHS().visit(this);
         Value LHS = currentValue;
 
-        be.getRHS().visit(this);
+        if(!binOp.equals("instanceof") && !binOp.equals("!instanceof"))
+            be.getRHS().visit(this);
         Value RHS = currentValue;
 
         switch(binOp) {
@@ -237,9 +284,9 @@ public class Interpreter extends Visitor {
                         case "+" -> currentValue = new Value(LHS.asReal().add(RHS.asReal()),be.type);
                         case "-" -> currentValue = new Value(LHS.asReal().subtract(RHS.asReal()),be.type);
                         case "*" -> currentValue = new Value(LHS.asReal().multiply(RHS.asReal()),be.type);
-                        case "/" -> currentValue = new Value(LHS.asReal().divide(RHS.asReal()),be.type);
+                        case "/" -> currentValue = new Value(LHS.asReal().divide(RHS.asReal(),MathContext.DECIMAL128),be.type);
                         case "%" -> currentValue = new Value(LHS.asReal().remainder(RHS.asReal()),be.type);
-                        case "**" -> currentValue = new Value(LHS.asReal().pow(RHS.asReal().toBigInteger().intValue()),be.type);
+                        case "**" -> currentValue = new Value(LHS.asReal().pow(RHS.asReal().toBigInteger().intValue(),MathContext.DECIMAL128),be.type);
                     }
                     break;
                 }
@@ -858,8 +905,13 @@ public class Interpreter extends Visitor {
      * @param ls The current list statement we will be executing.
      */
     public void visitListStmt(ListStmt ls) {
+        if(ls.getInvocation() != null) {
+            ls.getInvocation().visit(this);
+            return;
+        }
+
         // Obtain list from the stack
-        ls.getListName().visit(this);
+        ls.getList().visit(this);
         RuntimeList lst = currentValue.asList();
 
         ls.getAllArgs().get(1).visit(this);
@@ -869,39 +921,42 @@ public class Interpreter extends Visitor {
                 break;
             case INSERT:
                 Value index = currentValue;
+
+                // ERROR CHECK #1: This makes sure the passed index is in the list's memory range.
                 if(index.asInt() < 1 || index.asInt() > lst.size()) {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ls)
                         .addErrorType(MessageType.RUNTIME_ERROR_605)
-                        .addArgs(ls.getListName(),lst.size(),index.asInt())
+                        .addArgs(ls.getList(),lst.size(),index.asInt())
                         .error();
                 }
+
                 ls.getAllArgs().get(2).visit(this);
                 lst.insertElement(index.asInt(),currentValue);
                 break;
             case REMOVE:
                 boolean successfulRemoval = true;
-                if(currentValue.isList()) {
-                    if(currentValue.asList().size() == 1)
-                        successfulRemoval = lst.remove(currentValue.asList().get(0));
-                }
-                else if(currentValue.getType().isInt()) {
+
+                // ERROR CHECK #2: This also makes sure the passed index is in the list's memory range
+                if(currentValue.getType().isInt()) {
                     if(currentValue.asInt() < 1 || currentValue.asInt() > lst.size()) {
                         new ErrorBuilder(generateRuntimeError,interpretMode)
                             .addLocation(ls)
                             .addErrorType(MessageType.RUNTIME_ERROR_608)
                             .error();
                     }
+
                     lst.remove(currentValue.asInt());
                 }
                 else
                     successfulRemoval = lst.remove(currentValue);
 
+                // ERROR CHECK #3: This will throw an exception to the user if an element couldn't be removed.
                 if(!successfulRemoval) {
                     new ErrorBuilder(generateRuntimeError,interpretMode)
                         .addLocation(ls)
                         .addErrorType(MessageType.RUNTIME_ERROR_609)
-                        .addArgs(ls.getAllArgs().get(1),ls.getListName())
+                        .addArgs(ls.getAllArgs().get(1),ls.getList())
                         .error();
                 }
 
@@ -943,31 +998,33 @@ public class Interpreter extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(!ne.isParentKeyword()) {
-            if(currentValue != null && currentValue.isObject() && ne.getParent().isExpression()
-                    && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
-                // ERROR CHECK #1: This checks if the field exists for the current object.
-                if(!currentValue.asObject().hasField(ne)) {
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(ne.getRootParent())
-                        .addErrorType(MessageType.RUNTIME_ERROR_606)
-                        .addArgs(ne, currentValue.asObject().getCurrentType())
-                        .error();
-                }
-                currentValue = currentValue.asObject().getField(ne);
-            } else {
-                currentValue = stack.getValue(ne);
-                // ERROR CHECK #2: This checks if we are trying to access an object that wasn't initialized.
-                // The calls to 'findName' were needed to avoid an error being generated when we have a class name
-                // (such as when we execute an 'instanceof' operation)
-                if(currentValue == null && ne.type.isClassOrMultiType() && (currentScope.findName(ne).decl().isTopLevelDecl()
-                        && !currentScope.findName(ne).decl().asTopLevelDecl().isClassDecl())) {
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
-                        .addLocation(ne.getRootParent())
-                        .addErrorType(MessageType.RUNTIME_ERROR_607)
-                        .addArgs(ne)
-                        .error();
-                }
+        // Ignore any names that refer to 'parent' keyword.
+        if(ne.isParentKeyword())
+            return;
+
+        // Special Case: If we are evaluating a complex field expression, execute this branch
+        if(currentValue != null
+            && currentValue.isObject() && ne.getParent().isExpression()
+            && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
+            // ERROR CHECK #1: This checks if the field exists for the current object.
+            if(!currentValue.asObject().hasField(ne)) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ne.getRootParent())
+                    .addErrorType(MessageType.RUNTIME_ERROR_606)
+                    .addArgs(ne, currentValue.asObject().getCurrentType())
+                    .error();
+            }
+            currentValue = currentValue.asObject().getField(ne);
+        }
+        else {
+            currentValue = stack.getValue(ne);
+            // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
+            if(currentValue == null) {
+                new ErrorBuilder(generateRuntimeError,interpretMode)
+                    .addLocation(ne.getRootParent())
+                    .addErrorType(MessageType.RUNTIME_ERROR_607)
+                    .addArgs(ne)
+                    .error();
             }
         }
     }

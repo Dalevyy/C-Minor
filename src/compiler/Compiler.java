@@ -1,6 +1,7 @@
 package compiler;
 
 import ast.misc.Compilation;
+import groovy.transform.Pure;
 import interpreter.Interpreter;
 import interpreter.VM;
 import java.io.BufferedReader;
@@ -90,6 +91,7 @@ public class Compiler {
         root.visit(new TypeChecker());
         root.visit(new ConstructorGeneration());
         root.visit(new ModifierChecker());
+        root.visit(new PureKeywordPass());
         if(execute)
             root.visit(new Interpreter(root.globalTable));
     }

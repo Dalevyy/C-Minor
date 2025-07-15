@@ -54,6 +54,7 @@ public class TypeValidityPass extends Visitor {
     private ClassDecl currentTemplate;
     private Vector<Type> typeArgs;
     private Vector<Typeifier> currentTypeParams;
+    private Vector<String> instantiatedClasses;
     private final ScopeErrorFactory generateScopeError;
     private final TypeErrorFactory generateTypeError;
     private final Vector<String> errors;
@@ -65,6 +66,7 @@ public class TypeValidityPass extends Visitor {
         this.currentScope = null;
         this.generateScopeError = new ScopeErrorFactory();
         this.generateTypeError = new TypeErrorFactory();
+        this.instantiatedClasses = new Vector<>();
         this.errors = new Vector<>();
     }
 
@@ -171,7 +173,7 @@ public class TypeValidityPass extends Visitor {
      * @param ct Class type representing a templated type.
      */
     private void checkTemplateType(ClassType ct) {
-        ClassDecl cd = currentScope.findName(ct.getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ct.getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: This checks if both the class and the class type have the same number of type parameters.
         if(cd.typeParams().size() != ct.typeArgs().size()) {
@@ -219,11 +221,15 @@ public class TypeValidityPass extends Visitor {
     }
 
     private ClassDecl instantiatesTemplate(ClassType ct) {
+        if(instantiatedClasses.contains(ct.toString()))
+            return currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
+
         ClassDecl originalClass = currentScope.findName(ct.getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
         ClassDecl copy = originalClass.deepCopy().asTopLevelDecl().asClassDecl();
         copy.visit(new NameChecker());
         ClassDecl oldTemplate = currentTemplate;
         Vector<Type> oldArgs = typeArgs;
+        SymbolTable oldScope = currentScope;
 
         currentTemplate = copy;
         typeArgs = ct.typeArgs();
@@ -232,7 +238,12 @@ public class TypeValidityPass extends Visitor {
 
         currentTemplate = oldTemplate;
         typeArgs = oldArgs;
-        copy.removeTypeParams();
+        currentScope = oldScope;
+      //  copy.removeTypeParams();
+
+        instantiatedClasses.add(ct.toString());
+        currentScope.addNameToRootTable(ct.toString(),copy);
+
         return copy;
     }
 
@@ -393,7 +404,6 @@ public class TypeValidityPass extends Visitor {
         if(ne.createsFromTemplate()) {
             checkTemplateType(ne.getClassType());
             ne.templatedClass = instantiatesTemplate(ne.getClassType());
-            currentScope.addNameToRootTable(ne.getClassType().toString(),ne.templatedClass);
         }
     }
 

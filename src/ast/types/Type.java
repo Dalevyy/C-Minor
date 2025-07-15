@@ -67,12 +67,12 @@ public abstract class Type extends AST {
         else if(LHS.isListType() && RHS.isListType()) {
             ListType lType = LHS.asListType();
             ListType rType = RHS.asListType();
-            return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
+            return lType.numOfDims == rType.numOfDims && Type.assignmentCompatible(lType.baseType(),rType.baseType());
         }
         else if(LHS.isArrayType() && RHS.isArrayType()) {
             ArrayType lType = LHS.asArrayType();
             ArrayType rType = RHS.asArrayType();
-            return lType.numOfDims == rType.numOfDims && lType.baseType().equals(rType.baseType());
+            return lType.numOfDims == rType.numOfDims && Type.assignmentCompatible(lType.baseType(),rType.baseType());
         }
         else if(LHS.isClassOrMultiType() && RHS.isClassOrMultiType()) {
             Vector<ClassType> possibleTypes;

@@ -1,0 +1,15 @@
+/*
+    List Statement Test #4
+
+    This tests if we can insert a value 
+    into a 2D list.
+
+    Output:
+        [[6, 7], [1, 2], [3, 4, 5]]
+*/
+
+def a:List[List[Int]] = List(List(1,2),List(3,4,5))
+
+insert(a,1,List(6,7))
+
+cout << a 

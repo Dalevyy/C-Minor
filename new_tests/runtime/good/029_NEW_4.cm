@@ -1,0 +1,36 @@
+/*
+    New Expression Test #4
+
+    This tests if we can access all fields
+    from a chain of inherited classes.
+
+    Output:
+        a.x = 5
+        a.y = 3.14
+        a.z = true 
+        a.a.x = 8
+*/
+
+class A {
+    public x:Int 
+}
+
+class B inherits A {
+    public y:Real
+}
+
+class C inherits B {
+    public z:Bool 
+}
+
+class D inherits C {
+    public a:A
+}
+
+def a:D = new D(x=5,y=3.14,z=True,a=new A(x=8))
+
+cout << 'a.x = ' << a.x
+cout << 'a.y = ' << a.y
+cout << 'a.z = ' << a.z
+cout << 'a.a.x = ' << a.a.x
+

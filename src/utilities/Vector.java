@@ -5,14 +5,15 @@ import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Iterator;
 
-/*
-__________________________________ Vector __________________________________
-ThisStmt is a container class designed to store items throughout the C Minor
-compiler. The point of this class is to create a unified list structure that
-every part of the compiler uses, so we do not have multiple list types being
-used in different locations.
-____________________________________________________________________________
-*/
+/**
+ * Container class for the C Minor compiler.
+ * <p><br>
+ *     This class creates a unified list structure that every part of the compiler
+ *     will use. This avoids the need to use multiple different list types.
+ * </p>
+ * @param <T>
+ * @author Daniel Levy
+ */
 public class Vector<T> extends AbstractList<T> implements Iterable<T> {
 
     private final ArrayList<T> lst; // Internal ArrayList to store all elements

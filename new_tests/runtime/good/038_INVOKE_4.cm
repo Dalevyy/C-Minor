@@ -1,0 +1,38 @@
+/*
+    Invocation Test #4
+
+    This tests if we can invoke methods and 
+    have them return objects that we can use.
+
+    Output:
+        c.z = 4
+        b.y = 3.14
+        a.x = c
+*/
+
+class A {
+    public x:Char 
+}
+
+class B {
+    public y:Real
+    public method createA() => A { return new A(x='c') }
+}
+
+class C {
+    public z:Int
+
+    public method createA() => A { return new A(x='d') }
+    public method createB() => B { return new B(y=3.14) }
+}
+
+class D {
+    public method createC() => C { return new C(z=4) }
+}
+
+def c:C = new C(z=4)
+cout << 'c.z = ' << c.z 
+def b:B = c.createB()
+cout << 'b.y = ' << b.y
+def a:A = c.createB().createA()
+cout << 'a.x = ' << a.x

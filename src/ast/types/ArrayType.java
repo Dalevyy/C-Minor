@@ -1,24 +1,26 @@
 package ast.types;
 
 import ast.AST;
-import ast.classbody.InitDecl;
-import ast.expressions.CastExpr;
-import token.*;
+import token.Token;
 import utilities.Visitor;
 
-/*
-___________________________ ArrayType ___________________________
-The second structured type is an ArrayType. In C Minor, arrays
-will represent continuous blocks of memory and their size must be
-known at compile-time.
-_________________________________________________________________
-*/
+/**
+ * A structured type representing an array.
+ * <p><br>
+ *     In C Minor, an array represents a block of continuous memory
+ *     that is statically sized. During compilation, the size of an
+ *     array must be known, and the user is not able to change the
+ *     size of an array once declared.
+ * </p>
+ * @author Daniel Levy
+ */
 public class ArrayType extends Type {
 
     private Type baseType;
     public int numOfDims;
 
     public ArrayType() { this(new Token(),null,0); }
+    public ArrayType(Type bt, int num) { this(new Token(),bt,num); }
     public ArrayType(Token t, Type bt, int num) {
         super(t);
         this.baseType = bt;

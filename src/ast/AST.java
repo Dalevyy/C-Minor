@@ -125,8 +125,8 @@ public abstract class AST {
     public AST getParent() { return parent; }
 
     public AST getRootParent() {
-//        if(curr == null)
-//            return this;
+        if(parent == null)
+            return null;
         AST curr = parent;
         while(curr.parent != null) {
             if(curr.isStatement() && curr.asStatement().isExprStmt())

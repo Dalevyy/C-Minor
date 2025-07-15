@@ -1,0 +1,16 @@
+/*
+    Assignment Statement Test #1 
+
+    This tests if an assignment can be 
+    made to an Int variable.
+
+    Output:
+        Before Assignment = 5
+        After Assignment = 7
+*/
+
+def a:Int = 5
+
+cout << 'Before Assignment = ' << a 
+set a = 7
+cout << 'After Assignment = ' << a 

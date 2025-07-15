@@ -2,7 +2,7 @@ package ast.statements;
 
 import ast.AST;
 import ast.expressions.Expression;
-import ast.expressions.NameExpr;
+import ast.expressions.Invocation;
 import ast.types.ListType;
 import token.Token;
 import utilities.Vector;
@@ -16,6 +16,8 @@ public class ListStmt extends Statement {
     private Commands commandType;
     private Vector<Expression> args;
 
+    // This is needed in the edge case where a list command is actually a function call when executing in the VM.
+    private Invocation funcCall = null;
 
     public ListStmt() { this(new Token(),null,new Vector<>()); }
     public ListStmt(Token t, Commands c, Vector<Expression> args) {
@@ -29,10 +31,19 @@ public class ListStmt extends Statement {
     public Commands getCommand() { return this.commandType; }
     public Vector<Expression> getAllArgs() { return this.args; }
 
-    public Expression getListName() { return this.args.get(0); }
+    public int getExpectedNumOfArgs() { return isInsert() ? 3 : 2; }
+
+    public Expression getList() { return this.args.get(0); }
     public ListType getListType() { return this.args.get(0).type.asListType(); }
     public Expression getSecondArg() { return this.args.get(1); }
     public Expression getThirdArg() { return this.args.get(2); }
+
+    public boolean isAppend() { return this.commandType == Commands.APPEND; }
+    public boolean isInsert() { return this.commandType == Commands.INSERT; }
+    public boolean isRemove() { return this.commandType == Commands.REMOVE; }
+
+    public void setInvocation(Invocation in) { this.funcCall = in; }
+    public Invocation getInvocation() { return this.funcCall; }
 
     public boolean isListStmt() { return true; }
     public ListStmt asListStmt() { return this;}

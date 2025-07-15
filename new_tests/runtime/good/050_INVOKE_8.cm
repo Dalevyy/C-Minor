@@ -1,0 +1,42 @@
+/*
+    Invocation Test #8
+
+    This tests if a retype statement correctly calls 
+    the appropriate overridden method.
+
+    Output:
+        In C
+        In B
+        In C
+        In B
+        In C
+        In B
+        In C
+        In B
+        In C
+        In B
+*/
+
+class A {
+    public method print() => Void { cout << 'In A' << endl }
+}
+
+class B inherits A {
+    public override method print() => Void { cout << 'In B' << endl }
+}
+
+class C inherits B {
+    public override method print() => Void { cout << 'In C' << endl }
+}
+
+def a:A = uninit
+
+for(def i:Int in 1..10) {
+    if(i%2 == 0) { 
+        retype a = new B() 
+    } else {
+        retype a = new C()
+    }
+
+    a.print()
+}

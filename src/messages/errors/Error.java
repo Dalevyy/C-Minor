@@ -10,20 +10,12 @@ import messages.Message;
 import messages.MessageType;
 import utilities.PrettyPrint;
 
-import java.util.Objects;
-
 public abstract class Error extends Message {
 
     protected MessageType error;
     protected MessageType suggest;
 
     public abstract String header();
-
-    public String fileHeader() {
-        if(fileName != null && !fileName.isEmpty())
-            return "In " + fileName + ": ";
-        return "";
-    }
 
     protected String errorNumber() {
         return error.toString().substring(error.toString().lastIndexOf("_")+1);
@@ -44,14 +36,12 @@ public abstract class Error extends Message {
     }
 
     public String printMessage() {
-        System.out.println(createMessage());
-
-        if(!interpretMode)
-            System.exit(1);
+        if(interpretMode) {
+            System.out.println(createMessage());
+            throw new RuntimeException("Compile Error Found.");
+        }
         else
-            throw new RuntimeException("Error");
-
-        return "";
+            return createMessage();
     }
 
     private String buildError() {
@@ -81,6 +71,8 @@ public abstract class Error extends Message {
 
     public void setSuggestType(MessageType et) { suggest = et; }
     public MessageType suggestType() { return suggest; }
+
+    public boolean isError() { return true; }
 
     // Helper Methods
     public boolean isModifierError() { return false; }

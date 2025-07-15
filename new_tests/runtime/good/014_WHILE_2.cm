@@ -1,0 +1,30 @@
+/*
+    While Statement Test #2 
+
+    This tests if a nested while loop can be executed.
+
+    Output:
+        Iteration #1:
+        1 2 3 4 
+        Iteration #2:
+        1 2 3 4 
+        Iteration #3:
+        1 2 3 4 
+        Iteration #4:
+        1 2 3 4 
+*/
+
+def a:Int = 1, b:Int = 1
+
+while(a != 5) {
+    cout << 'Iteration #' << a << ':' << endl
+
+    while(b != 5) {
+        cout << b << ' ' 
+        set b += 1
+    }
+    cout << endl 
+
+    set b = 1
+    set a += 1
+}

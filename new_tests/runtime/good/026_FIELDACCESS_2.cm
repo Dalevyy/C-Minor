@@ -1,0 +1,26 @@
+/*
+    Field Expression Test #2
+
+    This tests if a method can be invoked inside of 
+    a method that was invoked outside of the class. 
+
+    Output:
+        In print()
+        In print2()
+*/
+
+class A {
+    public x:Int = 2
+
+    protected method print2() => Void {
+        cout << 'In print2()'
+    }
+
+    public method print() => Void {
+        cout << 'In print()' << endl
+        print2()
+    }
+}
+
+def a:A = new A()
+a.print()

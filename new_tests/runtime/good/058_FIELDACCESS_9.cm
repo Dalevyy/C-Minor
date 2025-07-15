@@ -1,0 +1,17 @@
+/*
+    Field Expression Test #9
+
+    This tests if we can access a field when a 
+    field expression has to evaluate multiple objects.
+
+    Output:
+        5
+*/
+
+class A { public x:Int }
+class B { public a:A }
+class C { public b:B }
+
+def c:C = new C(b=new B(a=new A(x=5)))
+
+cout << c.b.a.x

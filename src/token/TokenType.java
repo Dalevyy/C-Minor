@@ -1,7 +1,7 @@
 package token;
 
 /**
- * There are currently 130 tokens in C Minor.
+ * There are currently 126 tokens in C Minor.
  */
 public enum TokenType {
     EOF,        // $
@@ -14,7 +14,6 @@ public enum TokenType {
      */
 
     ABSTR,       // abstr
-    APPEND,      // append
     ARRAY,       // Array
     BOOL,        // Bool
     BREAK,       // break
@@ -43,8 +42,6 @@ public enum TokenType {
     INHERITS,    // inherits
     INOUT,       // inout
     INREV,       // inrev
-    INSERT,      // insert
-    LENGTH,      // length
     LIST,        // List
     LOCAL,       // local
     LOOP,        // loop
@@ -67,7 +64,6 @@ public enum TokenType {
     REAL,        // Real
     RECURS,      // recurs
     REF,         // ref
-    REMOVE,      // remove
     RENAME,      // rename
     RETURN,      // return
     RETYPE,      // retype

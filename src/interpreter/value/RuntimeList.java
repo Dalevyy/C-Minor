@@ -1,8 +1,6 @@
 package interpreter.value;
 
 import ast.expressions.Literal;
-import ast.types.ArrayType;
-import ast.types.ListType;
 import utilities.Vector;
 
 /**
@@ -50,6 +48,10 @@ public class RuntimeList extends Value {
      */
     public int size() { return arr.size()-1; }
 
+    /**
+     * Appends or merges a value to the list.
+     * @param val Value to append/merge
+     */
     public void add(Value val) {
         if(val.isList()) {
             if(this.getType().asListType().numOfDims == val.asList().getType().asListType().numOfDims)
@@ -106,16 +108,20 @@ public class RuntimeList extends Value {
      * @param valToRemove {@link Value} we want to remove
      */
     public boolean remove(Value valToRemove) {
+        // If a user wishes to remove a single integer, then this code will extract the integer from the passed list
+        if(valToRemove.isList() && valToRemove.asList().size() == 1 && valToRemove.asList().get(1).getType().isInt())
+            valToRemove = valToRemove.asList().get(1);
+
         for(int i = 1; i < arr.size(); i++) {
-            Value curr = arr.get(i);
-            if(curr.isList()) {
-                if(curr.asList().remove(valToRemove))
-                    return true;
-            }
-            else if(curr.equals(valToRemove)) {
+            Value currVal = arr.get(i);
+
+            if(currVal.isList() && currVal.asList().remove(valToRemove))
+                return true;
+            else if(currVal.equals(valToRemove)) {
                 arr.remove(i);
                 return true;
             }
+
         }
         return false;
     }
@@ -175,5 +181,15 @@ public class RuntimeList extends Value {
                 sb.append(", ");
         }
         sb.append("]");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        RuntimeList.buildList(this,sb);
+        return sb.toString();
     }
 }

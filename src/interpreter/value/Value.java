@@ -165,6 +165,16 @@ public class Value {
             return this.asReal().compareTo(RHS.asReal()) == 0;
         else if(RHS.type.isString())
             return this.asString().equals(RHS.asString());
+        else if(RHS.type.isList()) {
+            if(!this.isList() || this.asList().size() != RHS.asList().size())
+                return false;
+
+            for(int i = 1; i <= RHS.asList().size(); i++)
+                if(!this.asList().get(i).equals(RHS.asList().get(i)))
+                    return false;
+
+            return true;
+        }
         else
             return false;
     }

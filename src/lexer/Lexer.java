@@ -11,7 +11,7 @@ import utilities.Vector;
 import utilities.PrettyPrint;
 
 /**
- * ThisStmt is the {@code Lexer} which is responsible for tokenizing a C
+ * This is the {@code Lexer} which is responsible for tokenizing a C
  * Minor program. An instance of the lexer will be contained in the parser,
  * and it will be continually called to generate tokens for the parser until
  * either an error occurs or we have tokenized the EOF symbol.
@@ -35,13 +35,13 @@ public class Lexer {
     private char lookChar;
 
     /** Current location we are at in {@link Lexer#file}.
-     *  ThisStmt keeps track of both row and column position.*/
+     *  This keeps track of both row and column position.*/
     private final Location currLoc;
 
     /** Current text that will be stored when a {@code token} is generated.*/
     private String currText;
 
-    /** A {@code Vector} that stores a C Minor program. ThisStmt will be used by
+    /** A {@code Vector} that stores a C Minor program. This will be used by
      *  the parser in order to generate syntax error messages.*/
     private final Vector<String> lines;
 
@@ -84,7 +84,7 @@ public class Lexer {
 
     /**
      * Sets a token text to be between its starting and ending {@code positions}.
-     * @param tokenForAST ThisStmt represents the token we are saving into an AST node.
+     * @param tokenForAST This represents the token we are saving into an AST node.
      */
     public void setText(Token tokenForAST) {
         Position start = tokenForAST.getStartPos();
@@ -112,7 +112,7 @@ public class Lexer {
         tokenForAST.setText(sb.toString());
     }
 
-    /** Prints out the line an error occurs at. ThisStmt will be called by the {@code parser}.*/
+    /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
     public void printSyntaxError(Position start) { System.out.println(start.line + "| " + lines.get(start.line-1)); }
 
     /** Updates the lookahead character and program text every time there is a valid match.*/
@@ -199,7 +199,7 @@ public class Lexer {
      *    if this forms a valid escape sequence. In C Minor, we currently
      *    support all escape sequences that Java supports. If the escape
      *    sequence is not valid, we will output an error.
-     * @param sb ThisStmt represents the current Character/String literal we are tokenizing.
+     * @param sb This represents the current Character/String literal we are tokenizing.
      */
     private void escapeSequence(StringBuilder sb) {
         update();
@@ -345,7 +345,6 @@ public class Lexer {
 
             case "abstr" -> new Token(TokenType.ABSTR, "abstr", currLoc.copy());
             case "and" -> new Token(TokenType.AND, "and", currLoc.copy());
-            case "append" -> new Token(TokenType.APPEND, "append", currLoc.copy());
             case "Array" -> new Token(TokenType.ARRAY, "Array", currLoc.copy());
             case "Bool" -> new Token(TokenType.BOOL, "Bool", currLoc.copy());
             case "break" -> new Token(TokenType.BREAK, "break", currLoc.copy());
@@ -372,9 +371,7 @@ public class Lexer {
             case "inherits" -> new Token(TokenType.INHERITS, "inherits", currLoc.copy());
             case "inout" -> new Token(TokenType.INOUT, "inout", currLoc.copy());
             case "inrev" -> new Token(TokenType.INREV, "inrev", currLoc.copy());
-            case "insert" -> new Token(TokenType.INSERT, "insert", currLoc.copy());
             case "instanceof" -> new Token(TokenType.INSTANCEOF, "instanceof", currLoc.copy());
-            case "length" -> new Token(TokenType.LENGTH, "length", currLoc.copy());
             case "List" -> new Token(TokenType.LIST, "List", currLoc.copy());
             case "local" -> new Token(TokenType.LOCAL, "local", currLoc.copy());
             case "loop" -> new Token(TokenType.LOOP, "loop", currLoc.copy());
@@ -398,7 +395,6 @@ public class Lexer {
             case "Real" -> new Token(TokenType.REAL, "Real", currLoc.copy());
             case "recurs" -> new Token(TokenType.RECURS, "recurs", currLoc.copy());
             case "ref" -> new Token(TokenType.REF, "ref", currLoc.copy());
-            case "remove" -> new Token(TokenType.REMOVE, "remove", currLoc.copy());
             case "rename" -> new Token(TokenType.RENAME, "rename", currLoc.copy());
             case "return" -> new Token(TokenType.RETURN, "return", currLoc.copy());
             case "retype" -> new Token(TokenType.RETYPE, "retype", currLoc.copy());
@@ -447,7 +443,7 @@ public class Lexer {
     }
 
     /**
-     * ThisStmt is the main method for the C Minor lexer.<br><br>
+     * This is the main method for the C Minor lexer.<br><br>
      * <p>
      *   We will use a greedy algorithm to determine which token to generate next
      *   based on the current input lookahead character. Error tokens will only be

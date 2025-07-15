@@ -1,0 +1,28 @@
+/*
+    Binary Expression Test #3
+
+    This tests the relational operators.
+
+    Output:
+        3 < 4 = true
+        3 <= 3 = true
+        3 > 4 = false
+        4 >= 4 = true
+
+        3.14 < 4.28 = true
+        3.14 <= 3.14 = true
+        3.14 > 4.28 = false
+        4.84 >= 4.28 = true     
+*/
+
+// Ints 
+cout << '3 < 4 = ' << (3<4)
+cout << '3 <= 3 = ' << (3 <= 3)
+cout << '3 > 4 = ' << (3 > 4)
+cout << '4 >= 4 = ' << (4 >= 4) << endl
+
+// Reals 
+cout << '3.14 < 4.28 = ' << (3.14 < 4.28)
+cout << '3.14 <= 3.14 = ' << (3.14 <= 3.14)
+cout << '3.14 > 4.28 = ' << (3.14 > 4.28)
+cout << '4.84 >= 4.28 = ' << (4.84 >= 4.28) << endl

@@ -1,0 +1,19 @@
+/*
+    Assignment Statement Test #4
+
+    This tests if we can assign a value
+    in a position of a 1D array.
+
+    Output:
+        9
+        12
+
+*/
+
+def a:Array[Int] = Array(1,2,3,4,5)
+
+set a[3] = 9
+cout << a[3]
+
+set a[1] = 12
+cout << a[1]

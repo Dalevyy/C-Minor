@@ -1,9 +1,15 @@
 package utilities;
 
-/*
-ThisStmt is a class that provides ANSI escape sequences. The purpose
-is to help customize the error messages.
-*/
+/**
+ * Formatting class to help display messages to the user.
+ * <p><br>
+ *     This class contains a list of ANSI escape sequences I found online
+ *     for different text formatting and coloring options. I wanted to add
+ *     this to help color code errors and warnings. In the future, a better
+ *     accessibility option should be thought of for those with colorblindness.
+ * </p>
+ * @author Daniel Levy
+ */
 public final class PrettyPrint {
     // General
     public static final String RESET = "\u001B[0m";
@@ -20,6 +26,7 @@ public final class PrettyPrint {
     public static final String PURPLE = "\u001B[35m";
     public static final String CYAN = "\u001B[36m";
     public static final String WHITE = "\u001B[37m";
+    public static final String PINK = "\033[38;5;206m";
 
     // Background Colors
     public static final String bBLACK = "\u001B[40m";

@@ -232,7 +232,10 @@ public enum MessageType {
     SEMANTIC_SUGGEST_1702,
     SEMANTIC_SUGGEST_1703,
     SEMANTIC_SUGGEST_1704,
-    SEMANTIC_SUGGEST_1705;
+    SEMANTIC_SUGGEST_1705,
+
+    /* ################## WARNINGS ################## */
+    WARNING_1;
 
     private static Properties errorMessages;
     private static final String PATH = "utilities/MessageType.properties";
