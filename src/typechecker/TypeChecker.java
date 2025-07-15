@@ -498,7 +498,10 @@ public class TypeChecker extends Visitor {
         // compatibility from leading to an exception
         if(currentTarget == null || !currentTarget.isArrayType()) {
             super.visitArrayLiteral(al);
-            al.type = new ArrayType();
+            if(al.getArrayInits().isEmpty())
+                al.type = new ArrayType(new VoidType(),al.getNumOfDims());
+            else
+                al.type = new ArrayType(al.getArrayInits().get(0).type,al.getNumOfDims());
         }
         else {
             arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims,
@@ -1488,11 +1491,13 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Evaluates input statements.
-     * <p>
-     *     For input statements, we want to make sure a user can only input
-     *     values into a variable that represents a primitive type (not counting
-     *     an enum).
+     * Evaluates the type of each input expression.
+     * <p><br>
+     *     For input statements, we want to make sure a user can only
+     *     input values into a variable that represents a primitive type
+     *     (not counting an enum). Once type checking is complete, we will
+     *     set the input statement's type to be {@code Void} since it does
+     *     not represent anything.
      * </p>
      * @param is Input Statement
      */
@@ -1511,6 +1516,7 @@ public class TypeChecker extends Visitor {
                 );
             }
         }
+        is.type = new VoidType();
     }
 
     /**
@@ -2080,11 +2086,18 @@ public class TypeChecker extends Visitor {
 
     /**
      * Evaluates the type of each output expression.
+     * <p><br>
+     *     For each output expression, we want to evaluate its type, so
+     *     we can know how to display its value at runtime. We will also
+     *     set the output statement's type to be a default {@code Void}
+     *     type since it doesn't represent anything.
+     * </p>
      * @param os Output Statement
      */
     public void visitOutStmt(OutStmt os) {
         for(Expression e : os.getOutExprs())
             e.visit(this);
+        os.type = new VoidType();
     }
 
     /**
