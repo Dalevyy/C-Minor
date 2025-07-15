@@ -1,17 +1,19 @@
 package token;
 
 /**
- * There are currently 126 tokens in C Minor.
+ * Enumeration representing all possible tokens in C Minor.
+ * <p><br>
+ *     This is a list of every token that the C Minor lexer
+ *     recognizes. Currently, there are 126 possible tokens
+ *     that can be generated.
+ * </p>
+ * @author Daniel Levy
  */
 public enum TokenType {
     EOF,        // $
-    ERROR,      // DefaultError
+    ERROR,      // Default Error
 
-    /*
-    -----------------------------
-               KEYWORDS
-    -----------------------------
-     */
+    /* ###################### KEYWORDS ###################### */
 
     ABSTR,       // abstr
     ARRAY,       // Array
@@ -80,17 +82,13 @@ public enum TokenType {
     VOID,        // Void
     WHILE,       // while
 
-    /*
-    -----------------------------
-               LITERALS
-    -----------------------------
-    */
+    /* ###################### LITERALS ###################### */
 
     /*
-    Additional RegEx Information:
-        1) letter = a | ... | z | A | ... | Z
-        2) digit = 0 | ... | 9
-        3) letter-digit = letter | digit
+        Additional RegEx Information:
+            1) letter = a | ... | z | A | ... | Z
+            2) digit = 0 | ... | 9
+            3) letter-digit = letter | digit
     */
     ID,          // letter letter-digit*
     INT_LIT,     // digit+
@@ -100,11 +98,8 @@ public enum TokenType {
     TEXT_LIT,    // '''char*'''
     BOOL_LIT,    // true || false
 
-    /*
-    -----------------------------
-              OPERATORS
-    -----------------------------
-     */
+
+    /* ###################### OPERATORS ###################### */
 
     EQ,          // =
     PLUS,        // +
@@ -143,11 +138,7 @@ public enum TokenType {
     MODEQ,       // %=
     EXPEQ,       // **=
 
-    /*
-    -----------------------------
-              SEPARATORS
-    -----------------------------
-     */
+    /* ###################### SEPARATORS ###################### */
 
     LPAREN,      // (
     RPAREN,      // )
@@ -161,7 +152,8 @@ public enum TokenType {
     AT,          // @
     ARROW,       // =>
 
-    // DEBUG information
+    /* ###################### DEBUG INFO ###################### */
+
     SPACE,       // ' '
     TAB,         // '\t'
     RET,         // '\r'

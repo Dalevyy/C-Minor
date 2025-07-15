@@ -319,7 +319,7 @@ public class Parser {
 
     private boolean inPrimaryExpressionFOLLOW() {
         return nextLA(TokenType.LBRACK)
-              //  || nextLA(TokenType.LT)
+                || nextLA(TokenType.AT)
                 || nextLA(TokenType.LPAREN)
                 || nextLA(TokenType.ELVIS)
                 || nextLA(TokenType.PERIOD);
@@ -760,9 +760,12 @@ public class Parser {
         return new ClassType(nodeToken(),n);
     }
 
-    // --. type_params : '<' type ( ',' type )* '>'
+    // --. type_params : '@' type ( ',' type )* '@'
     private Vector<Type> typeParams() {
-        match(TokenType.LT);
+        if(nextLA(TokenType.LT))
+            match(TokenType.LT);
+        else
+            match(TokenType.AT);
         Vector<Type> types = new Vector<>(type());
 
         while(nextLA(TokenType.COMMA)) {
@@ -770,7 +773,10 @@ public class Parser {
             types.add(type());
         }
 
-        match(TokenType.GT);
+        if(nextLA(TokenType.GT))
+            match(TokenType.GT);
+        else
+            match(TokenType.AT);
         return types;
     }
 
@@ -1763,10 +1769,10 @@ public class Parser {
                     input.setText(tokenStack.top());
                     RHS = new ArrayExpr(tokenStack.top(),LHS,indices);
                 }
-                else if(nextLA(TokenType.LT) || nextLA(TokenType.LPAREN)) {
+                else if(nextLA(TokenType.LT) || nextLA(TokenType.AT)) {
                     Vector<Expression> args = new Vector<>();
                     Vector<Type> types = new Vector<>();
-                    if(nextLA(TokenType.LT) && inTypeFOLLOW())
+                    if(nextLA(TokenType.AT) && inTypeFOLLOW())
                         types = typeParams();
 
                     match(TokenType.LPAREN);
