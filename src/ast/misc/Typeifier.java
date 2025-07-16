@@ -16,10 +16,10 @@ public class Typeifier extends AST implements NameNode {
     /**
      * List of potential types the typefier could represent.
      */
-    public enum PossibleType { DISCR, SCALAR, CLASS }
+    public enum TypeAnnotation { DISCR, SCALAR, CLASS }
 
     /**
-     * String representation of {@code PossibleType} enum.
+     * String representation of {@code TypeAnnotation} enum.
      */
     public static String[] names = {"discrete", "scalar", "class" };
 
@@ -34,7 +34,7 @@ public class Typeifier extends AST implements NameNode {
      *     correctly uses the appropriate type.
      * </p>
      */
-    private PossibleType pt;
+    private TypeAnnotation typeAnnotate;
 
     /**
      * The generic name for the type parameter.
@@ -45,26 +45,26 @@ public class Typeifier extends AST implements NameNode {
     /**
      * Default constructor for {@code Typeifier}
      * @param metaData Metadata token
-     * @param pt The type the typefier represents
+     * @param typeAnnotate The type the typefier represents
      * @param n The generic name for the type
      */
-    public Typeifier(Token metaData, PossibleType pt, Name n) {
+    public Typeifier(Token metaData, TypeAnnotation typeAnnotate, Name n) {
         super(metaData);
-        this.pt = pt;
+        this.typeAnnotate = typeAnnotate;
         this.name = n;
 
         addChild(this.name);
     }
 
-    public PossibleType getPossibleType() { return pt; }
+    public TypeAnnotation getPossibleType() { return typeAnnotate; }
     public Name getName() { return name; }
 
     public boolean isTypeifier() { return true; }
     public Typeifier asTypeifier() { return this; }
 
-    public boolean hasPossibleType() { return pt != null; }
+    public boolean hasTypeAnnotation() { return typeAnnotate != null; }
 
-    public boolean isValidType(Type t) {
+    public boolean isValidTypeArg(Type t) {
         switch(possibleTypeToString()) {
             case "discrete":
                 if(t.isDiscreteType())
@@ -81,7 +81,7 @@ public class Typeifier extends AST implements NameNode {
         return false;
     }
 
-    public String possibleTypeToString() { return names[pt.ordinal()]; }
+    public String possibleTypeToString() { return names[typeAnnotate.ordinal()]; }
 
     @Override
     public AST decl() { return this; }
@@ -95,12 +95,19 @@ public class Typeifier extends AST implements NameNode {
     @Override
     public String toString() { return name.toString(); }
 
+    public boolean equals(String otherName) {
+        String curr = name.toString();
+        if(otherName.contains("<")) {
+            otherName = otherName.substring(otherName.indexOf("<")+1,otherName.indexOf(">"));
+        }
+        return curr.equals(otherName);
+    }
 
     @Override
     public AST deepCopy() {
         return new TypeifierBuilder()
                    .setMetaData(this)
-                   .setPossibleType(this.pt)
+                   .setPossibleType(this.typeAnnotate)
                    .setName(this.name.deepCopy().asName())
                    .create();
     }
@@ -125,8 +132,8 @@ public class Typeifier extends AST implements NameNode {
             return this;
         }
 
-        public TypeifierBuilder setPossibleType(PossibleType pt) {
-            tp.pt = pt;
+        public TypeifierBuilder setPossibleType(TypeAnnotation pt) {
+            tp.typeAnnotate = pt;
             return this;
         }
 
