@@ -50,8 +50,15 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public boolean isFuncDecl() { return true; }
     public FuncDecl asFuncDecl() { return this; }
 
+    public void setReturnType(Type returnType) { this.retType = returnType; }
+
     public boolean isTemplate() { return !this.typeParams.isEmpty(); }
-    public void resetTypeParams() { this.typeParams = new Vector<>(); }
+
+    public void removeTypeParams(){
+        for(Typeifier tp : this.typeParams)
+            symbolTable.removeName(tp.toString());
+        this.typeParams = new Vector<>();
+    }
 
     public String funcSignature() { return this + "(" + paramSignature() + ")"; }
 
@@ -61,6 +68,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
             sb.append(params.get(i).type().typeSignature());
         return sb.toString();
     }
+
 
     @Override
     public String header() {
