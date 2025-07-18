@@ -3,6 +3,7 @@ package micropasses;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
+import ast.expressions.Invocation;
 import ast.expressions.NewExpr;
 import ast.misc.Compilation;
 import ast.misc.ParamDecl;
@@ -125,7 +126,7 @@ public class TypeValidityPass extends Visitor {
      *             as a {@link ClassType}. This is not ideal as a type name can represent either
      *             a {@link ClassDecl}, an {@link EnumDecl}, or a type parameter. Thus, we need
      *             to make sure this type is rewritten if it does not correspond to a {@link ClassDecl}
-     *             which is the job of {@link #rewriteClassType(Type)}.
+     *             which is the job of {@link #verifyClassType(ClassType)}.
      *         </p>
      *
      *         </li>
@@ -133,7 +134,7 @@ public class TypeValidityPass extends Visitor {
      *         <p>
      *             When we have an Array or List type, the base type can represent a {@link ClassType}.
      *             Thus, the previous criteria above will apply, and this means we need to check if
-     *             we need to perform a rewrite on the base type through {@link #rewriteClassType(Type)}.
+     *             we need to perform a rewrite on the base type through {@link #verifyClassType(ClassType)}.
      *         </p>
      *         </li>
      *     </ol>
@@ -144,7 +145,7 @@ public class TypeValidityPass extends Visitor {
     private Type rewriteStructuredType(Type structuredType) {
         if(structuredType.isArrayType()) {
             if(structuredType.asArrayType().baseType().isClassType()) {
-                Type newBaseType = rewriteClassType(structuredType.asArrayType().baseType().asClassType());
+                Type newBaseType = verifyClassType(structuredType.asArrayType().baseType().asClassType());
                 structuredType.asArrayType().setBaseType(newBaseType);
             }
             return structuredType;
@@ -152,31 +153,55 @@ public class TypeValidityPass extends Visitor {
 
         if(structuredType.isList()) {
             if(structuredType.asListType().baseType().isClassType()) {
-                Type newBaseType = rewriteClassType(structuredType.asListType().baseType().asClassType());
+                Type newBaseType = verifyClassType(structuredType.asListType().baseType().asClassType());
                 structuredType.asListType().setBaseType(newBaseType);
             }
             return structuredType;
         }
 
-        return rewriteClassType(structuredType.asClassType());
+        return verifyClassType(structuredType.asClassType());
     }
 
     /**
-     * Rewrites a {@code ClassType} into an {@code EnumType} (if applicable).
+     * Checks if the class type was written correctly by the user.
      * <p>
-     *     Since the parser does not distinguish the difference between class
-     *     and enum types, we have to do a manual rewrite of any class types that
-     *     actually represent an enum type in order to do proper type checking.
-     *     This method handles the rewrite for us if it needs to be done.
+     *     Since the parser will treat all names used as types as a {@link ClassType},
+     *     this method is designed to verify if all {@link ClassType}s are valid. There
+     *     are 3 cases we need to deal with:
+     *     <ol>
+     *         <li>
+     *             Enum Types
+     *             <p><br>
+     *                 Since the parser does not distinguish between a class and enum type,
+     *                 we need to perform a type rewrite to generate an enum type any time
+     *                 a class type refers back to an enum.
+     *             </p>
+     *         </li>
+     *         <li>
+     *             Template Types
+     *             <p><br>
+     *                 If the class type represents a template type, then we need to make sure
+     *                 the user correctly wrote the template type, so we can eventually evaluate
+     *                 the type when a class or function is instantiated. Additionally, this method
+     *                 will be responsible for creating types during the instantiation of a class/function.
+     *             </p>
+     *         </li>
+     *         <li>
+     *             Class Types
+     *             <p><br>
+     *                 For all other class types, we just need to make sure they exist in the program.
+     *             </p>
+     *         </li>
+     *     </ol>
      * </p>
-     * @param ct Type we might need to rewrite
-     * @return A type representing the original {@code ClassType} or a new {@code EnumType}.
+     * @param ct Current {@link ClassType} we are evaluating
+     * @return A {@link Type} representing either the original type or a type that was created
      */
-    private Type rewriteClassType(ClassType ct) {
+    private Type verifyClassType(ClassType ct) {
         // ERROR CHECK #1: The name checker did not resolve the names of class types. This means we will
         //                 now check if the current class type can resolve to either a class, an enum, or
         //                 a type parameter. If no resolution can be made, we will print out a type error.
-        if(!currentScope.hasNameSomewhere(ct.getClassName().toString())) {
+        if(!currentScope.hasNameSomewhere(ct.getClassNameAsString())) {
             errors.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ct.getRootParent())
@@ -210,9 +235,9 @@ public class TypeValidityPass extends Visitor {
             if(ct.isTemplatedType())
                 checkIfTemplateTypeIsValid(ct);
         }
+        // ERROR CHECK #2: If the class type does not represent an enum, a class, or a type parameter,
+        //                 then this means a variable name was used as a type which is not allowed.
         else if(!classTypeDecl.isTypeifier()) {
-            // ERROR CHECK #2: If the class type does not represent an enum, a class, or a type parameter, then
-            //                 this means a variable name was used as a type which makes no sense whatsoever.
             errors.add(
                 new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                     .addLocation(ct.getRootParent())
@@ -222,18 +247,6 @@ public class TypeValidityPass extends Visitor {
                     .error()
             );
         }
-
-
-//        // Function Case
-//        else if(currentFunction != null && !currentFunction.typeParams().isEmpty()) {
-//            for(int i = 0; i < currentFunction.typeParams().size(); i++) {
-//                Typeifier param = currentFunction.typeParams().get(i).asTypeifier();
-//                if(param.toString().equals(ct.asClassType().getClassName().toString())) {
-//                    ct = typeArgs.get(i);
-//                    break;
-//                }
-//            }
-//        }
 
         // Case 3: The class type represents a normal class. No rewrite is needed so return the class type.
         return ct;
@@ -302,52 +315,6 @@ public class TypeValidityPass extends Visitor {
         }
     }
 
-//    public void checkFuncTemplateType(FuncDecl fd, Invocation in) {
-//        // ERROR CHECK #1: This checks if both the function and the invocation have the same amount of type parameters.
-//        if(fd.typeParams().size() != in.getTypeArgs().size()) {
-//            // This error message is generated when a user tries to instantiate a non-templated function.
-//            if(fd.typeParams().isEmpty()) {
-//                errors.add(
-//                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
-//                        .addLocation(in.getRootParent())
-//                        .addErrorType(MessageType.TYPE_ERROR_462)
-//                        .addArgs(fd)
-//                        .error()
-//                );
-//            }
-//            // This error message is generated when a user tries to instantiate a templated function.
-//            else {
-//                ErrorBuilder eb = new ErrorBuilder(generateTypeError,currentFile,interpretMode)
-//                                      .addLocation(in.getRootParent())
-//                                      .addErrorType(MessageType.TYPE_ERROR_463)
-//                                      .addArgs(in.getSignature())
-//                                      .addSuggestArgs(fd,fd.typeParams().size());
-//
-//                if(fd.typeParams().size() == 1)
-//                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1449).error());
-//                else
-//                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1450).error());
-//            }
-//        }
-//
-//        // We now look through each type parameter for the corresponding function.
-//        for (int i = 0; i < fd.typeParams().size(); i++) {
-//            Typeifier tp = fd.typeParams().get(i);
-//            // ERROR CHECK #2: This checks if the correct type was passed as an argument (if applicable).
-//            if(tp.hasPossibleType() && !tp.isValidType(in.getTypeArgs().get(i))) {
-//                errors.add(
-//                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
-//                        .addLocation(in.getRootParent())
-//                        .addErrorType(MessageType.TYPE_ERROR_446)
-//                        .addArgs(in.getTypeArgs().get(i), fd)
-//                        .addSuggestType(MessageType.TYPE_SUGGEST_1451)
-//                        .addSuggestArgs(fd, tp.possibleTypeToString(), i + 1)
-//                        .error()
-//                );
-//            }
-//        }
-//    }
-
     /**
      * Creates an instance of a template class based on the given type arguments.
      * <p><br>
@@ -377,7 +344,6 @@ public class TypeValidityPass extends Visitor {
         copyOfTemplate.visit(this);
 
         currentTypeArgs = null;
-        // TESTING IF THIS WORKS!!!!!!!!!!!!!!!!!!!
         copyOfTemplate.removeTypeParams();
 
         instantiatedClasses.add(ct.toString());
@@ -386,31 +352,45 @@ public class TypeValidityPass extends Visitor {
         return copyOfTemplate;
     }
 
-//    // Goal : Create the dang function.
-//    public FuncDecl instantiatesFunction(Invocation in) {
-//        // If a function was already instantiated with the given type arguments, we do not want to
-//        // waste time instantiating it again. We just want to return it
-//        if(instantiatedFunctions.contains(in.templateSignature()))
-//            return currentScope.findName(in.templateSignature()).decl().asTopLevelDecl().asFuncDecl();
-//
-//        FuncDecl originalFunc = currentScope.findName(in.getSignature()).decl().asTopLevelDecl().asFuncDecl();
-//        FuncDecl copy = originalFunc.deepCopy().asTopLevelDecl().asFuncDecl();
-//        copy.visit(new NameChecker());
-//
-//        SymbolTable oldScope = currentScope;
-//        currentFunction = copy;
-//        typeArgs = in.getTypeArgs();
-//
-//        copy.visit(this);
-//
-//        currentScope = oldScope;
-//        instantiatedFunctions.add(in.templateSignature());
-//        // I DO NOT KNOW WHY THIS IS BROKEN AT ALL BECAUSE ITS NOT BROKEN INTERNALLY YAY !!!!!!!!!!!!!!!!!
-//        copy.resetTypeParams();
-//        currentScope.addNameToRootTable(in.templateSignature(),copy);
-//
-//        return copy;
-//    }
+    /**
+     * Creates an instance of a template function based on the given type arguments.
+     * <p><br>
+     *     This method is responsible for actually generating an instance of a template
+     *     function that will then be bound to an {@link Invocation}. We will create a copy of
+     *     the template function and replace all of its type parameters with the given type
+     *     arguments. This method is identical in structure to {@link #instantiatesClassTemplate(ClassType)},
+     *     but we will be calling this method from the {@link typechecker.TypeChecker} since we
+     *     need to know the types of each passed argument to the invocation, so we can find the correct
+     *     overloaded template function to instantiate.
+     * </p>
+     * @param template Template function we will be instantiating
+     * @param in {@link Invocation} containing the type arguments we will use to instantiate the template with
+     * @return {@link FuncDecl} representing the instantiated function
+     */
+    public FuncDecl instantiatesFuncTemplate(FuncDecl template, Invocation in) {
+        // If the template function was already instantiated with the given type arguments,
+        // then we don't want to reinstantiate it and instead get the instantiated class.
+        if(instantiatedFunctions.contains(in.templateSignature()))
+            return currentScope.findName(in.templateSignature()).decl().asTopLevelDecl().asFuncDecl();
+
+        FuncDecl copyOfTemplate = template.deepCopy().asTopLevelDecl().asFuncDecl();
+
+        // We need to rerun the name checker, so the copy of the template can
+        // have an independent symbol table from the original template function.
+        copyOfTemplate.visit(new NameChecker());
+
+        // We now visit the copy's function in order to replace all type parameters with the given type arguments.
+        currentTypeArgs = in.getTypeArgs();
+        copyOfTemplate.visit(this);
+
+        currentTypeArgs = null;
+        copyOfTemplate.removeTypeParams();
+
+        instantiatedFunctions.add(in.templateSignature());
+        currentScope.addNameToRootTable(in.templateSignature(), copyOfTemplate);
+
+        return copyOfTemplate;
+    }
 
     /* ######################################## VISITS ######################################## */
 
@@ -461,6 +441,45 @@ public class TypeValidityPass extends Visitor {
 
         if(fd.var().init() != null)
             fd.var().init().visit(this);
+    }
+
+    /**
+     * Validates the type of a function.
+     * <p><br>
+     *     During this visit, we will make sure every single type declared
+     *     in a function is correct. This mainly includes making sure that
+     *     no names will shadow over any type parameters.
+     * </p>
+     * @param fd {@link FuncDecl}
+     */
+    public void visitFuncDecl(FuncDecl fd) {
+        SymbolTable oldScope = currentScope;
+        currentScope = fd.symbolTable;
+        String prevFuncSignature = fd.funcSignature();
+
+        if(!fd.typeParams().isEmpty())
+            currentTypeParams = fd.typeParams();
+
+        for(ParamDecl pd : fd.params())
+            pd.visit(this);
+
+        if(fd.returnType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(fd.returnType());
+            fd.setReturnType(updatedType);
+        }
+
+        fd.funcBlock().visit(this);
+
+        // If we are visiting an instantiated function, we need to consider that the name checker would have
+        // stored the function signature into the class scope using generic type parameters. Thus, we should
+        // manually remove the previous method signature and update the key to be the new signature.
+        if(currentTypeArgs != null) {
+            currentScope.removeName(prevFuncSignature);
+            currentScope.addName(fd.funcSignature(), fd);
+        }
+
+        currentScope = oldScope;
+        currentTypeParams = null;
     }
 
     /**
@@ -546,6 +565,8 @@ public class TypeValidityPass extends Visitor {
      * @param md {@link MethodDecl}
      */
     public void visitMethodDecl(MethodDecl md) {
+        String prevMethodSignature = md.methodSignature();
+
         for(ParamDecl pd : md.params())
             pd.visit(this);
 
@@ -555,6 +576,14 @@ public class TypeValidityPass extends Visitor {
         }
 
         md.methodBlock().visit(this);
+
+        // If we are visiting an instantiated class, we need to consider that the name checker would have
+        // stored the method signature into the class scope using generic type parameters. Thus, we should
+        // manually remove the previous method signature and update the key to be the new signature.
+        if(currentTypeArgs != null) {
+            currentScope.removeName(prevMethodSignature);
+            currentScope.addName(md.methodSignature(), md);
+        }
     }
 
     /**
