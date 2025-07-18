@@ -50,7 +50,10 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public boolean isFuncDecl() { return true; }
     public FuncDecl asFuncDecl() { return this; }
 
-    public String funcSignature() { return this + "/" + this.paramSignature(); }
+    public boolean isTemplate() { return !this.typeParams.isEmpty(); }
+    public void resetTypeParams() { this.typeParams = new Vector<>(); }
+
+    public String funcSignature() { return this + "(" + paramSignature() + ")"; }
 
     public String paramSignature() {
         StringBuilder sb = new StringBuilder();
@@ -66,7 +69,19 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     }
 
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(name.toString());
+//        sb.append("(");
+//        if(!params.isEmpty()) {
+//            for(int i = 0; i < params.size()-1; i++)
+//                sb.append(params.get(i).getType()).append(", ");
+//            sb.append(params.get(params.size()-1).getType());
+//        }
+//
+//        sb.append(")");
+        return sb.toString();
+    }
 
     @Override
     public AST deepCopy() {
