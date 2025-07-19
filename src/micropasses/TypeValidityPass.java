@@ -29,18 +29,60 @@ import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
 
+/**
+ * A micropass checking if all types used in a program are valid.
+ * <p><br>
+ *     Any time a name is used as a type in a C Minor program, the parser will always treat the name as
+ *     a {@link ClassType}. Thus, we need to do a pass over each type to make sure it is indeed valid,
+ *     and the type can be traced back to some {@link ast.topleveldecls.TopLevelDecl}.This pass will include
+ *     performing type rewrites in order to create {@link EnumType}s alongside the checking for the valid
+ *     usage of template classes and functions. This pass needs to be completed before type checking to
+ *     ensure that the {@link typechecker.TypeChecker} can properly evaluate all types used for variables and templates.
+ * </p>
+ * @author  Daniel Levy
+ */
 public class TypeValidityPass extends Visitor {
 
+    /**
+     * Represents the current scope we are in.
+     * Only set by {@link #visitClassDecl(ClassDecl)} and {@link #visitFuncDecl(FuncDecl)}
+     */
     private SymbolTable currentScope;
 
+    /**
+     * List containing all the type parameters belonging to a template class or function.
+     */
     private Vector<Typeifier> currentTypeParams;
+
+    /**
+     * List containing the type arguments used to instantiate a template class or function.
+     */
     private Vector<Type> currentTypeArgs;
 
+    /**
+     * List of all classes that were instantiated.
+     */
     private final Vector<String> instantiatedClasses;
+
+    /**
+     * List of all functions that were instantiated.
+     */
     private final Vector<String> instantiatedFunctions;
+
+    /**
+     * Factory responsible for creating a {@link messages.errors.scope.ScopeError}.
+     */
     private final ScopeErrorFactory generateScopeError;
+
+    /**
+     * Factory responsible for creating a {@link messages.errors.type.TypeError}.
+     */
     private final TypeErrorFactory generateTypeError;
-    private final Vector<String> errors;
+
+    /**
+     * List of messages that need to be displayed to the user during compilation mode.
+     */
+    private final Vector<String> msgs;
 
     /**
      * Creates type validity micropass in compilation mode.
@@ -51,7 +93,7 @@ public class TypeValidityPass extends Visitor {
         this.generateTypeError = new TypeErrorFactory();
         this.instantiatedClasses = new Vector<>();
         this.instantiatedFunctions = new Vector<>();
-        this.errors = new Vector<>();
+        this.msgs = new Vector<>();
     }
 
     /**
@@ -202,7 +244,7 @@ public class TypeValidityPass extends Visitor {
         //                 now check if the current class type can resolve to either a class, an enum, or
         //                 a type parameter. If no resolution can be made, we will print out a type error.
         if(!currentScope.hasNameSomewhere(ct.getClassNameAsString())) {
-            errors.add(
+            msgs.add(
                 new ErrorBuilder(generateTypeError,currentFile,interpretMode)
                     .addLocation(ct.getRootParent())
                     .addErrorType(MessageType.TYPE_ERROR_443)
@@ -238,7 +280,7 @@ public class TypeValidityPass extends Visitor {
         // ERROR CHECK #2: If the class type does not represent an enum, a class, or a type parameter,
         //                 then this means a variable name was used as a type which is not allowed.
         else if(!classTypeDecl.isTypeifier()) {
-            errors.add(
+            msgs.add(
                 new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                     .addLocation(ct.getRootParent())
                     .addErrorType(MessageType.TYPE_ERROR_465)
@@ -271,7 +313,7 @@ public class TypeValidityPass extends Visitor {
         if(template.typeParams().size() != ct.typeArgs().size()) {
             // Case 1: This error is generated when a user writes type arguments for a non-template class type.
             if(template.typeParams().isEmpty()) {
-                errors.add(
+                msgs.add(
                     new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                         .addLocation(ct.getRootParent())
                         .addErrorType(MessageType.TYPE_ERROR_444)
@@ -288,9 +330,9 @@ public class TypeValidityPass extends Visitor {
                                       .addSuggestArgs(template, template.typeParams().size());
 
                 if(template.typeParams().size() == 1)
-                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1441).error());
+                    msgs.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1441).error());
                 else
-                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1442).error());
+                    msgs.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1442).error());
             }
         }
 
@@ -302,7 +344,7 @@ public class TypeValidityPass extends Visitor {
             //                 the passed type argument can be used in the current type argument. If no type annotation
             //                 was given, this check is not needed, and we will let the type checker handle the rest.
             if(typeParam.hasTypeAnnotation() && !typeParam.isValidTypeArg(ct.typeArgs().get(i))) {
-                errors.add(
+                msgs.add(
                     new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                         .addLocation(ct.getRootParent())
                         .addErrorType(MessageType.TYPE_ERROR_446)
@@ -368,9 +410,12 @@ public class TypeValidityPass extends Visitor {
      * @return {@link FuncDecl} representing the instantiated function
      */
     public FuncDecl instantiatesFuncTemplate(FuncDecl template, Invocation in) {
-        // If the template function was already instantiated with the given type arguments,
-        // then we don't want to reinstantiate it and instead get the instantiated class.
-        if(instantiatedFunctions.contains(in.templateSignature()))
+        // If the template function was already instantiated with the given type arguments, then we don't want to
+        // reinstantiate it and instead get the already instantiated function. Since a user could overload a template
+        // function with a more specific parameter type, we will also check if there isn't an already matching signature
+        // in the root table for the invocation. If this signature exists, then this implies there is a more specific
+        // template available, thus it needs to be instantiated instead of using the one already available for us.
+        if(instantiatedFunctions.contains(in.templateSignature()) && !currentScope.getRootTable().hasName(in.getSignature()))
             return currentScope.findName(in.templateSignature()).decl().asTopLevelDecl().asFuncDecl();
 
         FuncDecl copyOfTemplate = template.deepCopy().asTopLevelDecl().asFuncDecl();
@@ -388,6 +433,11 @@ public class TypeValidityPass extends Visitor {
 
         instantiatedFunctions.add(in.templateSignature());
         currentScope.addNameToRootTable(in.templateSignature(), copyOfTemplate);
+
+        // If we instantiated a more specific template function, then we want to remove the less specific instantiation
+        // from the symbol table. This prevents us from having to reinstantiate the function we just created.
+        if(currentScope.getRootTable().hasName(in.getSignature()))
+            currentScope.getRootTable().removeName(in.getSignature());
 
         return copyOfTemplate;
     }
@@ -454,8 +504,8 @@ public class TypeValidityPass extends Visitor {
      */
     public void visitFuncDecl(FuncDecl fd) {
         SymbolTable oldScope = currentScope;
+        String prevSignature = fd.getSignature();
         currentScope = fd.symbolTable;
-        String prevFuncSignature = fd.funcSignature();
 
         if(!fd.typeParams().isEmpty())
             currentTypeParams = fd.typeParams();
@@ -474,8 +524,9 @@ public class TypeValidityPass extends Visitor {
         // stored the function signature into the class scope using generic type parameters. Thus, we should
         // manually remove the previous method signature and update the key to be the new signature.
         if(currentTypeArgs != null) {
-            currentScope.removeName(prevFuncSignature);
-            currentScope.addName(fd.funcSignature(), fd);
+            currentScope.removeName(prevSignature);
+            fd.resetSignature();
+            currentScope.addName(fd.getSignature(), fd);
         }
 
         currentScope = oldScope;
@@ -534,7 +585,7 @@ public class TypeValidityPass extends Visitor {
         //                 name checker will not have caught this error when we have nested scopes
         //                 which is why we have to do this check now.
         if(currentTypeParams != null && nameShadowsTypeParam(ld.toString())) {
-            errors.add(
+            msgs.add(
                 new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                     .addLocation(ld)
                     .addErrorType(MessageType.SCOPE_ERROR_328)
@@ -616,7 +667,7 @@ public class TypeValidityPass extends Visitor {
         //                 name shadows a type parameter name. Due to how the name checker resolves methods,
         //                 this particular check was not completed, so we will do it now.
         if(currentTypeParams != null && nameShadowsTypeParam(pd.toString())) {
-            errors.add(
+            msgs.add(
                 new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
                     .addLocation(pd)
                     .addErrorType(MessageType.SCOPE_ERROR_328)
