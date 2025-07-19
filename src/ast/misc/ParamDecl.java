@@ -1,9 +1,9 @@
 package ast.misc;
 
 import ast.*;
-import ast.classbody.FieldDecl;
 import ast.types.*;
 import token.*;
+import utilities.Vector;
 import utilities.Visitor;
 
 /*
@@ -18,30 +18,38 @@ public class ParamDecl extends AST implements NameNode {
     public Modifiers mod;
 
     private Name name;
-    private Type type;
+    private Type paramType;
 
     public ParamDecl() { this(new Token(),null,null,null); }
-    public ParamDecl(Modifier m, Name n, Type type) { this(new Token(),m,n,type); }
+    public ParamDecl(Modifier m, Name n, Type paramType) { this(new Token(),m,n, paramType); }
 
-    public ParamDecl(Token t, Modifier m, Name n, Type type) {
+    public ParamDecl(Token t, Modifier m, Name n, Type paramType) {
         super(t);
         this.mod = new Modifiers(m);
         this.name = n;
-        this.type = type;
+        this.paramType = paramType;
 
         addChild(this.name);
     }
 
-    public Type type() { return type; }
+    public Type type() { return paramType; }
 
     @Override
     public String toString() { return name.toString(); }
 
-    public void setType(Type t) { this.type = t;}
+    public void setType(Type t) { this.paramType = t;}
     public AST decl() { return this;}
 
     public boolean isParamDecl() { return true; }
     public ParamDecl asParamDecl() { return this; }
+
+    public boolean isParamTypeTemplated(Vector<Typeifier> typeParams) {
+        for(Typeifier typeParam : typeParams) {
+            if(typeParam.toString().equals(paramType.typeSignature()))
+                return true;
+        }
+        return false;
+    }
 
     @Override
     public void update(int pos, AST n) {
@@ -50,7 +58,7 @@ public class ParamDecl extends AST implements NameNode {
                 name = n.asName();
                 break;
             case 1:
-                type = n.asType();
+                paramType = n.asType();
                 break;
         }
     }
@@ -61,7 +69,7 @@ public class ParamDecl extends AST implements NameNode {
                    .setMetaData(this)
                    .setMod(this.mod)
                    .setName(this.name.deepCopy().asName())
-                   .setType(this.type.deepCopy().asType())
+                   .setType(this.paramType.deepCopy().asType())
                    .create();
     }
 
@@ -109,7 +117,7 @@ public class ParamDecl extends AST implements NameNode {
         }
 
         /**
-         * Sets the parameter declaration's {@link #type}.
+         * Sets the parameter declaration's {@link #paramType}.
          * @param type Type representing the data type the parameter represents
          * @return ParamDeclBuilder
          */

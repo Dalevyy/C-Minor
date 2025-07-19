@@ -81,7 +81,7 @@ public class MethodDecl extends AST implements NameNode {
         this.params = params;
     }
 
-    private void setReturnType(Type returnType) {
+    public void setReturnType(Type returnType) {
         this.returnType = returnType;
     }
 
@@ -98,7 +98,7 @@ public class MethodDecl extends AST implements NameNode {
         return sb.toString();
     }
 
-    public String methodSignature() { return this + "(" + paramSignature() + ")" + returnType.typeSignature(); }
+    public String methodSignature() { return this + "(" + paramSignature() + ")"; }
 
     /**
      * Checks if the current AST node is a {@link MethodDecl}.

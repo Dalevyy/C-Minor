@@ -1,6 +1,7 @@
 package ast.expressions;
 
 import ast.AST;
+import ast.types.VoidType;
 import token.Token;
 import utilities.Visitor;
 
@@ -19,7 +20,10 @@ public class ContinueStmt extends Expression {
      * Main constructor for {@link ContinueStmt}.
      * @param metaData Token containing metadata we want to save
      */
-    public ContinueStmt(Token metaData) { super(metaData); }
+    public ContinueStmt(Token metaData) {
+        super(metaData);
+        this.type = new VoidType();
+    }
 
     /**
      * Checks if the current AST node is a {@link ContinueStmt}.

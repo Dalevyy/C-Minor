@@ -1,7 +1,6 @@
 package ast.topleveldecls;
 
 import ast.*;
-import ast.classbody.InitDecl;
 import ast.misc.*;
 import ast.statements.*;
 import ast.types.*;
@@ -21,6 +20,11 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     private Type retType;
     private BlockStmt block;
 
+    /**
+     * Signature of the current function in the form {@code <funcName>(<paramTypeSignatures>)}
+     */
+    private String signature;
+
     public FuncDecl() { this(new Token(),null,null,new Vector<>(),new Vector<>(),null,null); }
     public FuncDecl(Token t, Modifier m, Name n, Vector<Typeifier> tp, Vector<ParamDecl> p, Type rt, BlockStmt b) {
         super(t);
@@ -37,6 +41,9 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
         addChild(this.retType);
         addChild(this.block);
         setParent();
+
+        if(this.name != null)
+            createSignature();
     }
 
     public Name name() { return name; }
@@ -50,14 +57,58 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public boolean isFuncDecl() { return true; }
     public FuncDecl asFuncDecl() { return this; }
 
-    public String funcSignature() { return this + "/" + this.paramSignature(); }
+    public void setReturnType(Type returnType) { this.retType = returnType; }
 
-    public String paramSignature() {
-        StringBuilder sb = new StringBuilder();
-        for(int i = 0; i < params.size(); i++)
-            sb.append(params.get(i).type().typeSignature());
-        return sb.toString();
+    public boolean isTemplate() { return !this.typeParams.isEmpty(); }
+
+    public void removeTypeParams(){
+        for(Typeifier tp : this.typeParams)
+            symbolTable.removeName(tp.toString());
+        this.typeParams = new Vector<>();
     }
+
+    public String getSignature() { return signature; }
+
+    /**
+     * Creates the function signature.
+     * <p><br>
+     *     This method will create the signature for the current function when it is initialized.
+     *     We do this at initialization since the signature will not change, so we can improve the
+     *     compiler's performance. If we have a template function, then all parameters that use a
+     *     type parameter will be marked with a type of {@code <.>}. This is done in order to prevent
+     *     the user from redeclaring the same template function, but with a different type parameter
+     *     name alongside not causing an edge case error.
+     * </p>
+     */
+    private void createSignature() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(this);
+        sb.append("(");
+
+        if(isTemplate()) {
+            for(ParamDecl param : params) {
+                if(param.isParamTypeTemplated(typeParams))
+                    sb.append(".");
+                else
+                    sb.append(param.getType().typeSignature());
+            }
+        }
+        else
+            for(ParamDecl param : params)
+                sb.append(param.getType().typeSignature());
+
+        sb.append(")");
+        signature = sb.toString();
+    }
+
+    /**
+     * Updates the {@link #signature} of the current function.
+     * <p><br>
+     *     This method will be used by {@link micropasses.TypeValidityPass} in order to
+     *     change the function's signature when a template function is instantiated.
+     * </p>
+     */
+    public void resetSignature() { createSignature(); }
 
     @Override
     public String header() {
@@ -188,6 +239,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
             fd.addChild(fd.typeParams);
             fd.addChild(fd.params);
             fd.addChild(fd.block);
+            fd.createSignature();
             return fd;
         }
     }
