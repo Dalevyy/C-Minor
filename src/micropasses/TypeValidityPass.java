@@ -343,7 +343,7 @@ public class TypeValidityPass extends Visitor {
             // ERROR CHECK #2: If a user prefixed the type parameter with a type annotation, then we will check if
             //                 the passed type argument can be used in the current type argument. If no type annotation
             //                 was given, this check is not needed, and we will let the type checker handle the rest.
-            if(typeParam.hasTypeAnnotation() && !typeParam.isValidTypeArg(ct.typeArgs().get(i))) {
+            if(!typeParam.isValidTypeArg(ct.typeArgs().get(i))) {
                 msgs.add(
                     new ErrorBuilder(generateTypeError, currentFile, interpretMode)
                         .addLocation(ct.getRootParent())
