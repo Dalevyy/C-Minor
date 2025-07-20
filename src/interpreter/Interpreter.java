@@ -31,7 +31,7 @@ import utilities.Visitor;
 
 /**
  * A {@link Visitor} class that executes a C Minor program.
- * <p><br>
+ * <p>
  *     When a user is in interpretation mode, a program will be
  *     evaluated and executed by this class. Currently, compilation
  *     mode will also execute the program through this class, though
@@ -194,8 +194,10 @@ public class Interpreter extends Visitor {
     public void visitAssignStmt(AssignStmt as) {
         String assignOp = as.assignOp().toString();
 
+        insideAssignment = true;
         as.LHS().visit(this);
         Value oldValue = currentValue;
+        insideAssignment = false;
 
         as.RHS().visit(this);
         Value newValue = currentValue;
@@ -810,15 +812,22 @@ public class Interpreter extends Visitor {
             args.add(currentValue);
         }
 
+        if(in.isLengthInvocation()) {
+            currentValue = new Value(currentValue.asList().size(),in.type);
+            return;
+        }
+
         // Function Invocation
         if(in.targetType.isVoidType()) {
-            FuncDecl fd = currentScope.findName(in.getSignature()).decl().asTopLevelDecl().asFuncDecl();
+            FuncDecl fd = (in.templatedFunction != null)
+                    ? in.templatedFunction : currentScope.findName(in.getSignature()).decl().asTopLevelDecl().asFuncDecl();
             params = fd.params();
             currentScope = fd.symbolTable;
 
             // Save arguments into respective parameters and add to the stack.
             for(int i = 0; i < in.getArgs().size(); i++)
                 stack.addValue(params.get(i),args.get(i));
+
 
             fd.funcBlock().visit(this);
         }
@@ -834,7 +843,7 @@ public class Interpreter extends Visitor {
             }
 
             // Find the class that contains the specific method we want to call
-            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType()).decl().asTopLevelDecl().asClassDecl();
             while(!cd.symbolTable.hasName(in.getSignature()))
                 cd = currentScope.findName(cd.superClass()).decl().asTopLevelDecl().asClassDecl();
 
@@ -1019,7 +1028,7 @@ public class Interpreter extends Visitor {
         else {
             currentValue = stack.getValue(ne);
             // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
-            if(currentValue == null) {
+            if(currentValue == null && !insideAssignment) {
                 new ErrorBuilder(generateRuntimeError,interpretMode)
                     .addLocation(ne.getRootParent())
                     .addErrorType(MessageType.RUNTIME_ERROR_607)

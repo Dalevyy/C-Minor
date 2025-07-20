@@ -165,7 +165,7 @@ public class VM {
                 else if(location.asTopLevelDecl().isClassDecl() || location.asTopLevelDecl().isGlobalDecl())
                     st.removeName(location.toString());
                 else if(location.asTopLevelDecl().isFuncDecl())
-                    st.removeName(location.asTopLevelDecl().asFuncDecl().funcSignature());
+                    st.removeName(location.asTopLevelDecl().asFuncDecl().getSignature());
             }
             else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
                 st.removeName(location.toString());

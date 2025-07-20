@@ -91,4 +91,8 @@ public class RuntimeObject extends Value {
      * @return {@link RuntimeObject}
      */
     public RuntimeObject asObject() { return this; }
+
+    @Override
+    public String toString() { return "Object"; }
+
 }

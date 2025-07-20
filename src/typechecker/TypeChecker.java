@@ -8,47 +8,23 @@ import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.Invocation.InvocationBuilder;
 import ast.expressions.Literal.ConstantType;
 import ast.expressions.Literal.LiteralBuilder;
-import ast.expressions.ThisStmt;
-import ast.misc.Compilation;
-import ast.misc.Name;
-import ast.misc.Var;
+import ast.misc.*;
 import ast.operators.AssignOp.AssignType;
-import ast.statements.AssignStmt;
-import ast.statements.CaseStmt;
-import ast.statements.ChoiceStmt;
-import ast.statements.DoStmt;
-import ast.statements.ForStmt;
-import ast.statements.IfStmt;
-import ast.statements.ListStmt;
-import ast.statements.LocalDecl;
-import ast.statements.ReturnStmt;
-import ast.statements.RetypeStmt;
-import ast.statements.WhileStmt;
-import ast.topleveldecls.ClassDecl;
-import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
-import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.ImportDecl;
-import ast.topleveldecls.MainDecl;
-import ast.topleveldecls.TopLevelDecl;
-import ast.types.Type;
-import ast.types.ArrayType;
+import ast.statements.*;
+import ast.topleveldecls.*;
+import ast.types.*;
 import ast.types.ArrayType.ArrayTypeBuilder;
-import ast.types.ClassType;
-import ast.types.DiscreteType;
 import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType.EnumTypeBuilder;
-import ast.types.ListType;
 import ast.types.ListType.ListTypeBuilder;
-import ast.types.MultiType;
-import ast.types.ScalarType;
 import ast.types.ScalarType.Scalars;
-import ast.types.VoidType;
 import messages.MessageType;
 import messages.errors.ErrorBuilder;
 import messages.errors.scope.ScopeErrorBuilder;
 import messages.errors.scope.ScopeErrorFactory;
 import messages.errors.type.TypeErrorFactory;
+import micropasses.TypeValidityPass;
+import utilities.RuntimeStack;
 import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
@@ -63,7 +39,7 @@ public class TypeChecker extends Visitor {
     private final TypeErrorFactory generateTypeError;
     private final ScopeErrorFactory generateScopeError;
     private final Vector<String> errors;
-    
+    private TypeValidityPass typeValidityPass;
     private boolean returnFound = false;
     private boolean parentFound = false;
     private boolean inControlStmt = false;
@@ -88,7 +64,11 @@ public class TypeChecker extends Visitor {
         this();
         this.currentScope = st;
         this.interpretMode = true;
+        this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable(),this.interpretMode);
     }
+
+
+    /* ######################################## HELPERS ######################################## */
 
     /**
      * Creates a default value for a variable
@@ -396,6 +376,116 @@ public class TypeChecker extends Visitor {
         else
             return false;
     }
+
+    private FuncDecl findSpecificFunction(FuncDecl candidate, FuncDecl currentTemplate, Invocation in) {
+        // If we do not have a possible template function, then the candidate will default to be the candidate
+        if(currentTemplate == null)
+            return candidate;
+
+        // We will now do a type analysis of the candidate's parameters with the invocation's arguments.
+        for(int i = 0; i < candidate.params().size(); i++) {
+            ParamDecl candidateParam = candidate.params().get(i);
+            ParamDecl templateParam = currentTemplate.params().get(i);
+            Expression currArg = in.getArgs().get(i);
+
+
+            // If the candidate's current parameter is assignment compatible with the current argument, this means we
+            // might have a more specific template to use. If we can confirm
+            if(Type.assignmentCompatible(candidateParam.type(), currArg.getType())) {
+                if(templateParam.isParamTypeTemplated(currentTemplate.typeParams()))
+                    return candidate;
+            }
+        }
+
+        return currentTemplate;
+    }
+
+    private FuncDecl findValidFuncTemplate(String funcName, Invocation in) {
+        final SymbolTable rootTable = currentScope.getRootTable();
+        FuncDecl template = null;
+
+        for(FuncDecl candidate: currentScope.getAllFuncNames()) {
+            // First, we need to make sure the current candidate represents a template function
+            // and the candidate matches the name of the function that is called.
+            if(!candidate.isTemplate() || !candidate.toString().equals(funcName))
+                continue;
+
+            // Next, we need to make sure the candidate parameter count matches the argument count
+            // If it doesn't, then we know this candidate can be eliminated.
+            if(candidate.params().size() != in.getArgs().size())
+                continue;
+
+            template = findSpecificFunction(candidate,template,in);
+        }
+
+        return template;
+    }
+
+    /**
+     * Verifies the validity of a template function call.
+     * <p><br>
+     *     If a user writes a template function call, then this method will perform the
+     *     necessary error checks to ensure the template function call was written correctly.
+     *     This will allow us to instantiate the function and then have the {@link TypeChecker}
+     *     check if all types can be resolved correctly. This method is identical to the one
+     *     found in {@link micropasses.TypeValidityPass} for validating template types, but
+     *     this method produces different error messages.
+     * </p>
+     * @param fd Current template function
+     * @param in The template {@link Invocation} we want to check if it's been written correctly
+     */
+    public void checkIfFuncTemplateCallIsValid(FuncDecl fd, Invocation in) {
+        // ERROR CHECK #1: When a template type is written, we want to make sure the correct number of
+        //                 type arguments were passed. This will be based on the number of type parameters
+        //                 the template function was declared with. There are 2 possible errors here.
+        if(fd.typeParams().size() != in.getTypeArgs().size()) {
+            // Case 1: This error is generated when a user writes type arguments for a non-template function.
+            if(fd.typeParams().isEmpty()) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                        .addLocation(in.getRootParent())
+                        .addErrorType(MessageType.TYPE_ERROR_462)
+                        .addArgs(fd)
+                        .error()
+                );
+            }
+            // Case 2: This error is generated when the wrong number of type arguments were used for a template function.
+            else {
+                ErrorBuilder eb = new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                                      .addLocation(in.getRootParent())
+                                      .addErrorType(MessageType.TYPE_ERROR_463)
+                                      .addArgs(in.getSignature())
+                                      .addSuggestArgs(fd,fd.typeParams().size());
+
+                if(fd.typeParams().size() == 1)
+                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1449).error());
+                else
+                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1450).error());
+            }
+        }
+
+        // We now look through each type parameter of the template function.
+        for (int i = 0; i < fd.typeParams().size(); i++) {
+            Typeifier typeParam = fd.typeParams().get(i);
+
+            // ERROR CHECK #2: If a user prefixed the type parameter with a type annotation, then we will check if
+            //                 the passed type argument can be used in the current type argument. If no type annotation
+            //                 was given, this check is not needed, and we will let the type checker handle the rest.
+            if(!typeParam.isValidTypeArg(in.getTypeArgs().get(i))) {
+                errors.add(
+                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                        .addLocation(in.getRootParent())
+                        .addErrorType(MessageType.TYPE_ERROR_446)
+                        .addArgs(in.getTypeArgs().get(i), fd)
+                        .addSuggestType(MessageType.TYPE_SUGGEST_1451)
+                        .addSuggestArgs(fd, typeParam.possibleTypeToString(), i + 1)
+                        .error()
+                );
+            }
+        }
+    }
+
+    /* ######################################## VISITS ######################################## */
 
     /**
      * <p>
@@ -1050,8 +1140,11 @@ public class TypeChecker extends Visitor {
         ClassDecl oldClass = currentClass;
         currentScope = cd.symbolTable;
         currentClass = cd;
+
+        // Do not type check the class if it's a template class.
         if(cd.typeParams().isEmpty())
             super.visitClassDecl(cd);
+
         currentClass = oldClass;
         currentScope = oldScope;
     }
@@ -1059,6 +1152,7 @@ public class TypeChecker extends Visitor {
     public void visitCompilation(Compilation c) {
         currentFile = c.getFile();
         currentScope = c.globalTable;
+        this.typeValidityPass = new TypeValidityPass(c.globalTable,this.interpretMode);
         super.visitCompilation(c);
     }
 
@@ -1351,41 +1445,45 @@ public class TypeChecker extends Visitor {
      * @param fd Function Declaration
      */
     public void visitFuncDecl(FuncDecl fd) {
-        currentScope = fd.symbolTable;
-        currentMethod = fd;
+        if(fd.typeParams().isEmpty()) {
+            SymbolTable oldScope = currentScope;
+            currentScope = fd.symbolTable;
+            currentMethod = fd;
 
-        // ERROR CHECK #1: Make sure the function return type is valid
-        if(fd.returnType().isClassType()) {
-            if(!currentScope.hasNameSomewhere(fd.returnType().toString())) {
+            // ERROR CHECK #1: Make sure the function return type is valid
+            if(fd.returnType().isClassType()) {
+                if(!currentScope.hasNameSomewhere(fd.returnType().toString())) {
+                    errors.add(
+                            new ErrorBuilder(generateTypeError,interpretMode)
+                                    .addLocation(fd)
+                                    .addErrorType(MessageType.TYPE_ERROR_421)
+                                    .addArgs(fd.returnType(),fd)
+                                    .addSuggestType(MessageType.TYPE_SUGGEST_1426)
+                                    .addSuggestArgs(fd.returnType())
+                                    .error()
+                    );
+                }
+            }
+
+            super.visitFuncDecl(fd);
+
+            // ERROR CHECK #2: If the function has a non-void return type, make
+            //                 sure a return statement is found in the function
+            if(!fd.returnType().isVoidType() && !returnFound) {
                 errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(fd)
-                        .addErrorType(MessageType.TYPE_ERROR_421)
-                        .addArgs(fd.returnType(),fd)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1426)
-                        .addSuggestArgs(fd.returnType())
-                        .error()
+                        new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(fd)
+                                .addErrorType(MessageType.TYPE_ERROR_422)
+                                .addArgs(fd,fd.returnType())
+                                .addSuggestType(MessageType.TYPE_SUGGEST_1427)
+                                .error()
                 );
             }
-        }
 
-        super.visitFuncDecl(fd);
-
-        // ERROR CHECK #2: If the function has a non-void return type, make
-        //                 sure a return statement is found in the function
-        if(!fd.returnType().isVoidType() && !returnFound) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                    .addLocation(fd)
-                    .addErrorType(MessageType.TYPE_ERROR_422)
-                    .addArgs(fd,fd.returnType())
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1427)
-                    .error()
-            );
+            currentScope = oldScope;
+            currentMethod = null;
+            returnFound = false;
         }
-        currentScope = currentScope.closeScope();
-        currentMethod = null;
-        returnFound = false;
     }
 
     /**
@@ -1531,16 +1629,22 @@ public class TypeChecker extends Visitor {
      * @param in Invocation
      */
     public void visitInvocation(Invocation in) {
-        StringBuilder funcSignature = new StringBuilder(in + "/");
+        // First, we will create the invocation's type signature.
+        StringBuilder signature = new StringBuilder(in + "(");
 
         for(Expression e : in.getArgs()) {
             e.visit(this);
-            funcSignature.append(e.type.typeSignature());
+            signature.append(e.type.typeSignature());
         }
+
+        signature.append(")");
+        in.setSignature(signature.toString());
 
         // Function Invocation
         if(currentTarget == null && currentClass == null) {
-            if(in.toString().equals("length")) {
+            in.targetType = new VoidType();
+
+            if(in.isLengthInvocation()) {
                 // ERROR CHECK #1: Make sure 'length' call only has one argument
                 if(in.getArgs().size() != 1) {
                     errors.add(
@@ -1559,12 +1663,45 @@ public class TypeChecker extends Visitor {
                                     .error()
                     );
                 }
+                in.targetType = new VoidType();
                 in.type = new DiscreteType(Discretes.INT);
+                in.setLengthInvocation();
+                return;
+            }
+
+            else if(in.isTemplate()) {
+                FuncDecl template = findValidFuncTemplate(in.toString(), in);
+                checkIfFuncTemplateCallIsValid(template, in);
+                in.templatedFunction = typeValidityPass.instantiatesFuncTemplate(template, in);
+
+                for(int i = 0; i < in.getArgs().size(); i++) {
+                    Type paramType = in.templatedFunction.params().get(i).getType();
+                    Type argType = in.getArgs().get(i).getType();
+
+                    if(!Type.assignmentCompatible(paramType, argType)) {
+                        String argumentTypes = Type.createTypeString(in.getArgs());
+                        ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
+                                .addLocation(in)
+                                .addArgs(in,argumentTypes)
+                                .addSuggestType(MessageType.TYPE_SUGGEST_1431)
+                                .addSuggestArgs(in,in+"("+argumentTypes+")");
+
+                        if(in.getArgs().isEmpty())
+                            errors.add(eb.addErrorType(MessageType.TYPE_ERROR_429).error());
+                        else if(in.getArgs().size() == 1)
+                            errors.add(eb.addErrorType(MessageType.TYPE_ERROR_430).error());
+                        else
+                            errors.add(eb.addErrorType(MessageType.TYPE_ERROR_431).error());
+                    }
+                }
+
+                in.type = in.templatedFunction.returnType();
+                in.templatedFunction.visit(this);
                 return;
             }
 
             // ERROR CHECK #3: Check if function overload exists
-            if(!currentScope.hasNameSomewhere(funcSignature.toString())) {
+            if(!currentScope.hasNameSomewhere(signature.toString())) {
                 String argumentTypes = Type.createTypeString(in.getArgs());
                 ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
                                       .addLocation(in)
@@ -1580,8 +1717,7 @@ public class TypeChecker extends Visitor {
                     errors.add(eb.addErrorType(MessageType.TYPE_ERROR_431).error());
             }
 
-            FuncDecl fd = currentScope.findName(funcSignature.toString()).decl().asTopLevelDecl().asFuncDecl();
-            in.targetType = new VoidType();
+            FuncDecl fd = currentScope.findName(signature.toString()).decl().asTopLevelDecl().asFuncDecl();
             in.type = fd.returnType();
         }
         // Method Invocation
@@ -1599,7 +1735,7 @@ public class TypeChecker extends Visitor {
             else if(currentClass != null)
                 cd = currentClass;
             else
-                cd = currentScope.findName(currentTarget.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+                cd = currentScope.findName(currentTarget.asClassType().toString()).decl().asTopLevelDecl().asClassDecl();
 
             String className = cd.toString();
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
@@ -1616,7 +1752,7 @@ public class TypeChecker extends Visitor {
             }
 
             // ERROR CHECK #5: Check if a valid method overload exists
-            while(!cd.symbolTable.hasName(funcSignature.toString())) {
+            while(!cd.symbolTable.hasName(signature.toString())) {
                 if(cd.superClass() == null) {
                     if(interpretMode)
                         currentTarget = null;
@@ -1638,12 +1774,14 @@ public class TypeChecker extends Visitor {
                 cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             }
 
-            MethodDecl md = cd.symbolTable.findName(funcSignature.toString()).decl().asMethodDecl();
-            in.targetType = new ClassType(cd.toString());
+            MethodDecl md = cd.symbolTable.findName(signature.toString()).decl().asMethodDecl();
+            if(currentTarget.isClassType() && currentTarget.asClassType().isTemplatedType())
+                in.targetType = currentTarget;
+            else
+                in.targetType = new ClassType(cd.toString());
             in.type = md.returnType();
             currentTarget = md.returnType();
         }
-        in.setSignature(funcSignature.toString());
     }
 
     /**
@@ -1703,7 +1841,7 @@ public class TypeChecker extends Visitor {
             }
 
             if(curr.isListLiteral())
-                listAssignmentCompatibility(numOfDims, new VoidType(), ll);
+                listAssignmentCompatibility(numOfDims, null, ll);
             else {
                 curr.visit(this);
                 listAssignmentCompatibility(numOfDims, curr.type, ll);
@@ -1958,7 +2096,7 @@ public class TypeChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(ne.toString().equals("parent")) {
+        if(ne.isParentKeyword()) {
             if(parentFound) {
                 parentFound = false;
                 errors.add(
@@ -1971,7 +2109,7 @@ public class TypeChecker extends Visitor {
             parentFound = true;
             ne.type = currentClass.superClass();
         }
-        else if(!currentScope.hasName(ne.toString()) && currentTarget != null && !currentTarget.isArrayType() && !currentTarget.isListType()) {
+        else if(currentTarget != null && currentTarget.isClassOrMultiType()) {
             String targetName = currentTarget.toString();
             ClassDecl cd = null;
             if(currentTarget.isClassType()) {
@@ -2048,12 +2186,12 @@ public class TypeChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.getClassType().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType()).decl().asTopLevelDecl().asClassDecl();
 
         for(Var v : ne.getInitialFields()) {
             Type fType = cd.symbolTable.findName(v.toString()).decl().asFieldDecl().type();
 
-            if(fType.isArrayType() && v.init().isArrayLiteral()) {
+            if((fType.isArrayType() && v.init().isArrayLiteral()) || (fType.isListType() && v.init().isListLiteral())) {
                 Type oldTarget = currentTarget;
                 currentTarget = fType;
                 v.init().visit(this);
@@ -2080,8 +2218,10 @@ public class TypeChecker extends Visitor {
         ne.type = ne.getClassType();
         ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
 
-        if(ne.templatedClass != null)
-            ne.templatedClass.visit(this);
+        // If the new expression is bounded to an instantiated class, we now want to visit
+        // said class and perform type checking based on the provided arguments.
+        if(ne.createsFromTemplate())
+            ne.getInstantiatedClass().visit(this);
     }
 
     /**

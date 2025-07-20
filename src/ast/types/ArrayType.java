@@ -33,9 +33,7 @@ public class ArrayType extends Type {
         return numOfDims;
     }
 
-    private void setBaseType(Type baseType) {
-        this.baseType = baseType;
-    }
+    public void setBaseType(Type baseType) { this.baseType = baseType;}
 
     private void setNumOfDims(int numOfDims) {
         this.numOfDims = numOfDims;

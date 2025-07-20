@@ -78,7 +78,7 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
 
     class VectorIterator implements Iterator<T> {
 
-        private int pos = 0;
+    private int pos = 0;
 
         public boolean hasNext() { return pos < size(); }
         public T next() { return get(pos++); }

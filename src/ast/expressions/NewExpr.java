@@ -21,12 +21,12 @@ import utilities.Visitor;
  */
 public class NewExpr extends Expression {
 
-    public ClassDecl templatedClass;
+    private ClassDecl instantiatedClass;
 
     /**
      * {@link ClassType} representing the type of the created object.
      */
-    private ClassType objectType;
+    public ClassType objectType;
 
     /**
      * Vector of variables representing every field the user initializes for the object.
@@ -82,6 +82,9 @@ public class NewExpr extends Expression {
      * @param initialFields Vector of Variables
      */
     private void setInitialFields(Vector<Var> initialFields) { this.initialFields = initialFields; }
+
+    public void setInstantiatedClass(ClassDecl instantiatedClass) { this.instantiatedClass = instantiatedClass; }
+    public ClassDecl getInstantiatedClass() { return this.instantiatedClass; }
 
     /**
      * Checks if the current AST node is a {@link NewExpr}.

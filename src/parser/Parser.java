@@ -29,7 +29,7 @@ import ast.misc.Modifier.Mods;
 import ast.misc.Name;
 import ast.misc.ParamDecl;
 import ast.misc.Typeifier;
-import ast.misc.Typeifier.PossibleType;
+import ast.misc.Typeifier.TypeAnnotation;
 import ast.misc.Var;
 import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
@@ -832,17 +832,17 @@ public class Parser {
     private Typeifier typeifier() {
         tokenStack.add(currentLA());
 
-        PossibleType pt = null;
+        TypeAnnotation pt = null;
         if(nextLA(TokenType.DISCR)) {
-            pt = PossibleType.DISCR;
+            pt = TypeAnnotation.DISCR;
             match(TokenType.DISCR);
         }
         else if(nextLA(TokenType.SCALAR)) {
-            pt = PossibleType.SCALAR;
+            pt = TypeAnnotation.SCALAR;
             match(TokenType.SCALAR);
         }
         else if(nextLA(TokenType.CLASS)) {
-            pt = PossibleType.CLASS;
+            pt = Typeifier.TypeAnnotation.CLASS;
             match(TokenType.CLASS);
         }
 
@@ -1769,7 +1769,7 @@ public class Parser {
                     input.setText(tokenStack.top());
                     RHS = new ArrayExpr(tokenStack.top(),LHS,indices);
                 }
-                else if(nextLA(TokenType.LT) || nextLA(TokenType.AT)) {
+                else if(nextLA(TokenType.LPAREN) || nextLA(TokenType.AT)) {
                     Vector<Expression> args = new Vector<>();
                     Vector<Type> types = new Vector<>();
                     if(nextLA(TokenType.AT) && inTypeFOLLOW())

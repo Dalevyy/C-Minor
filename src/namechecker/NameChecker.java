@@ -563,35 +563,20 @@ public class NameChecker extends Visitor {
      * @param fd Function Declaration
      */
     public void visitFuncDecl(FuncDecl fd) {
-        for(Typeifier tp : fd.typeParams()) {
-            // ERROR CHECK #1: This checks if the type parameter name was already used in the program.
-            if(currentScope.hasNameSomewhere(tp.toString())) {
-                errors.add(
-                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
-                        .addLocation(fd)
-                        .addErrorType(MessageType.SCOPE_ERROR_317)
-                        .addArgs(tp,fd)
-                        .asScopeErrorBuilder()
-                        .addRedeclaration(currentScope.findName(tp.toString()).decl())
-                        .error()
-                );
-            }
-        }
-
-        // ERROR CHECK #2: This checks to make sure we are not redeclaring a function with the same type arguments.
-        if(currentScope.hasNameSomewhere(fd.funcSignature())) {
+        // ERROR CHECK #1: We need to check if the current function redeclares a previous function.
+        if(currentScope.hasNameSomewhere(fd.getSignature())) {
             errors.add(
-                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                new ScopeErrorBuilder(generateScopeError, currentFile, interpretMode)
                     .addLocation(fd)
                     .addErrorType(MessageType.SCOPE_ERROR_306)
                     .addArgs(fd)
                     .asScopeErrorBuilder()
-                    .addRedeclaration(currentScope.findName(fd.funcSignature()).decl())
+                    .addRedeclaration(currentScope.findName(fd.getSignature()).decl())
                     .error()
             );
         }
 
-        currentScope.addName(fd.funcSignature(),fd);
+        currentScope.addName(fd.getSignature(),fd);
         currentScope.addMethod(fd.toString());
 
         currentScope = currentScope.openNewScope();
