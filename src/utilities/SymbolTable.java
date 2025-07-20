@@ -2,7 +2,7 @@ package utilities;
 
 import ast.AST;
 import ast.misc.NameNode;
-
+import ast.topleveldecls.FuncDecl;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -36,6 +36,24 @@ public class SymbolTable {
     }
 
     public SymbolTable getImportParent() { return importParent; }
+
+    public SymbolTable getRootTable() {
+        if(parent == null)
+            return this;
+        else
+            return parent.getRootTable();
+    }
+
+    public Vector<FuncDecl> getAllFuncNames() {
+        SymbolTable rootTable = getRootTable();
+        Vector<FuncDecl> lst = new Vector<>();
+
+        for(NameNode name : getRootTable().getAllNames().values())
+            if(name.decl().isTopLevelDecl() && name.decl().asTopLevelDecl().isFuncDecl())
+                lst.add(name.decl().asTopLevelDecl().asFuncDecl());
+
+        return lst;
+    }
 
     public void addName(String name, NameNode n) { varNames.put(name,n); }
     public void addNameToRootTable(String name, NameNode n) {

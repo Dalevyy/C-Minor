@@ -28,6 +28,7 @@ public class DiscreteType extends Type {
     }
 
     public boolean isDiscreteType() { return true; }
+    public boolean isScalarType() { return true; }
     public DiscreteType asDiscreteType() { return this; }
     public Discretes getDiscreteType() { return specificType; }
 

@@ -70,7 +70,7 @@ public class ConstructorGeneration extends Visitor {
     }
 
     public void visitNewExpr(NewExpr ne) {
-        if(ne.templatedClass != null)
-            ne.templatedClass.visit(this);
+        if(ne.createsFromTemplate())
+            ne.getInstantiatedClass().visit(this);
     }
 }

@@ -1,13 +1,11 @@
 package ast.misc;
 
 import ast.AST;
-import ast.expressions.*;
-import ast.statements.ForStmt;
-import ast.statements.WhileStmt;
-import ast.types.*;
-import token.*;
+import ast.expressions.Expression;
+import ast.topleveldecls.ClassDecl;
+import ast.types.Type;
+import token.Token;
 import utilities.Visitor;
-
 
 /*
 ___________________________ Var ___________________________
@@ -30,7 +28,6 @@ public class Var extends AST {
     public Var(Token t, Name name) { this(t,name,null,null,false); }
     public Var(Token t, Name name, Expression init) { this(t,name,null,init,false); }
     public Var(Token t, Name name, Type type, boolean uninit) { this(t,name,type,null,uninit); }
-
     public Var(Token t, Name name, Type type, Expression init, boolean uninit) {
         super(t);
         this.name = name;
@@ -78,10 +75,11 @@ public class Var extends AST {
         VarBuilder vb = new VarBuilder();
         if(this.init != null)
             vb.setInit(this.init.deepCopy().asExpression());
+        if(this.type != null)
+            vb.setType(this.type.deepCopy().asType());
 
         return vb.setMetaData(this)
                  .setName(this.name.deepCopy().asName())
-                 .setType(this.type.deepCopy().asType())
                  .create();
     }
 

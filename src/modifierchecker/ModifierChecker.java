@@ -208,6 +208,7 @@ public class ModifierChecker extends Visitor {
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
+        SymbolTable oldScope = currentScope;
         currentScope = cd.symbolTable;
 
         if(cd.superClass() != null) {
@@ -235,7 +236,7 @@ public class ModifierChecker extends Visitor {
         if(cd.typeParams().isEmpty())
             super.visitClassDecl(cd);
         this.currentClass = null;
-        currentScope = currentScope.closeScope();
+        currentScope = oldScope;
     }
 
     /**
@@ -310,9 +311,11 @@ public class ModifierChecker extends Visitor {
      * @param fd Function Declaration
      */
     public void visitFuncDecl(FuncDecl fd) {
+
         currentContext = fd;
         currentScope = fd.symbolTable;
-        super.visitFuncDecl(fd);
+        if(fd.typeParams().isEmpty())
+            super.visitFuncDecl(fd);
         currentContext = null;
         currentScope = currentScope.closeScope();
     }
@@ -359,10 +362,11 @@ public class ModifierChecker extends Visitor {
             funcSignature = null;
         }
         // Function Invocation
-        else if(!in.targetType.isClassType() && !in.targetType.isMultiType()) {
-            FuncDecl fd = currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
+        else if(!in.targetType.isClassOrMultiType()) {
+            FuncDecl fd = in.templatedFunction != null ? in.templatedFunction :
+                                              currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
 
-            if(currentContext == fd && fd.funcSignature().equals(funcSignature))  {
+            if(currentContext == fd && fd.getSignature().equals(funcSignature))  {
                 // ERROR CHECK #1: A function can not call itself without `recurs` modifier
                 if(!fd.mod.isRecurs()) {
                     errors.add(
@@ -375,6 +379,8 @@ public class ModifierChecker extends Visitor {
                     );
                 }
             }
+            if(fd.isTemplate())
+                in.templatedFunction.visit(this);
         }
         // Method Invocation
         else {
@@ -461,8 +467,9 @@ public class ModifierChecker extends Visitor {
             );
         }
         super.visitNewExpr(ne);
-        if(ne.templatedClass != null)
-            ne.templatedClass.visit(this);
+
+        if(ne.createsFromTemplate())
+            ne.getInstantiatedClass().visit(this);
     }
 
     public void visitOutStmt(OutStmt os) {

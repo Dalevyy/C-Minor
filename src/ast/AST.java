@@ -263,7 +263,11 @@ public abstract class AST {
         protected Location location = new Location();
         protected AST parent = null;
 
-        // Copies the node metadata into node
+        /**
+         * Copies the metadata of an existing AST node into the builder.
+         * @param node AST node we want to copy.
+         * @return NodeBuilder
+         */
         protected NodeBuilder setMetaData(AST node) {
             this.text = node.text;
             this.location = node.location;

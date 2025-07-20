@@ -2,6 +2,7 @@ package ast.types;
 
 import ast.*;
 import ast.expressions.Expression;
+import ast.misc.Name;
 import token.*;
 import utilities.Vector;
 
@@ -139,6 +140,8 @@ public abstract class Type extends AST {
     public boolean isArrayType() { return false; }
     public boolean isVoidType() { return false; }
 
+    public boolean isStructuredType() { return this.isArrayType() || this.isClassOrMultiType() || this.isListType(); }
+
     public ScalarType asScalarType() { throw new RuntimeException("Expression can not be casted into a ScalarType.\n"); }
     public DiscreteType asDiscreteType() { throw new RuntimeException("Expression can not be casted into a DiscreteType.\n"); }
     public ClassType asClassType() { throw new RuntimeException("Expression can not be casted into a ClassType.\n"); }
@@ -147,6 +150,37 @@ public abstract class Type extends AST {
     public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
     public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
     public EnumType asEnumType() { throw new RuntimeException("Expression can not be casted into an EnumType.\n"); }
+
+    /**
+     * Generates a new type based on a provided type parameter.
+     * <p><br>
+     *     When we are instantiating a template class or function, we need to replace every
+     *     type parameter with the appropriate type argument the user specified. This method
+     *     will be responsible for creating all the new types that will be saved into the
+     *     instantiated class or function.
+     * </p>
+     * <p>
+     *     In some cases, the user could specify generic types within generic types. For example, if
+     *     a user declares a generic {@code Vector<T>} class, then the user will be allowed to use
+     *     the type {@code Vector<T>} within the class itself. This is important to keep in mind as
+     *     we need to make sure the type argument only replaces the {@code T} type parameter and not
+     *     the entire {@code Vector<T>} type in order to preserve the user's semantics. This is why
+     *     we are checking whether or not the given template type has a {@code '<'} to denote whether
+     *     the template type is simply a type parameter or a class type that contains a type parameter.
+     * </p>
+     * <p>
+     *     Note: Remember, a user can not instantiate a class with a List or an Array type.
+     * </p>
+     * @param templateType Type parameter we wish to replace
+     * @param typeArg Type we want to now use in place of the type parameter
+     * @return Newly created {@link Type} when we instantiate a template class or function
+     */
+    public static Type instantiateType(ClassType templateType, Type typeArg) {
+        if(templateType.toString().contains("<"))
+            return new ClassType(new Name(templateType.getClassNameAsString()), new Vector<>(typeArg));
+        else
+            return typeArg;
+    }
 
     @Override
     public void update(int pos, AST n) { throw new RuntimeException("A type can not be updated."); }

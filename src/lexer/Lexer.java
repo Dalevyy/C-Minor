@@ -514,7 +514,6 @@ public class Lexer {
                     return new Token(TokenType.ERROR, "ERROR", currLoc.copy());
                 case '#':
                     consume();
-
                     if(isLetter()) {
                         StringBuilder sb = new StringBuilder();
                         while(isLetter()) {

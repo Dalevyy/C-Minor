@@ -563,39 +563,20 @@ public class NameChecker extends Visitor {
      * @param fd Function Declaration
      */
     public void visitFuncDecl(FuncDecl fd) {
-        for(Typeifier tp : fd.typeParams()) {
-            // ERROR CHECK #1: This checks if the type parameter name was already used in the program.
-            if(currentScope.hasNameSomewhere(tp.toString())) {
-                errors.add(
-                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
-                        .addLocation(fd)
-                        .addErrorType(MessageType.SCOPE_ERROR_317)
-                        .addArgs(tp,fd)
-                        .asScopeErrorBuilder()
-                        .addRedeclaration(currentScope.findName(tp.toString()).decl())
-                        .error()
-                );
-            }
-        }
-
-        String funcSignature = fd + "/";
-        if(fd.params() != null)
-            funcSignature += fd.paramSignature();
-
-        // ERROR CHECK #2: This checks to make sure we are not redeclaring a function with the same type arguments.
-        if(currentScope.hasNameSomewhere(funcSignature)) {
+        // ERROR CHECK #1: We need to check if the current function redeclares a previous function.
+        if(currentScope.hasNameSomewhere(fd.getSignature())) {
             errors.add(
-                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+                new ScopeErrorBuilder(generateScopeError, currentFile, interpretMode)
                     .addLocation(fd)
                     .addErrorType(MessageType.SCOPE_ERROR_306)
                     .addArgs(fd)
                     .asScopeErrorBuilder()
-                    .addRedeclaration(currentScope.findName(funcSignature).decl())
+                    .addRedeclaration(currentScope.findName(fd.getSignature()).decl())
                     .error()
             );
         }
 
-        currentScope.addName(funcSignature,fd);
+        currentScope.addName(fd.getSignature(),fd);
         currentScope.addMethod(fd.toString());
 
         currentScope = currentScope.openNewScope();
@@ -787,15 +768,11 @@ public class NameChecker extends Visitor {
      * @param md Method Declaration
      */
     public void visitMethodDecl(MethodDecl md) {
-        String methodSignature = md + "/";
-        if(md.params() != null)
-            methodSignature += md.paramSignature();
-
         // ERROR CHECK #1: This checks to make sure we are not redeclaring a method with the same type arguments.
-        if(currentScope.hasName(methodSignature)) {
+        if(currentScope.hasName(md.methodSignature())) {
             // We will only error out if the method was redeclared in the same class twice. If the method overrides
             // a base class method, then we will check if the method was overridden correctly at a later point.
-            if(currentClass.superClass() == null || !currentClass.symbolTable.hasName(methodSignature)) {
+            if(currentClass.superClass() == null || !currentClass.symbolTable.hasName(md.methodSignature())) {
                 if(interpretMode)
                     currentScope = currentScope.closeScope();
                 errors.add(
@@ -804,13 +781,13 @@ public class NameChecker extends Visitor {
                         .addErrorType(MessageType.SCOPE_ERROR_313)
                         .addArgs(md,currentClass)
                         .asScopeErrorBuilder()
-                        .addRedeclaration(currentScope.findName(methodSignature).decl())
+                        .addRedeclaration(currentScope.findName(md.methodSignature()).decl())
                         .error()
                 );
             }
         }
 
-        currentScope.addName(methodSignature, md);
+        currentScope.addName(md.methodSignature(), md);
         currentScope.addMethod(md.toString());
 
         currentScope = currentScope.openNewScope();

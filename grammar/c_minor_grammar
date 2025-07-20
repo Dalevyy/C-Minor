@@ -231,7 +231,7 @@ postfix_expression: primary_expression ( '[' expression ']'
 
 arguments : expression (',' expression)* ;
 
-type_params : '<' type ( ',' type )* '>'
+type_params : '@' type ( ',' type )* '@'
 
 factor_expression : postfix_expression
                   | 'length' '(' arguments? ')'
@@ -329,7 +329,7 @@ Name : Identifier_start Identifier_part* ;
 Identifier_start : 'a'..'z' 
                  | 'A'..'Z' 
                  | '_' 
-                 ;
+                 ;        
 
 Identifier_part : Identifier_start 
                 | '0'..'9' 

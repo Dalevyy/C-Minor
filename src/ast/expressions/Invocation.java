@@ -3,6 +3,7 @@ package ast.expressions;
 import ast.AST;
 import ast.misc.Name;
 import token.Token;
+import ast.topleveldecls.FuncDecl;
 import ast.types.Type;
 import utilities.Vector;
 import utilities.Visitor;
@@ -31,7 +32,7 @@ public class Invocation extends Expression {
     /**
      * Vector containing any type parameters passed to the callee (only set for functions).
      */
-    private Vector<Type> typeParams;
+    private Vector<Type> typeArgs;
 
     /**
      * Vector containing any arguments passed to the callee
@@ -48,6 +49,8 @@ public class Invocation extends Expression {
      */
     private String signature;
 
+    public FuncDecl templatedFunction;
+
     /**
      * Flag denoting if the current invocation is a call to the built-in {@code length} method.
      */
@@ -62,13 +65,13 @@ public class Invocation extends Expression {
      * Main constructor for {@link Invocation}.
      * @param metaData Token containing metadata we want to save
      * @param name Name to save into {@link #name}
-     * @param typeParams Vector of types to save into {@link #typeParams}
+     * @param typeParams Vector of types to save into {@link #typeArgs}
      * @param args Vector of expressions to save into {@link #args}
      */
     public Invocation(Token metaData, Name name, Vector<Type> typeParams, Vector<Expression> args) {
         super(metaData);
         this.name = name;
-        this.typeParams = typeParams;
+        this.typeArgs = typeParams;
         this.args = args;
         if(name != null)
             this.isLengthInvocation = toString().equals("length");
@@ -83,11 +86,13 @@ public class Invocation extends Expression {
      */
     public boolean isLengthInvocation() { return this.isLengthInvocation; }
 
+    public boolean isTemplate() { return !typeArgs.isEmpty(); }
+
     /**
      * Checks if the current {@link Invocation} instantiates a templated function.
      * @return Boolean
      */
-    public boolean containsTypeParams() { return !typeParams.isEmpty(); }
+    public boolean containsTypeArgs() { return !typeArgs.isEmpty(); }
 
     /**
      * Getter for {@link #name}.
@@ -96,10 +101,10 @@ public class Invocation extends Expression {
     public Name getName() { return this.name; }
 
     /**
-     * Getter for {@link #typeParams}.
+     * Getter for {@link #typeArgs}.
      * @return Vector of Types
      */
-    public Vector<Type> getTypeParams() { return this.typeParams; }
+    public Vector<Type> getTypeArgs() { return this.typeArgs; }
 
     /**
      * Getter for {@link #args}.
@@ -120,10 +125,10 @@ public class Invocation extends Expression {
     private void setName(Name name) { this.name = name; }
 
     /**
-     * Setter for {@link #typeParams}.
-     * @param typeParams Vector of Types
+     * Setter for {@link #typeArgs}.
+     * @param typeArgs Vector of Types
      */
-    private void setTypeParams(Vector<Type> typeParams) { this.typeParams = typeParams; }
+    private void setTypeArgs(Vector<Type> typeArgs) { this.typeArgs = typeArgs; }
 
     /**
      * Setter for {@link #args}.
@@ -140,7 +145,7 @@ public class Invocation extends Expression {
     /**
      * Setter for {@link #isLengthInvocation}
      */
-    private void setLengthInvocation() { this.isLengthInvocation = true; }
+    public void setLengthInvocation() { this.isLengthInvocation = true; }
 
     /**
      * Checks if the current AST node is an {@link Invocation}.
@@ -153,6 +158,20 @@ public class Invocation extends Expression {
      * @return Invocation
      */
     public Invocation asInvocation() { return this; }
+
+    public String templateSignature() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(signature);
+
+        if(!typeArgs.isEmpty()) {
+            sb.append("<");
+            for(Type arg : typeArgs)
+                sb.append(arg);
+            sb.append(">");
+        }
+
+        return sb.toString();
+    }
 
     /**
      * {@code toString} method.
@@ -186,9 +205,9 @@ public class Invocation extends Expression {
     public AST deepCopy() {
         InvocationBuilder inb = new InvocationBuilder();
 
-        if(this.containsTypeParams()) {
+        if(this.containsTypeArgs()) {
             Vector<Type> typeParams = new Vector<>();
-            for(Type t : this.typeParams)
+            for(Type t : this.typeArgs)
                 typeParams.add(t.deepCopy().asType());
 
             inb.setTypeParams(typeParams);
@@ -246,12 +265,12 @@ public class Invocation extends Expression {
         }
 
         /**
-         * Sets the invocation's {@link #typeParams}.
+         * Sets the invocation's {@link #typeArgs}.
          * @param typeParams Vector of types representing any type parameters passed.
          * @return InvocationBuilder
          */
         public InvocationBuilder setTypeParams(Vector<Type> typeParams) {
-            in.setTypeParams(typeParams);
+            in.setTypeArgs(typeParams);
             return this;
         }
 
