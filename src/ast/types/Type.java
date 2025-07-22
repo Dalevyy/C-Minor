@@ -6,16 +6,9 @@ import ast.misc.Name;
 import token.*;
 import utilities.Vector;
 
-/*
-__________________________ Type __________________________
-Type is an abstract class that will be inherited by all C
-Minor type nodes. ThisStmt class contains a bunch of helper
-methods to aid in type checking/interpretation including
-type equality and assignment compatibility.
-
-C Minor will have two main forms of types: Structured and
-Primitive types.
-__________________________________________________________
+/**
+ * Type
+ * @author Daniel Levy
 */
 public abstract class Type extends AST {
     public Type(Token t) { super(t); }
