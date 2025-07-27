@@ -13,7 +13,7 @@ FuncDecl or a MethodDecl. Parameters will take the form of
 '<mod> <name>:<type>`.
 _________________________________________________________________
 */
-public class ParamDecl extends AST implements NameNode {
+public class ParamDecl extends AST implements NameDecl {
 
     public Modifiers mod;
 
@@ -38,7 +38,8 @@ public class ParamDecl extends AST implements NameNode {
     public String toString() { return name.toString(); }
 
     public void setType(Type t) { this.paramType = t;}
-    public AST decl() { return this;}
+    public AST getDecl() { return this;}
+    public String getDeclName() { return name.toString(); }
 
     public boolean isParamDecl() { return true; }
     public ParamDecl asParamDecl() { return this; }

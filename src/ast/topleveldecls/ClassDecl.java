@@ -11,7 +11,7 @@ import utilities.*;
 ____________________________ ClassDecl ____________________________
 ___________________________________________________________________
 */
-public class ClassDecl extends TopLevelDecl implements NameNode {
+public class ClassDecl extends TopLevelDecl implements NameDecl {
 
     public SymbolTable symbolTable;
     public Modifiers mod;
@@ -48,7 +48,8 @@ public class ClassDecl extends TopLevelDecl implements NameNode {
     public ClassType superClass() { return superClass; }
     public ClassBody classBlock() { return body; }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return name.toString(); }
 
     public void setConstructor(InitDecl ind) { this.constructor = ind; }
     public InitDecl constructor() { return this.constructor; }

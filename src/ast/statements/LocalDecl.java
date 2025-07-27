@@ -1,14 +1,13 @@
 package ast.statements;
 
 import ast.*;
-import ast.classbody.FieldDecl;
-import ast.misc.NameNode;
+import ast.misc.NameDecl;
 import ast.misc.Var;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
 
-public class LocalDecl extends Statement implements NameNode {
+public class LocalDecl extends Statement implements NameDecl {
 
     private Var myVar;
     private Type type;
@@ -28,7 +27,9 @@ public class LocalDecl extends Statement implements NameNode {
     public Type type() { return type; }
     public String toString() { return myVar.toString(); }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return myVar.name().toString(); }
+
     public void setType(Type t) { this.type = t; }
 
     public boolean isLocalDecl() { return true; }
