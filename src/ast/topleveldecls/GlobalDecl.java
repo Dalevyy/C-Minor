@@ -1,9 +1,8 @@
 package ast.topleveldecls;
 
 import ast.*;
-import ast.misc.NameNode;
+import ast.misc.NameDecl;
 import ast.misc.Var;
-import ast.statements.LocalDecl;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
@@ -12,7 +11,7 @@ import utilities.Visitor;
 ____________________________ GlobalDecl ___________________________
 ___________________________________________________________________
 */
-public class GlobalDecl extends TopLevelDecl implements NameNode {
+public class GlobalDecl extends TopLevelDecl implements NameDecl {
 
     private Var myVar;
     private Type type;
@@ -45,7 +44,9 @@ public class GlobalDecl extends TopLevelDecl implements NameNode {
     public boolean isGlobalDecl() { return true; }
     public GlobalDecl asGlobalDecl() { return this; }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return myVar.name().toString(); };
+
 
     /**
      * {@code deepCopy} method.

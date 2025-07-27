@@ -3,13 +3,13 @@ package ast.classbody;
 import ast.AST;
 import ast.misc.Modifier;
 import ast.misc.Modifiers;
-import ast.misc.NameNode;
+import ast.misc.NameDecl;
 import ast.misc.Var;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
 
-public class FieldDecl extends AST implements NameNode {
+public class FieldDecl extends AST implements NameDecl {
 
     private void setMod(Modifiers mod) {
         this.mod = mod;
@@ -35,7 +35,8 @@ public class FieldDecl extends AST implements NameNode {
         setParent();
     }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return var.name().toString();}
 
     public Var var() { return var; }
     public void setType(Type t) { this.type = t; }

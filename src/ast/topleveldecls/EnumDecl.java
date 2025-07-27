@@ -2,7 +2,7 @@ package ast.topleveldecls;
 
 import ast.AST;
 import ast.misc.Name;
-import ast.misc.NameNode;
+import ast.misc.NameDecl;
 import ast.misc.Var;
 import ast.types.EnumType;
 import token.*;
@@ -14,7 +14,7 @@ import utilities.Visitor;
  * Minor
  * @author Daniel Levy
  */
-public class EnumDecl extends TopLevelDecl implements NameNode {
+public class EnumDecl extends TopLevelDecl implements NameDecl {
 
     private EnumType type;
     private Name name;
@@ -37,7 +37,9 @@ public class EnumDecl extends TopLevelDecl implements NameNode {
     public boolean isEnumDecl() { return true; }
     public EnumDecl asEnumDecl() { return this; }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return name.toString(); };
+
     public void setType(EnumType t) { this.type = t; }
 
     @Override
