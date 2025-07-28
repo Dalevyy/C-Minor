@@ -74,13 +74,43 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
     @Override
     public int size() { return lst.size(); }
 
-    public Iterator<T> iterator() { return new VectorIterator(); }
+    /**
+     * An iterator that iterates through a {@link Vector} object.
+     * @param <T> The type of the elements stored in a {@link Vector} object.
+     */
+    public static class VectorIterator<T> implements Iterator {
 
-    class VectorIterator implements Iterator<T> {
+        /**
+         * {@link Vector} we will iterate through.
+         */
+        private final Vector<T> vector;
 
-    private int pos = 0;
+        /**
+         * Current position we are at in {@link #vector}.
+         */
+        private int pos = 0;
 
-        public boolean hasNext() { return pos < size(); }
-        public T next() { return get(pos++); }
+        /**
+         * Default constructor for {@link VectorIterator}.
+         * @param vector {@link Vector} we want to iterate through.
+         */
+        public VectorIterator(Vector<T> vector) {
+            this.vector = vector;
+            this.pos = 0;
+        }
+
+        /**
+         * Checks if we have iterated through the entire {@link #vector}.
+         * @return {@code True} if the iteration can continue, {@code False} otherwise.
+         */
+        @Override
+        public boolean hasNext() { return pos < vector.size(); }
+
+        /**
+         * Returns the next element in {@link #vector}.
+         * @return Next element within the {@link #vector}.
+         */
+        @Override
+        public T next() { return vector.get(pos++); }
     }
 }
