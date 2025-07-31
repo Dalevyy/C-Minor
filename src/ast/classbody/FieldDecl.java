@@ -1,46 +1,78 @@
 package ast.classbody;
 
 import ast.AST;
-import ast.misc.Modifier;
-import ast.misc.Modifiers;
-import ast.misc.NameDecl;
-import ast.misc.Var;
+import ast.expressions.Expression;
+import ast.misc.*;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
 
-public class FieldDecl extends AST implements NameDecl {
+public class FieldDecl extends AST implements NameDecl, VarDecl {
 
-    private void setMod(Modifiers mod) {
-        this.mod = mod;
-    }
+    /**
+     * A {@link Var} object representing a field variable for an object.
+     */
+    private Var fieldVariable;
 
     public Modifiers mod;
 
-    private void setVar(Var var) {
-        this.var = var;
-    }
+    /**
+     * Default constructor for {@link FieldDecl}.
+     */
+    public FieldDecl() { this(new Token(),null,null); }
 
-    private Var var;
-    private Type type;
-
-    public FieldDecl() { this(new Token(),null,null,null); }
-    public FieldDecl(Token t, Modifier m, Var v, Type type) {
+    /**
+     * Main constructor for {@link FieldDecl}.
+     * @param t later
+     * @param m later
+     * @param v later
+     */
+    public FieldDecl(Token t, Modifier m, Var v) {
         super(t);
         this.mod = new Modifiers(m);
-        this.var = v;
-        this.type = type;
+        this.fieldVariable = v;
 
-        addChild(this.var);
+        addChild(this.fieldVariable);
         setParent();
     }
 
-    public AST getDecl() { return this; }
-    public String getDeclName() { return var.name().toString();}
+    /**
+     * {@inheritDoc}
+     */
+    public boolean hasInitialValue() { return fieldVariable.getInitialValue() != null; };
 
-    public Var var() { return var; }
-    public void setType(Type t) { this.type = t; }
-    public Type type() { return type; }
+    /**
+     * {@inheritDoc}
+     */
+    public Name getVariableName() { return fieldVariable.getVariableName(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Expression getInitialValue() { return fieldVariable.getInitialValue(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Type getDeclaredType() { return fieldVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() { return fieldVariable.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST asAST() { return this; }
+
+    public AST getDecl() { return this; }
+    public String getDeclName() { return fieldVariable.toString();}
+
+    private void setFieldVariable(Var fieldVariable) {
+        this.fieldVariable = fieldVariable;
+    }
 
     /**
      * Checks if the current AST node is a {@link FieldDecl}.
@@ -55,19 +87,12 @@ public class FieldDecl extends AST implements NameDecl {
     public FieldDecl asFieldDecl() { return this; }
 
     /**
-     * {@code toString} method.
-     * @return String representing the name of the field
-     */
-    @Override
-    public String toString() { return var().toString(); }
-
-    /**
      * {@code update} method.
      * @param pos Position we want to update.
      * @param node Node we want to add to the specified position.
      */
     @Override
-    public void update(int pos, AST node) { this.var = node.asVar(); }
+    public void update(int pos, AST node) { this.fieldVariable = node.asVar(); }
 
     /**
      * {@code deepCopy} method.
@@ -78,8 +103,7 @@ public class FieldDecl extends AST implements NameDecl {
         return new FieldDeclBuilder()
                 .setMetaData(this)
                 .setMod(mod)
-                .setVar(this.var.deepCopy().asVar())
-                .setType(this.type.deepCopy().asType())
+                .setVar(this.fieldVariable.deepCopy().asVar())
                 .create();
     }
 
@@ -116,27 +140,17 @@ public class FieldDecl extends AST implements NameDecl {
          * @return FieldDeclBuilder
          */
         public FieldDeclBuilder setMod(Modifiers mod) {
-            fd.setMod(mod);
+            fd.mod = mod;
             return this;
         }
 
         /**
-         * Sets the field declaration's {@link #var}.
+         * Sets the field declaration's {@link #fieldVariable}.
          * @param var Variable that represents the field
          * @return FieldDeclBuilder
          */
         public FieldDeclBuilder setVar(Var var) {
-            fd.setVar(var);
-            return this;
-        }
-
-        /**
-         * Sets the field declaration's {@link #type}.
-         * @param type Type representing the data type the field represents
-         * @return FieldDeclBuilder
-         */
-        public FieldDeclBuilder setType(Type type) {
-            fd.setType(type);
+            fd.setFieldVariable(var);
             return this;
         }
 
@@ -146,7 +160,7 @@ public class FieldDecl extends AST implements NameDecl {
          */
         public FieldDecl create() {
             super.saveMetaData(fd);
-            fd.addChild(fd.var);
+            fd.addChild(fd.fieldVariable);
             return fd;
         }
     }

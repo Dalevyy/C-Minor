@@ -1,5 +1,6 @@
 package ast.misc;
 
+import ast.AST;
 import ast.expressions.Expression;
 import ast.types.Type;
 
@@ -17,17 +18,17 @@ import ast.types.Type;
 public interface VarDecl {
 
     /**
-     * Getter method to return the name of the variable.
-     * @return The name of the variable as a {@link Name}
-     */
-    Name getVariableName();
-
-    /**
      * Checks if the current variable was initialized. A variable is considered initialized if
      * it has an initial value or was marked as {@code uninit}.
      * @return {@code True} if the variable is initialized, {@code False} otherwise.
      */
     boolean hasInitialValue();
+
+    /**
+     * Getter method to return the name of the variable.
+     * @return The name of the variable as a {@link Name}
+     */
+    Name getVariableName();
 
     /**
      * Getter method to return the initial value of the variable (if applicable).
@@ -48,4 +49,10 @@ public interface VarDecl {
      * @return String representation of the variable's name.
      */
     String toString();
+
+    /**
+     * Cast method returning the current {@link VarDecl} as an {@link AST} type.
+     * @return The {@link VarDecl} object as an {@link AST} type.
+     */
+    AST asAST();
 }
