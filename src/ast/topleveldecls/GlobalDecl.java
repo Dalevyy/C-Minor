@@ -1,43 +1,94 @@
 package ast.topleveldecls;
 
-import ast.*;
+import ast.AST;
+import ast.expressions.Expression;
+import ast.misc.Name;
 import ast.misc.NameDecl;
 import ast.misc.Var;
+import ast.misc.VarDecl;
 import ast.types.*;
-import token.*;
+import token.Token;
 import utilities.Visitor;
 
-/*
-____________________________ GlobalDecl ___________________________
-___________________________________________________________________
-*/
-public class GlobalDecl extends TopLevelDecl implements NameDecl {
+public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
 
-    private Var myVar;
-    private Type type;
+    /**
+     * A {@link Var} object representing a global variable.
+     */
+    private Var globalVariable;
 
-    private final boolean isConstant; // GlobalDecl can either be a global/constant
+    /**
+     * A flag denoting whether the global variable is mutable.
+     * <ul>
+     *     <li>
+     *         If {@code True}, the variable is represented by the {@code const} keyword.
+     *     </li>
+     *     <li>
+     *         If {@code False}, the variable is represented by the {@code global} keyword.
+     *     </li>
+     * </ul>
+     */
+    private final boolean isConstant;
 
-    public GlobalDecl() { this(new Token(),null,null); }
-    public GlobalDecl(Token t, Var v, Type type) { this(t,v,type,false); }
+    /**
+     * Default constructor for {@link GlobalDecl}.
+     */
+    public GlobalDecl() { this(new Token(),null); }
 
-    public GlobalDecl(Token t, Var v, Type type, boolean isConst) {
-        super(t);
-        this.myVar = v;
-        this.type = type;
-        this.isConstant = isConst;
+    /**
+     * Constructor for {@link GlobalDecl} that initializes a {@code global} variable.
+     * @param metaData {@link Token} containing the source code metadata that will be stored with this node.
+     * @param globalVariable A {@link Var} instance containing information about the global variable.
+     */
+    public GlobalDecl(Token metaData, Var globalVariable) { this(metaData,globalVariable,false); }
 
-        addChild(this.myVar);
-        addChild(this.type);
+    /**
+     * Main constructor for {@link GlobalDecl}.
+     * @param metaData {@link Token} containing the source code metadata that will be stored with this node.
+     * @param globalVariable A {@link Var} instance containing information about the global variable.
+     * @param isConstant A boolean value denoting if the global variable actually represents a constant.
+     */
+    public GlobalDecl(Token metaData, Var globalVariable, boolean isConstant) {
+        super(metaData);
+        this.globalVariable = globalVariable;
+        this.isConstant = isConstant;
+
+        addChild(this.globalVariable);
         setParent();
     }
 
-    public Var var() { return myVar; }
+    /**
+     * {@inheritDoc}
+     */
+    public boolean hasInitialValue() { return globalVariable.getInitialValue() != null; };
 
-    public void setType(Type t) { this.type = t; }
-    public Type type() { return type; }
-    public String toString() { return myVar.toString(); }
+    /**
+     * {@inheritDoc}
+     */
+    public Name getVariableName() { return globalVariable.getVariableName(); }
 
+    /**
+     * {@inheritDoc}
+     */
+    public Expression getInitialValue() { return globalVariable.getInitialValue(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Type getDeclaredType() { return globalVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() { return globalVariable.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST asAST() { return this; }
+
+    // ????????????????
     public boolean isClassType() { return false; }
     public boolean isConstant() { return isConstant; }
 
@@ -45,7 +96,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl {
     public GlobalDecl asGlobalDecl() { return this; }
 
     public AST getDecl() { return this; }
-    public String getDeclName() { return myVar.name().toString(); };
+    public String getDeclName() { return globalVariable.toString(); };
 
 
     /**
@@ -56,8 +107,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl {
     public AST deepCopy() {
         return new GlobalDeclBuilder()
                    .setMetaData(this)
-                   .setVar(this.myVar.deepCopy().asVar())
-                   .setType(this.type.deepCopy().asType())
+                   .setVar(this.globalVariable.deepCopy().asVar())
                    .create();
     }
 
@@ -78,22 +128,12 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl {
         }
 
         /**
-         * Sets the global declaration's {@link #var}.
+         * Sets the global declaration's {@link #globalVariable}.
          * @param var Variable that represents the global declaration
          * @return GlobalDeclBuilder
          */
         public GlobalDeclBuilder setVar(Var var) {
-            gd.myVar = var;
-            return this;
-        }
-
-        /**
-         * Sets the global declaration's {@link #type}.
-         * @param type Type representing the data type the global declaration represents
-         * @return GlobalDeclBuilder
-         */
-        public GlobalDeclBuilder setType(Type type) {
-            gd.setType(type);
+            gd.globalVariable = var;
             return this;
         }
 
@@ -103,7 +143,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl {
          */
         public GlobalDecl create() {
             super.saveMetaData(gd);
-            gd.addChild(gd.myVar);
+            gd.addChild(gd.globalVariable);
             return gd;
         }
     }
