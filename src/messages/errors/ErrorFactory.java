@@ -2,6 +2,10 @@ package messages.errors;
 
 import ast.misc.Compilation;
 
+/**
+ * An abstract class that sets up the creation of {@link Error} objects.
+ * @author Daniel Levy
+ */
 public abstract class ErrorFactory {
 
     /**
