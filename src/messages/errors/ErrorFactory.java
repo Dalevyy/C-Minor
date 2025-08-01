@@ -26,7 +26,22 @@ public abstract class ErrorFactory {
      * Generates a new {@link Error} object based on the factory type.
      * @return An {@link Error} dependent on the current factory.
      */
-    public abstract Error createError();
+    protected abstract Error createError();
+
+    /**
+     * Generates and prints out an error message to the user.
+     * @param eb {@link ErrorBuilder} that has an error ready to be generated for the user.
+     * @return An {@link Error} object that will be stored during compilation. Nothing will be returned if we
+     * are in interpretation mode as we will throw an exception to the {@link interpreter.VM}.
+     */
+    public Error createCompileError(ErrorBuilder eb) {
+        Error error = eb.error();
+
+        if(interpretationMode)
+            error.printMessage();
+
+        return error;
+    }
 
     /**
      * Setter responsible for setting {@link #interpretationMode} to be {@code True} when called.
