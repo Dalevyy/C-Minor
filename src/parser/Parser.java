@@ -22,15 +22,10 @@ import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
 import ast.expressions.OutStmt;
 import ast.expressions.UnaryExpr;
-import ast.misc.Compilation;
-import ast.misc.Label;
-import ast.misc.Modifier;
+import ast.misc.*;
 import ast.misc.Modifier.Mods;
-import ast.misc.Name;
-import ast.misc.ParamDecl;
-import ast.misc.Typeifier;
-import ast.misc.Typeifier.TypeAnnotation;
-import ast.misc.Var;
+import ast.misc.TypeParam;
+import ast.misc.TypeParam.TypeAnnotation;
 import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
 import ast.operators.BinaryOp;
@@ -540,7 +535,7 @@ public class Parser {
         for(Var v : vars) {
             tokenStack.top().setEndLocation(v.location.end);
             input.setText(tokenStack.top());
-            globals.add(new GlobalDecl(tokenStack.top(),v,v.type(),isConstant));
+            globals.add(new GlobalDecl(tokenStack.top(),v,isConstant));
         }
 
         tokenStack.pop();
@@ -575,14 +570,14 @@ public class Parser {
             match(TokenType.EQ);
             if(nextLA(TokenType.UNINIT)) {
                 match(TokenType.UNINIT);
-                return new Var(nodeToken(),n,t,false);
+                return new Var(nodeToken(),n,new Literal(),t);
             }
             else {
                 Expression e = expression();
-                return new Var(nodeToken(),n,t,e,false);
+                return new Var(nodeToken(),n,e,t);
             }
         }
-        return new Var(nodeToken(),n,t,true);
+        return new Var(nodeToken(),n,null,t);
     }
 
     /*
@@ -804,7 +799,7 @@ public class Parser {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        Vector<Typeifier> types = new Vector<>();
+        Vector<TypeParam> types = new Vector<>();
         if(nextLA(TokenType.LT)) { types = typeifierParams(); }
 
         ClassType ct = null;
@@ -815,9 +810,9 @@ public class Parser {
     }
 
     // 14. type_params ::= '<' typeifier ( ',' typeifier )* '>'
-    private Vector<Typeifier> typeifierParams() {
+    private Vector<TypeParam> typeifierParams() {
         match(TokenType.LT);
-        Vector<Typeifier> typefs = new Vector<>(typeifier());
+        Vector<TypeParam> typefs = new Vector<>(typeifier());
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
@@ -829,7 +824,7 @@ public class Parser {
     }
 
     // 15. typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID
-    private Typeifier typeifier() {
+    private TypeParam typeifier() {
         tokenStack.add(currentLA());
 
         TypeAnnotation pt = null;
@@ -842,14 +837,14 @@ public class Parser {
             match(TokenType.SCALAR);
         }
         else if(nextLA(TokenType.CLASS)) {
-            pt = Typeifier.TypeAnnotation.CLASS;
+            pt = TypeParam.TypeAnnotation.CLASS;
             match(TokenType.CLASS);
         }
 
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        return new Typeifier(nodeToken(),pt,n);
+        return new TypeParam(nodeToken(),pt,n);
     }
 
     // 16. super_class ::= 'inherits' ID type_params?
@@ -912,7 +907,7 @@ public class Parser {
         for(Var v : vars) {
             tokenStack.top().setEndLocation(v.location.end);
             input.setText(tokenStack.top());
-            fields.add(new FieldDecl(tokenStack.top(),m,v,v.type()));
+            fields.add(new FieldDecl(tokenStack.top(),m,v));
         }
 
         tokenStack.pop();
@@ -1214,7 +1209,7 @@ public class Parser {
         Vector<Object> header = functionHeader();
         Name n = (Name) header.get(0);
 
-        Vector<Typeifier> typefs = (Vector<Typeifier>) header.get(1);
+        Vector<TypeParam> typefs = (Vector<TypeParam>) header.get(1);
         Vector<ParamDecl> pd = (Vector<ParamDecl>) header.get(2);
 
         match(TokenType.ARROW);
@@ -1229,7 +1224,7 @@ public class Parser {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        Vector<Typeifier> typefs = new Vector<>();
+        Vector<TypeParam> typefs = new Vector<>();
         if(nextLA(TokenType.LT)) { typefs = typeifierParams(); }
 
         match(TokenType.LPAREN);
@@ -1309,7 +1304,7 @@ public class Parser {
         for(Var v : vars) {
             tokenStack.top().setEndLocation(v.location.end);
             input.setText(tokenStack.top());
-            locals.add(new LocalDecl(tokenStack.top(),v, v.type()));
+            locals.add(new LocalDecl(tokenStack.top(),v));
         }
 
         tokenStack.pop();
@@ -1524,7 +1519,7 @@ public class Parser {
 
         match(TokenType.DEF);
         Var v = variableDeclInit();
-        forComponents.add(new LocalDecl(nodeToken(),v,v.type()));
+        forComponents.add(new LocalDecl(nodeToken(),v));
         match(TokenType.IN);
 
         forComponents.add(expression());

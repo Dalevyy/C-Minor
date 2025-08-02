@@ -1,7 +1,6 @@
 package ast.classbody;
 
 import ast.*;
-import ast.expressions.UnaryExpr;
 import ast.misc.*;
 import ast.operators.*;
 import ast.statements.*;
@@ -11,7 +10,7 @@ import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
-public class MethodDecl extends AST implements NameNode {
+public class MethodDecl extends AST implements NameDecl {
 
     public SymbolTable symbolTable;
 
@@ -56,7 +55,8 @@ public class MethodDecl extends AST implements NameNode {
        addChild(this.methodBlock);
     }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return methodName.toString(); }
 
     public Name name() { return methodName; }
     public Operator operator() { return op; }

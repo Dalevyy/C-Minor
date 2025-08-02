@@ -1,50 +1,87 @@
 package ast.statements;
 
 import ast.*;
-import ast.classbody.FieldDecl;
-import ast.misc.NameNode;
+import ast.expressions.Expression;
+import ast.misc.Name;
+import ast.misc.NameDecl;
 import ast.misc.Var;
+import ast.misc.VarDecl;
 import ast.types.*;
 import token.*;
 import utilities.Visitor;
 
-public class LocalDecl extends Statement implements NameNode {
+public class LocalDecl extends Statement implements NameDecl, VarDecl {
 
-    private Var myVar;
-    private Type type;
+    /**
+     * A {@link Var} object representing a local variable.
+     */
+    private Var localVariable;
 
-    public LocalDecl(){ this(new Token(),null,null);}
-    public LocalDecl(Token metaData, Var v, Type type) {
+    /**
+     * Default constructor for {@link LocalDecl}.
+     */
+    public LocalDecl(){ this(new Token(),null);}
+
+    /**
+     * Main constructor for {@link LocalDecl}.
+     * @param metaData {@link Token} containing the source code metadata that will be stored with this node.
+     * @param localVariable A {@link Var} instance containing information about the local variable.
+     */
+    public LocalDecl(Token metaData, Var localVariable) {
         super(metaData);
-        this.myVar = v;
-        this.type = type;
+        this.localVariable = localVariable;
 
-        addChild(this.myVar);
-        addChild(this.type);
+        addChild(this.localVariable);
     }
 
-    public Var var() { return myVar; }
+    /**
+     * {@inheritDoc}
+     */
+    public boolean hasInitialValue() { return localVariable.getInitialValue() != null; };
 
-    public Type type() { return type; }
-    public String toString() { return myVar.toString(); }
+    /**
+     * {@inheritDoc}
+     */
+    public Name getVariableName() { return localVariable.getVariableName(); }
 
-    public AST decl() { return this; }
-    public void setType(Type t) { this.type = t; }
+    /**
+     * {@inheritDoc}
+     */
+    public Expression getInitialValue() { return localVariable.getInitialValue(); }
 
+    /**
+     * {@inheritDoc}
+     */
+    public Type getDeclaredType() { return localVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() { return localVariable.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST asAST() { return this; }
+
+    public AST getDecl() { return this; }
+    public String getDeclName() { return localVariable.toString(); }
+
+    /**
+     * {@inheritDoc}
+     * @return
+     */
     public boolean isLocalDecl() { return true; }
+
+    /**
+     * {@inheritDoc}
+     * @return
+     */
     public LocalDecl asLocalDecl() { return this; }
 
     @Override
-    public void update(int pos, AST node) {
-        switch(pos) {
-            case 0:
-                myVar = node.asVar();
-                break;
-            case 1:
-                type = node.asType();
-                break;
-        }
-    }
+    public void update(int pos, AST node) { localVariable = node.asVar(); }
 
     /**
      * {@code deepCopy} method.
@@ -54,8 +91,7 @@ public class LocalDecl extends Statement implements NameNode {
     public AST deepCopy() {
         return new LocalDeclBuilder()
                    .setMetaData(this)
-                   .setVar(this.myVar.deepCopy().asVar())
-                   .setType(this.type.deepCopy().asType())
+                   .setVar(this.localVariable.deepCopy().asVar())
                    .create();
     }
 
@@ -76,22 +112,12 @@ public class LocalDecl extends Statement implements NameNode {
         }
 
         /**
-         * Sets the local declaration's {@link #var}.
+         * Sets the local declaration's {@link #localVariable}.
          * @param var Variable that represents the local declaration
          * @return LocalDeclBuilder
          */
         public LocalDeclBuilder setVar(Var var) {
-            ld.myVar = var;
-            return this;
-        }
-
-        /**
-         * Sets the local declaration's {@link #type}.
-         * @param type Type representing the data type the local declaration represents
-         * @return LocalDeclBuilder
-         */
-        public LocalDeclBuilder setType(Type type) {
-            ld.setType(type);
+            ld.localVariable = var;
             return this;
         }
 
@@ -101,8 +127,7 @@ public class LocalDecl extends Statement implements NameNode {
          */
         public LocalDecl create() {
             super.saveMetaData(ld);
-            ld.addChild(ld.myVar);
-            ld.addChild(ld.type);
+            ld.addChild(ld.localVariable);
             return ld;
         }
     }

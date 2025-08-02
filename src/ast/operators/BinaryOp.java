@@ -20,7 +20,7 @@ public class BinaryOp extends Operator {
      * Enum representing all available binary operations.
      */
     public enum BinaryType { EQEQ, NEQ, GT, GTEQ, LT, LTEQ, LTGT, UFO, PLUS, MINUS, MULT, DIV,
-                             MOD, EXP, SLEFT, SRIGHT, INOF, NINOF, AS, BAND, XOR, BOR, AND, OR }
+                             MOD, EXP, SLEFT, SRIGHT, INSTOF, NINSTOF, AS, BAND, XOR, BOR, AND, OR }
 
     /**
      * Vector containing the string representation of {@link BinaryType}.

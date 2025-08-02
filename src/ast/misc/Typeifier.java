@@ -14,7 +14,7 @@ import utilities.Visitor;
  * </p>
  * @author Daniel Levy
  */
-public class Typeifier extends AST implements NameNode {
+public class Typeifier extends AST implements NameDecl {
 
     /**
      * List of potential types the type parameter could represent.
@@ -116,7 +116,9 @@ public class Typeifier extends AST implements NameNode {
      * {@inheritDoc}
      */
     @Override
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+
+    public String getDeclName() { return name.toString(); }
 
     /**
      * {@inheritDoc}

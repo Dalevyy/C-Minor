@@ -9,7 +9,7 @@ import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
-public class FuncDecl extends TopLevelDecl implements NameNode {
+public class FuncDecl extends TopLevelDecl implements NameDecl {
 
     public SymbolTable symbolTable;
     public Modifiers mod;
@@ -52,7 +52,8 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     public Type returnType() { return retType; }
     public BlockStmt funcBlock() { return block; }
 
-    public AST decl() { return this; }
+    public AST getDecl() { return this; }
+    public String getDeclName() { return name.toString(); }
 
     public boolean isFuncDecl() { return true; }
     public FuncDecl asFuncDecl() { return this; }
