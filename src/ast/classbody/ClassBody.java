@@ -1,22 +1,20 @@
 package ast.classbody;
 
 import ast.AST;
+import ast.topleveldecls.ClassDecl;
 import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
 
 /**
- * An {@link AST} node class representing the body of a class.
- * <p><br>
- *     For every C Minor class, a user has to first declare a
- *     series of fields that an object will store followed by
- *     a series of methods that can operate on the object. This
- *     class is used more as internal organization when visiting
- *     {@link ast.topleveldecls.ClassDecl}s.
+ * A {@link ClassNode} representing the body of a {@link ast.topleveldecls.ClassDecl}.
+ * <p>
+ *     This is an organizational class to help when visiting a {@link ast.topleveldecls.ClassDecl}.
+ *     A class body contains all the fields and methods associated with a class.
  * </p>
  * @author Daniel Levy
  */
-public class ClassBody extends AST {
+public class ClassBody extends ClassNode {
 
     /**
      * Vector containing every field declared in the current class.
@@ -31,90 +29,79 @@ public class ClassBody extends AST {
     /**
      * Default constructor for {@link ClassBody}.
      */
-    public ClassBody() { this(new Token(),new Vector<>(),new Vector<>()); }
+    public ClassBody() { this(new Token(), new Vector<>(), new Vector<>()); }
 
     /**
      * Main constructor for {@link ClassBody}.
-     * @param metaData Token containing metadata we want to save
-     * @param fields Vector of field declarations to store into {@link #fields}
-     * @param methods Vector of method declarations to store into {@link #methods}
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param fields {@link Vector<FieldDecl>} to store into {@link #fields}.
+     * @param methods {@link Vector<MethodDecl>} to store into {@link #methods}.
      */
     public ClassBody(Token metaData, Vector<FieldDecl> fields, Vector<MethodDecl> methods) {
         super(metaData);
+
         this.fields = fields;
         this.methods = methods;
 
-        addChild(this.fields);
-        addChild(this.methods);
+        addChildNode(this.fields);
+        addChildNode(this.methods);
     }
 
     /**
-     * Getter for {@link #fields}.
-     * @return Vector of Field Declarations
+     * Gets {@link #fields}.
+     * @return {@link Vector} containing {@link FieldDecl}.
      */
     public Vector<FieldDecl> getFields() { return fields; }
 
     /**
-     * Getter for {@link #methods}.
-     * @return Vector of Method Declarations
+     * Gets {@link #methods}.
+     * @return {@link Vector} containing {@link MethodDecl}.
      */
     public Vector<MethodDecl> getMethods() { return methods; }
 
     /**
-     * Setter for {@link #fields}.
-     * @param fields Vector of Field Declarations
+     * {@inheritDoc}
      */
-    private void setFields(Vector<FieldDecl> fields) { this.fields = fields; }
+    public ClassDecl getClassDecl() { return parent.asTopLevelDecl().asClassDecl(); }
 
     /**
-     * Setter for {@link #methods}.
-     * @param methods Vector of Method Declarations
-     */
-    private void setMethods(Vector<MethodDecl> methods) { this.methods = methods; }
-
-    /**
-     * Checks if the current AST node is a {@link ClassBody}.
-     * @return Boolean
+     * {@inheritDoc}
      */
     public boolean isClassBody() { return true; }
 
     /**
-     * Type cast method for {@link ClassBody}.
-     * @return ClassBody
+     * {@inheritDoc}
      */
     public ClassBody asClassBody() { return this; }
 
     /**
-     * {@code update} method.
-     * @param pos Position we want to update.
-     * @param node Node we want to add to the specified position.
+     * {@inheritDoc}
      */
     @Override
     public void update(int pos, AST node) {
-        if(pos < this.fields.size()) {
-            this.fields.remove(pos);
-            this.fields.add(pos,node.asFieldDecl());
+        if(pos < fields.size()) {
+            fields.remove(pos);
+            fields.add(pos, node.asClassNode().asFieldDecl());
         }
         else {
             pos -= this.methods.size();
-            this.methods.remove(pos);
-            this.methods.add(pos,node.asMethodDecl());
+            methods.remove(pos);
+            methods.add(pos, node.asClassNode().asMethodDecl());
         }
     }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link ClassBody}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
         Vector<FieldDecl> fields = new Vector<>();
         Vector<MethodDecl> methods = new Vector<>();
 
-        for(FieldDecl fd : this.fields)
-            fields.add(fd.deepCopy().asFieldDecl());
-        for(MethodDecl md : this.methods)
-            methods.add(md.deepCopy().asMethodDecl());
+        for(FieldDecl fd : fields)
+            fields.add(fd.deepCopy().asClassNode().asFieldDecl());
+        for(MethodDecl md : methods)
+            methods.add(md.deepCopy().asClassNode().asMethodDecl());
 
         return new ClassBodyBuilder()
                    .setMetaData(this)
@@ -124,8 +111,7 @@ public class ClassBody extends AST {
     }
 
     /**
-     * {@code visit} method.
-     * @param v Current visitor we are executing.
+     * {@inheritDoc}
      */
     @Override
     public void visit(Visitor v) { v.visitClassBody(this); }
@@ -141,32 +127,31 @@ public class ClassBody extends AST {
         private final ClassBody cb = new ClassBody();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return ClassBodyBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link ClassBodyBuilder}.
          */
         public ClassBodyBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(cb, node);
             return this;
         }
 
         /**
          * Sets the class body's {@link #fields}.
-         * @param fields Vector of field declarations representing every field in the class
-         * @return ClassBodyBuilder
+         * @param fields {@link Vector} of {@link FieldDecl} representing every field in the class.
+         * @return Current instance of {@link ClassBodyBuilder}.
          */
         public ClassBodyBuilder setFields(Vector<FieldDecl> fields) {
-            cb.setFields(fields);
+            cb.fields = fields;
             return this;
         }
 
         /**
          * Sets the class body's {@link #methods}.
-         * @param methods Vector of method declarations representing every method in the class
-         * @return ClassBodyBuilder
+         * @param methods {@link Vector} of {@link MethodDecl} representing every method in the class.
+         * @return Current instance of {@link ClassBodyBuilder}.
          */
         public ClassBodyBuilder setMethods(Vector<MethodDecl> methods) {
-            cb.setMethods(methods);
+            cb.methods = methods;
             return this;
         }
 
@@ -175,9 +160,8 @@ public class ClassBody extends AST {
          * @return {@link ClassBody}
          */
         public ClassBody create() {
-            super.saveMetaData(cb);
-            cb.addChild(cb.fields);
-            cb.addChild(cb.methods);
+            cb.addChildNode(cb.fields);
+            cb.addChildNode(cb.methods);
             return cb;
         }
     }
