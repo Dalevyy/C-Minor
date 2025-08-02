@@ -1,6 +1,8 @@
 package ast.expressions;
+
 import ast.topleveldecls.ClassDecl;
 import ast.AST;
+import ast.misc.Name;
 import ast.misc.Var;
 import token.Token;
 import ast.types.ClassType;
@@ -58,6 +60,8 @@ public class NewExpr extends Expression {
      * @return Boolean
      */
     public boolean createsFromTemplate() { return objectType.isTemplatedType(); }
+
+    public Name getClassName() { return objectType.getClassName(); }
 
     /**
      * Getter for {@link #objectType}.

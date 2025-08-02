@@ -10,9 +10,9 @@ import ast.misc.TypeParam;
 import ast.statements.BlockStmt;
 import ast.types.Type;
 import token.Token;
+import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
-import utilities.SymbolTable;
 
 /**
  * A {@link TopLevelDecl} node that represents a function.

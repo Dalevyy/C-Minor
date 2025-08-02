@@ -93,6 +93,12 @@ public class IfStmt extends Statement implements ScopeDecl {
     }
 
     /**
+     * Checks if the current {@link IfStmt} has an else branch.
+     * @return {@code True} if the if statement has an else branch, {@code False} otherwise.
+     */
+    public boolean containsElse() { return elseBody != null; }
+
+    /**
      * Getter method for {@link #condition}.
      * @return {@link Expression}
      */

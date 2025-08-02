@@ -11,9 +11,9 @@ import ast.statements.BlockStmt;
 import ast.topleveldecls.ClassDecl;
 import ast.types.Type;
 import token.Token;
+import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
-import utilities.SymbolTable;
 
 /**
  * A {@link ClassNode} that represents a method declared in a {@link ClassDecl}.
@@ -217,7 +217,9 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
      * @param md The {@link MethodDecl} we want to compare with the current method.
      * @return {@code True} if the methods share the same parameter signature, {@code False} otherwise.
      */
-    public boolean equals(MethodDecl md) { return paramSignature.equals(md.paramSignature); }
+    public boolean equals(MethodDecl md) {
+        return toString().equals(md.toString()) && paramSignature.equals(md.paramSignature);
+    }
 
     /**
      * {@inheritDoc}

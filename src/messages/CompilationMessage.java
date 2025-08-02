@@ -59,9 +59,9 @@ public class CompilationMessage extends RuntimeException {
         // Special Case: For enums, we have to also remove their constants.
         if(node.isTopLevelDecl() && node.asTopLevelDecl().isEnumDecl())
             for(Var v : node.asTopLevelDecl().asEnumDecl().getConstants())
-                globalScope.removeName(v.toString());
+                globalScope.removeName(v);
 
-        globalScope.removeName(node.toString());
+        globalScope.removeName(node);
         return true;
     }
 
