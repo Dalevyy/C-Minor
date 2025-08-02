@@ -189,6 +189,23 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
     public void addFuncDecl(Vector<FuncDecl> functions) { this.functions.addAll(functions); }
 
     /**
+     * Resets the current {@link CompilationUnit} and removes all of its stored constructs.
+     * <p>
+     *     This method should only be called by the {@link interpreter.VM} when a user writes
+     *     {@code #clear} in order to remove any declared constructs within the VM.
+     * </p>
+     */
+    public void reset() {
+        this.globalScope.clear();
+        this.imports.clear();
+        this.enums.clear();
+        this.globals.clear();
+        this.classes.clear();
+        this.functions.clear();
+        this.main = null;
+    }
+
+    /**
      * {@inheritDoc}
      */
     public SymbolTable getScope() { return (globalScope != null) ? globalScope : null; }
