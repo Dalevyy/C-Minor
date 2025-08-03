@@ -38,6 +38,12 @@ public interface VarDecl {
     Expression getInitialValue();
 
     /**
+     * Setter method to set the initial value for a variable (if marked as {@code uninit}.
+     * @param init {@link Expression} representing an initial value the variable should be initialized to.
+     */
+    void setInitialValue(Expression init);
+
+    /**
      * Getter method to return the variable's declared type (if applicable).
      * @return {@link Type} representing the variable's type. If no type was given
      * (for field and enum constants), return {@code null}.

@@ -1,99 +1,163 @@
 package ast.misc;
 
 import ast.AST;
-import ast.classbody.FieldDecl;
-import ast.expressions.*;
-import token.*;
+import ast.expressions.Literal;
+import token.Token;
 import utilities.Visitor;
 
-/*
-__________________________ Label __________________________
-A Label node represents a label found in each CaseStmt of
-a ChoiceStmt node. Labels are comprised of either a single
-constant (ex. 1) or two constants (ex. 1..3).
-___________________________________________________________
-*/
+/**
+ * A {@link SubNode} type representing the condition to execute a {@link ast.statements.CaseStmt}.
+ * <p>
+ *     Currently, labels are only used within a {@link ast.statements.ChoiceStmt} in order to keep
+ *     track of which {@link ast.statements.CaseStmt} needs to be executed. A label will either
+ *     represent a single constant value or a range of constant values.
+ * </p>
+ * @author Daniel Levy
+ */
 public class Label extends AST {
 
-    private Literal lConstant;
-    private Literal rConstant;
+    /**
+     * Either a single constant or the left constant in a {@link ast.statements.CaseStmt}.
+     */
+    private Literal leftConstant;
 
+    /**
+     * The right constant in a {@link ast.statements.CaseStmt} with a range label.
+     */
+    private Literal rightConstant;
+
+    /**
+     * Default constructor for {@link Label}.
+     */
     public Label() { this(new Token(),null,null); }
-    public Label(Token t, Literal l) { this(t, l, null); }
 
-    public Label(Token t, Literal l, Literal r) {
-        super(t);
-        this.lConstant = l;
-        this.rConstant = r;
+    /**
+     * Constructor to generate a {@link Label} with a single constant.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param leftConstant {@link Literal} to store into {@link #leftConstant}.
+     */
+    public Label(Token metaData, Literal leftConstant) { this(metaData, leftConstant, null); }
 
-        addChild(this.lConstant);
-        addChild(this.rConstant);
-        setParent();
+    /**
+     * Main constructor for {@link Label}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param leftConstant {@link Literal} to store into {@link #leftConstant}.
+     * @param rightConstant {@link Literal} to store into {@link #rightConstant}.
+     */
+    public Label(Token metaData, Literal leftConstant, Literal rightConstant) {
+        super(metaData);
+
+        this.leftConstant = leftConstant;
+        this.rightConstant = rightConstant;
+
+        addChildNode(this.leftConstant);
+        addChildNode(this.rightConstant);
     }
 
-    public Literal leftLabel() { return lConstant; }
-    public Literal rightLabel() { return rConstant; }
+    /**
+     * Getter method for {@link #leftConstant}.
+     * @return {@link Literal}
+     */
+    public Literal getLeftConstant() { return leftConstant; }
 
+    /**
+     * Getter method for {@link #rightConstant}.
+     * @return {@link Literal}
+     */
+    public Literal getRightConstant() { return rightConstant; }
+
+    /**
+     * {@inheritDoc}
+     */
     public boolean isLabel() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
     public Label asLabel() { return this; }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void update(int pos, AST n) {
+    public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                lConstant = n.asExpression().asLiteral();
+                leftConstant = node.asExpression().asLiteral();
                 break;
             case 1:
-                rConstant = n.asExpression().asLiteral();
+                rightConstant = node.asExpression().asLiteral();
                 break;
         }
     }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link Label}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
         LabelBuilder lb = new LabelBuilder();
-        if(this.rConstant != null)
-            lb.setRightLabel(this.rConstant.deepCopy().asExpression().asLiteral());
+
+        if(rightConstant != null)
+            lb.setRightConstant(rightConstant.deepCopy().asExpression().asLiteral());
 
         return lb.setMetaData(this)
-                 .setLeftLabel(this.lConstant.deepCopy().asExpression().asLiteral())
+                 .setLeftConstant(leftConstant.deepCopy().asExpression().asLiteral())
                  .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitChoiceLabel(this); }
 
+    /**
+     * Internal class that builds a {@link Label} object.
+     */
     public static class LabelBuilder extends NodeBuilder {
+
+        /**
+         * {@link Label} object we are building.
+         */
         private final Label l = new Label();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return LabelBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link LabelBuilder}.
          */
         public LabelBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(l, node);
             return this;
         }
 
-        public LabelBuilder setLeftLabel(Literal li) {
-            l.lConstant = li;
+        /**
+         * Sets the label's {@link #leftConstant}.
+         * @param leftConstant {@link Literal} representing a label's single constant or the left constant in a range.
+         * @return Current instance of {@link LabelBuilder}.
+         */
+        public LabelBuilder setLeftConstant(Literal leftConstant) {
+            l.leftConstant = leftConstant;
             return this;
         }
 
-        public LabelBuilder setRightLabel(Literal li) {
-            l.rConstant = li;
+        /**
+         * Sets the label's {@link #rightConstant}.
+         * @param rightConstant {@link Literal} representing a label's right constant in a range.
+         * @return Current instance of {@link LabelBuilder}.
+         */
+        public LabelBuilder setRightConstant(Literal rightConstant) {
+            l.rightConstant = rightConstant;
             return this;
         }
 
+        /**
+         * Creates a {@link Label} object.
+         * @return {@link Label}
+         */
         public Label create() {
-            super.saveMetaData(l);
-            l.addChild(l.lConstant);
-            l.addChild(l.rConstant);
+            l.addChildNode(l.leftConstant);
+            l.addChildNode(l.rightConstant);
             return l;
         }
     }

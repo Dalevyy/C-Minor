@@ -24,7 +24,7 @@ import ast.AST;
  *         <ol>
  *             <li> {@link ast.statements.LocalDecl} </li>
  *             <li> {@link ast.misc.ParamDecl} </li>
- *             <li> {@link ast.misc.Typeifier} </li>
+ *             <li> {@link TypeParam} </li>
  *         </ol>
  *     </ul>
  * </p>
