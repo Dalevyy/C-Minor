@@ -1,61 +1,136 @@
 package ast.topleveldecls;
 
-import ast.*;
-import ast.classbody.*;
-import ast.misc.*;
-import ast.types.*;
-import token.*;
-import utilities.*;
+import ast.AST;
+import ast.classbody.ClassBody;
+import ast.classbody.FieldDecl;
+import ast.classbody.InitDecl;
+import ast.classbody.MethodDecl;
+import ast.misc.Modifier;
+import ast.misc.Name;
+import ast.misc.NameDecl;
+import ast.misc.ScopeDecl;
+import ast.misc.TypeParam;
+import ast.types.ClassType;
+import token.Token;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 
-/*
-____________________________ ClassDecl ____________________________
-___________________________________________________________________
-*/
-public class ClassDecl extends TopLevelDecl implements NameDecl {
+/**
+ * A {@link TopLevelDecl} node that represents a class.
+ * @author Daniel Levy
+ */
+public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
 
-    public SymbolTable symbolTable;
-    public Modifiers mod;
+    /**
+     * The scope that the class opens.
+     */
+    private SymbolTable scope;
 
+    /**
+     * The name of the class.
+     */
     private Name name;
-    private Vector<Typeifier> typeParams; // Only used if using a templated class
+
+    /**
+     * The type parameters of the class. This is only set if the class is a template.
+     */
+    private Vector<TypeParam> typeParams;
+
+    /**
+     * The class that is inherited by the current class. This is only set if the class uses inheritance.
+     */
     private ClassType superClass;
+
+    /**
+     * The {@link ClassBody} of the current class.
+     */
     private ClassBody body;
+
+    /**
+     * The constructor of the current class. This will be set by the {@link micropasses.ConstructorGeneration} pass.
+     */
     private InitDecl constructor;
 
-    private Vector<Name> inheritedClasses;
+    private final Vector<Name> inheritedClasses;    // idk lol
 
+    /**
+     * {@link Modifier} containing the meta information about the class.
+     */
+    public Modifier mod;
+
+    /**
+     * Default constructor for {@link ClassDecl}.
+     */
     public ClassDecl() { this(new Token(),null,null,new Vector<>(),null,null); }
-    public ClassDecl(Token t, Modifier m, Name n, ClassBody b) { this(t,m,n,null,null,b); }
 
-    public ClassDecl(Token t, Modifier m, Name n, Vector<Typeifier> tp, ClassType sc, ClassBody b) {
-        super(t);
-        this.mod = new Modifiers(m);
-        this.name = n;
-        this.typeParams = tp;
-        this.superClass = sc;
-        this.body = b;
+    /**
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param mod {@link Modifier} to store into {@link #mod}.
+     * @param name {@link Name} to store into {@link #name}.
+     * @param typeParams {@link Vector} of type parameters to store into {@link #typeParams}.
+     * @param superClass {@link ClassType} to store into {@link #superClass}.
+     * @param body {@link ClassBody} to store into {@link #body}.
+     */
+    public ClassDecl(Token metaData, Modifier mod, Name name,
+                     Vector<TypeParam> typeParams, ClassType superClass, ClassBody body) {
+        super(metaData);
+
+        this.mod = mod;
+        this.name = name;
+        this.typeParams = typeParams;
+        this.superClass = superClass;
+        this.body = body;
         this.inheritedClasses = new Vector<>();
 
-        addChild(this.name);
-        addChild(this.typeParams);
-        addChild(this.superClass);
-        addChild(this.body);
-        setParent();
+        addChildNode(this.typeParams);
+        addChildNode(this.body);
     }
 
-    public Name name() { return name; }
-    public Vector<Typeifier> typeParams() { return typeParams; }
-    public ClassType superClass() { return superClass; }
-    public ClassBody classBlock() { return body; }
+    /**
+     * Checks if the current class represents a template.
+     * @return {@code True} if the class is a template, {@code False} otherwise.
+     */
+    public boolean isTemplate() { return !typeParams.isEmpty();}
 
-    public AST getDecl() { return this; }
-    public String getDeclName() { return name.toString(); }
+    /**
+     * Getter method for {@link #name}.
+     * @return {@link Name}
+     */
+    public Name getName() { return name; }
 
-    public void setConstructor(InitDecl ind) { this.constructor = ind; }
-    public InitDecl constructor() { return this.constructor; }
+    /**
+     * Getter method for {@link #typeParams}.
+     * @return {@link Vector} of type parameters
+     */
+    public Vector<TypeParam> getTypeParams() { return typeParams; }
 
-    public void addBaseClass(Name n) { this.inheritedClasses.add(n); }
-    public Vector<Name> getInheritedClasses() { return this.inheritedClasses; }
+    /**
+     * Getter method for {@link #superClass}.
+     * @return {@link ClassType}
+     */
+    public ClassType getSuperClass() { return superClass; }
+
+    /**
+     * Getter method for {@link #body}.
+     * @return {@link ClassBody}
+     */
+    public ClassBody getClassBody() { return body; }
+
+    /**
+     * Getter method for {@link #constructor}.
+     * @return {@link InitDecl}
+     */
+    public InitDecl getConstructor() { return constructor; }
+
+    /**
+     * Sets the {@link #constructor} field during the {@link micropasses.ConstructorGeneration} pass.
+     * @param init The {@link InitDecl} we generated for this class.
+     */
+    public void setConstructor(InitDecl init) { constructor = (constructor == null) ? init : constructor; }
+
+    public void addBaseClass(Name n) { inheritedClasses.add(n); }
+    public Vector<Name> getInheritedClasses() { return inheritedClasses; }
 
     public boolean inherits(String sup) {
         for(Name sub : this.inheritedClasses)
@@ -64,53 +139,100 @@ public class ClassDecl extends TopLevelDecl implements NameDecl {
         return false;
     }
 
-    /**
-     * Checks if the current class represents a template.
-     * @return Boolean
-     */
-    public boolean isTemplate() { return !typeParams.isEmpty();}
-
-    public boolean isClassDecl() { return true; }
-    public ClassDecl asClassDecl() { return this; }
-
     public void removeTypeParams(){
-        for(Typeifier tp : this.typeParams)
-            symbolTable.removeName(tp.toString());
+        for(TypeParam tp : this.typeParams);
+        // scope.removeName(tp.toString());
         this.typeParams = new Vector<>();
     }
 
+    public boolean containsMethod(MethodDecl md) {
+        for(MethodDecl baseMethod : body.getMethods())
+            if(baseMethod.equals(md))
+                return true;
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST getDecl() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public String getDeclName() { return name.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public SymbolTable getScope() { return (scope != null) ? scope : null; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setScope(SymbolTable newScope) { scope = (scope == null) ? newScope : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isClassDecl() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public ClassDecl asClassDecl() { return this; }
+
+    /**
+     * Returns the name of the class.
+     * @return String representation of the class name.
+     */
+    @Override
+    public String toString() { return name.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String header() {
         int endColumn;
         if(!typeParams.isEmpty())
-            endColumn = typeParams.top().location.end.column;
+            endColumn = typeParams.top().getLocation().end.column;
         else
-            endColumn = name.location.end.column;
-        return  startLine() + "| " + text.substring(0,endColumn) + "\n";
+            endColumn = name.getLocation().end.column;
+        return getLocation().start.line + "| " + text.substring(0,endColumn) + "\n";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public String toString() { return name.toString(); }
+    protected void update(int pos, AST node) { throw new RuntimeException("A class can not be updated."); }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AST deepCopy() {
-        ClassDeclBuilder cdb = new ClassDeclBuilder();
-        Vector<Typeifier> typeParams = new Vector<>();
+        ClassDeclBuilder cb = new ClassDeclBuilder();
+        Vector<TypeParam> typeParams = new Vector<>();
 
-        for(Typeifier tp : this.typeParams)
-            typeParams.add(tp.deepCopy().asTypeifier());
+        for(TypeParam tp : this.typeParams)
+            typeParams.add(tp.deepCopy().asSubNode().asTypeParam());
 
-        if(this.superClass != null)
-            cdb.setSuperClass(this.superClass.deepCopy().asType().asClassType());
+        if(superClass != null)
+            cb.setSuperClass(superClass.deepCopy().asType().asClassType());
 
-        return cdb.setMetaData(this)
-                  .setMods(this.mod)
-                  .setClassName(this.name.deepCopy().asName())
+        return cb.setMetaData(this)
+                  .setMods(mod)
+                  .setClassName(name.deepCopy().asSubNode().asName())
                   .setTypeArgs(typeParams)
-                  .setClassBody(this.body.deepCopy().asClassBody())
+                  .setClassBody(body.deepCopy().asClassNode().asClassBody())
                   .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitClassDecl(this); }
 
@@ -130,17 +252,17 @@ public class ClassDecl extends TopLevelDecl implements NameDecl {
          * @return ClassDeclBuilder
          */
         public ClassDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(cd, node);
             return this;
         }
 
         /**
          * Sets the class declaration's {@link #mod}.
-         * @param mods List of modifiers that is applied to the current class
+         * @param mod List of modifiers that is applied to the current class
          * @return ClassDeclBuilder
          */
-        public ClassDeclBuilder setMods(Modifiers mods) {
-            cd.mod = mods;
+        public ClassDeclBuilder setMods(Modifier mod) {
+            cd.mod = mod;
             return this;
         }
 
@@ -159,7 +281,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl {
          * @param typeArgs Vector of typeifiers that the class has
          * @return ClassDeclBuilder
          */
-        public ClassDeclBuilder setTypeArgs(Vector<Typeifier> typeArgs) {
+        public ClassDeclBuilder setTypeArgs(Vector<TypeParam> typeArgs) {
             cd.typeParams = typeArgs;
             return this;
         }
@@ -181,11 +303,11 @@ public class ClassDecl extends TopLevelDecl implements NameDecl {
          */
         public ClassDeclBuilder setClassBody(ClassBody body) {
             cd.body = body;
-            if(cd.symbolTable != null) {
+            if(cd.scope != null) {
                 for(FieldDecl fd : body.getFields())
-                    cd.symbolTable.addName(fd.toString(),fd);
+                    cd.scope.addName(fd.toString(),fd);
                 for(MethodDecl md : body.getMethods())
-                    cd.symbolTable.addName(md+"/"+md.paramSignature(),md);
+                    cd.scope.addName(md+"/"+md.getParamSignature(),md);
             }
             return this;
         }
@@ -195,10 +317,8 @@ public class ClassDecl extends TopLevelDecl implements NameDecl {
          * @return {@link ClassDecl}
          * */
         public ClassDecl create() {
-            super.saveMetaData(cd);
-            cd.addChild(cd.name);
-            cd.addChild(cd.typeParams);
-            cd.addChild(cd.body);
+            cd.addChildNode(cd.typeParams);
+            cd.addChildNode(cd.body);
             return cd;
         }
     }
