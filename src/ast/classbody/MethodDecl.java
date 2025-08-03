@@ -118,7 +118,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
 
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < params.size(); i++)
-            sb.append(params.get(i).type().typeSignature());
+            sb.append(params.get(i).getType().typeSignature());
 
         paramSignature = sb.toString();
         return paramSignature;
