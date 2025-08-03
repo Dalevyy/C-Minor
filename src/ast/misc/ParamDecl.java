@@ -58,6 +58,12 @@ public class ParamDecl extends SubNode implements NameDecl {
     }
 
     /**
+     * Getter method for {@link #type}.
+     * @return {@link Type}
+     */
+    public Type getType() { return type; }
+
+    /**
      * Setter method to reset {@link #type}.
      * <p>
      *     This will be called by the {@link micropasses.TypeValidityPass} when we are updating
@@ -111,7 +117,7 @@ public class ParamDecl extends SubNode implements NameDecl {
      * {@inheritDoc}
      */
     @Override
-    public void update(int pos, AST node) { throw new RuntimeException("A parameter declaration can not be updated.");} 
+    public void update(int pos, AST node) { throw new RuntimeException("A parameter declaration can not be updated.");}
 
     /**
      * {@inheritDoc}
