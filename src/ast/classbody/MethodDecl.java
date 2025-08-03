@@ -24,7 +24,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
     /**
      * The scope that the method opens.
      */
-    private SymbolTable symbolTable;
+    private SymbolTable scope;
 
     /**
      * The name of the method. This is not set if we are overloading an operator.
@@ -174,12 +174,12 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
     /**
      * {@inheritDoc}
      */
-    public SymbolTable getScope() { return (symbolTable != null) ? symbolTable : null; }
+    public SymbolTable getScope() { return (scope != null) ? scope : null; }
 
     /**
      * {@inheritDoc}
      */
-    public void setScope(SymbolTable st) { symbolTable = (symbolTable == null) ? st : symbolTable; }
+    public void setScope(SymbolTable st) { scope = (scope == null) ? st : scope; }
 
     /**
      * {@inheritDoc}
