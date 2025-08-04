@@ -26,6 +26,16 @@ public class Name extends SubNode {
     }
 
     /**
+     * Constructor to generate a {@link Name} using a string.
+     * @param name The string we want to create a {@link Name} object out of.
+     */
+    public Name(String name) {
+        super(new Token());
+
+        this.ID = name;
+    }
+
+    /**
      * Deep copy constructor for {@link Name}.
      * @param name {@link Name} object we will perform a deep copy of.
      */
