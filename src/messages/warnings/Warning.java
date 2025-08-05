@@ -1,59 +1,28 @@
 package messages.warnings;
 
 import messages.Message;
-import messages.MessageType;
 import utilities.PrettyPrint;
 
+/**
+ * A {@link Message} that displays a warning to the user.
+ * <p>
+ *     A warning is an issue that was found in compilation that should be drawn to the user's
+ *     attention. Unlike with errors, a warning does not terminate the compilation process.
+ * </p>
+ * @author Daniel Levy
+ */
 public class Warning extends Message {
 
-    private MessageType warning;
-
     /**
-     * Generates a header displaying the warning identification.
-     * @return String
+     * {@inheritDoc}
      */
-    private String warningHeader() {
-        return PrettyPrint.PINK
+    @Override
+    protected String buildMessageHeader(String fileName) {
+        return super.buildMessageHeader(fileName)
+                + PrettyPrint.PINK
                 + "Warning "
-                + warning.toString().substring(warning.toString().lastIndexOf("_")+1)
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }
-
-    public String createMessage() {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append(fileHeader());
-        sb.append(warningHeader());
-
-        if(location != null)
-            sb.append(location.header());
-
-        sb.append(buildWarning());
-        return sb.toString();
-    }
-
-    public String printMessage() {
-        String warnMsg = createMessage();
-
-        if(interpretMode)
-            System.out.println(warnMsg);
-
-        return warnMsg;
-    }
-
-    private String buildWarning() {
-        String warningMsg = PrettyPrint.YELLOW + this.warning.getMessage() + PrettyPrint.RESET;
-        if(this.args != null) {
-            for(int i = 0; i < this.args.length; i++) {
-                String arg = "<arg" + i + ">";
-                warningMsg = warningMsg.replace(arg,this.args[i].toString());
-            }
-        }
-        return warningMsg;
-    }
-
-    public void setWarningType(MessageType warning) { this.warning = warning; }
-
-    public boolean isWarning() { return true; }
 }
