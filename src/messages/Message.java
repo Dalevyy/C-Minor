@@ -104,6 +104,16 @@ public abstract class Message {
     }
 
     /**
+     * Generates a string that contains the specific message number.
+     * @return String containing the message number.
+     */
+    protected String messageNumber() {
+        if(messageType == null)
+            return "";
+        return messageType.toString().substring(messageType.toString().lastIndexOf("_")+1);
+    }
+
+    /**
      * Setter for {@link #location}.
      * @param location {@link AST}
      */
