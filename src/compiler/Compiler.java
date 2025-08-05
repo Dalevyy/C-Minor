@@ -82,15 +82,15 @@ public class Compiler {
      */
     private void semanticAnalysis(Compilation root, boolean execute) {
         root.visit(new PropertyMethodGeneration());
-        root.visit(new NameChecker());
-        root.visit(new VariableInitialization());
+        root.visit(new NameChecker(fileName));
+        root.visit(new VariableInitialization(fileName));
         root.visit(new FieldRewrite());
         root.visit(new OperatorOverloadCheck());
         root.visit(new LoopKeywordCheck());
-        root.visit(new TypeValidityPass());
-        root.visit(new TypeChecker());
+        root.visit(new TypeValidityPass(fileName));
+        root.visit(new TypeChecker(fileName));
         root.visit(new ConstructorGeneration());
-        root.visit(new ModifierChecker());
+        root.visit(new ModifierChecker(fileName));
         root.visit(new PureKeywordPass());
         if(execute)
             root.visit(new Interpreter(root.globalTable));

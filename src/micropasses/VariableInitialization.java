@@ -3,41 +3,39 @@ package micropasses;
 import ast.statements.ForStmt;
 import ast.statements.LocalDecl;
 import ast.topleveldecls.GlobalDecl;
-import messages.MessageType;
-import messages.errors.ErrorBuilder;
-import messages.errors.semantic.SemanticErrorFactory;
+import messages.MessageHandler;
+import messages.MessageNumber;
+import messages.errors.semantic.SemanticError;
 import utilities.Visitor;
 
 public class VariableInitialization extends Visitor {
 
-    private static final SemanticErrorFactory generateSemanticError = new SemanticErrorFactory();
-
-    public VariableInitialization() {}
-    public VariableInitialization(boolean mode) {
-        this.interpretMode = mode;
+    public VariableInitialization() { this.handler = new MessageHandler(); }
+    public VariableInitialization(String fileName) {
+        this.handler = new MessageHandler(fileName);
     }
 
     public void visitForStmt(ForStmt fd) { fd.forBlock().visit(this); }
 
     public void visitGlobalDecl(GlobalDecl gd) {
         if(gd.var().isUninit()) {
-            new ErrorBuilder(generateSemanticError,interpretMode)
+            handler.createErrorBuilder(SemanticError.class)
                     .addLocation(gd)
-                    .addErrorType(MessageType.SEMANTIC_ERROR_700)
-                    .addArgs("Global",gd.toString())
-                    .addSuggestType(MessageType.SEMANTIC_SUGGEST_1700)
-                    .error();
+                    .addErrorNumber(MessageNumber.SEMANTIC_ERROR_700)
+                    .addErrorArgs("Global",gd.toString())
+                    .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1700)
+                    .generateError();
         }
     }
 
     public void visitLocalDecl(LocalDecl ld) {
         if(ld.var().isUninit()) {
-            new ErrorBuilder(generateSemanticError,interpretMode)
+            handler.createErrorBuilder(SemanticError.class)
                     .addLocation(ld)
-                    .addErrorType(MessageType.SEMANTIC_ERROR_700)
-                    .addArgs("Local",ld.toString())
-                    .addSuggestType(MessageType.SEMANTIC_SUGGEST_1700)
-                    .error();
+                    .addErrorNumber(MessageNumber.SEMANTIC_ERROR_700)
+                    .addErrorArgs("Local",ld.toString())
+                    .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1700)
+                    .generateError();
         }
     }
 }

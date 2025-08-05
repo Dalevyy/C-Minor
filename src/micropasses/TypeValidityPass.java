@@ -9,21 +9,17 @@ import ast.misc.Compilation;
 import ast.misc.ParamDecl;
 import ast.misc.Typeifier;
 import ast.statements.LocalDecl;
-import ast.topleveldecls.ClassDecl;
-import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
-import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.ImportDecl;
+import ast.topleveldecls.*;
 import ast.types.ClassType;
 import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType;
 import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.Type;
-import messages.MessageType;
+import messages.MessageHandler;
+import messages.MessageNumber;
 import messages.errors.ErrorBuilder;
-import messages.errors.scope.ScopeErrorBuilder;
-import messages.errors.scope.ScopeErrorFactory;
-import messages.errors.type.TypeErrorFactory;
+import messages.errors.scope.ScopeError;
+import messages.errors.type.TypeError;
 import namechecker.NameChecker;
 import utilities.SymbolTable;
 import utilities.Vector;
@@ -69,42 +65,26 @@ public class TypeValidityPass extends Visitor {
      */
     private final Vector<String> instantiatedFunctions;
 
-    /**
-     * Factory responsible for creating a {@link messages.errors.scope.ScopeError}.
-     */
-    private final ScopeErrorFactory generateScopeError;
-
-    /**
-     * Factory responsible for creating a {@link messages.errors.type.TypeError}.
-     */
-    private final TypeErrorFactory generateTypeError;
-
-    /**
-     * List of messages that need to be displayed to the user during compilation mode.
-     */
-    private final Vector<String> msgs;
 
     /**
      * Creates type validity micropass in compilation mode.
      */
-    public TypeValidityPass() {
+    public TypeValidityPass(String fileName) {
         this.currentScope = null;
-        this.generateScopeError = new ScopeErrorFactory();
-        this.generateTypeError = new TypeErrorFactory();
         this.instantiatedClasses = new Vector<>();
         this.instantiatedFunctions = new Vector<>();
-        this.msgs = new Vector<>();
+        this.handler = new MessageHandler(fileName);
     }
 
     /**
      * Creates type validity micropass in interpretation mode.
      * @param st Compilation Unit Symbol Table
-     * @param mode Boolean to mark interpretation mode
      */
-    public TypeValidityPass(SymbolTable st, boolean mode) {
-        this();
+    public TypeValidityPass(SymbolTable st) {
+        this.instantiatedClasses = new Vector<>();
+        this.instantiatedFunctions = new Vector<>();
         this.currentScope = st;
-        this.interpretMode = mode;
+        this.handler = new MessageHandler();
     }
 
     /* ######################################## HELPERS ######################################## */
@@ -244,15 +224,13 @@ public class TypeValidityPass extends Visitor {
         //                 now check if the current class type can resolve to either a class, an enum, or
         //                 a type parameter. If no resolution can be made, we will print out a type error.
         if(!currentScope.hasNameSomewhere(ct.getClassNameAsString())) {
-            msgs.add(
-                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ct.getRootParent())
-                    .addErrorType(MessageType.TYPE_ERROR_443)
-                    .addArgs(ct)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1440)
-                    .addSuggestArgs(ct)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_443)
+                    .addErrorArgs(ct)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1440)
+                    .addSuggestionArgs(ct)
+                    .generateError();
         }
 
         // Special Case: If we are instantiating a template class, we want to replace every type parameter
@@ -280,14 +258,12 @@ public class TypeValidityPass extends Visitor {
         // ERROR CHECK #2: If the class type does not represent an enum, a class, or a type parameter,
         //                 then this means a variable name was used as a type which is not allowed.
         else if(!classTypeDecl.isTypeifier()) {
-            msgs.add(
-                new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ct.getRootParent())
-                    .addErrorType(MessageType.TYPE_ERROR_465)
-                    .addArgs(ct)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1452)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_465)
+                    .addErrorArgs(ct)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1452)
+                    .generateError();
         }
 
         // Case 3: The class type represents a normal class. No rewrite is needed so return the class type.
@@ -313,26 +289,24 @@ public class TypeValidityPass extends Visitor {
         if(template.typeParams().size() != ct.typeArgs().size()) {
             // Case 1: This error is generated when a user writes type arguments for a non-template class type.
             if(template.typeParams().isEmpty()) {
-                msgs.add(
-                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ct.getRootParent())
-                        .addErrorType(MessageType.TYPE_ERROR_444)
-                        .addArgs(template)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_444)
+                        .addErrorArgs(template)
+                        .generateError();
             }
             // Case 2: This error is generated when the wrong number of type arguments were used for a template class type.
             else {
-                ErrorBuilder eb = new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
                                       .addLocation(ct.getRootParent())
-                                      .addErrorType(MessageType.TYPE_ERROR_445)
-                                      .addArgs(template)
-                                      .addSuggestArgs(template, template.typeParams().size());
+                                      .addErrorNumber(MessageNumber.TYPE_ERROR_445)
+                                      .addErrorArgs(template)
+                                      .addSuggestionArgs(template, template.typeParams().size());
 
                 if(template.typeParams().size() == 1)
-                    msgs.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1441).error());
+                    eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1441).generateError();
                 else
-                    msgs.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1442).error());
+                    eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1442).generateError();
             }
         }
 
@@ -344,15 +318,13 @@ public class TypeValidityPass extends Visitor {
             //                 the passed type argument can be used in the current type argument. If no type annotation
             //                 was given, this check is not needed, and we will let the type checker handle the rest.
             if(!typeParam.isValidTypeArg(ct.typeArgs().get(i))) {
-                msgs.add(
-                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ct.getRootParent())
-                        .addErrorType(MessageType.TYPE_ERROR_446)
-                        .addArgs(ct.typeArgs().get(i), template)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1443)
-                        .addSuggestArgs(template, typeParam.possibleTypeToString(), i + 1)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_446)
+                        .addErrorArgs(ct.typeArgs().get(i), template)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1443)
+                        .addSuggestionArgs(template, typeParam.possibleTypeToString(), i + 1)
+                        .generateError();
             }
         }
     }
@@ -379,7 +351,7 @@ public class TypeValidityPass extends Visitor {
 
         // We need to rerun the name checker, so the copy of the template can
         // have an independent symbol table from the original template class.
-        copyOfTemplate.visit(new NameChecker());
+        copyOfTemplate.visit(new NameChecker(""));
 
         // We now visit the copy's class in order to replace all type parameters with the given type arguments.
         currentTypeArgs = ct.typeArgs();
@@ -422,7 +394,7 @@ public class TypeValidityPass extends Visitor {
 
         // We need to rerun the name checker, so the copy of the template can
         // have an independent symbol table from the original template function.
-        copyOfTemplate.visit(new NameChecker());
+        copyOfTemplate.visit(new NameChecker(""));
 
         // We now visit the copy's function in order to replace all type parameters with the given type arguments.
         currentTypeArgs = in.getTypeArgs();
@@ -471,7 +443,6 @@ public class TypeValidityPass extends Visitor {
      */
     public void visitCompilation(Compilation c) {
         currentScope = c.globalTable;
-        currentFile = c.getFile();
         super.visitCompilation(c);
     }
 
@@ -562,12 +533,10 @@ public class TypeValidityPass extends Visitor {
      */
     public void visitImportDecl(ImportDecl im) {
         SymbolTable oldScope = currentScope;
-        String oldFile = currentFile;
 
         im.getCompilationUnit().visit(this);
 
         currentScope = oldScope;
-        currentFile = oldFile;
     }
 
     /**
@@ -585,15 +554,13 @@ public class TypeValidityPass extends Visitor {
         //                 name checker will not have caught this error when we have nested scopes
         //                 which is why we have to do this check now.
         if(currentTypeParams != null && nameShadowsTypeParam(ld.toString())) {
-            msgs.add(
-                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+            handler.createErrorBuilder(ScopeError.class)
                     .addLocation(ld)
-                    .addErrorType(MessageType.SCOPE_ERROR_328)
-                    .addArgs(ld)
+                    .addErrorNumber(MessageNumber.SCOPE_ERROR_328)
+                    .addErrorArgs(ld)
                     .asScopeErrorBuilder()
-                    .addRedeclaration(currentScope.findName(ld).decl())
-                    .error()
-            );
+                    .addOriginalDeclaration(currentScope.findName(ld).decl())
+                    .generateError();
         }
 
         if(ld.type().isStructuredType()) {
@@ -667,15 +634,13 @@ public class TypeValidityPass extends Visitor {
         //                 name shadows a type parameter name. Due to how the name checker resolves methods,
         //                 this particular check was not completed, so we will do it now.
         if(currentTypeParams != null && nameShadowsTypeParam(pd.toString())) {
-            msgs.add(
-                new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+            handler.createErrorBuilder(ScopeError.class)
                     .addLocation(pd)
-                    .addErrorType(MessageType.SCOPE_ERROR_328)
-                    .addArgs(pd)
+                    .addErrorNumber(MessageNumber.SCOPE_ERROR_328)
+                    .addErrorArgs(pd)
                     .asScopeErrorBuilder()
-                    .addRedeclaration(currentScope.findName(pd).decl())
-                    .error()
-            );
+                    .addOriginalDeclaration(currentScope.findName(pd).decl())
+                    .generateError();
         }
 
         if(pd.type().isStructuredType()) {

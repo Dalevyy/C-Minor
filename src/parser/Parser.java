@@ -71,7 +71,7 @@ import ast.types.ScalarType.Scalars;
 import ast.types.Type;
 import ast.types.VoidType;
 import lexer.Lexer;
-import messages.errors.syntax.SyntaxErrorFactory;
+import messages.MessageHandler;
 import micropasses.ImportHandler;
 import token.Token;
 import token.TokenType;
@@ -116,9 +116,9 @@ public class Parser {
     private final Vector<Token> tokenStack;
 
     /**
-     * {@link SyntaxErrorFactory} to generate syntax errors.
+     * {@link MessageHandler} to generate syntax errors.
      */
-    private final SyntaxErrorFactory generateSyntaxError;
+    private final MessageHandler handler;
 
     /**
      * Flag set when a user wants to see every token that is parsed.
@@ -145,7 +145,7 @@ public class Parser {
         this.lookPos = 0;
         this.lookaheads = new Vector<>();
         this.tokenStack = new Vector<>();
-        this.generateSyntaxError = new SyntaxErrorFactory();
+        this.handler = new MessageHandler();
         this.printToks = printTokens;
         this.interpretMode = false;
         this.importMode = false;
@@ -189,7 +189,7 @@ public class Parser {
             consume();
         }
         else {
-            System.out.println(generateSyntaxError.createError().header());
+            //System.out.println(handler.createError().header());
             input.printSyntaxError(currentLA().getStartPos());
             System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
 

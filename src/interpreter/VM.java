@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.IOException;
 
 import lexer.Lexer;
+import messages.MessageHandler;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
@@ -33,13 +34,13 @@ public class VM {
 
         // Micropasses
         Printer treePrinter = new Printer();
-        InOutStmtRewrite ioRewritePass = new InOutStmtRewrite(true);
+        InOutStmtRewrite ioRewritePass = new InOutStmtRewrite();
         PropertyMethodGeneration generatePropertyPass = new PropertyMethodGeneration();
-        VariableInitialization variableInitPass = new VariableInitialization(true);
+        VariableInitialization variableInitPass = new VariableInitialization();
         FieldRewrite fieldRewritePass = new FieldRewrite();
-        OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck(true);
-        LoopKeywordCheck loopCheckPass = new LoopKeywordCheck(true);
-        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
+        OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck();
+        LoopKeywordCheck loopCheckPass = new LoopKeywordCheck();
+        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.globalTable);
         ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
         PureKeywordPass purePass = new PureKeywordPass();
 
@@ -47,6 +48,8 @@ public class VM {
         boolean printAST = false;
         boolean printST = false;
         boolean debug = false;
+
+        MessageHandler.setInterpretationMode();
 
         while(true) {
             String input;
@@ -59,7 +62,7 @@ public class VM {
             else if(input.equals("#clear")) {
                 compilationUnit = new Compilation();
                 nameChecker = new NameChecker(compilationUnit.globalTable);
-                classToEnumPass = new TypeValidityPass(compilationUnit.globalTable,true);
+                classToEnumPass = new TypeValidityPass(compilationUnit.globalTable);
                 typeChecker = new TypeChecker(compilationUnit.globalTable);
                 modChecker = new ModifierChecker(compilationUnit.globalTable);
                 interpreter = new Interpreter(compilationUnit.globalTable);

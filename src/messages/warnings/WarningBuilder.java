@@ -1,38 +1,71 @@
 package messages.warnings;
 
 import ast.AST;
-import messages.MessageType;
+import messages.MessageHandler;
+import messages.MessageNumber;
 
+/**
+ * A builder class designed to create a {@link Warning}.
+ * <p>
+ *     This class is similar to the {@link messages.errors.ErrorBuilder}, but it works
+ *     on a {@link Warning} object instead of an {@link Error} object. I wrote it like
+ *     this, so we don't need to worry about type casting.
+ * </p>
+ * @author Daniel Levy
+ */
 public class WarningBuilder {
 
+    /**
+     * The {@link Warning} we will be creating.
+     */
     private final Warning warning;
 
-    public WarningBuilder(WarningFactory wf, boolean mode) {
-        this.warning = wf.createWarning();
-        this.warning.setInterpretMode(mode);
+    /**
+     * The current instance of {@link MessageHandler} that {@link #warning} is stored in.
+     */
+    private final MessageHandler handler;
+
+    /**
+     * Main constructor for {@link WarningBuilder}.
+     * @param handler {@link MessageHandler} that will store {@link #warning}.
+     */
+    public WarningBuilder(MessageHandler handler) {
+        this.warning = new Warning();
+        this.handler = handler;
     }
 
-    public WarningBuilder(WarningFactory wf, String file, boolean mode) {
-        this(wf,mode);
-        this.warning.setFileName(file);
-    }
+    /**
+     * Finalizes the creation of the warning object and passes the {@link Warning} to {@link #handler}.
+     */
+    public void generateWarning() { handler.storeMessage(warning); }
 
-    public String warning() { return this.warning.printMessage(); }
-
-    public Warning create() { return this.warning; }
-
+    /**
+     * Adds the {@link AST} location to denote where the warning was found.
+     * @param node The {@link AST} node in which the warning is generated from.
+     * @return Current instance of {@link WarningBuilder}.
+     */
     public WarningBuilder addLocation(AST node) {
-        this.warning.setLocation(node);
+        warning.setLocation(node);
         return this;
     }
 
-    public WarningBuilder addWarningType(MessageType wt) {
-        this.warning.setWarningType(wt);
+    /**
+     * Adds the specific message this warning will print out.
+     * @param warningNumber The {@link MessageNumber} associated with this warning.
+     * @return Current instance of {@link WarningBuilder}.
+     */
+    public WarningBuilder addWarningNumber(MessageNumber warningNumber) {
+        warning.setMessageNumber(warningNumber);
         return this;
     }
 
-    public WarningBuilder addArgs(Object... args) {
-        this.warning.setArgs(args);
+    /**
+     * Adds a list of arguments to allow personalization of the warning message.
+     * @param args An array of objects that will be used within the warning message.
+     * @return Current instance of {@link WarningBuilder}.
+     */
+    public WarningBuilder addWarningArgs(Object... args) {
+        warning.setArgs(args);
         return this;
     }
 }
