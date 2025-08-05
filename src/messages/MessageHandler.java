@@ -7,6 +7,7 @@ import messages.errors.scope.ScopeErrorBuilder;
 import messages.errors.semantic.SemanticErrorBuilder;
 import messages.errors.syntax.SyntaxErrorBuilder;
 import messages.errors.type.TypeErrorBuilder;
+import messages.warnings.WarningBuilder;
 import utilities.Vector;
 
 /**
@@ -51,6 +52,10 @@ public class MessageHandler {
         this.messages = new Vector<>();
     }
 
+    /**
+     * Stores a message into {@link #messages} or prints the message out to the user.
+     * @param msg {@link Message} that will be handled by the {@link MessageHandler}.
+     */
     public void storeMessage(Message msg) {
         msg.createMessage(fileName);
 
@@ -102,4 +107,10 @@ public class MessageHandler {
      * @return {@link TypeErrorBuilder}
      */
     public ErrorBuilder createTypeErrorBuilder() { return new TypeErrorBuilder(this); }
+
+    /**
+     * Generates a {@link WarningBuilder}.
+     * @return {@link WarningBuilder}
+     */
+    public WarningBuilder createWarningBuilder() { return new WarningBuilder(this); }
 }
