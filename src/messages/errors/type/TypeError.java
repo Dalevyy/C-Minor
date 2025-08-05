@@ -17,7 +17,7 @@ public class TypeError extends Error {
         return super.buildMessageHeader(fileName)
                 + PrettyPrint.GREEN
                 + "Type Error "
-                + errorNumber()
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }

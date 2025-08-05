@@ -6,21 +6,15 @@ import messages.errors.scope.ScopeError;
 /**
  * A {@link Message} class representing a compilation error.
  * <p>
- *     As it stands, this class serves as an organizational unit instead
- *     of any truly functional unit.
+ *     An error is generated when there is an issue with a user's program that prevents
+ *     the rest of the compilation process from occurring. A generated error means the
+ *     compiler needs to terminate execution at its generation (if in interpretation mode)
+ *     or after the end of the current phase (in compilation mode). Currently, this class
+ *     is only serving as a way to organize different errors.
  * </p>
  * @author Daniel Levy
  */
 public abstract class Error extends Message {
-
-    /**
-     * Generates a string that contains the specific error number.
-     * @return
-     */
-    protected String errorNumber() {
-        return messageType.toString().substring(messageType.toString().lastIndexOf("_")+1);
-    }
-
     /**
      * Explicitly casts the current instance of {@link Error} into a {@link ScopeError}.
      * @return Current instance of {@link Error} as a {@link ScopeError}.

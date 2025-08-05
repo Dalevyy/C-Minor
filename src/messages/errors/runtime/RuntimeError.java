@@ -17,7 +17,7 @@ public class RuntimeError extends Error {
         return super.buildMessageHeader(fileName)
                 + PrettyPrint.RED
                 + "Runtime Error "
-                + errorNumber()
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }

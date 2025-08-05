@@ -80,7 +80,7 @@ public class ScopeError extends Error {
         return super.buildMessageHeader(fileName)
                 + PrettyPrint.YELLOW
                 + "Scope Error "
-                + errorNumber()
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }

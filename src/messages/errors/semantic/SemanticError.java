@@ -17,7 +17,7 @@ public class SemanticError extends Error {
         return super.buildMessageHeader(fileName)
                 + PrettyPrint.CYAN
                 + "Semantic Error "
-                + errorNumber()
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }

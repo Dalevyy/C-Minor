@@ -17,7 +17,7 @@ public class SyntaxError extends Error {
         return super.buildMessageHeader(fileName)
                 + PrettyPrint.CYAN
                 + "Syntax Error "
-                + errorNumber()
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }

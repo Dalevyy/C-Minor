@@ -17,7 +17,7 @@ public class ModError extends Error {
         return super.buildMessageHeader(fileName)
                 + PrettyPrint.YELLOW
                 + "Modifier Error "
-                + errorNumber()
+                + messageNumber()
                 + "\n\n"
                 + PrettyPrint.RESET;
     }
