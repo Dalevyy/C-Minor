@@ -1,18 +1,33 @@
 package messages.errors.scope;
 
 import ast.AST;
+import messages.MessageHandler;
 import messages.errors.ErrorBuilder;
-import messages.errors.ErrorFactory;
 
+/**
+ * An {@link ErrorBuilder} that will create a {@link ScopeError}.
+ * @author Daniel Levy
+ */
 public class ScopeErrorBuilder extends ErrorBuilder {
 
-    public ScopeErrorBuilder(ErrorFactory ef, boolean mode) { super(ef,mode); }
-    public ScopeErrorBuilder(ErrorFactory ef, String file, boolean mode) { super(ef,file,mode); }
+    /**
+     * Default constructor for {@link ScopeErrorBuilder}.
+     * @param handler The {@link MessageHandler} that will store the current {@link Error} object.
+     */
+    public ScopeErrorBuilder(MessageHandler handler) { super(new ScopeError(),handler); }
 
-    public ScopeErrorBuilder addRedeclaration(AST node) {
-        error.asScopeError().setRedeclarationLocation(node);
+    /**
+     * Adds the original {@link AST} declaration of a construct that is redeclared.
+     * @param node The {@link AST} declaration that is being redeclared.
+     * @return Current instance of {@link ErrorBuilder}.
+     */
+    public ScopeErrorBuilder addOriginalDeclaration(AST node) {
+        error.asScopeError().originalDeclaration = node;
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public ScopeErrorBuilder asScopeErrorBuilder() { return this; }
 }

@@ -1,61 +1,102 @@
 package messages.errors;
 
 import ast.AST;
+import messages.MessageHandler;
 import messages.errors.scope.ScopeErrorBuilder;
-import messages.MessageType;
+import messages.MessageNumber;
 
-public class ErrorBuilder {
+/**
+ * An abstract builder class that creates an {@link Error} object.
+ * <p>
+ *     Dr. C shared this design with me as a way to dynamically create errors without
+ *     hardcoding the specific error messages directly into the compiler. I have reworked
+ *     the initial design to support the generation of more specific errors (hence why the
+ *     class is abstract) and to interface with the {@link MessageHandler} to have it decide
+ *     on when the error should be displayed.
+ * </p>
+ * @author Daniel Levy
+ */
+public abstract class ErrorBuilder {
+
+    /**
+     * The error we will be creating.
+     */
     protected final Error error;
 
-    public ErrorBuilder(ErrorFactory ef, boolean mode) {
-        this.error = ef.createError();
-        this.error.setInterpretMode(mode);
+    /**
+     * The current instance of {@link MessageHandler} that {@link #error} is stored in.
+     */
+    private MessageHandler handler;
+
+    /**
+     * Main constructor for {@link ErrorBuilder}.
+     * @param e {@link Error} object we would like to build.
+     */
+    public ErrorBuilder(Error e, MessageHandler handler) {
+        this.error = e;
+        this.handler = handler;
     }
 
-    public ErrorBuilder(ErrorFactory ef, String file, boolean mode) {
-        this.error = ef.createError();
-        this.error.setFileName(file);
-        this.error.setInterpretMode(mode);
-    }
+    /**
+     * Finalizes the creation of the error object and passes the {@link Error} to {@link #handler}.
+     */
+    public void generateError() { handler.storeMessage(error); }
 
-    public String error() { return this.error.printMessage(); }
-
-    public ErrorBuilder addFileName(String fileName) {
-        this.error.setFileName(fileName);
-        return this;
-    }
-
+    /**
+     * Adds the {@link AST} location to denote where the error was found.
+     * @param node The {@link AST} node in which the error is generated from.
+     * @return Current instance of {@link ErrorBuilder}.
+     */
     public ErrorBuilder addLocation(AST node) {
-        this.error.setLocation(node);
+        error.setLocation(node);
         return this;
     }
 
-    public ErrorBuilder addMessage(String msg) {
-        this.error.setMsg(msg);
+    /**
+     * Adds the specific error message this error will print out.
+     * @param errorNumber The {@link MessageNumber} associated with this error.
+     * @return Current instance of {@link ErrorBuilder}.
+     */
+    public ErrorBuilder addErrorNumber(MessageNumber errorNumber) {
+        error.setMessageNumber(errorNumber);
         return this;
     }
 
-    public ErrorBuilder addErrorType(MessageType et) {
-        this.error.setErrorType(et);
+    /**
+     * Adds a list of arguments to allow personalization of the error message.
+     * @param args An array of objects that will be used within the error message.
+     * @return Current instance of {@link ErrorBuilder}.
+     */
+    public ErrorBuilder addErrorArgs(Object... args) {
+        error.setArgs(args);
         return this;
     }
 
-    public ErrorBuilder addSuggestType(MessageType et) {
-        this.error.setSuggestType(et);
+    /**
+     * Adds a suggestion that can aid in understanding the error message.
+     * @param suggestionNumber {@link MessageNumber} denoting the suggestion we will attach to the error.
+     * @return Current instance of {@link ErrorBuilder}.
+     */
+    public ErrorBuilder addSuggestionNumber(MessageNumber suggestionNumber) {
+        error.setSuggestionNumber(suggestionNumber);
         return this;
     }
 
-    public ErrorBuilder addArgs(Object... args) {
-        this.error.setArgs(args);
+    /**
+     * Adds a list of arguments to allow personalization of the suggestion.
+     * @param suggestionArgs An array of objects that will be used within the suggestion.
+     * @return Current instance of {@link ErrorBuilder}.
+     */
+    public ErrorBuilder addSuggestionArgs(Object... suggestionArgs) {
+        error.setSuggestionArgs(suggestionArgs);
         return this;
     }
 
-    public ErrorBuilder addSuggestArgs(Object... extraArgs) {
-        this.error.setArgsForSuggestions(extraArgs);
-        return this;
-    }
-
+    /**
+     * Explicitly casts the current instance of {@link ErrorBuilder} into a {@link ScopeErrorBuilder}.
+     * @return Current instance of {@link ErrorBuilder} as a {@link ScopeErrorBuilder}.
+     */
     public ScopeErrorBuilder asScopeErrorBuilder() {
-        throw new RuntimeException("The current error builder is not building a scope error.");
+        throw new RuntimeException("The current builder is not generating a scope-related error.");
     }
 }
