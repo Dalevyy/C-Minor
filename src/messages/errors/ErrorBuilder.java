@@ -26,7 +26,7 @@ public abstract class ErrorBuilder {
     /**
      * The current instance of {@link MessageHandler} that {@link #error} is stored in.
      */
-    private MessageHandler handler;
+    private final MessageHandler handler;
 
     /**
      * Main constructor for {@link ErrorBuilder}.
