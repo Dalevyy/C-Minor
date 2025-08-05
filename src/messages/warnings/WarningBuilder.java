@@ -37,7 +37,7 @@ public class WarningBuilder {
     /**
      * Finalizes the creation of the warning object and passes the {@link Warning} to {@link #handler}.
      */
-    public void generateError() { handler.storeMessage(warning); }
+    public void generateWarning() { handler.storeMessage(warning); }
 
     /**
      * Adds the {@link AST} location to denote where the warning was found.
