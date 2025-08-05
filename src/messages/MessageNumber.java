@@ -1,19 +1,27 @@
 package messages;
 
-import utilities.PropertiesLoader;
-
 import java.io.File;
 import java.net.URL;
-
 import java.util.Properties;
+import utilities.PropertiesLoader;
 
-public enum MessageType {
+/**
+ * An enumeration that keeps track of all messages available to the compiler for error handling.
+ * <p>
+ *     This is an error handling system that Dr. C came up with for ProcessJ, and I decided to
+ *     adapt it to use inside of C Minor. Inside of utilities, there is a file called
+ *     {@code MessageNumber.properties} that has a list of all available messages the compiler
+ *     currently supports. This enumeration allows us to use those messages.
+ * </p>
+ * @author Daniel Levy
+ */
+public enum MessageNumber {
 
-    /*      SYNTAX ERRORS     */
+    /* ######################################## SYNTAX ERRORS ######################################## */
     SYNTAX_ERROR_100,
     SYNTAX_ERROR_101,
 
-    /*      SCOPE ERRORS     */
+    /* ######################################## SCOPE ERRORS ######################################## */
     SCOPE_ERROR_300,
     SCOPE_ERROR_301,
     SCOPE_ERROR_302,
@@ -54,7 +62,7 @@ public enum MessageType {
     SCOPE_ERROR_337,
     SCOPE_ERROR_338,
 
-    /*      TYPE ERRORS     */
+    /* ######################################## TYPE ERRORS ######################################## */
     TYPE_ERROR_400,
     TYPE_ERROR_401,
     TYPE_ERROR_402,
@@ -124,7 +132,7 @@ public enum MessageType {
     TYPE_ERROR_466,
 
 
-    /*      MOD ERRORS     */
+    /* ######################################## MODIFIER ERRORS ######################################## */
     MOD_ERROR_500,
     MOD_ERROR_501,
     MOD_ERROR_502,
@@ -136,7 +144,7 @@ public enum MessageType {
     MOD_ERROR_508,
     MOD_ERROR_509,
 
-    /*     RUNTIME ERRORS   */
+    /* ######################################## RUNTIME ERRORS ######################################## */
     RUNTIME_ERROR_600,
     RUNTIME_ERROR_601,
     RUNTIME_ERROR_602,
@@ -148,6 +156,7 @@ public enum MessageType {
     RUNTIME_ERROR_608,
     RUNTIME_ERROR_609,
 
+    /* ######################################## SEMANTIC ERRORS ######################################## */
     SEMANTIC_ERROR_700,
     SEMANTIC_ERROR_701,
     SEMANTIC_ERROR_702,
@@ -160,7 +169,7 @@ public enum MessageType {
     SEMANTIC_ERROR_709,
     SEMANTIC_ERROR_710,
 
-
+    /* ######################################## SCOPE SUGGESTIONS ######################################## */
     SCOPE_SUGGEST_1300,
     SCOPE_SUGGEST_1301,
     SCOPE_SUGGEST_1302,
@@ -171,6 +180,7 @@ public enum MessageType {
     SCOPE_SUGGEST_1307,
     SCOPE_SUGGEST_1308,
 
+    /* ######################################## TYPE SUGGESTIONS ######################################## */
     TYPE_SUGGEST_1400,
     TYPE_SUGGEST_1401,
     TYPE_SUGGEST_1402,
@@ -229,7 +239,7 @@ public enum MessageType {
     TYPE_SUGGEST_1455,
     TYPE_SUGGEST_1456,
 
-
+    /* ######################################## MODIFIER SUGGESTIONS ######################################## */
     MOD_SUGGEST_1500,
     MOD_SUGGEST_1501,
     MOD_SUGGEST_1502,
@@ -239,6 +249,7 @@ public enum MessageType {
     MOD_SUGGEST_1506,
     MOD_SUGGEST_1507,
 
+    /* ######################################## SEMANTIC SUGGESTIONS ######################################## */
     SEMANTIC_SUGGEST_1700,
     SEMANTIC_SUGGEST_1701,
     SEMANTIC_SUGGEST_1702,
@@ -246,20 +257,33 @@ public enum MessageType {
     SEMANTIC_SUGGEST_1704,
     SEMANTIC_SUGGEST_1705,
 
-    /* ################## WARNINGS ################## */
+    /* ######################################## WARNINGS ######################################## */
     WARNING_1;
 
-    private static Properties errorMessages;
-    private static final String PATH = "utilities/MessageType.properties";
+    /**
+     * The file location containing the compiler messages. DO NOT CHANGE.
+     */
+    private static final String PATH = "utilities/MessageNumber.properties";
 
-    public String getMessage() {
-        return errorMessages.getProperty(name());
-    }
+    /**
+     * List of messages that come from {@link #PATH}.
+     */
+    private static final Properties msgs;
 
+    /**
+     * Retrieves a message from {@link #msgs} based on the enumeration's value.
+     * @return String representation of the message that will be displayed.
+     */
+    public String getMessage() { return msgs.getProperty(name()); }
+
+    // This loads and stores the messages from the properties file into the enumeration file.
     static {
         URL url = PropertiesLoader.getURL(PATH);
         String path = PATH;
-        if(url != null) { path = url.getFile(); }
-        errorMessages = PropertiesLoader.loadProperties(new File(path));
+
+        if(url != null)
+            path = url.getFile();
+
+        msgs = PropertiesLoader.loadProperties(new File(path));
     }
 }
