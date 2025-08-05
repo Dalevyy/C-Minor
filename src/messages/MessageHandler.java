@@ -1,6 +1,7 @@
 package messages;
 
 import messages.errors.ErrorBuilder;
+import messages.errors.mod.ModError;
 import messages.errors.mod.ModErrorBuilder;
 import messages.errors.runtime.RuntimeErrorBuilder;
 import messages.errors.scope.ScopeErrorBuilder;
@@ -73,40 +74,26 @@ public class MessageHandler {
     public static void setInterpretationMode() { inInterpretationMode = true; }
 
     /**
-     * Generates a {@link ModErrorBuilder}.
-     * @return {@link ModErrorBuilder}
+     * Generate an {@link ErrorBuilder} based on a passed {@link Error} type.
+     * <p>
+     *     This is a solution I created to make it easier to instantiate {@link ErrorBuilder} based on the
+     *     type of error we need to generate. I'm not sure if it's the most ideal solution, but it seems to
+     *     be getting the job done.
+     * </p>
+     * @param errorType The {@link messages.errors.Error} class we wish to create a builder for.
+     * @return {@link ErrorBuilder}
      */
-    public ModErrorBuilder createModErrorBuilder() { return new ModErrorBuilder(this); }
-
-    /**
-     * Generates a {@link RuntimeErrorBuilder}.
-     * @return {@link RuntimeErrorBuilder}
-     */
-    public ErrorBuilder createRuntimeErrorBuilder() { return new RuntimeErrorBuilder(this); }
-
-    /**
-     * Generates a {@link ScopeErrorBuilder}.
-     * @return {@link ScopeErrorBuilder}
-     */
-    public ErrorBuilder createScopeErrorBuilder() { return new ScopeErrorBuilder(this); }
-
-    /**
-     * Generates a {@link SemanticErrorBuilder}.
-     * @return {@link ScopeErrorBuilder}
-     */
-    public ErrorBuilder createSemanticErrorBuilder() { return new SemanticErrorBuilder(this); }
-
-    /**
-     * Generates a {@link SyntaxErrorBuilder}.
-     * @return {@link SyntaxErrorBuilder}
-     */
-    public ErrorBuilder createSyntaxErrorBuilder() { return new SyntaxErrorBuilder(this); }
-
-    /**
-     * Generates a {@link TypeErrorBuilder}.
-     * @return {@link TypeErrorBuilder}
-     */
-    public ErrorBuilder createTypeErrorBuilder() { return new TypeErrorBuilder(this); }
+    public ErrorBuilder createErrorBuilder(Class<?> errorType) {
+        return switch (errorType.getName()) {
+            case "ModError" -> new ModErrorBuilder(this);
+            case "RuntimeError" -> new RuntimeErrorBuilder(this);
+            case "ScopeError" -> new ScopeErrorBuilder(this);
+            case "SemanticError" -> new SemanticErrorBuilder(this);
+            case "SyntaxError" -> new SyntaxErrorBuilder(this);
+            case "TypeError" -> new TypeErrorBuilder(this);
+            default -> throw new RuntimeException("The passed type does not represent a valid Error type.");
+        };
+    }
 
     /**
      * Generates a {@link WarningBuilder}.
