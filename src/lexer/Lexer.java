@@ -1,14 +1,14 @@
 package lexer;
 
-import messages.MessageType;
-import messages.errors.ErrorBuilder;
-import messages.errors.syntax.SyntaxErrorFactory;
+import messages.MessageHandler;
+import messages.MessageNumber;
+import messages.errors.syntax.SyntaxError;
 import token.Location;
 import token.Position;
 import token.Token;
 import token.TokenType;
-import utilities.Vector;
 import utilities.PrettyPrint;
+import utilities.Vector;
 
 /**
  * This is the {@code Lexer} which is responsible for tokenizing a C
@@ -45,8 +45,8 @@ public class Lexer {
      *  the parser in order to generate syntax error messages.*/
     private final Vector<String> lines;
 
-    /** A {@code SyntaxErrorFactor} to create lexer errors. */
-    private final SyntaxErrorFactory generateSyntaxError;
+    /** A {@link MessageHandler} to create lexer errors. */
+    private MessageHandler handler;
 
     /** Current mode the lexer is running in. */
     private boolean interpretMode = false;
@@ -71,13 +71,14 @@ public class Lexer {
         this.currLoc = new Location();
         this.currText = "";
         this.lines = new Vector<>();
-        this.generateSyntaxError = new SyntaxErrorFactory();
+        this.handler = new MessageHandler(this.fileName);
     }
 
     /** Creates a new {@code Lexer} instance in interpretation mode.*/
     public Lexer(final String file, boolean mode) {
         this(file,"");
         this.interpretMode = mode;
+        this.handler = new MessageHandler();
     }
 
     public String getFileName() { return fileName; }
@@ -178,9 +179,10 @@ public class Lexer {
             }
 
         }
-        new ErrorBuilder(generateSyntaxError,interpretMode)
-                .addErrorType(MessageType.SYNTAX_ERROR_100)
-                .error();
+
+        handler.createErrorBuilder(SyntaxError.class)
+                .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
+                .generateError();
     }
 
     /** Checks if EOF was reached.*/

@@ -15,19 +15,19 @@ import ast.types.Type;
 import interpreter.value.RuntimeList;
 import interpreter.value.RuntimeObject;
 import interpreter.value.Value;
+import messages.MessageHandler;
+import messages.MessageNumber;
+import messages.errors.runtime.RuntimeError;
+import utilities.RuntimeStack;
+import utilities.SymbolTable;
+import utilities.Vector;
+import utilities.Visitor;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.HashMap;
-import messages.MessageType;
-import messages.errors.ErrorBuilder;
-import messages.errors.runtime.RuntimeErrorFactory;
-import utilities.RuntimeStack;
-import utilities.SymbolTable;
-import utilities.Vector;
-import utilities.Visitor;
 
 /**
  * A {@link Visitor} class that executes a C Minor program.
@@ -55,11 +55,6 @@ public class Interpreter extends Visitor {
      * Stores the current value the interpreter is evaluating.
      */
     private Value currentValue;
-
-    /**
-     * Error factory that generates runtime errors.
-     */
-    private final RuntimeErrorFactory generateRuntimeError;
 
     /**
      * Flag set when a {@code break} statement is found.
@@ -93,13 +88,12 @@ public class Interpreter extends Visitor {
     public Interpreter(SymbolTable st) {
         this.stack = new RuntimeStack();
         this.currentScope = st;
-        this.generateRuntimeError = new RuntimeErrorFactory();
-        this.interpretMode = true;
         this.breakFound = false;
         this.continueFound = false;
         this.insideAssignment = false;
         this.output = false;
         this.returnFound = false;
+        this.handler = new MessageHandler();
     }
 
     /**
@@ -145,10 +139,10 @@ public class Interpreter extends Visitor {
 
             // error check yay
             if(offset <= 0 || offset > currentValue.asInt()) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
-                    .addLocation(ae.getRootParent())
-                    .addErrorType(MessageType.RUNTIME_ERROR_603)
-                    .error();
+                handler.createErrorBuilder(RuntimeError.class)
+                        .addLocation(ae.getRootParent())
+                        .addErrorNumber(MessageNumber.RUNTIME_ERROR_603)
+                        .generateError();
             }
 
             currentValue = lst.get(offset);
@@ -741,10 +735,10 @@ public class Interpreter extends Visitor {
 
         // ERROR CHECK #1: This checks if the user inputted the expected number of input values.
         if(vals.size() != in.getInExprs().size()) {
-            new ErrorBuilder(generateRuntimeError,interpretMode)
-                .addLocation(in)
-                .addErrorType(MessageType.RUNTIME_ERROR_600)
-                .error();
+            handler.createErrorBuilder(RuntimeError.class)
+                    .addLocation(in)
+                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_600)
+                    .generateError();
         }
 
         for(int i = 0; i < vals.size(); i++) {
@@ -763,11 +757,11 @@ public class Interpreter extends Visitor {
                     stack.setValue(currExpr,new Value(currVal,new DiscreteType(DiscreteType.Discretes.BOOL)));
             } catch(Exception e) {
                 // ERROR CHECK #2: Make sure user input matches the type of the input variable
-                new ErrorBuilder(generateRuntimeError,interpretMode)
+                handler.createErrorBuilder(RuntimeError.class)
                     .addLocation(in)
-                    .addErrorType(MessageType.RUNTIME_ERROR_601)
-                    .addArgs(currExpr.type)
-                    .error();
+                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_601)
+                    .addErrorArgs(currExpr.type)
+                    .generateError();
             }
         }
     }
@@ -835,11 +829,11 @@ public class Interpreter extends Visitor {
         else {
             // ERROR CHECK #1: This checks if the object's type is assignment compatible with the expected object type.
             if(!ClassType.classAssignmentCompatibility(obj.getCurrentType(),in.targetType.asClassType())) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
+                handler.createErrorBuilder(RuntimeError.class)
                         .addLocation(in.getRootParent())
-                        .addErrorType(MessageType.RUNTIME_ERROR_604)
-                        .addArgs(in.toString(),obj.getCurrentType(),in.targetType)
-                        .error();
+                        .addErrorNumber(MessageNumber.RUNTIME_ERROR_604)
+                        .addErrorArgs(in.toString(),obj.getCurrentType(),in.targetType)
+                        .generateError();
             }
 
             // Find the class that contains the specific method we want to call
@@ -933,11 +927,11 @@ public class Interpreter extends Visitor {
 
                 // ERROR CHECK #1: This makes sure the passed index is in the list's memory range.
                 if(index.asInt() < 1 || index.asInt() > lst.size()) {
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                    handler.createErrorBuilder(RuntimeError.class)
                         .addLocation(ls)
-                        .addErrorType(MessageType.RUNTIME_ERROR_605)
-                        .addArgs(ls.getList(),lst.size(),index.asInt())
-                        .error();
+                        .addErrorNumber(MessageNumber.RUNTIME_ERROR_605)
+                        .addErrorArgs(ls.getList(),lst.size(),index.asInt())
+                        .generateError();
                 }
 
                 ls.getAllArgs().get(2).visit(this);
@@ -949,10 +943,10 @@ public class Interpreter extends Visitor {
                 // ERROR CHECK #2: This also makes sure the passed index is in the list's memory range
                 if(currentValue.getType().isInt()) {
                     if(currentValue.asInt() < 1 || currentValue.asInt() > lst.size()) {
-                        new ErrorBuilder(generateRuntimeError,interpretMode)
+                        handler.createErrorBuilder(RuntimeError.class)
                             .addLocation(ls)
-                            .addErrorType(MessageType.RUNTIME_ERROR_608)
-                            .error();
+                            .addErrorNumber(MessageNumber.RUNTIME_ERROR_608)
+                            .generateError();
                     }
 
                     lst.remove(currentValue.asInt());
@@ -962,11 +956,11 @@ public class Interpreter extends Visitor {
 
                 // ERROR CHECK #3: This will throw an exception to the user if an element couldn't be removed.
                 if(!successfulRemoval) {
-                    new ErrorBuilder(generateRuntimeError,interpretMode)
+                    handler.createErrorBuilder(RuntimeError.class)
                         .addLocation(ls)
-                        .addErrorType(MessageType.RUNTIME_ERROR_609)
-                        .addArgs(ls.getAllArgs().get(1),ls.getList())
-                        .error();
+                        .addErrorNumber(MessageNumber.RUNTIME_ERROR_609)
+                        .addErrorArgs(ls.getAllArgs().get(1),ls.getList())
+                        .generateError();
                 }
 
         }
@@ -1017,11 +1011,11 @@ public class Interpreter extends Visitor {
             && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
             // ERROR CHECK #1: This checks if the field exists for the current object.
             if(!currentValue.asObject().hasField(ne)) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
+                handler.createErrorBuilder(RuntimeError.class)
                     .addLocation(ne.getRootParent())
-                    .addErrorType(MessageType.RUNTIME_ERROR_606)
-                    .addArgs(ne, currentValue.asObject().getCurrentType())
-                    .error();
+                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
+                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
+                    .generateError();
             }
             currentValue = currentValue.asObject().getField(ne);
         }
@@ -1029,11 +1023,11 @@ public class Interpreter extends Visitor {
             currentValue = stack.getValue(ne);
             // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
             if(currentValue == null && !insideAssignment) {
-                new ErrorBuilder(generateRuntimeError,interpretMode)
+                handler.createErrorBuilder(RuntimeError.class)
                     .addLocation(ne.getRootParent())
-                    .addErrorType(MessageType.RUNTIME_ERROR_607)
-                    .addArgs(ne)
-                    .error();
+                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_607)
+                    .addErrorArgs(ne)
+                    .generateError();
             }
         }
     }

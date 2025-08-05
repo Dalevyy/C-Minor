@@ -97,7 +97,7 @@ public abstract class Message {
         // Replace every "<argN>" with the actual argument (where N <= len(args))
         if(suggestionArgs != null) {
             for(int i = 0; i < suggestionArgs.length; i++)
-                msg = msg.replace("<arg"+i+">", suggestionArgs[i].toString());
+                suggestion = suggestion.replace("<arg"+i+">", suggestionArgs[i].toString());
         }
 
         return suggestion;

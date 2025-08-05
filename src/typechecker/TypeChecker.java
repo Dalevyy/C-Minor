@@ -18,13 +18,12 @@ import ast.types.DiscreteType.Discretes;
 import ast.types.EnumType.EnumTypeBuilder;
 import ast.types.ListType.ListTypeBuilder;
 import ast.types.ScalarType.Scalars;
-import messages.MessageType;
+import messages.MessageHandler;
+import messages.MessageNumber;
 import messages.errors.ErrorBuilder;
-import messages.errors.scope.ScopeErrorBuilder;
-import messages.errors.scope.ScopeErrorFactory;
-import messages.errors.type.TypeErrorFactory;
+import messages.errors.scope.ScopeError;
+import messages.errors.type.TypeError;
 import micropasses.TypeValidityPass;
-import utilities.RuntimeStack;
 import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
@@ -32,13 +31,9 @@ import utilities.Visitor;
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
-    private String currentFile;
     private ClassDecl currentClass;
     private AST currentMethod;
     private Type currentTarget;
-    private final TypeErrorFactory generateTypeError;
-    private final ScopeErrorFactory generateScopeError;
-    private final Vector<String> errors;
     private TypeValidityPass typeValidityPass;
     private boolean returnFound = false;
     private boolean parentFound = false;
@@ -47,13 +42,11 @@ public class TypeChecker extends Visitor {
     /**
      * Creates type checker in compilation mode
      */
-    public TypeChecker() {
+    public TypeChecker(String fileName) {
         this.currentScope = null;
         this.currentMethod = null;
         this.currentClass = null;
-        this.generateTypeError = new TypeErrorFactory();
-        this.generateScopeError = new ScopeErrorFactory();
-        this.errors = new Vector<>();
+        this.handler = new MessageHandler(fileName);
     }
 
     /**
@@ -61,10 +54,9 @@ public class TypeChecker extends Visitor {
      * @param st Symbol Table
      */
     public TypeChecker(SymbolTable st) {
-        this();
         this.currentScope = st;
-        this.interpretMode = true;
-        this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable(),this.interpretMode);
+        this.handler = new MessageHandler();
+        this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable());
     }
 
 
@@ -136,12 +128,10 @@ public class TypeChecker extends Visitor {
         if(depth == 1) {
             // ERROR CHECK #1: This makes sure the user only specified one dimension for a 1D array.
             if(currArr.getArrayDims().size() > 1) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(currArr.getRootParent())
-                        .addErrorType(MessageType.TYPE_ERROR_455)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_455)
+                        .generateError();
                 return false;
             }
 
@@ -163,13 +153,11 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #2: For every initial value in the array, we check to make sure the
                 //                 value's type is assignment compatible with the array's base type.
                 if(!Type.assignmentCompatible(baseType,init.type)) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(currArr)
-                            .addErrorType(MessageType.TYPE_ERROR_459)
-                            .addArgs(init.type,baseType)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_459)
+                            .addErrorArgs(init.type,baseType)
+                            .generateError();
                     return false;
                 }
             }
@@ -187,12 +175,10 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #3: For all n-dimensional array literals (where n>1), we need to make sure the user
             //                 explicitly writes down the size given for each possible dimension.
             if(al.getArrayDims().size() != depth) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(al.getRootParent())
-                        .addErrorType(MessageType.TYPE_ERROR_460)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_460)
+                        .generateError();
                 return false;
             }
 
@@ -203,12 +189,10 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #4: For every initial value in the multidimensional array, we need to make
                 //                 sure the initial value is an array itself.
                 if(!init.isArrayLiteral()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(currArr)
-                            .addErrorType(MessageType.TYPE_ERROR_461)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_461)
+                            .generateError();
                     return false;
                 }
 
@@ -233,14 +217,12 @@ public class TypeChecker extends Visitor {
         //                 must be known at compile-time. An Int constant in this context is either an Int
         //                 literal or a global Int constant.
         if(!dim.type.isInt() || (!dim.isLiteral() && !isGlobalConstant(dim))) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(dim.getRootParent())
-                    .addErrorType(MessageType.TYPE_ERROR_456)
-                    .addArgs(dim)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1448)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_456)
+                    .addErrorArgs(dim)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1448)
+                    .generateError();
             return false;
         }
 
@@ -251,7 +233,7 @@ public class TypeChecker extends Visitor {
             dimValue = currentScope.findName(dim).decl().asTopLevelDecl().asGlobalDecl().var().init().asLiteral().asInt();
 
         // yeah idk what this is
-        // #TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
+        // TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
 
         // ERROR CHECK #9:
         //if(dims.get(dims.size()-currDepth).asListLiteral().toString().equals())
@@ -273,13 +255,11 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #2: This checks if the user correctly initialized the array based on its size.
         if(currArr.getArrayInits().size() > dimValue) {
-            errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
-                            .addLocation(currArr.getRootParent())
-                            .addErrorType(MessageType.TYPE_ERROR_458)
-                            .addArgs(dimValue, currArr.getArrayInits().size())
-                            .error()
-            );
+            handler.createErrorBuilder(TypeError.class)
+                    .addLocation(currArr.getRootParent())
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_458)
+                    .addErrorArgs(dimValue, currArr.getArrayInits().size())
+                    .generateError();
             return false;
         }
 
@@ -289,7 +269,7 @@ public class TypeChecker extends Visitor {
     /**
      * Checks if a given {@link Expression} represents a global constant.
      * <p><br>
-     *     This is a helper method for {@link #checkArrayDims(int, Vector, Expression)} to
+     *     This is a helper method for to
      *     determine if a given array dimension actually represents a global constant declared
      *     by the user. Since constants will always have the same value, this means the compiler
      *     can definitively know the size of an array.
@@ -329,15 +309,13 @@ public class TypeChecker extends Visitor {
 
                 // ERROR CHECK #1: This checks to see if the current expression's type matches the list's base type.
                 if(!Type.assignmentCompatible(baseType,init.type)) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(curr.getRootParent())
-                            .addErrorType(MessageType.TYPE_ERROR_447)
-                            .addArgs(baseType,init.type)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1444)
-                            .addSuggestArgs(baseType)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_447)
+                            .addErrorArgs(baseType,init.type)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1444)
+                            .addSuggestionArgs(baseType)
+                            .generateError();
                     return false;
                 }
             }
@@ -353,13 +331,11 @@ public class TypeChecker extends Visitor {
             for(Expression e : curr.getInits()) {
                 if(!e.isListLiteral()) {
                     // ERROR CHECK #2: This checks to make sure we have nested lists if the current list is multidimensional.
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(curr.getRootParent())
-                            .addErrorType(MessageType.TYPE_ERROR_448)
-                            .addArgs(curr)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_448)
+                            .addErrorArgs(curr)
+                            .generateError();
                     return false;
                 }
                 listAssignmentCompatibility(currDepth-1,baseType,e.asListLiteral());
@@ -441,26 +417,24 @@ public class TypeChecker extends Visitor {
         if(fd.typeParams().size() != in.getTypeArgs().size()) {
             // Case 1: This error is generated when a user writes type arguments for a non-template function.
             if(fd.typeParams().isEmpty()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(in.getRootParent())
-                        .addErrorType(MessageType.TYPE_ERROR_462)
-                        .addArgs(fd)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_462)
+                        .addErrorArgs(fd)
+                        .generateError();
             }
             // Case 2: This error is generated when the wrong number of type arguments were used for a template function.
             else {
-                ErrorBuilder eb = new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
                                       .addLocation(in.getRootParent())
-                                      .addErrorType(MessageType.TYPE_ERROR_463)
-                                      .addArgs(in.getSignature())
-                                      .addSuggestArgs(fd,fd.typeParams().size());
+                                      .addErrorNumber(MessageNumber.TYPE_ERROR_463)
+                                      .addErrorArgs(in.getSignature())
+                                      .addSuggestionArgs(fd,fd.typeParams().size());
 
                 if(fd.typeParams().size() == 1)
-                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1449).error());
+                    eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1449).generateError();
                 else
-                    errors.add(eb.addSuggestType(MessageType.TYPE_SUGGEST_1450).error());
+                    eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1450).generateError();
             }
         }
 
@@ -472,15 +446,13 @@ public class TypeChecker extends Visitor {
             //                 the passed type argument can be used in the current type argument. If no type annotation
             //                 was given, this check is not needed, and we will let the type checker handle the rest.
             if(!typeParam.isValidTypeArg(in.getTypeArgs().get(i))) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(in.getRootParent())
-                        .addErrorType(MessageType.TYPE_ERROR_446)
-                        .addArgs(in.getTypeArgs().get(i), fd)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1451)
-                        .addSuggestArgs(fd, typeParam.possibleTypeToString(), i + 1)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_446)
+                        .addErrorArgs(in.getTypeArgs().get(i), fd)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1451)
+                        .addSuggestionArgs(fd, typeParam.possibleTypeToString(), i + 1)
+                        .generateError();
             }
         }
     }
@@ -503,13 +475,11 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: This checks if the target represents a valid Array or List type.
         if(!ae.getArrayTarget().type.isArrayType() && !ae.getArrayTarget().type.isListType()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ae)
-                    .addErrorType(MessageType.TYPE_ERROR_453)
-                    .addArgs(ae.getArrayTarget())
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_453)
+                    .addErrorArgs(ae.getArrayTarget())
+                    .generateError();
         }
 
         Type arrType;
@@ -523,25 +493,21 @@ public class TypeChecker extends Visitor {
         if(arrType.isArrayType()) {
             // ERROR CHECK #2: This checks if the number of indices exceeds the number of dimensions for the array.
             if(ae.getArrayIndex().size() > arrType.asArrayType().numOfDims) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs("array", ae.getArrayTarget(), arrType.asArrayType().numOfDims, ae.getArrayIndex().size())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_448)
+                        .addErrorArgs("array", ae.getArrayTarget(), arrType.asArrayType().numOfDims, ae.getArrayIndex().size())
+                        .generateError();
             }
         }
         else {
             // ERROR CHECK #3: Same as the previous error check, but for lists instead.
             if(ae.getArrayIndex().size() > arrType.asListType().numOfDims) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_448)
-                        .addArgs("list", ae.getArrayTarget(), arrType.asListType().numOfDims, ae.getArrayIndex().size())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_448)
+                        .addErrorArgs("list", ae.getArrayTarget(), arrType.asListType().numOfDims, ae.getArrayIndex().size())
+                        .generateError();
             }
         }
 
@@ -553,13 +519,11 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #3: For each index, make sure the
             //                 value evaluates to be an Int
             if(!e.type.isInt()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ae)
-                        .addErrorType(MessageType.TYPE_ERROR_454)
-                        .addArgs(e.type)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_454)
+                        .addErrorArgs(e.type)
+                        .generateError();
             }
         }
         if(arrType.isArrayType()) {
@@ -618,12 +582,10 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: An array literal can only be assigned to
         //                 a variable storing an array
         if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
-            errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
-                            .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_450)
-                            .error()
-            );
+            handler.createErrorBuilder(TypeError.class)
+                    .addLocation(as)
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_450)
+                    .generateError();
         }
 
         if(as.RHS().isArrayLiteral() || as.RHS().isListLiteral()) {
@@ -640,15 +602,13 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(as)
-                    .addErrorType(MessageType.TYPE_ERROR_403)
-                    .addArgs(as.LHS().toString(),lType,rType)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1401)
-                    .addSuggestArgs(lType)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_403)
+                    .addErrorArgs(as.LHS().toString(),lType,rType)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1401)
+                    .addSuggestionArgs(lType)
+                    .generateError();
         }
 
         if(as.assignOp().getAssignOp() != AssignType.EQ) {
@@ -656,28 +616,24 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #2: For a '+=' operation, the only allowed types
                 //                 are Int, Real, and String
                 if (lType.isBool() || lType.isChar() || lType.isClassOrMultiType())
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_403)
-                            .addArgs(as.LHS().toString(),lType,rType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1402)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_403)
+                            .addErrorArgs(as.LHS().toString(),lType,rType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1402)
+                            .generateError();
             }
             else {
                 // ERROR CHECK #3: For all other assignment operators, the
                 //                 only supported types are Int and Real
                 if(lType.isBool() || lType.isChar() || lType.isString() || lType.isClassOrMultiType())
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(as)
-                            .addErrorType(MessageType.TYPE_ERROR_404)
-                            .addArgs(as.assignOp(),lType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1403)
-                            .addSuggestArgs(as.assignOp())
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_404)
+                            .addErrorArgs(as.assignOp(),lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1403)
+                            .addSuggestionArgs(as.assignOp())
+                            .generateError();
             }
         }
     }
@@ -761,11 +717,7 @@ public class TypeChecker extends Visitor {
                 case "^":
                 case "|":
                 case "and":
-                case "or":
-                    break;
-                case "instanceof":
-                case "!instanceof":
-                case "as?":
+                case "or", "instanceof", "!instanceof", "as?":
                     break;
                 default:
                     FieldExpr fe = new FieldExprBuilder()
@@ -786,15 +738,13 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: Both LHS/RHS have to be the same type.
         if(!binOp.equals("instanceof") && !binOp.equals("!instanceof") && !binOp.equals("as?")) {
             if(!Type.assignmentCompatible(lType,rType)) {
-                errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(be)
-                                .addErrorType(MessageType.TYPE_ERROR_405)
-                                .addArgs(binOp,lType,rType)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1404)
-                                .addSuggestArgs(binOp)
-                                .error()
-                );
+                handler.createErrorBuilder(TypeError.class)
+                        .addLocation(be)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_405)
+                        .addErrorArgs(binOp,lType,rType)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1404)
+                        .addSuggestionArgs(binOp)
+                        .generateError();
             }
         }
 
@@ -812,15 +762,13 @@ public class TypeChecker extends Visitor {
             case "<=>": {
                 // ERROR CHECK #2: Make sure the operands are numeric types
                 if(!lType.isNumeric()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(be)
-                            .addErrorType(MessageType.TYPE_ERROR_406)
-                            .addArgs(binOp,lType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1405)
-                            .addSuggestArgs(binOp)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                            .addErrorArgs(binOp,lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1405)
+                            .addSuggestionArgs(binOp)
+                            .generateError();
                 }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -838,15 +786,13 @@ public class TypeChecker extends Visitor {
             case "**": {
                 // ERROR CHECK #3: Make sure the operands are numeric types
                 if(!lType.isNumeric()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(be)
-                            .addErrorType(MessageType.TYPE_ERROR_406)
-                            .addArgs(binOp,lType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1405)
-                            .addSuggestArgs(binOp)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                            .addErrorArgs(binOp,lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1405)
+                            .addSuggestionArgs(binOp)
+                            .generateError();
                 }
                 be.type = lType;
                 break;
@@ -855,15 +801,13 @@ public class TypeChecker extends Visitor {
             case ">>": {
                 // ERROR CHECK #4: Both LHS and RHS have to be an INT for shift operations
                 if(!lType.isInt()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(be)
-                            .addErrorType(MessageType.TYPE_ERROR_406)
-                            .addArgs(binOp,lType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1406)
-                            .addSuggestArgs(binOp)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                            .addErrorArgs(binOp,lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1406)
+                            .addSuggestionArgs(binOp)
+                            .generateError();
                 }
                 be.type = new DiscreteType(Discretes.INT);
                 break;
@@ -873,15 +817,13 @@ public class TypeChecker extends Visitor {
             case "^": {
                 // ERROR CHECK #5: Make sure both types are discrete
                 if(!lType.isDiscreteType() || !rType.isDiscreteType()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(be)
-                                .addErrorType(MessageType.TYPE_ERROR_406)
-                                .addArgs(binOp,lType)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1407)
-                                .addSuggestArgs(binOp)
-                                .error()
-                    );
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(be)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                            .addErrorArgs(binOp,lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1407)
+                            .addSuggestionArgs(binOp)
+                            .generateError();
                 }
                 if(binOp.equals("^"))
                     be.type = new DiscreteType(Discretes.INT);
@@ -893,15 +835,13 @@ public class TypeChecker extends Visitor {
             case "or": {
                 // ERROR CHECK #6: Make sure both types are Bool
                 if(!lType.isBool() || !rType.isBool()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(be)
-                            .addErrorType(MessageType.TYPE_ERROR_406)
-                            .addArgs(binOp,lType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1408)
-                            .addSuggestArgs(binOp)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                            .addErrorArgs(binOp,lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1408)
+                            .addSuggestionArgs(binOp)
+                            .generateError();
                 }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -911,15 +851,13 @@ public class TypeChecker extends Visitor {
             case "as?": {
                 // ERROR CHECK #7: Make sure the LHS represents a class type
                 if(!lType.isClassOrMultiType()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(be)
-                            .addErrorType(MessageType.TYPE_ERROR_407)
-                            .addArgs(binOp,lType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1409)
-                            .addSuggestArgs(binOp)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_407)
+                            .addErrorArgs(binOp,lType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1409)
+                            .addSuggestionArgs(binOp)
+                            .generateError();
                 }
                 be.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -946,55 +884,47 @@ public class TypeChecker extends Visitor {
         if(ce.getCastExpr().type.isInt()) {
             // ERROR CHECK #1: An Int can only be typecasted into a Char and a Real
             if(!ce.getCastType().isChar() && !ce.getCastType().isReal() && !ce.getCastType().isInt()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ce)
-                        .addErrorType(MessageType.TYPE_ERROR_409)
-                        .addArgs(ce.getCastType())
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1412)
-                        .addSuggestArgs(ce.getCastExpr())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                        .addErrorArgs(ce.getCastType())
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1412)
+                        .addSuggestionArgs(ce.getCastExpr())
+                        .generateError();
             }
         }
         else if(ce.getCastExpr().type.isChar()) {
             // ERROR CHECK #2: A Char can only be type casted into an Int and a String
             if(!ce.getCastType().isInt() && !ce.getCastType().isString() && !ce.getCastType().isChar()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ce)
-                        .addErrorType(MessageType.TYPE_ERROR_409)
-                        .addArgs(ce.getCastType())
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1413)
-                        .addSuggestArgs(ce.getCastExpr())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                        .addErrorArgs(ce.getCastType())
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1413)
+                        .addSuggestionArgs(ce.getCastExpr())
+                        .generateError();
             }
         }
         else if(ce.getCastExpr().type.isReal()) {
             // ERROR CHECK #3: A Real can only be type casted into an Int
             if(!ce.getCastType().isInt() && !ce.getCastType().isReal()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ce)
-                        .addErrorType(MessageType.TYPE_ERROR_409)
-                        .addArgs(ce.getCastType())
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1414)
-                        .addSuggestArgs(ce.getCastExpr())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                        .addErrorArgs(ce.getCastType())
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1414)
+                        .addSuggestionArgs(ce.getCastExpr())
+                        .generateError();
             }
         }
         else {
             // By default, all other cast expressions will be considered invalid
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ce)
-                    .addErrorType(MessageType.TYPE_ERROR_409)
-                    .addArgs(ce.getCastType())
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1415)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                    .addErrorArgs(ce.getCastType())
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1415)
+                    .generateError();
         }
 
         ce.type = ce.getCastType();
@@ -1018,14 +948,12 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: Choice statements only support Int, Char, and String
         if(!(choiceType.isInt() || choiceType.isChar() || choiceType.isString())) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(cs.choiceExpr())
-                    .addErrorType(MessageType.TYPE_ERROR_416)
-                    .addArgs(choiceType)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1422)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_416)
+                    .addErrorArgs(choiceType)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1422)
+                    .generateError();
         }
 
         for(CaseStmt curr : cs.caseStmts()) {
@@ -1035,40 +963,34 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #2: Make sure the case label's type corresponds
             //                 to the type of the choice statement expression
             if(!Type.assignmentCompatible(labelType,choiceType)) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError, interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(curr.choiceLabel())
-                        .addErrorType(MessageType.TYPE_ERROR_417)
-                        .addArgs(labelType, choiceType)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1423)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_417)
+                        .addErrorArgs(labelType, choiceType)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
+                        .generateError();
             }
 
             if(curr.choiceLabel().rightLabel() != null) {
                 labelType = curr.choiceLabel().rightLabel().type;
                 // ERROR CHECK #3: Same as ERROR CHECK #2, but now for the right label
                 if(!Type.assignmentCompatible(labelType,choiceType)) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(curr.choiceLabel())
-                            .addErrorType(MessageType.TYPE_ERROR_417)
-                            .addArgs(labelType,choiceType)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1423)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_417)
+                            .addErrorArgs(labelType,choiceType)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
+                            .generateError();
                 }
 
                 // ERROR CHECK #4: If we allow to choose from String values, then
                 //                 there is only one label allowed per case statement
                 if(choiceType.isString()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError, interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(curr.choiceLabel())
-                            .addErrorType(MessageType.TYPE_ERROR_418)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1424)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_418)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1424)
+                            .generateError();
                 }
 
                 // ERROR CHECK #5: Make sure label's right constant is greater than left constant
@@ -1076,26 +998,22 @@ public class TypeChecker extends Visitor {
                     int lLabel = curr.choiceLabel().leftLabel().asInt();
                     int rLabel = curr.choiceLabel().leftLabel().asInt();
                     if(rLabel <= lLabel) {
-                        errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
+                        handler.createErrorBuilder(TypeError.class)
                                 .addLocation(curr.choiceLabel())
-                                .addErrorType(MessageType.TYPE_ERROR_419)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1425)
-                                .error()
-                        );
+                                .addErrorNumber(MessageNumber.TYPE_ERROR_419)
+                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
+                                .generateError();
                     }
                 }
                 else if(choiceType.isChar()) {
                     char lLabel = curr.choiceLabel().leftLabel().asChar();
                     char rLabel = curr.choiceLabel().leftLabel().asChar();
                     if(rLabel <= lLabel) {
-                        errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
+                        handler.createErrorBuilder(TypeError.class)
                                 .addLocation(curr.choiceLabel())
-                                .addErrorType(MessageType.TYPE_ERROR_419)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1425)
-                                .error()
-                        );
+                                .addErrorNumber(MessageNumber.TYPE_ERROR_419)
+                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
+                                .generateError();
                     }
                 }
             }
@@ -1150,9 +1068,8 @@ public class TypeChecker extends Visitor {
     }
 
     public void visitCompilation(Compilation c) {
-        currentFile = c.getFile();
         currentScope = c.globalTable;
-        this.typeValidityPass = new TypeValidityPass(c.globalTable,this.interpretMode);
+        this.typeValidityPass = new TypeValidityPass(c.globalTable);
         super.visitCompilation(c);
     }
 
@@ -1176,14 +1093,12 @@ public class TypeChecker extends Visitor {
         ds.condition().visit(this);
         // ERROR CHECK #1: The do while loop's condition must be a boolean
         if(!ds.condition().type.isBool()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ds.condition())
-                    .addErrorType(MessageType.TYPE_ERROR_412)
-                    .addArgs(ds.condition().type)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1418)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_412)
+                    .addErrorArgs(ds.condition().type)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1418)
+                    .generateError();
         }
     }
 
@@ -1209,14 +1124,12 @@ public class TypeChecker extends Visitor {
 
                     // ERROR CHECK #1: A constant in an Enum can only be assigned Int or Char values
                     if(!constant.init().type.isInt() && !constant.init().type.isChar()) {
-                        errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
+                        handler.createErrorBuilder(TypeError.class)
                                 .addLocation(ed)
-                                .addErrorType(MessageType.TYPE_ERROR_436)
-                                .addArgs(ed,constant.init().type)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1434)
-                                .error()
-                        );
+                                .addErrorNumber(MessageNumber.TYPE_ERROR_436)
+                                .addErrorArgs(ed,constant.init().type)
+                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1434)
+                                .generateError();
                     }
 
                     EnumTypeBuilder typeBuilder = new EnumTypeBuilder().setName(ed.name());
@@ -1256,14 +1169,12 @@ public class TypeChecker extends Visitor {
         }
         // ERROR CHECK #2: Make sure each constant in the Enum was initialized
         else if(constantInitCount != ed.constants().size()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ed)
-                    .addErrorType(MessageType.TYPE_ERROR_437)
-                    .addArgs(ed)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1435)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_437)
+                    .addErrorArgs(ed)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1435)
+                    .generateError();
         }
         else {
             for(Var constant : ed.constants()) {
@@ -1272,14 +1183,12 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #3: Make sure the initial value given to a
                 //                 constant matches the enum's constant type
                 if(!Type.assignmentCompatible(ed.type().constantType(),constant.init().type)) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(constant)
-                            .addErrorType(MessageType.TYPE_ERROR_438)
-                            .addArgs(constant,ed,constant.init().type,ed.type().constantType())
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1436)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_438)
+                            .addErrorArgs(constant,ed,constant.init().type,ed.type().constantType())
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1436)
+                            .generateError();
                 }
                 constant.init().type = ed.type();
                 constant.setType(ed.type());
@@ -1322,15 +1231,13 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #1: Check if the field's declared type
             //                 matches the type of the initial value
             if(!Type.assignmentCompatible(fd.type(),fd.var().init().type)) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(fd)
-                        .addErrorType(MessageType.TYPE_ERROR_420)
-                        .addArgs(fd.toString(),fd.type(),fd.var().init().type)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1400)
-                        .addSuggestArgs(fd.var().type())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_420)
+                        .addErrorArgs(fd.toString(),fd.type(),fd.var().init().type)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                        .addSuggestionArgs(fd.var().type())
+                        .generateError();
             }
         }
         fd.var().setType(fd.type());
@@ -1352,14 +1259,12 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: We want to make sure the target is indeed an object,
         //                 so make sure it's assigned a class type
         if(!fe.getTarget().type.isClassOrMultiType()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(fe)
-                    .addErrorType(MessageType.TYPE_ERROR_435)
-                    .addArgs(fe.getTarget(),fe.getTarget().type)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1433)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_435)
+                    .addErrorArgs(fe.getTarget(),fe.getTarget().type)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1433)
+                    .generateError();
         }
 
         Type oldTarget = currentTarget;
@@ -1391,14 +1296,12 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: Make sure loop control variable is an Int, Char, or Enum
         if(!varType.isInt() && !varType.isChar() && !varType.isEnumType()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(fs.loopVar())
-                    .addErrorType(MessageType.TYPE_ERROR_413)
-                    .addArgs(fs.loopVar(),varType)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1419)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_413)
+                    .addErrorArgs(fs.loopVar(),varType)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1419)
+                    .generateError();
         }
 
         fs.condLHS().visit(this);
@@ -1406,26 +1309,22 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #2: Make sure the LHS and RHS conditions have the same type
         if(!Type.assignmentCompatible(fs.condLHS().type,fs.condRHS().type)) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(fs)
-                    .addErrorType(MessageType.TYPE_ERROR_414)
-                    .addArgs(fs.condLHS().type,fs.condRHS().type)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1420)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_414)
+                    .addErrorArgs(fs.condLHS().type,fs.condRHS().type)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1420)
+                    .generateError();
         }
 
         // ERROR CHECK #3: Make sure the loop condition literals match the type of the control variable
         if(!Type.assignmentCompatible(varType,fs.condLHS().type)) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(fs)
-                    .addErrorType(MessageType.TYPE_ERROR_415)
-                    .addArgs(fs.loopVar(),fs.loopVar().type(),fs.condLHS().type)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1421)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_415)
+                    .addErrorArgs(fs.loopVar(),fs.loopVar().type(),fs.condLHS().type)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1421)
+                    .generateError();
         }
 
         if(fs.forBlock() != null) { 
@@ -1453,15 +1352,13 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #1: Make sure the function return type is valid
             if(fd.returnType().isClassType()) {
                 if(!currentScope.hasNameSomewhere(fd.returnType().toString())) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(fd)
-                                    .addErrorType(MessageType.TYPE_ERROR_421)
-                                    .addArgs(fd.returnType(),fd)
-                                    .addSuggestType(MessageType.TYPE_SUGGEST_1426)
-                                    .addSuggestArgs(fd.returnType())
-                                    .error()
-                    );
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(fd)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_421)
+                            .addErrorArgs(fd.returnType(),fd)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1426)
+                            .addSuggestionArgs(fd.returnType())
+                            .generateError();
                 }
             }
 
@@ -1470,14 +1367,12 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #2: If the function has a non-void return type, make
             //                 sure a return statement is found in the function
             if(!fd.returnType().isVoidType() && !returnFound) {
-                errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(fd)
-                                .addErrorType(MessageType.TYPE_ERROR_422)
-                                .addArgs(fd,fd.returnType())
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1427)
-                                .error()
-                );
+                handler.createErrorBuilder(TypeError.class)
+                        .addLocation(fd)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_422)
+                        .addErrorArgs(fd,fd.returnType())
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
+                        .generateError();
             }
 
             currentScope = oldScope;
@@ -1521,15 +1416,15 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #1: Check if the global variable's declared type
             //                 matches the type of the initial value
             if(!Type.assignmentCompatible(gd.type(),gd.var().init().type)) {
-                ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
                                       .addLocation(gd)
-                                      .addArgs(gd.toString(),gd.type(),gd.var().init().type)
-                                      .addSuggestType(MessageType.TYPE_SUGGEST_1400)
-                                      .addSuggestArgs(gd.type());
+                                      .addErrorArgs(gd.toString(),gd.type(),gd.var().init().type)
+                                      .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                                      .addSuggestionArgs(gd.type());
                 if(gd.isConstant())
-                    errors.add(eb.addErrorType(MessageType.TYPE_ERROR_402).error());
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_402).generateError();
                 else
-                    errors.add(eb.addErrorType(MessageType.TYPE_ERROR_401).error());
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_401).generateError();
             }
 
         }
@@ -1553,14 +1448,12 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: The if statement's conditional expression must be a boolean
         if(!is.condition().type.isBool()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(is.condition())
-                    .addErrorType(MessageType.TYPE_ERROR_410)
-                    .addArgs(is.condition().type)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1416)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_410)
+                    .addErrorArgs(is.condition().type)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1416)
+                    .generateError();
         }
 
         currentScope = is.symbolTableIfBlock;
@@ -1579,13 +1472,11 @@ public class TypeChecker extends Visitor {
     }
 
     public void visitImportDecl(ImportDecl im) {
-        String oldFileName = currentFile;
         SymbolTable oldScope = currentScope;
 
         im.getCompilationUnit().visit(this);
 
         currentScope = oldScope;
-        currentFile = oldFileName;
     }
 
     /**
@@ -1604,14 +1495,12 @@ public class TypeChecker extends Visitor {
             e.visit(this);
             // ERROR CHECK #1: Make sure expression is discrete (not enum) or scalar
             if(!(e.type.isDiscreteType() || e.type.isScalarType()) || e.type.isEnumType()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(is)
-                        .addErrorType(MessageType.TYPE_ERROR_440)
-                        .addArgs(e,e.type)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1437)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_440)
+                        .addErrorArgs(e,e.type)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1437)
+                        .generateError();
             }
         }
         is.type = new VoidType();
@@ -1647,21 +1536,17 @@ public class TypeChecker extends Visitor {
             if(in.isLengthInvocation()) {
                 // ERROR CHECK #1: Make sure 'length' call only has one argument
                 if(in.getArgs().size() != 1) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
-                                .addLocation(in)
-                                .addErrorType(MessageType.TYPE_ERROR_451)
-                                .error()
-                    );
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(in)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_451)
+                            .generateError();
                 }
                 // ERROR CHECK #2: Make sure argument evaluates to an array or list
                 if(!(in.getArgs().get(0).type.isArrayType() || in.getArgs().get(0).type.isListType())) {
-                    errors.add(
-                            new ErrorBuilder(generateTypeError,interpretMode)
-                                    .addLocation(in)
-                                    .addErrorType(MessageType.TYPE_ERROR_452)
-                                    .error()
-                    );
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(in)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_452)
+                            .generateError();
                 }
                 in.targetType = new VoidType();
                 in.type = new DiscreteType(Discretes.INT);
@@ -1680,18 +1565,18 @@ public class TypeChecker extends Visitor {
 
                     if(!Type.assignmentCompatible(paramType, argType)) {
                         String argumentTypes = Type.createTypeString(in.getArgs());
-                        ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
+                        ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
                                 .addLocation(in)
-                                .addArgs(in,argumentTypes)
-                                .addSuggestType(MessageType.TYPE_SUGGEST_1431)
-                                .addSuggestArgs(in,in+"("+argumentTypes+")");
+                                .addErrorArgs(in,argumentTypes)
+                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1431)
+                                .addSuggestionArgs(in,in+"("+argumentTypes+")");
 
                         if(in.getArgs().isEmpty())
-                            errors.add(eb.addErrorType(MessageType.TYPE_ERROR_429).error());
+                            eb.addErrorNumber(MessageNumber.TYPE_ERROR_429).generateError();
                         else if(in.getArgs().size() == 1)
-                            errors.add(eb.addErrorType(MessageType.TYPE_ERROR_430).error());
+                            eb.addErrorNumber(MessageNumber.TYPE_ERROR_430).generateError();
                         else
-                            errors.add(eb.addErrorType(MessageType.TYPE_ERROR_431).error());
+                            eb.addErrorNumber(MessageNumber.TYPE_ERROR_431).generateError();
                     }
                 }
 
@@ -1703,18 +1588,18 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #3: Check if function overload exists
             if(!currentScope.hasNameSomewhere(signature.toString())) {
                 String argumentTypes = Type.createTypeString(in.getArgs());
-                ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
                                       .addLocation(in)
-                                      .addArgs(in,argumentTypes)
-                                      .addSuggestType(MessageType.TYPE_SUGGEST_1431)
-                                      .addSuggestArgs(in,in+"("+argumentTypes+")");
+                                      .addErrorArgs(in,argumentTypes)
+                                      .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1431)
+                                      .addSuggestionArgs(in,in+"("+argumentTypes+")");
 
                 if(in.getArgs().isEmpty())
-                    errors.add(eb.addErrorType(MessageType.TYPE_ERROR_429).error());
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_429).generateError();
                 else if(in.getArgs().size() == 1)
-                    errors.add(eb.addErrorType(MessageType.TYPE_ERROR_430).error());
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_430).generateError();
                 else
-                    errors.add(eb.addErrorType(MessageType.TYPE_ERROR_431).error());
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_431).generateError();
             }
 
             FuncDecl fd = currentScope.findName(signature.toString()).decl().asTopLevelDecl().asFuncDecl();
@@ -1740,36 +1625,34 @@ public class TypeChecker extends Visitor {
             String className = cd.toString();
             // ERROR CHECK #4: Check if the method was defined in the class hierarchy
             if(!cd.symbolTable.hasMethod(in.toString())) {
-                if(interpretMode)
-                    currentTarget = null;
-                errors.add(
-                    new ScopeErrorBuilder(generateScopeError,currentFile,interpretMode)
+//                if(interpretMode)
+//                    currentTarget = null;
+                handler.createErrorBuilder(ScopeError.class)
                         .addLocation(in)
-                        .addErrorType(MessageType.SCOPE_ERROR_327)
-                        .addArgs(in)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.SCOPE_ERROR_327)
+                        .addErrorArgs(in)
+                        .generateError();
             }
 
             // ERROR CHECK #5: Check if a valid method overload exists
             while(!cd.symbolTable.hasName(signature.toString())) {
                 if(cd.superClass() == null) {
-                    if(interpretMode)
-                        currentTarget = null;
+//                    if(interpretMode)
+//                        currentTarget = null;
 
                     String argumentTypes = Type.createTypeString(in.getArgs());
-                    ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode)
+                    ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
                                           .addLocation(in)
-                                          .addArgs(in,className,argumentTypes)
-                                          .addSuggestType(MessageType.TYPE_SUGGEST_1432)
-                                          .addSuggestArgs(in,className,in+"("+argumentTypes+")");
+                                          .addErrorArgs(in,className,argumentTypes)
+                                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1432)
+                                          .addSuggestionArgs(in,className,in+"("+argumentTypes+")");
 
                     if(in.getArgs().isEmpty())
-                        errors.add(eb.addErrorType(MessageType.TYPE_ERROR_432).error());
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_432).generateError();
                     else if(in.getArgs().size() == 1)
-                        errors.add(eb.addErrorType(MessageType.TYPE_ERROR_433).error());
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_433).generateError();
                     else
-                        errors.add(eb.addErrorType(MessageType.TYPE_ERROR_434).error());
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_434).generateError();
                 }
                 cd = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
             }
@@ -1901,27 +1784,23 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: This ensures the correct number of arguments were passed to the list command.
         //                 append/remove => 2 args, insert => 3 args
         if(ls.getAllArgs().size() != ls.getExpectedNumOfArgs()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ls)
-                    .addErrorType(MessageType.TYPE_ERROR_449)
-                    .addArgs(ls,ls.getExpectedNumOfArgs(),ls.getAllArgs().size())
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_449)
+                    .addErrorArgs(ls,ls.getExpectedNumOfArgs(),ls.getAllArgs().size())
+                    .generateError();
         }
 
         ls.getList().visit(this);
         // ERROR CHECK #2: The first argument in a list command must be the list the command acts on.
         if(!ls.getList().type.isListType()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ls)
-                    .addErrorType(MessageType.TYPE_ERROR_450)
-                    .addArgs(ls.getList(),ls)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1445)
-                    .addSuggestArgs(ls)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_450)
+                    .addErrorArgs(ls.getList(),ls)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1445)
+                    .addSuggestionArgs(ls)
+                    .generateError();
         }
 
         ls.getSecondArg().visit(this);
@@ -1929,14 +1808,12 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #3: The second argument for the insert command must be an integer.
         if(ls.isInsert()) {
             if(!finalArgType.isInt()) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,currentFile,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ls)
-                        .addErrorType(MessageType.TYPE_ERROR_451)
-                        .addArgs(ls.getAllArgs().get(1))
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1446)
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_451)
+                        .addErrorArgs(ls.getAllArgs().get(1))
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1446)
+                        .generateError();
             }
 
             ls.getThirdArg().visit(this);
@@ -1947,15 +1824,13 @@ public class TypeChecker extends Visitor {
         //                 that can either be stored or merged into the list.
         if(ls.isAppend() || ls.isInsert()) {
             if(!ls.getListType().isSubList(finalArgType)) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError, currentFile, interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(ls)
-                        .addErrorType(MessageType.TYPE_ERROR_452)
-                        .addArgs(ls.getList(), ls.getListType(), ls, finalArgType)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1447)
-                        .addSuggestArgs(ls, ls.getList(), ls.getListType(), ls.getListType().validSublist())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_452)
+                        .addErrorArgs(ls.getList(), ls.getListType(), ls, finalArgType)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1447)
+                        .addSuggestionArgs(ls, ls.getList(), ls.getListType(), ls.getListType().validSublist())
+                        .generateError();
             }
         }
     }
@@ -1996,15 +1871,13 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #1: Check if the local variable's declared type
             //                 matches the type of the initial value
             if(!Type.assignmentCompatible(ld.type(),ld.var().init().type)) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
-                            .addLocation(ld)
-                            .addErrorType(MessageType.TYPE_ERROR_400)
-                            .addArgs(ld,ld.type(),ld.var().init().type)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1400)
-                            .addSuggestArgs(ld.type())
-                            .error()
-                );
+                handler.createErrorBuilder(TypeError.class)
+                        .addLocation(ld)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_400)
+                        .addErrorArgs(ld,ld.type(),ld.var().init().type)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                        .addSuggestionArgs(ld.type())
+                        .generateError();
             }
         }
 
@@ -2027,13 +1900,11 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: Make sure main does not return any value
         if(!md.returnType().isVoidType()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(md)
-                    .addErrorType(MessageType.TYPE_ERROR_417)
-                    .addArgs(md.returnType())
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_417)
+                    .addErrorArgs(md.returnType())
+                    .generateError();
         }
         super.visitMainDecl(md);
         currentScope = currentScope.closeScope();
@@ -2055,15 +1926,13 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #1: Make sure the method's return type is valid
         if(md.returnType().isClassType()) {
             if(!currentScope.hasNameSomewhere(md.returnType().toString())) {
-                errors.add(
-                    new ErrorBuilder(generateTypeError,interpretMode)
+                handler.createErrorBuilder(TypeError.class)
                         .addLocation(md)
-                        .addErrorType(MessageType.TYPE_ERROR_423)
-                        .addArgs(md.returnType(),md,currentClass)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1426)
-                        .addSuggestArgs(md.returnType())
-                        .error()
-                );
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_423)
+                        .addErrorArgs(md.returnType(),md,currentClass)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1426)
+                        .addSuggestionArgs(md.returnType())
+                        .generateError();
             }
         }
 
@@ -2072,14 +1941,12 @@ public class TypeChecker extends Visitor {
         // ERROR CHECK #2: If the method has a non-void return type, make
         //                 sure a return statement is found in the method
         if(!md.returnType().isVoidType() && !returnFound) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(md)
-                    .addErrorType(MessageType.TYPE_ERROR_424)
-                    .addArgs(md,currentClass,md.returnType())
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1428)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_424)
+                    .addErrorArgs(md,currentClass,md.returnType())
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
+                    .generateError();
         }
         currentScope = currentScope.closeScope();
         currentMethod = null;
@@ -2099,12 +1966,10 @@ public class TypeChecker extends Visitor {
         if(ne.isParentKeyword()) {
             if(parentFound) {
                 parentFound = false;
-                errors.add(
-                    new ErrorBuilder(generateScopeError,interpretMode)
-                            .addLocation(ne)
-                            .addErrorType(MessageType.SCOPE_ERROR_337)
-                            .error()
-                );
+                handler.createErrorBuilder(ScopeError.class)
+                        .addLocation(ne)
+                        .addErrorNumber(MessageNumber.SCOPE_ERROR_337)
+                        .generateError();
             }
             parentFound = true;
             ne.type = currentClass.superClass();
@@ -2119,15 +1984,13 @@ public class TypeChecker extends Visitor {
                 //                 evaluating a complex field expression
                 if(!cd.symbolTable.hasName(ne.toString())) {
                     // We need to reset currentTarget if there's an error during interpretation
-                    if(interpretMode)
-                        currentTarget = null;
-                    errors.add(
-                        new ErrorBuilder(generateScopeError,currentFile,interpretMode)
+//                    if(interpretMode)
+//                        currentTarget = null;
+                    handler.createErrorBuilder(ScopeError.class)
                             .addLocation(ne.getRootParent())
-                            .addErrorType(MessageType.SCOPE_ERROR_329)
-                            .addArgs(ne,targetName)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.SCOPE_ERROR_329)
+                            .addErrorArgs(ne,targetName)
+                            .generateError();
                 }
             }
             else {
@@ -2142,15 +2005,13 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #2: Make sure the class that declared the
                 //                 field was found for a MultiTyped name
                 if(!found) {
-                    if (interpretMode)
-                        currentTarget = null;
-                    errors.add(
-                        new ErrorBuilder(generateScopeError, interpretMode)
-                                .addLocation(ne)
-                                .addErrorType(MessageType.SCOPE_ERROR_309)
-                                .addArgs(ne.toString(), targetName)
-                                .error()
-                    );
+//                    if (interpretMode)
+//                        currentTarget = null;
+                    handler.createErrorBuilder(ScopeError.class)
+                            .addLocation(ne)
+                            .addErrorNumber(MessageNumber.SCOPE_ERROR_309)
+                            .addErrorArgs(ne.toString(), targetName)
+                            .generateError();
                 }
             }
             ne.type = cd.symbolTable.findName(ne.toString()).decl().asFieldDecl().type();
@@ -2203,15 +2064,13 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #1: Make sure the type of the argument matches
                 //                 the type of the field declaration
                 if(!Type.assignmentCompatible(v.init().type,fType)) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(ne)
-                            .addErrorType(MessageType.TYPE_ERROR_420)
-                            .addArgs(v.toString(),fType,v.init().type)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1400)
-                            .addSuggestArgs(fType)
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_420)
+                            .addErrorArgs(v.toString(),fType,v.init().type)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                            .addSuggestionArgs(fType)
+                            .generateError();
                 }
             }
         }
@@ -2263,42 +2122,34 @@ public class TypeChecker extends Visitor {
 
             // ERROR CHECK #1: A Void function can not return anything
             if(rType.isVoidType()) {
-                ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode).addLocation(rs);
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
                 if(currentMethod.isMethodDecl()) {
-                    errors.add(
-                        eb.addErrorType(MessageType.TYPE_ERROR_426)
-                          .addArgs(currentMethod,currentClass,rs.expr().type)
-                          .addSuggestType(MessageType.TYPE_SUGGEST_1430)
-                          .error()
-                    );
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_426)
+                          .addErrorArgs(currentMethod,currentClass,rs.expr().type)
+                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1430)
+                          .generateError();
                 }
                 else {
-                    errors.add(
-                        eb.addErrorType(MessageType.TYPE_ERROR_425)
-                          .addArgs(currentMethod,rs.expr().type)
-                          .addSuggestType(MessageType.TYPE_SUGGEST_1429)
-                          .error()
-                    );
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_425)
+                          .addErrorArgs(currentMethod,rs.expr().type)
+                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1429)
+                          .generateError();
                 }
             }
             // ERROR CHECK #2: Check if the return value's type matches the return type
             if(!Type.assignmentCompatible(rType,rs.expr().type)) {
-                ErrorBuilder eb = new ErrorBuilder(generateTypeError,interpretMode).addLocation(rs);
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
                 if(currentMethod.isMethodDecl()) {
-                    errors.add(
-                        eb.addErrorType(MessageType.TYPE_ERROR_428)
-                          .addArgs(currentMethod,currentClass,rs.expr().type,rType)
-                          .addSuggestType(MessageType.TYPE_SUGGEST_1428)
-                          .error()
-                    );
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_428)
+                          .addErrorArgs(currentMethod,currentClass,rs.expr().type,rType)
+                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
+                          .generateError();
                 }
                 else {
-                    errors.add(
-                        eb.addErrorType(MessageType.TYPE_ERROR_427)
-                          .addArgs(currentMethod,rs.expr().type,rType)
-                          .addSuggestType(MessageType.TYPE_SUGGEST_1427)
-                          .error()
-                    );
+                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_427)
+                          .addErrorArgs(currentMethod,rs.expr().type,rType)
+                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
+                          .generateError();
                 }
             }
         }
@@ -2315,14 +2166,12 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: Make sure the LHS does represent an object
         if(!objType.isClassOrMultiType()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(rt)
-                    .addErrorType(MessageType.TYPE_ERROR_441)
-                    .addArgs(rt.getName(),objType)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1438)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_441)
+                    .addErrorArgs(rt.getName(),objType)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1438)
+                    .generateError();
         }
 
         rt.getNewObject().visit(this);
@@ -2333,15 +2182,13 @@ public class TypeChecker extends Visitor {
         if(!ClassType.classAssignmentCompatibility(objBaseType,newObjType)) {
             ClassDecl cd = currentScope.findName(objBaseType.toString()).decl().asTopLevelDecl().asClassDecl();
 
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
-                        .addLocation(rt)
-                        .addErrorType(MessageType.TYPE_ERROR_442)
-                        .addArgs(rt.getName(),newObjType)
-                        .addSuggestType(MessageType.TYPE_SUGGEST_1439)
-                        .addSuggestArgs(rt.getName())
-                        .error()
-            );
+            handler.createErrorBuilder(TypeError.class)
+                    .addLocation(rt)
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_442)
+                    .addErrorArgs(rt.getName(),newObjType)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1439)
+                    .addSuggestionArgs(rt.getName())
+                    .generateError();
         }
         
         if(inControlStmt) {
@@ -2421,30 +2268,26 @@ public class TypeChecker extends Visitor {
             case "~":
                 // ERROR CHECK #1: A bitwise negation can only occur with a discrete type
                 if(!ue.getExpr().type.isDiscreteType()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(ue)
-                            .addErrorType(MessageType.TYPE_ERROR_408)
-                            .addArgs(ue.getUnaryOp(),ue.getExpr().type)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1410)
-                            .addSuggestArgs(ue.getUnaryOp())
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_408)
+                            .addErrorArgs(ue.getUnaryOp(),ue.getExpr().type)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1410)
+                            .addSuggestionArgs(ue.getUnaryOp())
+                            .generateError();
                 }
                 ue.type = new DiscreteType(Discretes.BOOL);
                 break;
             case "not":
                 // ERROR CHECK #2: A 'not' operation can only occur on a boolean expression
                 if(!ue.getExpr().type.isBool()) {
-                    errors.add(
-                        new ErrorBuilder(generateTypeError,interpretMode)
+                    handler.createErrorBuilder(TypeError.class)
                             .addLocation(ue)
-                            .addErrorType(MessageType.TYPE_ERROR_408)
-                            .addArgs(ue.getUnaryOp(),ue.getExpr().type)
-                            .addSuggestType(MessageType.TYPE_SUGGEST_1411)
-                            .addSuggestArgs(ue.getUnaryOp())
-                            .error()
-                    );
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_408)
+                            .addErrorArgs(ue.getUnaryOp(),ue.getExpr().type)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1411)
+                            .addSuggestionArgs(ue.getUnaryOp())
+                            .generateError();
                 }
                 ue.type = new DiscreteType(Discretes.BOOL);
                 break;
@@ -2467,14 +2310,12 @@ public class TypeChecker extends Visitor {
 
         // ERROR CHECK #1: The while loop's condition must be a boolean
         if(!ws.condition().type.isBool()) {
-            errors.add(
-                new ErrorBuilder(generateTypeError,interpretMode)
+            handler.createErrorBuilder(TypeError.class)
                     .addLocation(ws.condition())
-                    .addErrorType(MessageType.TYPE_ERROR_411)
-                    .addArgs(ws.condition().type)
-                    .addSuggestType(MessageType.TYPE_SUGGEST_1417)
-                    .error()
-            );
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_411)
+                    .addErrorArgs(ws.condition().type)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1417)
+                    .generateError();
         }
 
         currentScope = ws.symbolTable;

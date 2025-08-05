@@ -3,48 +3,34 @@ package modifierchecker;
 import ast.AST;
 import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
-import ast.expressions.Expression;
-import ast.expressions.FieldExpr;
-import ast.expressions.Invocation;
-import ast.expressions.NameExpr;
-import ast.expressions.NewExpr;
-import ast.expressions.OutStmt;
-import ast.statements.AssignStmt;
-import ast.statements.CaseStmt;
-import ast.statements.ChoiceStmt;
-import ast.statements.DoStmt;
-import ast.statements.ForStmt;
-import ast.statements.IfStmt;
-import ast.statements.WhileStmt;
+import ast.expressions.*;
+import ast.statements.*;
 import ast.topleveldecls.ClassDecl;
 import ast.topleveldecls.FuncDecl;
 import ast.topleveldecls.MainDecl;
 import ast.types.ClassType;
-import java.util.HashSet;
+import messages.MessageHandler;
+import messages.MessageNumber;
 import messages.errors.ErrorBuilder;
-import messages.MessageType;
-import messages.errors.mod.ModErrorFactory;
+import messages.errors.mod.ModError;
 import utilities.SymbolTable;
-import utilities.Vector;
 import utilities.Visitor;
+
+import java.util.HashSet;
 
 public class ModifierChecker extends Visitor {
 
     private SymbolTable currentScope;
     private AST currentContext;
     private ClassDecl currentClass;
-    private final ModErrorFactory generateModError;
-    private final Vector<String> errors;
-
     private boolean parentFound = false;
 
     /**
      * Creates modifier checker in compilation mode
      */
-    public ModifierChecker() {
+    public ModifierChecker(String fileName) {
         this.currentScope = null;
-        this.generateModError = new ModErrorFactory();
-        this.errors = new Vector<>();
+        this.handler = new MessageHandler(fileName);
     }
 
     /**
@@ -52,9 +38,8 @@ public class ModifierChecker extends Visitor {
      * @param st Symbol Table
      */
     public ModifierChecker(SymbolTable st) {
-        this();
         this.currentScope = st;
-        this.interpretMode = true;
+        this.handler = new MessageHandler();
     }
 
     /**
@@ -112,14 +97,12 @@ public class ModifierChecker extends Visitor {
         // ERROR CHECK #1: Make sure all abstract methods from the
         //                 superclass were implemented in the subclass
         if(!abstracts.isEmpty()) {
-            errors.add(
-                new ErrorBuilder(generateModError,interpretMode)
-                        .addLocation(subClass)
-                        .addErrorType(MessageType.MOD_ERROR_501)
-                        .addArgs(subClass.toString(),superClass.toString())
-                        .addSuggestType(MessageType.MOD_SUGGEST_1501)
-                        .error()
-            );
+            handler.createErrorBuilder(ModError.class)
+                    .addLocation(subClass)
+                    .addErrorNumber(MessageNumber.MOD_ERROR_501)
+                    .addErrorArgs(subClass.toString(),superClass.toString())
+                    .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1501)
+                    .generateError();
         }
     }
 
@@ -139,25 +122,21 @@ public class ModifierChecker extends Visitor {
             if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
                 // ERROR CHECK #1: A constant can not be updated after its declaration
                 if (LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
-                    errors.add(
-                            new ErrorBuilder(generateModError, interpretMode)
-                                    .addLocation(as)
-                                    .addErrorType(MessageType.MOD_ERROR_505)
-                                    .addArgs(as.LHS().toString())
-                                    .addSuggestType(MessageType.MOD_SUGGEST_1505)
-                                    .error()
-                    );
+                    handler.createErrorBuilder(ModError.class)
+                            .addLocation(as)
+                            .addErrorNumber(MessageNumber.MOD_ERROR_505)
+                            .addErrorArgs(as.LHS().toString())
+                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1505)
+                            .generateError();
                 }
             }
             // ERROR CHECK #2: An enum constant can not be reassigned its value
             else if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
-                errors.add(
-                        new ErrorBuilder(generateModError, interpretMode)
-                                .addLocation(as)
-                                .addErrorType(MessageType.MOD_ERROR_508)
-                                .addArgs(as.LHS().toString())
-                                .error()
-                );
+                handler.createErrorBuilder(ModError.class)
+                        .addLocation(as)
+                        .addErrorNumber(MessageNumber.MOD_ERROR_508)
+                        .addErrorArgs(as.LHS().toString())
+                        .generateError();
             }
         }
     }
@@ -217,14 +196,12 @@ public class ModifierChecker extends Visitor {
 
             // ERROR CHECK #1: Make sure the superclass was not declared as 'final'
             if(superDecl.mod.isFinal()) {
-                errors.add(
-                    new ErrorBuilder(generateModError,interpretMode)
-                            .addLocation(cd)
-                            .addErrorType(MessageType.MOD_ERROR_500)
-                            .addArgs(cd.toString(),superDecl.toString())
-                            .addSuggestType(MessageType.MOD_SUGGEST_1500)
-                            .error()
-                );
+                handler.createErrorBuilder(ModError.class)
+                        .addLocation(cd)
+                        .addErrorNumber(MessageNumber.MOD_ERROR_500)
+                        .addErrorArgs(cd.toString(),superDecl.toString())
+                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1500)
+                        .generateError();
             }
 
             // If the current class is inheriting from an abstract class, then check
@@ -281,14 +258,12 @@ public class ModifierChecker extends Visitor {
 
             // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
             if (!fe.getTarget().toString().equals("this") && !fd.mod.isPublic()) {
-                errors.add(
-                    new ErrorBuilder(generateModError, interpretMode)
-                            .addLocation(fe)
-                            .addErrorType(MessageType.MOD_ERROR_507)
-                            .addArgs(fe.getTarget().toString(), fd.toString())
-                            .addSuggestType(MessageType.MOD_SUGGEST_1507)
-                            .error()
-                );
+                handler.createErrorBuilder(ModError.class)
+                        .addLocation(fe)
+                        .addErrorNumber(MessageNumber.MOD_ERROR_507)
+                        .addErrorArgs(fe.getTarget().toString(), fd.toString())
+                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1507)
+                        .generateError();
             }
         }
         fe.getAccessExpr().visit(this);
@@ -369,14 +344,12 @@ public class ModifierChecker extends Visitor {
             if(currentContext == fd && fd.getSignature().equals(funcSignature))  {
                 // ERROR CHECK #1: A function can not call itself without `recurs` modifier
                 if(!fd.mod.isRecurs()) {
-                    errors.add(
-                        new ErrorBuilder(generateModError,interpretMode)
-                                .addLocation(in)
-                                .addErrorType(MessageType.MOD_ERROR_502)
-                                .addArgs(fd.toString())
-                                .addSuggestType(MessageType.MOD_SUGGEST_1502)
-                                .error()
-                    );
+                    handler.createErrorBuilder(ModError.class)
+                            .addLocation(in)
+                            .addErrorNumber(MessageNumber.MOD_ERROR_502)
+                            .addErrorArgs(fd.toString())
+                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1502)
+                            .generateError();
                 }
             }
             if(fd.isTemplate())
@@ -390,26 +363,22 @@ public class ModifierChecker extends Visitor {
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier
             if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
                 if(!md.mods.isRecurs()) {
-                    errors.add(
-                        new ErrorBuilder(generateModError,interpretMode)
-                                .addLocation(in)
-                                .addErrorType(MessageType.MOD_ERROR_503)
-                                .addArgs(md.toString())
-                                .addSuggestType(MessageType.MOD_SUGGEST_1503)
-                                .error()
-                    );
+                    handler.createErrorBuilder(ModError.class)
+                            .addLocation(in)
+                            .addErrorNumber(MessageNumber.MOD_ERROR_503)
+                            .addErrorArgs(md.toString())
+                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
+                            .generateError();
                 }
             }
             // ERROR CHECK #3: An object can only invoke public methods outside its class
             if(!md.mods.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
-                errors.add(
-                    new ErrorBuilder(generateModError,interpretMode)
-                            .addLocation(in)
-                            .addErrorType(MessageType.MOD_ERROR_504)
-                            .addArgs("this",in.toString())
-                            .addSuggestType(MessageType.MOD_SUGGEST_1504)
-                            .error()
-                );
+                handler.createErrorBuilder(ModError.class)
+                        .addLocation(in)
+                        .addErrorNumber(MessageNumber.MOD_ERROR_504)
+                        .addErrorArgs("this",in.toString())
+                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1504)
+                        .generateError();
             }
         }
         super.visitInvocation(in);
@@ -457,14 +426,12 @@ public class ModifierChecker extends Visitor {
 
         // ERROR CHECK #1: An abstract class can not be instantiated
         if(cd.mod.isAbstract()) {
-            errors.add(
-                new ErrorBuilder(generateModError,interpretMode)
-                        .addLocation(ne)
-                        .addErrorType(MessageType.MOD_ERROR_506)
-                        .addArgs(ne.getParent().getParent().asStatement().asLocalDecl().var().toString())
-                        .addSuggestType(MessageType.MOD_SUGGEST_1506)
-                        .error()
-            );
+            handler.createErrorBuilder(ModError.class)
+                    .addLocation(ne)
+                    .addErrorNumber(MessageNumber.MOD_ERROR_506)
+                    .addErrorArgs(ne.getParent().getParent().asStatement().asLocalDecl().var().toString())
+                    .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1506)
+                    .generateError();
         }
         super.visitNewExpr(ne);
 

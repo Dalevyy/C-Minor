@@ -1,12 +1,11 @@
 package micropasses;
 
-import ast.expressions.Expression;
 import ast.expressions.InStmt;
 import ast.expressions.OutStmt;
-import messages.errors.scope.ScopeErrorFactory;
-import messages.errors.ErrorBuilder;
-import messages.MessageType;
+import messages.MessageHandler;
 import utilities.Visitor;
+
+//TODO: Not sure what to do with this class... it will stay for now.
 
 /**
  * Micropass #1
@@ -25,35 +24,17 @@ import utilities.Visitor;
  * @author Daniel Levy
  */
 public class InOutStmtRewrite extends Visitor {
-    
-    private final ScopeErrorFactory generateScopeError;
 
-    public InOutStmtRewrite() { generateScopeError = new ScopeErrorFactory(); }
-    public InOutStmtRewrite(boolean interpretMode) {
-        this();
-        this.interpretMode = interpretMode;
-    }
+    public InOutStmtRewrite(String fileName) { this.handler = new MessageHandler(fileName); }
+    public InOutStmtRewrite() { this.handler = new MessageHandler(); }
 
     public void visitInStmt(InStmt is) {
         // ERROR CHECK #1: Each expression in an InStmt has to be a name or else
         //                 we can not store any input values from the user
-        for(Expression e : is.getInExprs()) {
-            if(!e.isNameExpr())
-                new ErrorBuilder(generateScopeError,this.interpretMode)
-                    .addLocation(is)
-                    .addErrorType(MessageType.SCOPE_ERROR_327)
-                    .error();
-        }
+
     }
 
     public void visitOutStmt(OutStmt os) {
         // ERROR CHECK #1: Make sure the output statement does not have an input statement
-        for(Expression e : os.getOutExprs()) {
-            if(e.isInStmt())
-                new ErrorBuilder(generateScopeError,this.interpretMode)
-                    .addLocation(os)
-                    .addErrorType(MessageType.SYNTAX_ERROR_101)
-                    .error();
-        }
     }
 }

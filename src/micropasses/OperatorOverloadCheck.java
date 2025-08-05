@@ -1,9 +1,10 @@
 package micropasses;
 
 import ast.classbody.MethodDecl;
-import messages.MessageType;
+import messages.MessageHandler;
+import messages.MessageNumber;
 import messages.errors.ErrorBuilder;
-import messages.errors.semantic.SemanticErrorFactory;
+import messages.errors.semantic.SemanticError;
 import utilities.Visitor;
 
 /**
@@ -17,16 +18,12 @@ import utilities.Visitor;
  */
 public class OperatorOverloadCheck extends Visitor {
 
-    /** Factory that generates a generic semantic error. */
-    private final SemanticErrorFactory generateSemanticError;
-
     /** Creates operator overload micropass in compilation mode. */
-    public OperatorOverloadCheck() { generateSemanticError = new SemanticErrorFactory(); }
+    public OperatorOverloadCheck() { this.handler = new MessageHandler(); }
 
     /** Creates operator overload micropass in interpretation mode. */
-    public OperatorOverloadCheck(boolean mode) {
-        this();
-        this.interpretMode = mode;
+    public OperatorOverloadCheck(String fileName) {
+        this.handler = new MessageHandler(fileName);
     }
 
     /** Checks if the operator overload was written correctly.
@@ -43,19 +40,19 @@ public class OperatorOverloadCheck extends Visitor {
             if(md.operator().isUnaryOp()) {
                 // ERROR CHECK #1: Make sure a unary operator overload has no arguments
                 if(!md.params().isEmpty()) {
-                    new ErrorBuilder(generateSemanticError,interpretMode)
+                    handler.createErrorBuilder(SemanticError.class)
                         .addLocation(md)
-                        .addErrorType(MessageType.SEMANTIC_ERROR_701)
-                        .error();
+                        .addErrorNumber(MessageNumber.SEMANTIC_ERROR_701)
+                        .generateError();
                 }
             }
             else {
                 // ERROR CHECK #2: Make sure a binary operator overload has only one argument
                 if(md.params().size() != 1) {
-                    new ErrorBuilder(generateSemanticError,interpretMode)
-                        .addLocation(md)
-                        .addErrorType(MessageType.SEMANTIC_ERROR_702)
-                        .error();
+                    handler.createErrorBuilder(SemanticError.class)
+                            .addLocation(md)
+                            .addErrorNumber(MessageNumber.SEMANTIC_ERROR_702)
+                            .generateError();
                 }
             }
         }

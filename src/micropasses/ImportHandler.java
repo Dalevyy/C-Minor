@@ -5,10 +5,10 @@ import ast.topleveldecls.ImportDecl;
 import compiler.Compiler;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import messages.MessageType;
-import messages.errors.ErrorBuilder;
-import messages.errors.scope.ScopeErrorBuilder;
-import messages.errors.semantic.SemanticErrorFactory;
+
+import messages.MessageHandler;
+import messages.MessageNumber;
+import messages.errors.semantic.SemanticError;
 import utilities.Vector;
 import utilities.Visitor;
 
@@ -40,7 +40,7 @@ public class ImportHandler extends Visitor {
      * Semantic error generator, all import errors will be
      * treated as general semantic errors to the user
      */
-    private final SemanticErrorFactory generateSemanticError;
+    private MessageHandler handler;
 
     /**
      * Queue of import statements we need to perform syntax analysis for.
@@ -59,8 +59,7 @@ public class ImportHandler extends Visitor {
      * @param mode ThisStmt represents the compiler mode we are in.
      */
     public ImportHandler(boolean mode) {
-        this.generateSemanticError = new SemanticErrorFactory();
-        this.interpretMode = mode;
+        this.handler = new MessageHandler();
     }
 
     /**
@@ -72,6 +71,7 @@ public class ImportHandler extends Visitor {
         this(mode);
         this.currFile = mainFile;
         seenImports.add(mainFile);
+        this.handler = new MessageHandler(mainFile);
     }
 
     /**
@@ -142,31 +142,31 @@ public class ImportHandler extends Visitor {
     public void visitImportDecl(ImportDecl im) {
         /* ERROR CHECK #1: ThisStmt checks to make sure the file we are importing represents a C Minor program. */
         if(!im.toString().endsWith(".cm")) {
-            new ErrorBuilder(generateSemanticError,currFile,interpretMode)
+            handler.createErrorBuilder(SemanticError.class)
                 .addLocation(im)
-                .addErrorType(MessageType.SEMANTIC_ERROR_703)
-                .addArgs(im)
-                .addSuggestType(MessageType.SEMANTIC_SUGGEST_1701)
-                .error();
+                .addErrorNumber(MessageNumber.SEMANTIC_ERROR_703)
+                .addErrorArgs(im)
+                .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1701)
+                .generateError();
         }
 
         /* ERROR CHECK #2: ThisStmt checks to make sure the current file does not import itself. */
         if(im.toString().equals(currFile)) {
-            new ScopeErrorBuilder(generateSemanticError,currFile,interpretMode)
+            handler.createErrorBuilder(SemanticError.class)
                 .addLocation(im)
-                .addErrorType(MessageType.SEMANTIC_ERROR_705)
-                .addArgs(im)
-                .error();
+                .addErrorNumber(MessageNumber.SEMANTIC_ERROR_705)
+                .addErrorArgs(im)
+                .generateError();
         }
 
         /* ERROR CHECK #3: ThisStmt checks if we are reimporting any files in order to avoid circular imports. */
         for(String importName : seenImports) {
             if(importName.equals(im.toString())) {
-                new ScopeErrorBuilder(generateSemanticError,currFile,interpretMode)
+                handler.createErrorBuilder(SemanticError.class)
                     .addLocation(im)
-                    .addErrorType(MessageType.SEMANTIC_ERROR_706)
-                    .addArgs(im)
-                    .error();
+                    .addErrorNumber(MessageNumber.SEMANTIC_ERROR_706)
+                    .addErrorArgs(im)
+                    .generateError();
             }
         }
 
@@ -182,15 +182,15 @@ public class ImportHandler extends Visitor {
             }
         }
         catch(Exception e) {
-            new ErrorBuilder(generateSemanticError,currFile,interpretMode)
+            handler.createErrorBuilder(SemanticError.class)
                 .addLocation(im)
-                .addErrorType(MessageType.SEMANTIC_ERROR_704)
-                .addArgs(im)
-                .error();
+                .addErrorNumber(MessageNumber.SEMANTIC_ERROR_704)
+                .addErrorArgs(im)
+                .generateError();
         }
 
         Compiler c = new Compiler(im.toString());
-        Compilation root = c.syntaxAnalysis(program.toString(),interpretMode,true);
+        Compilation root = c.syntaxAnalysis(program.toString(),false,true);
         im.addCompilationUnit(root);
     }
 }

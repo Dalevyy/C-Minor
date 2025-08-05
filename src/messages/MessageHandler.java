@@ -84,7 +84,7 @@ public class MessageHandler {
      * @return {@link ErrorBuilder}
      */
     public ErrorBuilder createErrorBuilder(Class<?> errorType) {
-        return switch (errorType.getName()) {
+        return switch (errorType.getSimpleName()) {
             case "ModError" -> new ModErrorBuilder(this);
             case "RuntimeError" -> new RuntimeErrorBuilder(this);
             case "ScopeError" -> new ScopeErrorBuilder(this);

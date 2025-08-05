@@ -2,9 +2,11 @@ package micropasses;
 
 import ast.expressions.*;
 import ast.statements.*;
-import messages.MessageType;
+import com.sun.source.tree.Scope;
+import messages.MessageHandler;
+import messages.MessageNumber;
 import messages.errors.ErrorBuilder;
-import messages.errors.scope.ScopeErrorFactory;
+import messages.errors.scope.ScopeError;
 import utilities.Visitor;
 
 import java.util.ArrayList;
@@ -28,41 +30,31 @@ import java.util.ArrayList;
  */
 public class LoopKeywordCheck extends Visitor {
 
-    private boolean insideLoop;
-    private final ScopeErrorFactory generateScopeError;
-    private final ArrayList<String> errors;
+    private boolean insideLoop = false;
 
     public LoopKeywordCheck() {
-        insideLoop = false;
-        generateScopeError = new ScopeErrorFactory();
-        errors = new ArrayList<>();
-        this.interpretMode = false;
+        this.handler = new MessageHandler();
     }
 
-    public LoopKeywordCheck(boolean interpret) {
-        this();
-        this.interpretMode = interpret;
+    public LoopKeywordCheck(String fileName) {
+        this.handler = new MessageHandler(fileName);
     }
 
     public void visitBreakStmt(BreakStmt bs) {
         if(!insideLoop) {
-            errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+            handler.createErrorBuilder(ScopeError.class)
                         .addLocation(bs)
-                        .addErrorType(MessageType.SCOPE_ERROR_323)
-                        .error()
-            );
+                        .addErrorNumber(MessageNumber.SCOPE_ERROR_323)
+                        .generateError();
         }
     }
 
     public void visitContinueStmt(ContinueStmt cs) {
         if(!insideLoop) {
-            errors.add(
-                new ErrorBuilder(generateScopeError,interpretMode)
+            handler.createErrorBuilder(ScopeError.class)
                         .addLocation(cs)
-                        .addErrorType(MessageType.SCOPE_ERROR_324)
-                        .error()
-            );
+                        .addErrorNumber(MessageNumber.SCOPE_ERROR_324)
+                        .generateError();
         }
     }
 

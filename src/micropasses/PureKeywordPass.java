@@ -7,9 +7,9 @@ import ast.statements.AssignStmt;
 import ast.statements.RetypeStmt;
 import ast.topleveldecls.FuncDecl;
 import messages.Message;
-import messages.MessageType;
+import messages.MessageHandler;
+import messages.MessageNumber;
 import messages.warnings.WarningBuilder;
-import messages.warnings.WarningFactory;
 import utilities.SymbolTable;
 import utilities.Vector;
 import utilities.Visitor;
@@ -30,17 +30,11 @@ public class PureKeywordPass extends Visitor {
     private SymbolTable currentScope;
     private String methodName;
     private boolean insidePureMethod;
-    private final WarningFactory generateWarning;
-    private final Vector<Message> msgs;
 
-    public PureKeywordPass() {
-        this.generateWarning = new WarningFactory();
-        this.msgs = new Vector<>();
+    public PureKeywordPass() { this.handler = new MessageHandler();
     }
 
-    public PureKeywordPass(boolean mode) {
-        this();
-        this.interpretMode = mode;
+    public PureKeywordPass(String fileName) { this.handler = new MessageHandler(fileName);
     }
 
     /**
@@ -65,22 +59,16 @@ public class PureKeywordPass extends Visitor {
 
     public void visitAssignStmt(AssignStmt as) {
         if(insidePureMethod && methodChangesState(currentScope.findName(as.LHS()).decl())) {
-            msgs.add(
-                new WarningBuilder(generateWarning,currentFile,interpretMode)
+            handler.createWarningBuilder()
                     .addLocation(as)
-                    .addWarningType(MessageType.WARNING_1)
-                    .addArgs(as.LHS(),methodName)
-                    .create()
-            );
+                    .addWarningNumber(MessageNumber.WARNING_1)
+                    .addWarningArgs(as.LHS(),methodName)
+                    .generateWarning();
         }
     }
 
     public void visitCompilation(Compilation c) {
-        currentFile = c.getFile();
         super.visitCompilation(c);
-
-        if(Message.printAllMessages(msgs))
-            System.exit(1);
     }
 
     public void visitFuncDecl(FuncDecl fd) {
@@ -105,13 +93,11 @@ public class PureKeywordPass extends Visitor {
 
     public void visitRetypeStmt(RetypeStmt rt) {
         if(insidePureMethod && methodChangesState(currentScope.findName(rt.LHS()).decl())) {
-            msgs.add(
-                new WarningBuilder(generateWarning,currentFile,interpretMode)
+            handler.createWarningBuilder()
                     .addLocation(rt)
-                    .addWarningType(MessageType.WARNING_1)
-                    .addArgs(rt.LHS(),methodName)
-                    .create()
-            );
+                    .addWarningNumber(MessageNumber.WARNING_1)
+                    .addWarningArgs(rt.LHS(),methodName)
+                    .generateWarning();
         }
     }
 }
