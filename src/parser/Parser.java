@@ -22,15 +22,9 @@ import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
 import ast.expressions.OutStmt;
 import ast.expressions.UnaryExpr;
-import ast.misc.Compilation;
-import ast.misc.Label;
-import ast.misc.Modifier;
-import ast.misc.Modifier.Mods;
-import ast.misc.Name;
-import ast.misc.ParamDecl;
-import ast.misc.Typeifier;
-import ast.misc.Typeifier.TypeAnnotation;
-import ast.misc.Var;
+import ast.misc.TypeParam;
+import ast.misc.TypeParam.TypeAnnotation;
+import ast.misc.*;
 import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
 import ast.operators.BinaryOp;
@@ -412,7 +406,7 @@ public class Parser {
     */
 
     // 1. compilation ::= import_stmt* enum_type* global_variable* class_type* function* main
-    public Compilation compilation() {
+    public CompilationUnit compilation() {
         tokenStack.add(currentLA());
 
         Vector<ImportDecl> imports = new Vector<>();
@@ -450,7 +444,7 @@ public class Parser {
         }
         else if(printToks) { System.out.println(currentLA().toString()); }
 
-        return new Compilation(nodeToken(),input.getFileName(),imports,enums,globals,classes,funcs,md);
+        return new CompilationUnit(nodeToken(),input.getFileName(),imports,enums,globals,classes,funcs,md);
     }
 
     /*
@@ -538,9 +532,9 @@ public class Parser {
         Vector<GlobalDecl> globals = new Vector<>();
 
         for(Var v : vars) {
-            tokenStack.top().setEndLocation(v.location.end);
+            tokenStack.top().setEndLocation(v.getLocation().end);
             input.setText(tokenStack.top());
-            globals.add(new GlobalDecl(tokenStack.top(),v,v.type(),isConstant));
+            globals.add(new GlobalDecl(tokenStack.top(),v,isConstant));
         }
 
         tokenStack.pop();
@@ -575,14 +569,14 @@ public class Parser {
             match(TokenType.EQ);
             if(nextLA(TokenType.UNINIT)) {
                 match(TokenType.UNINIT);
-                return new Var(nodeToken(),n,t,false);
+                return new Var(nodeToken(),n);
             }
             else {
                 Expression e = expression();
-                return new Var(nodeToken(),n,t,e,false);
+                return new Var(nodeToken(),n,e);
             }
         }
-        return new Var(nodeToken(),n,t,true);
+        return new Var(nodeToken(),n);
     }
 
     /*
@@ -608,7 +602,7 @@ public class Parser {
 
             if(ty.isListType()) {
                 ty.asListType().numOfDims += 1;
-                ty.updateMetaData(nodeToken());
+                ty.copyMetaData(nodeToken());
                 return ty;
             }
             return new ListType(nodeToken(),ty,1);
@@ -626,7 +620,7 @@ public class Parser {
 
             if(ty.isArrayType()) {
                 ty.asArrayType().numOfDims += 1;
-                ty.updateMetaData(nodeToken());
+                ty.copyMetaData(nodeToken());
                 return ty;
             }
             return new ArrayType(nodeToken(),ty,1);
@@ -790,13 +784,13 @@ public class Parser {
     private ClassDecl classType() {
         tokenStack.add(currentLA());
 
-        Modifier m = null;
+        Modifier mod = new Modifier();
         if(nextLA(TokenType.ABSTR)) {
-            m = new Modifier(currentLA(),Mods.ABSTR);
+            mod.setAbstract();
             match(TokenType.ABSTR);
         }
         else if(nextLA(TokenType.FINAL)) {
-            m = new Modifier(currentLA(),Mods.FINAL);
+            mod.setFinal();
             match(TokenType.FINAL);
         }
 
@@ -804,20 +798,20 @@ public class Parser {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        Vector<Typeifier> types = new Vector<>();
+        Vector<TypeParam> types = new Vector<>();
         if(nextLA(TokenType.LT)) { types = typeifierParams(); }
 
         ClassType ct = null;
         if(nextLA(TokenType.INHERITS)) { ct = superClass(); }
 
         ClassBody body = classBody();
-        return new ClassDecl(nodeToken(),m,n,types,ct,body);
+        return new ClassDecl(nodeToken(),mod,n,types,ct,body);
     }
 
     // 14. type_params ::= '<' typeifier ( ',' typeifier )* '>'
-    private Vector<Typeifier> typeifierParams() {
+    private Vector<TypeParam> typeifierParams() {
         match(TokenType.LT);
-        Vector<Typeifier> typefs = new Vector<>(typeifier());
+        Vector<TypeParam> typefs = new Vector<>(typeifier());
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
@@ -829,7 +823,7 @@ public class Parser {
     }
 
     // 15. typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID
-    private Typeifier typeifier() {
+    private TypeParam typeifier() {
         tokenStack.add(currentLA());
 
         TypeAnnotation pt = null;
@@ -842,14 +836,14 @@ public class Parser {
             match(TokenType.SCALAR);
         }
         else if(nextLA(TokenType.CLASS)) {
-            pt = Typeifier.TypeAnnotation.CLASS;
+            pt = TypeAnnotation.CLASS;
             match(TokenType.CLASS);
         }
 
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        return new Typeifier(nodeToken(),pt,n);
+        return new TypeParam(nodeToken(),pt,n);
     }
 
     // 16. super_class ::= 'inherits' ID type_params?
@@ -892,17 +886,17 @@ public class Parser {
     private Vector<FieldDecl> dataDecl() {
         tokenStack.add(currentLA());
 
-        Modifier m;
+        Modifier mod = new Modifier();
         if(nextLA(TokenType.PROPERTY)) {
-            m = new Modifier(currentLA(),Mods.PROPERTY);
+            mod.setProperty();
             match(TokenType.PROPERTY);
         }
         else if(nextLA(TokenType.PROTECTED)) {
-            m = new Modifier(currentLA(),Mods.PROTECTED);
+            mod.setProtected();
             match(TokenType.PROTECTED);
         }
         else {
-            m = new Modifier(currentLA(),Mods.PUBLIC);
+            mod.setPublic();
             match(TokenType.PUBLIC);
         }
 
@@ -910,9 +904,9 @@ public class Parser {
         Vector<FieldDecl> fields = new Vector<>();
 
         for(Var v : vars) {
-            tokenStack.top().setEndLocation(v.location.end);
+            tokenStack.top().setEndLocation(v.getLocation().end);
             input.setText(tokenStack.top());
-            fields.add(new FieldDecl(tokenStack.top(),m,v,v.type()));
+            fields.add(new FieldDecl(tokenStack.top(),mod,v));
         }
 
         tokenStack.pop();
@@ -934,9 +928,23 @@ public class Parser {
     // 20. method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement
     private MethodDecl methodClass() {
         tokenStack.add(currentLA());
-        Vector<Modifier> mods = new Vector<>(methodModifier());
+        Modifier mod = new Modifier();
 
-        while(nextLA(TokenType.FINAL) || nextLA(TokenType.PURE) || nextLA(TokenType.RECURS)) { mods.add(attribute()); }
+        while(nextLA(TokenType.FINAL) || nextLA(TokenType.PURE) || nextLA(TokenType.RECURS)) {
+            tokenStack.add(currentLA());
+            if(nextLA(TokenType.FINAL)) {
+                mod.setFinal();
+                match(TokenType.FINAL);
+            }
+            else if(nextLA(TokenType.PURE)) {
+                mod.setPure();
+                match(TokenType.PURE);
+            }
+            else {
+                mod.setRecursive();
+                match(TokenType.RECURS);
+            }
+        }
 
         boolean override = false;
         if(nextLA(TokenType.OVERRIDE)) {
@@ -955,39 +963,43 @@ public class Parser {
         Type rt = returnType();
         BlockStmt bs = blockStatement();
 
-        return new MethodDecl(nodeToken(),mods,mName,null,pd,rt,bs,override);
+        return new MethodDecl(nodeToken(),mod,mName,null,pd,rt,bs,override);
     }
 
     // 21. method_modifier : 'protected' | 'public' ;
     private Modifier methodModifier() {
         tokenStack.add(currentLA());
 
+        Modifier mod = new Modifier();
         if(nextLA(TokenType.PROTECTED)) {
+            mod.setProtected();
             match(TokenType.PROTECTED);
-            return new Modifier(nodeToken(), Mods.PROTECTED);
         }
         else {
+            mod.setPublic();
             match(TokenType.PUBLIC);
-            return new Modifier(nodeToken(), Mods.PUBLIC);
         }
+        return mod;
     }
 
     // 22. attribute ::= 'final' | 'pure' | 'recurs'
     private Modifier attribute() {
         tokenStack.add(currentLA());
-
+        Modifier mod = new Modifier();
         if(nextLA(TokenType.FINAL)) {
+            mod.setFinal();
             match(TokenType.FINAL);
-            return new Modifier(nodeToken(),Mods.FINAL);
         }
         else if(nextLA(TokenType.PURE)) {
+            mod.setPure();
             match(TokenType.PURE);
-            return new Modifier(nodeToken(),Mods.PURE);
         }
         else {
+            mod.setRecursive();
             match(TokenType.RECURS);
-            return new Modifier(nodeToken(),Mods.RECURS);
         }
+
+        return mod;
     }
 
     // 23. method-header ::= ID '(' formal-params? ')'
@@ -1043,22 +1055,26 @@ public class Parser {
     private Modifier paramModifier() {
         tokenStack.add(currentLA());
 
+        Modifier mod = new Modifier();
+
         if(nextLA(TokenType.IN)) {
+            mod.setInMode();
             match(TokenType.IN);
-            return new Modifier(nodeToken(),Mods.IN);
         }
         else if(nextLA(TokenType.OUT)) {
+            mod.setOutMode();
             match(TokenType.OUT);
-            return new Modifier(nodeToken(),Mods.OUT);
         }
         else if(nextLA(TokenType.INOUT)) {
+            mod.setInOutMode();
             match(TokenType.INOUT);
-            return new Modifier(nodeToken(),Mods.INOUT);
         }
         else {
+            mod.setRefMode();
             match(TokenType.REF);
-            return new Modifier(nodeToken(),Mods.REF);
         }
+
+        return mod;
     }
 
     // 26. return-type ::= Void | type
@@ -1074,10 +1090,10 @@ public class Parser {
     // 27. operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement
     private MethodDecl operatorClass() {
         tokenStack.add(currentLA());
-        Vector<Modifier> mods = new Vector<>(methodModifier());
+        Modifier mod = new Modifier();
 
         if(nextLA(TokenType.FINAL)) {
-            mods.add(new Modifier(currentLA(),Mods.FINAL));
+            mod.setFinal();
             match(TokenType.FINAL);
         }
 
@@ -1090,7 +1106,7 @@ public class Parser {
         Type rt = returnType();
         BlockStmt block = blockStatement();
 
-        return new MethodDecl(nodeToken(),mods,null,op,pd,rt,block,false);
+        return new MethodDecl(nodeToken(),mod,null,op,pd,rt,block,false);
     }
 
     // 28. operator_header ::= operator_symbol '(' formal-params? ')'
@@ -1201,20 +1217,20 @@ public class Parser {
         boolean isRecursive = false;
         match(TokenType.DEF);
 
-        Modifier mod = null;
+        Modifier mod = new Modifier();
         if(nextLA(TokenType.PURE)) {
-            mod = new Modifier(currentLA(),Mods.PURE);
+            mod.setPure();
             match(TokenType.PURE);
         }
         else if(nextLA(TokenType.RECURS)) {
-            mod = new Modifier(currentLA(),Mods.RECURS);
+            mod.setRecursive();
             match(TokenType.RECURS);
         }
 
         Vector<Object> header = functionHeader();
         Name n = (Name) header.get(0);
 
-        Vector<Typeifier> typefs = (Vector<Typeifier>) header.get(1);
+        Vector<TypeParam> typefs = (Vector<TypeParam>) header.get(1);
         Vector<ParamDecl> pd = (Vector<ParamDecl>) header.get(2);
 
         match(TokenType.ARROW);
@@ -1229,7 +1245,7 @@ public class Parser {
         Name n = new Name(currentLA());
         match(TokenType.ID);
 
-        Vector<Typeifier> typefs = new Vector<>();
+        Vector<TypeParam> typefs = new Vector<>();
         if(nextLA(TokenType.LT)) { typefs = typeifierParams(); }
 
         match(TokenType.LPAREN);
@@ -1307,9 +1323,9 @@ public class Parser {
         Vector<LocalDecl> locals = new Vector<>();
 
         for(Var v : vars) {
-            tokenStack.top().setEndLocation(v.location.end);
+            tokenStack.top().setEndLocation(v.getLocation().end);
             input.setText(tokenStack.top());
-            locals.add(new LocalDecl(tokenStack.top(),v, v.type()));
+            locals.add(new LocalDecl(tokenStack.top(),v));
         }
 
         tokenStack.pop();
@@ -1524,7 +1540,7 @@ public class Parser {
 
         match(TokenType.DEF);
         Var v = variableDeclInit();
-        forComponents.add(new LocalDecl(nodeToken(),v,v.type()));
+        forComponents.add(new LocalDecl(nodeToken(),v));
         match(TokenType.IN);
 
         forComponents.add(expression());
@@ -2027,11 +2043,11 @@ public class Parser {
                 BinaryOp bo;
 
                 if(nextLA(TokenType.INSTANCEOF)) {
-                    bo = new BinaryOp(currentLA(),BinaryType.INOF);
+                    bo = new BinaryOp(currentLA(),BinaryType.INSTOF);
                     match(TokenType.INSTANCEOF);
                 }
                 else if(nextLA(TokenType.NINSTANCEOF)) {
-                    bo = new BinaryOp(currentLA(),BinaryType.NINOF);
+                    bo = new BinaryOp(currentLA(),BinaryType.NINSTOF);
                     match(TokenType.NINSTANCEOF);
                 }
                 else {
