@@ -18,7 +18,7 @@ public class VariableInitialization extends Visitor {
     public void visitForStmt(ForStmt fd) { fd.forBlock().visit(this); }
 
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.var().isUninit()) {
+        if(!gd.hasInitialValue()) {
             handler.createErrorBuilder(SemanticError.class)
                     .addLocation(gd)
                     .addErrorNumber(MessageNumber.SEMANTIC_ERROR_700)
@@ -29,7 +29,7 @@ public class VariableInitialization extends Visitor {
     }
 
     public void visitLocalDecl(LocalDecl ld) {
-        if(ld.var().isUninit()) {
+        if(!ld.hasInitialValue()) {
             handler.createErrorBuilder(SemanticError.class)
                     .addLocation(ld)
                     .addErrorNumber(MessageNumber.SEMANTIC_ERROR_700)

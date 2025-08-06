@@ -7,8 +7,6 @@ import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr.NameExprBuilder;
 import ast.expressions.ThisStmt;
 import ast.misc.Modifier;
-import ast.misc.Modifier.Mods;
-import ast.misc.Modifiers;
 import ast.misc.Name;
 import ast.operators.AssignOp;
 import ast.operators.AssignOp.AssignType;
@@ -41,14 +39,14 @@ public class PropertyMethodGeneration extends Visitor {
      */
     public MethodDecl createSetter(FieldDecl fd) {
         return new MethodDeclBuilder()
-                   .setMods(new Modifiers(new Modifier(Mods.PUBLIC)))
+                   //.setMod(new Modifier()))
                    .setMethodName(new Name("set_" + fd))
                    .setParams(
                        new Vector<>(
                            new ParamDeclBuilder()
-                               .setMod(new Modifiers(new Modifier(Mods.IN)))
+                               //.setMod(new Modifiers(new Modifier(Mods.IN)))
                                .setName(new Name("param" + fd))
-                               .setType(fd.type())
+                              // .setType(fd.type())
                                .create()
                        )
                    )
@@ -89,9 +87,9 @@ public class PropertyMethodGeneration extends Visitor {
      */
     public MethodDecl createGetter(FieldDecl fd) {
         return new MethodDeclBuilder()
-                   .setMods(new Modifiers(new Modifier(Mods.PUBLIC)))
+                   //.setMods(new Modifiers(new Modifier(Mods.PUBLIC)))
                    .setMethodName(new Name("get_" + fd))
-                   .setReturnType(fd.type())
+                   //.setReturnType(fd.type())
                    .setBlockStmt(
                        new BlockStmtBuilder()
                            .setStmts(
@@ -120,12 +118,12 @@ public class PropertyMethodGeneration extends Visitor {
      * @param cd Class Declaration
      */
     public void visitClassDecl(ClassDecl cd) {
-        Vector<FieldDecl> fields = cd.classBlock().getFields();
+        Vector<FieldDecl> fields = cd.getClassBody().getFields();
 
-        for(FieldDecl fd : cd.classBlock().getFields()) {
+        for(FieldDecl fd : cd.getClassBody().getFields()) {
             if(fd.mod.isProperty()) {
-                cd.classBlock().getMethods().add(createSetter(fd));
-                cd.classBlock().getMethods().add(createGetter(fd));
+                cd.getClassBody().getMethods().add(createSetter(fd));
+                cd.getClassBody().getMethods().add(createGetter(fd));
             }
         }
     }

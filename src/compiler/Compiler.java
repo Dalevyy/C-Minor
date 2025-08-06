@@ -1,6 +1,6 @@
 package compiler;
 
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import groovy.transform.Pure;
 import interpreter.Interpreter;
 import interpreter.VM;
@@ -44,7 +44,7 @@ public class Compiler {
     /** Begins the C Minor compilation process. */
     public void compile(String[] args) throws IOException {
         String input = readProgram(args);
-        Compilation root = syntaxAnalysis(input,false,false);
+        CompilationUnit root = syntaxAnalysis(input,false,false);
         semanticAnalysis(root,true);
     }
 
@@ -60,9 +60,9 @@ public class Compiler {
      * @param program C Minor program as a string
      * @return An AST node representing the {@code Compilation} unit for the program.
      */
-    public Compilation syntaxAnalysis(String program, boolean interpretMode, boolean importMode) {
+    public CompilationUnit syntaxAnalysis(String program, boolean interpretMode, boolean importMode) {
         Parser parser = new Parser(new Lexer(program,fileName),printTokens,interpretMode,importMode);
-        Compilation root = parser.compilation();
+        CompilationUnit root = parser.compilation();
         root.visit(new InOutStmtRewrite());
 
         if(printParseTree)
@@ -80,7 +80,7 @@ public class Compiler {
      * </p>
      * @param root Compilation unit representing the program we want to compile
      */
-    private void semanticAnalysis(Compilation root, boolean execute) {
+    private void semanticAnalysis(CompilationUnit root, boolean execute) {
         root.visit(new PropertyMethodGeneration());
         root.visit(new NameChecker(fileName));
         root.visit(new VariableInitialization(fileName));
@@ -93,7 +93,7 @@ public class Compiler {
         root.visit(new ModifierChecker(fileName));
         root.visit(new PureKeywordPass());
         if(execute)
-            root.visit(new Interpreter(root.globalTable));
+            root.visit(new Interpreter(root.getScope()));
     }
 
     /**

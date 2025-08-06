@@ -569,14 +569,14 @@ public class Parser {
             match(TokenType.EQ);
             if(nextLA(TokenType.UNINIT)) {
                 match(TokenType.UNINIT);
-                return new Var(nodeToken(),n);
+                return new Var(nodeToken(),n,t);
             }
             else {
                 Expression e = expression();
-                return new Var(nodeToken(),n,e);
+                return new Var(nodeToken(),n,e,t);
             }
         }
-        return new Var(nodeToken(),n);
+        return new Var(nodeToken(),n,t);
     }
 
     /*

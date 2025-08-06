@@ -1,6 +1,6 @@
 package micropasses;
 
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.topleveldecls.ImportDecl;
 import compiler.Compiler;
 import java.io.BufferedReader;
@@ -190,7 +190,7 @@ public class ImportHandler extends Visitor {
         }
 
         Compiler c = new Compiler(im.toString());
-        Compilation root = c.syntaxAnalysis(program.toString(),false,true);
-        im.addCompilationUnit(root);
+        CompilationUnit root = c.syntaxAnalysis(program.toString(),false,true);
+        im.setCompilationUnit(root);
     }
 }

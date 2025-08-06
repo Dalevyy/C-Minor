@@ -2,16 +2,14 @@ package micropasses;
 
 import ast.AST;
 import ast.classbody.MethodDecl;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
+import ast.misc.ParamDecl;
 import ast.statements.AssignStmt;
 import ast.statements.RetypeStmt;
 import ast.topleveldecls.FuncDecl;
-import messages.Message;
 import messages.MessageHandler;
 import messages.MessageNumber;
-import messages.warnings.WarningBuilder;
 import utilities.SymbolTable;
-import utilities.Vector;
 import utilities.Visitor;
 
 /**
@@ -49,16 +47,19 @@ public class PureKeywordPass extends Visitor {
      * @return Boolean
      */
     private boolean methodChangesState(AST decl) {
-        if(decl.isParamDecl() && (decl.asParamDecl().mod.isOut()
-                               || decl.asParamDecl().mod.isInOut()
-                               || decl.asParamDecl().mod.isRef()))
+        if(!decl.isSubNode() || !decl.asSubNode().isParamDecl())
+            return false;
+        ParamDecl pd = decl.asSubNode().asParamDecl();
+        if(pd.mod.isOutMode()
+                               || pd.mod.isInOutMode()
+                               || pd.mod.isRefMode())
             return true;
 
         return decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl();
     }
 
     public void visitAssignStmt(AssignStmt as) {
-        if(insidePureMethod && methodChangesState(currentScope.findName(as.LHS()).decl())) {
+        if(insidePureMethod && methodChangesState(currentScope.findName(as.LHS()).getDecl())) {
             handler.createWarningBuilder()
                     .addLocation(as)
                     .addWarningNumber(MessageNumber.WARNING_1)
@@ -67,32 +68,32 @@ public class PureKeywordPass extends Visitor {
         }
     }
 
-    public void visitCompilation(Compilation c) {
-        super.visitCompilation(c);
+    public void visitCompilationUnit(CompilationUnit c) {
+        super.visitCompilationUnit(c);
     }
 
     public void visitFuncDecl(FuncDecl fd) {
         if(fd.mod.isPure()) {
             insidePureMethod = true;
             methodName = fd.toString();
-            currentScope = fd.symbolTable;
+            currentScope = fd.getScope();
             super.visitFuncDecl(fd);
             insidePureMethod = false;
         }
     }
 
     public void visitMethodDecl(MethodDecl md) {
-        if(md.mods.isPure()) {
+        if(md.mod.isPure()) {
             insidePureMethod = true;
             methodName = md.toString();
-            currentScope = md.symbolTable;
+            currentScope = md.getScope();
             super.visitMethodDecl(md);
             insidePureMethod = false;
         }
     }
 
     public void visitRetypeStmt(RetypeStmt rt) {
-        if(insidePureMethod && methodChangesState(currentScope.findName(rt.LHS()).decl())) {
+        if(insidePureMethod && methodChangesState(currentScope.findName(rt.LHS()).getDecl())) {
             handler.createWarningBuilder()
                     .addLocation(rt)
                     .addWarningNumber(MessageNumber.WARNING_1)

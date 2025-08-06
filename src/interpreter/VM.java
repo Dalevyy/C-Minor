@@ -1,7 +1,7 @@
 package interpreter;
 
 import ast.AST;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.misc.Var;
 import ast.topleveldecls.EnumDecl;
 import java.io.BufferedReader;
@@ -24,13 +24,13 @@ public class VM {
     public void runInterpreter() throws IOException {
         System.out.println("C Minor Interpreter");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        Compilation compilationUnit = new Compilation();
+        CompilationUnit compilationUnit = new CompilationUnit();
 
         // Phases
-        NameChecker nameChecker = new NameChecker(compilationUnit.globalTable);
-        TypeChecker typeChecker = new TypeChecker(compilationUnit.globalTable);
-        ModifierChecker modChecker = new ModifierChecker(compilationUnit.globalTable);
-        Interpreter interpreter = new Interpreter(compilationUnit.globalTable);
+        NameChecker nameChecker = new NameChecker(compilationUnit.getScope());
+        TypeChecker typeChecker = new TypeChecker(compilationUnit.getScope());
+        ModifierChecker modChecker = new ModifierChecker(compilationUnit.getScope());
+        Interpreter interpreter = new Interpreter(compilationUnit.getScope());
 
         // Micropasses
         Printer treePrinter = new Printer();
@@ -40,7 +40,7 @@ public class VM {
         FieldRewrite fieldRewritePass = new FieldRewrite();
         OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck();
         LoopKeywordCheck loopCheckPass = new LoopKeywordCheck();
-        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.globalTable);
+        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.getScope());
         ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
         PureKeywordPass purePass = new PureKeywordPass();
 
@@ -60,12 +60,12 @@ public class VM {
             if(input.equals("#quit"))
                 System.exit(0);
             else if(input.equals("#clear")) {
-                compilationUnit = new Compilation();
-                nameChecker = new NameChecker(compilationUnit.globalTable);
-                classToEnumPass = new TypeValidityPass(compilationUnit.globalTable);
-                typeChecker = new TypeChecker(compilationUnit.globalTable);
-                modChecker = new ModifierChecker(compilationUnit.globalTable);
-                interpreter = new Interpreter(compilationUnit.globalTable);
+                compilationUnit = new CompilationUnit();
+                nameChecker = new NameChecker(compilationUnit.getScope());
+                classToEnumPass = new TypeValidityPass(compilationUnit.getScope());
+                typeChecker = new TypeChecker(compilationUnit.getScope());
+                modChecker = new ModifierChecker(compilationUnit.getScope());
+                interpreter = new Interpreter(compilationUnit.getScope());
                 ImportHandler.clear();
                 continue;
             }
@@ -117,7 +117,7 @@ public class VM {
                     node.visit(nameChecker);
 
                     if(printST)
-                        System.out.println(compilationUnit.globalTable.toString());
+                        System.out.println(compilationUnit.getScope().toString());
 
                     node.visit(variableInitPass);
                     if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) {
@@ -141,12 +141,12 @@ public class VM {
                             node.visit(interpreter);
                     } else {
                         node.visit(interpreter);
-                        compilationUnit.mainDecl().mainBody().addStmt(node.asStatement());
+                        //compilationUnit.getMain().getBody().addStmt(node.asStatement());
                     }
                 }
             }
             catch(Exception e) {
-                generateError(e,errorNode,compilationUnit.globalTable);
+                generateError(e,errorNode,compilationUnit.getScope());
                 if(debug)
                     e.printStackTrace();
             }
@@ -161,7 +161,7 @@ public class VM {
             if(location.isTopLevelDecl()) {
                 if(location.asTopLevelDecl().isEnumDecl()) {
                     EnumDecl ed = location.asTopLevelDecl().asEnumDecl();
-                    for(Var constant : ed.constants())
+                    for(Var constant : ed.getConstants())
                         st.removeName(constant.toString());
                     st.removeName(ed.toString());
                 }
@@ -170,7 +170,7 @@ public class VM {
                 else if(location.asTopLevelDecl().isFuncDecl())
                     st.removeName(location.asTopLevelDecl().asFuncDecl().getSignature());
             }
-            else if(location.isParamDecl() || location.isStatement() && location.asStatement().isLocalDecl())
+            else if((location.isSubNode() && location.asSubNode().isParamDecl() )|| location.isStatement() && location.asStatement().isLocalDecl())
                 st.removeName(location.toString());
         }
     }

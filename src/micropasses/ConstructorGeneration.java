@@ -37,9 +37,9 @@ public class ConstructorGeneration extends Visitor {
 
         // For every field declared in the current class, we will create an
         // assignment statement that will be stored in the generated constructor.
-        for(String key : cd.symbolTable.getAllNames().keySet()) {
-            if(cd.symbolTable.findName(key).decl().isFieldDecl()) {
-                FieldDecl currFieldDecl = cd.symbolTable.findName(key).decl().asFieldDecl();
+        for(String key : cd.getScope().getAllNames().keySet()) {
+            if(cd.getScope().findName(key).getDecl().asClassNode().isFieldDecl()) {
+                FieldDecl currFieldDecl = cd.getScope().findName(key).getDecl().asClassNode().asFieldDecl();
                 initParams.add(
                     new AssignStmtBuilder()
                         .setLHS(
@@ -47,12 +47,12 @@ public class ConstructorGeneration extends Visitor {
                                 .setTarget(new ThisStmt())
                                 .setAccessExpr(
                                     new NameExprBuilder()
-                                        .setName(currFieldDecl.var().name())
+                                        .setName(currFieldDecl.getVariableName())
                                         .create()
                                 )
                                 .create()
                         )
-                        .setRHS(currFieldDecl.var().init())
+                        .setRHS(currFieldDecl.getInitialValue())
                         .setAssignOp(
                             new AssignOpBuilder()
                                 .setAssignOperator(AssignType.EQ)

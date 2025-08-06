@@ -41,6 +41,8 @@ public class Var extends SubNode {
      */
     public Var(Token metaData, Name variableName) { this(metaData, variableName, null, null); }
 
+    public Var(Token metaData, Name variableName, Type t) { this(metaData, variableName, null, t); }
+
     /**
      * Constructor for instantiating a {@link Var} with an initial value (for field and enum constants).
      * @param metaData {@link Token} containing all the metadata we will save into this node.

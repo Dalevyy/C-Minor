@@ -1,9 +1,15 @@
 package utilities;
 
-import ast.classbody.*;
+import ast.classbody.ClassBody;
+import ast.classbody.FieldDecl;
+import ast.classbody.InitDecl;
+import ast.classbody.MethodDecl;
 import ast.expressions.*;
 import ast.misc.*;
-import ast.operators.*;
+import ast.operators.AssignOp;
+import ast.operators.BinaryOp;
+import ast.operators.LoopOp;
+import ast.operators.UnaryOp;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.*;
@@ -33,7 +39,7 @@ public abstract class Visitor {
     public void visitClassBody(ClassBody cb) { cb.visitChildren(this); }
     public void visitClassDecl(ClassDecl cd) { cd.visitChildren(this); }
     public void visitClassType(ClassType ct) { ct.visitChildren(this); }
-    public void visitCompilation(Compilation c) { c.visitChildren(this); }
+    public void visitCompilationUnit(CompilationUnit cu) { cu.visitChildren(this); }
     public void visitContinueStmt(ContinueStmt cs) { cs.visitChildren(this); }
     public void visitDiscreteType(DiscreteType dt) { dt.visitChildren(this); }
     public void visitDoStmt(DoStmt ds) { ds.visitChildren(this); }
@@ -71,7 +77,7 @@ public abstract class Visitor {
     public void visitScalarType(ScalarType st) { st.visitChildren(this); }
     public void visitStopStmt(StopStmt ss) { ss.visitChildren(this); }
     public void visitThis(ThisStmt t) { t.visitChildren(this); }
-    public void visitTypeifier(Typeifier t) { t.visitChildren(this); }
+    public void visitTypeParam(TypeParam tp) { tp.visitChildren(this); }
     public void visitUnaryExpr(UnaryExpr ue) { ue.visitChildren(this); }
     public void visitUnaryOp(UnaryOp uo) { uo.visitChildren(this); }
     public void visitVar(Var v) { v.visitChildren(this); }

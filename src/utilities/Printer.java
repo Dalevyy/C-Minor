@@ -33,7 +33,7 @@ public class Printer extends Visitor {
         return debugLines(n) + " : " + n.text;
     }
 
-    private String debugLines(AST n) { return " <"+ n.location.start.toString() + " to " + n.location.end.toString() + ">"; }
+    private String debugLines(AST n) { return " <"+ n.getLocation().start.toString() + " to " + n.getLocation().end.toString() + ">"; }
 
     public void visitArrayExpr(ArrayExpr ae) {
         System.out.println(printSpaces() + "ArrayExpr" + debugInfo(ae));
@@ -127,10 +127,10 @@ public class Printer extends Visitor {
         spaces -= 2;
     }
 
-    public void visitCompilation(Compilation c) {
+    public void visitCompilationUnit(CompilationUnit c) {
         System.out.println("+--Compilation" + debugLines(c));
         spaces += 2;
-        super.visitCompilation(c);
+        super.visitCompilationUnit(c);
         spaces -= 2;
         System.out.println();
     }
@@ -300,7 +300,7 @@ public class Printer extends Visitor {
         System.out.println(printSpaces() + "ScalarType" + debugInfo(st));
     }
 
-    public void visitTypeifier(Typeifier t) {
+    public void visitTypeParam(TypeParam t) {
         System.out.println(printSpaces() + "Typeifier" + debugInfo(t));
     }
 

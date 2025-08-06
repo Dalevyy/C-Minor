@@ -152,7 +152,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
      * Getter method for {@link #body}.
      * @return {@link #body}
      */
-    public BlockStmt getMethodBody() { return body; }
+    public BlockStmt getBody() { return body; }
 
     /**
      * Getter method for {@link #isOverridden}

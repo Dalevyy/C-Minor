@@ -12,8 +12,7 @@ public class BlockStmt extends Statement {
     private final Vector<Statement> stmts;
 
     public BlockStmt() {
-        this.decls = new Vector<>();
-        this.stmts = new Vector<>();
+        this(new Token(),new Vector<>(),new Vector<>());
     }
 
     public BlockStmt(Vector<Statement> s) { this(new Token(),new Vector<>(),s); }

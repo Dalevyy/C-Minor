@@ -3,7 +3,7 @@ package interpreter;
 import ast.classbody.InitDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.*;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
 import ast.statements.*;
@@ -140,7 +140,7 @@ public class Interpreter extends Visitor {
             // error check yay
             if(offset <= 0 || offset > currentValue.asInt()) {
                 handler.createErrorBuilder(RuntimeError.class)
-                        .addLocation(ae.getRootParent())
+                        .addLocation(ae.getFullLocation())
                         .addErrorNumber(MessageNumber.RUNTIME_ERROR_603)
                         .generateError();
             }
@@ -465,11 +465,11 @@ public class Interpreter extends Visitor {
 
             CaseStmt currCase = cs.caseStmts().get(i);
 
-            currCase.choiceLabel().leftLabel().visit(this);
+            currCase.choiceLabel().getLeftConstant().visit(this);
             label = currentValue;
 
-            if(currCase.choiceLabel().rightLabel() != null) {
-                currCase.choiceLabel().rightLabel().visit(this);
+            if(currCase.choiceLabel().getRightConstant() != null) {
+                currCase.choiceLabel().getRightConstant().visit(this);
                 rightLabel = currentValue;
                 if((cs.choiceExpr().type.isInt() && (choice.asInt() >= label.asInt() && choice.asInt() <= rightLabel.asInt()))
                 || (cs.choiceExpr().type.isChar() && (choice.asChar() >= label.asChar() && choice.asChar() <= rightLabel.asChar()))) {
@@ -499,21 +499,21 @@ public class Interpreter extends Visitor {
      * </p>
      * @param c Compilation unit representing the program we are executing
      */
-    public void visitCompilation(Compilation c) {
-        for(ImportDecl im : c.imports()) {
+    public void visitCompilationUnit(CompilationUnit c) {
+        for(ImportDecl im : c.getImports()) {
             im.visit(this);
-            c.addClassDecl(im.getCompilationUnit().classDecls());
-            c.addFuncDecl(im.getCompilationUnit().funcDecls());
+            c.addClassDecl(im.getCompilationUnit().getClasses());
+            c.addFuncDecl(im.getCompilationUnit().getFunctions());
         }
 
-        for(EnumDecl ed : c.enumDecls())
+        for(EnumDecl ed : c.getEnums())
             ed.visit(this);
 
-        for(GlobalDecl gd : c.globalDecls())
+        for(GlobalDecl gd : c.getGlobals())
             gd.visit(this);
 
-        if(c.mainDecl() != null)
-            c.mainDecl().mainBody().visit(this);
+        if(c.getMain() != null)
+            c.getMain().getBody().visit(this);
     }
 
     /**
@@ -559,8 +559,8 @@ public class Interpreter extends Visitor {
      * @param ed Enum Declaration
      */
     public void visitEnumDecl(EnumDecl ed) {
-        for(Var constant : ed.constants()) {
-            constant.init().visit(this);
+        for(Var constant : ed.getConstants()) {
+            constant.getInitialValue().visit(this);
             stack.addValue(constant, currentValue);
         }
     }
@@ -652,9 +652,9 @@ public class Interpreter extends Visitor {
      * @param gd Global Declaration
      */
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.var().init() != null)
-            gd.var().init().visit(this);
-        stack.addValue(gd.var(), currentValue);
+        if(gd.getInitialValue() != null)
+            gd.getInitialValue().visit(this);
+        stack.addValue(gd.getVariableName(), currentValue);
     }
 
     /**
@@ -700,7 +700,7 @@ public class Interpreter extends Visitor {
     public void visitInitDecl(InitDecl id) {
         RuntimeObject obj = currentValue.asObject();
 
-        for(AssignStmt as : id.assignStmts()) {
+        for(AssignStmt as : id.getInitStmts()) {
             if(!obj.hasField(as.LHS())) {
                 as.RHS().visit(this);
                 obj.setField(as.LHS(), currentValue);
@@ -814,36 +814,36 @@ public class Interpreter extends Visitor {
         // Function Invocation
         if(in.targetType.isVoidType()) {
             FuncDecl fd = (in.templatedFunction != null)
-                    ? in.templatedFunction : currentScope.findName(in.getSignature()).decl().asTopLevelDecl().asFuncDecl();
-            params = fd.params();
-            currentScope = fd.symbolTable;
+                    ? in.templatedFunction : currentScope.findName(in.getSignature()).getDecl().asTopLevelDecl().asFuncDecl();
+            params = fd.getParams();
+            currentScope = fd.getScope();
 
             // Save arguments into respective parameters and add to the stack.
             for(int i = 0; i < in.getArgs().size(); i++)
                 stack.addValue(params.get(i),args.get(i));
 
 
-            fd.funcBlock().visit(this);
+            fd.getBody().visit(this);
         }
         // Method Invocation
         else {
             // ERROR CHECK #1: This checks if the object's type is assignment compatible with the expected object type.
             if(!ClassType.classAssignmentCompatibility(obj.getCurrentType(),in.targetType.asClassType())) {
                 handler.createErrorBuilder(RuntimeError.class)
-                        .addLocation(in.getRootParent())
+                        .addLocation(in.getFullLocation())
                         .addErrorNumber(MessageNumber.RUNTIME_ERROR_604)
                         .addErrorArgs(in.toString(),obj.getCurrentType(),in.targetType)
                         .generateError();
             }
 
             // Find the class that contains the specific method we want to call
-            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType()).decl().asTopLevelDecl().asClassDecl();
-            while(!cd.symbolTable.hasName(in.getSignature()))
-                cd = currentScope.findName(cd.superClass()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType()).getDecl().asTopLevelDecl().asClassDecl();
+            while(!cd.getScope().hasName(in.getSignature()))
+                cd = currentScope.findName(cd.getSuperClass()).getDecl().asTopLevelDecl().asClassDecl();
 
-            MethodDecl md = cd.symbolTable.findName(in.getSignature()).decl().asMethodDecl();
-            params = md.params();
-            currentScope = md.symbolTable;
+            MethodDecl md = cd.getScope().findName(in.getSignature()).getDecl().asClassNode().asMethodDecl();
+            params = md.getParams();
+            currentScope = md.getScope();
 
             // Create a 'this' pointer when we invoke an object's method for the first time
             stack.addValue("this",obj);
@@ -852,7 +852,7 @@ public class Interpreter extends Visitor {
             for(int i = 0; i < in.getArgs().size(); i++)
                 stack.addValue(params.get(i),args.get(i));
 
-            md.methodBlock().visit(this);
+            md.getBody().visit(this);
         }
 
         // Figure out which variables need to be updated.
@@ -862,7 +862,7 @@ public class Interpreter extends Visitor {
                 String argName = in.getArgs().get(i).toString();
                 ParamDecl currParam = params.get(i);
 
-                if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
+                if(currParam.mod.isOutMode() || currParam.mod.isInOutMode() || currParam.mod.isRefMode())
                     varsToUpdate.put(argName,stack.getValue(currParam));
             }
         }
@@ -985,9 +985,9 @@ public class Interpreter extends Visitor {
      * @param ld Local Declaration
      */
     public void visitLocalDecl(LocalDecl ld) {
-        if(ld.var().init() != null)
-            ld.var().init().visit(this);
-        stack.addValue(ld.var(), currentValue);
+        if(ld.hasInitialValue())
+            ld.getInitialValue().visit(this);
+        stack.addValue(ld.getVariableName(), currentValue);
     }
 
     /**
@@ -1006,17 +1006,17 @@ public class Interpreter extends Visitor {
             return;
 
         // Special Case: If we are evaluating a complex field expression, execute this branch
-        if(currentValue != null
-            && currentValue.isObject() && ne.getParent().isExpression()
-            && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
-            // ERROR CHECK #1: This checks if the field exists for the current object.
-            if(!currentValue.asObject().hasField(ne)) {
-                handler.createErrorBuilder(RuntimeError.class)
-                    .addLocation(ne.getRootParent())
-                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
-                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
-                    .generateError();
-            }
+        if(currentValue != null) {
+//            && currentValue.isObject() && ne.getParent().isExpression()
+//            && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
+//            // ERROR CHECK #1: This checks if the field exists for the current object.
+//            if(!currentValue.asObject().hasField(ne)) {
+//                handler.createErrorBuilder(RuntimeError.class)
+//                    .addLocation(ne.getRootParent())
+//                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
+//                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
+//                    .generateError();
+//            }
             currentValue = currentValue.asObject().getField(ne);
         }
         else {
@@ -1024,7 +1024,7 @@ public class Interpreter extends Visitor {
             // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
             if(currentValue == null && !insideAssignment) {
                 handler.createErrorBuilder(RuntimeError.class)
-                    .addLocation(ne.getRootParent())
+                    .addLocation(ne.getFullLocation())
                     .addErrorNumber(MessageNumber.RUNTIME_ERROR_607)
                     .addErrorArgs(ne)
                     .generateError();
@@ -1044,15 +1044,15 @@ public class Interpreter extends Visitor {
      */
     public void visitNewExpr(NewExpr ne) {
         RuntimeObject obj = new RuntimeObject(ne.type);
-        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
 
         for(Var field : ne.getInitialFields()) {
-            field.init().visit(this);
+            field.getInitialValue().visit(this);
             obj.setField(field, currentValue);
         }
 
         currentValue = obj;
-        cd.constructor().visit(this);
+        cd.getConstructor().visit(this);
     }
 
     /**

@@ -1,7 +1,7 @@
 package utilities;
 
 import ast.AST;
-import ast.misc.NameNode;
+import ast.misc.NameDecl;
 import ast.topleveldecls.FuncDecl;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,7 +9,7 @@ import java.util.HashSet;
 // SymbolTable needs to be fixed for imports... no lol
 public class SymbolTable {
 
-    private final HashMap<String, NameNode> varNames;
+    private final HashMap<String, NameDecl> varNames;
     private final HashSet<String> methodNames;
     private SymbolTable parent;
     private SymbolTable importParent;
@@ -48,15 +48,15 @@ public class SymbolTable {
         SymbolTable rootTable = getRootTable();
         Vector<FuncDecl> lst = new Vector<>();
 
-        for(NameNode name : getRootTable().getAllNames().values())
-            if(name.decl().isTopLevelDecl() && name.decl().asTopLevelDecl().isFuncDecl())
-                lst.add(name.decl().asTopLevelDecl().asFuncDecl());
+        for(NameDecl name : getRootTable().getAllNames().values())
+            if(name.getDecl().isTopLevelDecl() && name.getDecl().asTopLevelDecl().isFuncDecl())
+                lst.add(name.getDecl().asTopLevelDecl().asFuncDecl());
 
         return lst;
     }
 
-    public void addName(String name, NameNode n) { varNames.put(name,n); }
-    public void addNameToRootTable(String name, NameNode n) {
+    public void addName(String name, NameDecl n) { varNames.put(name,n); }
+    public void addNameToRootTable(String name, NameDecl n) {
         if(parent != null)
             parent.addNameToRootTable(name,n);
         else
@@ -65,15 +65,15 @@ public class SymbolTable {
 
     public void addMethod(String methodName) { methodNames.add(methodName); }
 
-    public NameNode findName(String name) {
-        NameNode nameFound = varNames.get(name);
+    public NameDecl findName(String name) {
+        NameDecl nameFound = varNames.get(name);
         if(nameFound != null) return nameFound;
         else if(parent != null) return parent.findName(name);
         else if(importParent != null) return importParent.findName(name);
         else return null;
     }
 
-    public NameNode findName(AST node) { return findName(node.toString()); }
+    public NameDecl findName(AST node) { return findName(node.toString()); }
 
     public boolean hasName(String name) {
         return varNames.containsKey(name) || hasNameInImportTable(name);
@@ -114,7 +114,7 @@ public class SymbolTable {
         }
     }
 
-    public HashMap<String,NameNode> getAllNames() { return varNames; }
+    public HashMap<String,NameDecl> getAllNames() { return varNames; }
     public HashSet<String> getMethodNames() { return methodNames; }
 
     public boolean isNameUsedAnywhere(String name) {
@@ -132,24 +132,24 @@ public class SymbolTable {
         sb.append(indent(level+1) + "Variable Names");
         for(var entry : varNames.entrySet()) {
             sb.append("\n" + indent(level + 1));
-            if (entry.getValue().decl().isStatement()) {
+            if (entry.getValue().getDecl().isStatement()) {
                 sb.append(indent(level + 2) + "Local: " + entry.getKey());
             }
-            else if (entry.getValue().decl().isTopLevelDecl()) {
-                if (entry.getValue().decl().asTopLevelDecl().isEnumDecl()) {
+            else if (entry.getValue().getDecl().isTopLevelDecl()) {
+                if (entry.getValue().getDecl().asTopLevelDecl().isEnumDecl()) {
                     constructs.append("\n" + indent(level + 2) + "Enum: " + entry.getKey());
-                } else if (entry.getValue().decl().asTopLevelDecl().isGlobalDecl()) {
+                } else if (entry.getValue().getDecl().asTopLevelDecl().isGlobalDecl()) {
                     sb.append("\n" + indent(level + 2) + "Global: " + entry.getKey());
-                } else if (entry.getValue().decl().asTopLevelDecl().isClassDecl()) {
+                } else if (entry.getValue().getDecl().asTopLevelDecl().isClassDecl()) {
                     constructs.append("\n" + indent(level + 2) + "Class: " + entry.getKey());
-                } else if (entry.getValue().decl().asTopLevelDecl().isFuncDecl()) {
+                } else if (entry.getValue().getDecl().asTopLevelDecl().isFuncDecl()) {
                     constructs.append("\n" + indent(level + 2) + "Function: " + entry.getKey());
                 }
             }
-            else if (entry.getValue().decl().isFieldDecl()) {
+            else if (entry.getValue().getDecl().asClassNode().isFieldDecl()) {
                 sb.append(indent(level + 2) + "Field: " + entry.getKey());
             }
-            else if (entry.getValue().decl().isMethodDecl()) {
+            else if (entry.getValue().getDecl().asClassNode().isMethodDecl()) {
                 sb.append(indent(level + 2) + "Method: " + entry.getKey());
             }
         }

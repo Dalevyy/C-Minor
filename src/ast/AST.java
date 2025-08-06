@@ -27,7 +27,7 @@ public abstract class AST {
     /**
      * Actual code that the {@link AST} represents.
      */
-    protected String text;
+    public String text;
 
     /**
      * The {@link Location} of the {@link AST} in a user program.
@@ -59,6 +59,12 @@ public abstract class AST {
      * @return {@link Location} where the AST is at in the program's file.
      */
     public Location getLocation() { return location; }
+
+    /**
+     * Getter method that returns {@link #parent}.
+     * @return {@link AST} node that appears one level above the current node.
+     */
+    public AST getParent() { return parent; }
 
     /**
      * Getter method that returns {@link #children}.
@@ -162,6 +168,9 @@ public abstract class AST {
      * @param node The {@link AST} that will be added to the end of {@link #children}
      */
     protected void addChildNode(AST node) {
+        if(node == null)
+            return;
+
         children.add(node);
         node.parent = this;
     }

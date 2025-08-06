@@ -5,7 +5,7 @@ import ast.expressions.FieldExpr;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.NameExpr;
 import ast.expressions.ThisStmt;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.statements.CaseStmt;
 import ast.statements.ChoiceStmt;
 import ast.statements.DoStmt;
@@ -63,7 +63,7 @@ public class FieldRewrite extends Visitor {
      * @param cd Class declaration
      */
     public void visitClassDecl(ClassDecl cd) {
-        currentScope = cd.symbolTable;
+        currentScope = cd.getScope();
         super.visitClassDecl(cd);
         currentScope = currentScope.closeScope();
     }
@@ -77,13 +77,13 @@ public class FieldRewrite extends Visitor {
      * </p>
      * @param c Compilation Unit
      */
-    public void visitCompilation(Compilation c) {
-        currentScope = c.globalTable;
+    public void visitCompilationUnit(CompilationUnit c) {
+        currentScope = c.getScope();
 
-        for(ImportDecl id : c.imports())
+        for(ImportDecl id : c.getImports())
             id.visit(this);
 
-        for(ClassDecl cd : c.classDecls())
+        for(ClassDecl cd : c.getClasses())
             cd.visit(this);
     }
 
@@ -155,7 +155,7 @@ public class FieldRewrite extends Visitor {
      * @param md Method Declaration
      */
     public void visitMethodDecl(MethodDecl md) {
-        currentScope = md.symbolTable;
+        currentScope = md.getScope();
         super.visitMethodDecl(md);
         currentScope = currentScope.closeScope();
     }
@@ -165,12 +165,12 @@ public class FieldRewrite extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(!ne.isParentKeyword() && currentScope.findName(ne.toString()).decl().isFieldDecl()) {
+        if(!ne.isParentKeyword() && currentScope.findName(ne.toString()).getDecl().asClassNode().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new ThisStmt())
                                .setAccessExpr(new NameExpr(ne.toString()))
                                .create();
-            fe.replace(ne);
+            ne.replaceWith(fe);
         }
     }
 
