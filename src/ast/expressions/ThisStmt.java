@@ -83,7 +83,7 @@ public class ThisStmt extends Expression {
          * @return ThisStmtBuilder
          */
         public ThisStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ts,node);
             return this;
         }
 
@@ -92,7 +92,6 @@ public class ThisStmt extends Expression {
          * @return {@link ThisStmt}
          */
         public ThisStmt create() {
-            super.saveMetaData(ts);
             return ts;
         }
     }

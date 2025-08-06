@@ -42,8 +42,8 @@ public class UnaryExpr extends Expression {
         this.expr = expr;
         this.unOp = unOp;
 
-        addChild(this.expr);
-        addChild(this.unOp);
+        addChildNode(this.expr);
+        addChildNode(this.unOp);
     }
 
     /**
@@ -135,7 +135,7 @@ public class UnaryExpr extends Expression {
          * @return UnaryExprBuilder
          */
         public UnaryExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ue,node);
             return this;
         }
 
@@ -164,9 +164,8 @@ public class UnaryExpr extends Expression {
          * @return {@link UnaryExpr}
          */
         public UnaryExpr create() {
-            super.saveMetaData(ue);
-            ue.addChild(ue.expr);
-            ue.addChild(ue.unOp);
+            ue.addChildNode(ue.expr);
+            ue.addChildNode(ue.unOp);
             return ue;
         }
     }

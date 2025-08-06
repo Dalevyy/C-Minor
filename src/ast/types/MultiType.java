@@ -106,7 +106,7 @@ public class MultiType extends Type {
          * @return MultiTypeBuilder
          */
         public MultiTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(mt,node);
             return this;
         }
 
@@ -121,7 +121,6 @@ public class MultiType extends Type {
         }
 
         public MultiType create() {
-            super.saveMetaData(mt);
             return mt;
         }
     }

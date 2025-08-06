@@ -49,8 +49,8 @@ public class NewExpr extends Expression {
         this.objectType = objectType;
         this.initialFields = initialFields;
 
-        addChild(this.objectType);
-        addChild(this.initialFields);
+        addChildNode(this.objectType);
+        addChildNode(this.initialFields);
     }
 
     /**
@@ -118,7 +118,7 @@ public class NewExpr extends Expression {
                 break;
             default:
                 this.initialFields.remove(pos-1);
-                this.initialFields.add(pos-1,node.asVar());
+                this.initialFields.add(pos-1,node.asSubNode().asVar());
         }
     }
 
@@ -130,7 +130,7 @@ public class NewExpr extends Expression {
     public AST deepCopy() {
         Vector<Var> initialFields = new Vector<>();
         for(Var v : this.initialFields)
-            initialFields.add(v.deepCopy().asVar());
+            initialFields.add(v.deepCopy().asSubNode().asVar());
 
         return new NewExprBuilder()
                    .setMetaData(this)
@@ -162,7 +162,7 @@ public class NewExpr extends Expression {
          * @return NewExprBuilder
          */
         public NewExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ne,node);
             return this;
         }
 
@@ -191,9 +191,8 @@ public class NewExpr extends Expression {
          * @return {@link NewExpr}
          */
         public NewExpr create() {
-            super.saveMetaData(ne);
-            ne.addChild(ne.objectType);
-            ne.addChild(ne.initialFields);
+            ne.addChildNode(ne.objectType);
+            ne.addChildNode(ne.initialFields);
             return ne;
         }
     }

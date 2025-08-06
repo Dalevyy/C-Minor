@@ -19,7 +19,6 @@ __________________________________________________________
 */
 public abstract class Type extends AST {
     public Type(Token t) { super(t); }
-    public Type(AST node) { super(node); }
 
     public abstract String typeName();
 

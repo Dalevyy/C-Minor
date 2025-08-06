@@ -117,7 +117,7 @@ public class BinaryOp extends Operator {
          * @return BinaryOpBuilder
          */
         public BinaryOpBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(bo,node);
             return this;
         }
 
@@ -136,7 +136,6 @@ public class BinaryOp extends Operator {
          * @return {@link BinaryOp}
          */
         public BinaryOp create() {
-            super.saveMetaData(bo);
             return bo;
         }
     }

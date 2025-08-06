@@ -30,7 +30,7 @@ public class ClassType extends Type {
         this.className = n;
         this.typeArgs = tt;
 
-        addChild(this.className);
+        addChildNode(this.className);
     }
 
     public Name getClassName() { return className; }
@@ -132,7 +132,7 @@ public class ClassType extends Type {
 
         return new ClassTypeBuilder()
                 .setMetaData(this)
-                .setClassName(this.className.deepCopy().asName())
+                .setClassName(this.className.deepCopy().asSubNode().asName())
                 .setTypeArgs(typeArgs)
                 .create();
     }
@@ -156,7 +156,7 @@ public class ClassType extends Type {
          * @return ClassTypeBuilder
          */
         public ClassTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ct,node);
             return this;
         }
 
@@ -185,8 +185,7 @@ public class ClassType extends Type {
          * @return {@link ClassType}
          */
         public ClassType create() {
-            super.saveMetaData(ct);
-            ct.addChild(ct.className);
+            ct.addChildNode(ct.className);
             return ct;
         }
     }

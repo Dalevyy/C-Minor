@@ -19,9 +19,8 @@ public class WhileStmt extends Statement {
         this.cond = cond;
         this.whileBlock = whileBlock;
 
-        addChild(this.cond);
-        addChild(this.whileBlock);
-        setParent();
+        addChildNode(this.cond);
+        addChildNode(this.whileBlock);
     }
 
     public Expression condition() { return cond; }
@@ -68,7 +67,7 @@ public class WhileStmt extends Statement {
          * @return WhileStmtBuilder
          */
         public WhileStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ws,node);
             return this;
         }
 
@@ -88,9 +87,8 @@ public class WhileStmt extends Statement {
         }
 
         public WhileStmt create() {
-            super.saveMetaData(ws);
-            ws.addChild(ws.cond);
-            ws.addChild(ws.whileBlock);
+            ws.addChildNode(ws.cond);
+            ws.addChildNode(ws.whileBlock);
             return ws;
         }
     }

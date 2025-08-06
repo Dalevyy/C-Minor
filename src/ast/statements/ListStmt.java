@@ -25,7 +25,7 @@ public class ListStmt extends Statement {
         this.commandType = c;
         this.args = args;
 
-        addChild(args);
+        addChildNode(args);
     }
 
     public Commands getCommand() { return this.commandType; }
@@ -86,7 +86,7 @@ public class ListStmt extends Statement {
          * @return ListStmtBuilder
          */
         public ListStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ls,node);
             return this;
         }
 
@@ -101,8 +101,7 @@ public class ListStmt extends Statement {
         }
 
         public ListStmt create(){
-            super.saveMetaData(ls);
-            ls.addChild(ls.args);
+            ls.addChildNode(ls.args);
             return ls;
         }
     }

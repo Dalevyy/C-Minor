@@ -22,7 +22,7 @@ public class ScalarType extends Type {
     public ScalarType() { this(new Token(),null); }
 
     public ScalarType(Scalars s) {
-        super((AST)null);
+        super(new Token());
         this.specificType = s;
     }
 
@@ -76,7 +76,7 @@ public class ScalarType extends Type {
          * @return ScalarTypeBuilder
          */
         public ScalarTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(st,node);
             return this;
         }
 
@@ -95,7 +95,6 @@ public class ScalarType extends Type {
          * @return {@link ScalarType}
          */
         public ScalarType create() {
-            super.saveMetaData(st);
             return st;
         }
     }

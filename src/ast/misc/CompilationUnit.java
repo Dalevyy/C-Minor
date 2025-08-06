@@ -93,7 +93,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
      * @param main {@link MainDecl} to store into {@link #main}.
      */
     public CompilationUnit(Token metaData, String fileName, Vector<ImportDecl> imports, Vector<EnumDecl> enums,
-                   Vector<GlobalDecl> globals, Vector<ClassDecl> classes, Vector<FuncDecl> functions, MainDecl main) {
+                           Vector<GlobalDecl> globals, Vector<ClassDecl> classes, Vector<FuncDecl> functions, MainDecl main) {
         super(metaData);
         this.fileName = fileName;
         this.imports = imports;
@@ -262,7 +262,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
      * {@inheritDoc}
      */
     @Override
-    public void visit(Visitor v) { v.visitCompilation(this); }
+    public void visit(Visitor v) { v.visitCompilationUnit(this); }
 
     /**
      * Internal class that builds a {@link CompilationUnit} object.

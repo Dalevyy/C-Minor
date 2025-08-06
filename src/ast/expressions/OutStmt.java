@@ -41,7 +41,7 @@ public class OutStmt extends Expression {
         super(metaData);
         this.outputExprs = outputExprs;
 
-        addChild(this.outputExprs);
+        addChildNode(this.outputExprs);
     }
 
     /**
@@ -118,7 +118,7 @@ public class OutStmt extends Expression {
          * @return OutStmtBuilder
          */
         public OutStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(os,node);
             return this;
         }
 
@@ -137,8 +137,7 @@ public class OutStmt extends Expression {
          * @return {@link OutStmt}
          */
         public OutStmt create() {
-            super.saveMetaData(os);
-            os.addChild(os.outputExprs);
+            os.addChildNode(os.outputExprs);
             return os;
         }
     }

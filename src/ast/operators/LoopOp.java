@@ -113,7 +113,7 @@ public class LoopOp extends Operator {
          * @return LoopOpBuilder
          */
         public LoopOpBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(lo,node);
             return this;
         }
 
@@ -132,7 +132,6 @@ public class LoopOp extends Operator {
          * @return {@link LoopOp}
          */
         public LoopOp create() {
-            super.saveMetaData(lo);
             return lo;
         }
     }

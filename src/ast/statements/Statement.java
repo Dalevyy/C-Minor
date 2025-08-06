@@ -4,9 +4,8 @@ import ast.*;
 import token.*;
 
 public abstract class Statement extends AST {
-    public Statement() { super(); }
-    public Statement (Token t) { super(t); }
-    public Statement(AST node) { super(node); }
+
+    public Statement (Token metaData) { super(metaData); }
 
     public boolean isStatement() { return true; }
     public Statement asStatement() { return this; }

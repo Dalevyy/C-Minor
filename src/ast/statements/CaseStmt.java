@@ -17,9 +17,8 @@ public class CaseStmt extends Statement {
         this.myLabel = l;
         this.caseBlock = b;
 
-        addChild(this.myLabel);
-        addChild(this.caseBlock);
-        setParent();
+        addChildNode(this.myLabel);
+        addChildNode(this.caseBlock);
     }
 
     public Label choiceLabel() { return myLabel; }
@@ -32,7 +31,7 @@ public class CaseStmt extends Statement {
     public void update(int pos, AST n) {
         switch(pos) {
             case 0:
-                myLabel = n.asLabel();
+                myLabel = n.asSubNode().asLabel();
                 break;
             case 1:
                 caseBlock = n.asStatement().asBlockStmt();

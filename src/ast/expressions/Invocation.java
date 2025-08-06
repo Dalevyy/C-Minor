@@ -76,8 +76,8 @@ public class Invocation extends Expression {
         if(name != null)
             this.isLengthInvocation = toString().equals("length");
 
-        addChild(this.name);
-        addChild(this.args);
+        addChildNode(this.name);
+        addChildNode(this.args);
     }
 
     /**
@@ -189,7 +189,7 @@ public class Invocation extends Expression {
     public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                name = node.asName();
+                name = node.asSubNode().asName();
                 break;
             default:
                 args.remove(pos-1);
@@ -222,7 +222,7 @@ public class Invocation extends Expression {
 
 
 
-        return inb.setName(this.name.deepCopy().asName())
+        return inb.setName(this.name.deepCopy().asSubNode().asName())
                   .setArgs(args)
                   .create();
     }
@@ -250,7 +250,7 @@ public class Invocation extends Expression {
          * @return InvocationBuilder
          */
         public InvocationBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(in,node);
             return this;
         }
 
@@ -298,9 +298,8 @@ public class Invocation extends Expression {
          * @return {@link Invocation}
          */
         public Invocation create() {
-            super.saveMetaData(in);
-            in.addChild(in.name);
-            in.addChild(in.args);
+            in.addChildNode(in.name);
+            in.addChildNode(in.args);
             return in;
         }
     }

@@ -45,8 +45,8 @@ public class ArrayExpr extends Expression {
         this.target = target;
         this.index = index;
 
-        addChild(this.target);
-        addChild(this.index);
+        addChildNode(this.target);
+        addChildNode(this.index);
     }
 
     /**
@@ -149,7 +149,7 @@ public class ArrayExpr extends Expression {
          * @return ArrayExprBuilder
          */
         public ArrayExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ae, node);
             return this;
         }
 
@@ -178,9 +178,8 @@ public class ArrayExpr extends Expression {
          * @return {@link ArrayExpr}
          */
         public ArrayExpr create() {
-            super.saveMetaData(ae);
-            ae.addChild(ae.getArrayTarget());
-            ae.addChild(ae.getArrayIndex());
+            ae.addChildNode(ae.getArrayTarget());
+            ae.addChildNode(ae.getArrayIndex());
             return ae;
         }
     }

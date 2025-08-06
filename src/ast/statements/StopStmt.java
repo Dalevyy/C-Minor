@@ -47,7 +47,7 @@ public class StopStmt extends Statement {
          * @return StopStmtBuilder
          */
         public StopStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ss,node);
             return this;
         }
 
@@ -56,7 +56,6 @@ public class StopStmt extends Statement {
          * @return {@link StopStmt}
          */
         public StopStmt create() {
-            super.saveMetaData(ss);
             return ss;
         }
     }

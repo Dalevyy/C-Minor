@@ -23,9 +23,8 @@ public class BlockStmt extends Statement {
         this.decls = vd;
         this.stmts = s;
 
-        addChild(this.decls);
-        addChild(this.stmts);
-        setParent();
+        addChildNode(this.decls);
+        addChildNode(this.stmts);
     }
 
     public Vector<LocalDecl> decls() { return decls; }
@@ -84,7 +83,7 @@ public class BlockStmt extends Statement {
          * @return BlockStmtBuilder
          */
         public BlockStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(bs,node);
             return this;
         }
 
@@ -99,9 +98,8 @@ public class BlockStmt extends Statement {
         }
 
         public BlockStmt create() {
-            super.saveMetaData(bs);
-            bs.addChild(bs.decls);
-            bs.addChild(bs.stmts);
+            bs.addChildNode(bs.decls);
+            bs.addChildNode(bs.stmts);
             return bs;
         }
     }

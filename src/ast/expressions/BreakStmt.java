@@ -79,7 +79,7 @@ public class BreakStmt extends Expression {
          * @return BreakStmtBuilder
          */
         public BreakStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(bs,node);
             return this;
         }
 
@@ -88,7 +88,6 @@ public class BreakStmt extends Expression {
          * @return {@link BreakStmt }
          */
         public BreakStmt create() {
-            super.saveMetaData(bs);
             return bs;
         }
     }

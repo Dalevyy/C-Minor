@@ -21,9 +21,9 @@ public class AssignStmt extends Statement {
         this.RHS = RHS;
         this.op = op;
 
-        addChild(this.LHS);
-        addChild(this.RHS);
-        addChild(this.op);
+        addChildNode(this.LHS);
+        addChildNode(this.RHS);
+        addChildNode(this.op);
     }
 
     public Expression LHS() { return this.LHS; }
@@ -75,7 +75,7 @@ public class AssignStmt extends Statement {
          * @return AssignStmtBuilder
          */
         public AssignStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(as,node);
             return this;
         }
 
@@ -95,10 +95,9 @@ public class AssignStmt extends Statement {
         }
 
         public AssignStmt create() {
-            super.saveMetaData(as);
-            as.addChild(as.LHS);
-            as.addChild(as.RHS);
-            as.addChild(as.op);
+            as.addChildNode(as.LHS);
+            as.addChildNode(as.RHS);
+            as.addChildNode(as.op);
             return as;
         }
     }

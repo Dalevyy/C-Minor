@@ -132,7 +132,7 @@ public class ListType extends Type {
          * @return ListTypeBuilder
          */
         public ListTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(lt,node);
             return this;
         }
 
@@ -161,7 +161,6 @@ public class ListType extends Type {
          * @return {@link ListType}
          */
         public ListType create() {
-            super.saveMetaData(lt);
             return lt;
         }
     }

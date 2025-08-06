@@ -14,7 +14,7 @@ public class ExprStmt extends Statement {
         super(t);
         this.expr = e;
 
-        addChild(this.expr);
+        addChildNode(this.expr);
     }
 
     public Expression getExpression() { return expr; }
@@ -47,7 +47,7 @@ public class ExprStmt extends Statement {
          * @return ExprStmtBuilder
          */
         public ExprStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(es,node);
             return this;
         }
 
@@ -57,8 +57,7 @@ public class ExprStmt extends Statement {
         }
 
         public ExprStmt create(){
-            super.saveMetaData(es);
-            es.addChild(es.expr);
+            es.addChildNode(es.expr);
             return es;
         }
     }

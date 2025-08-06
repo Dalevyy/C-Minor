@@ -31,7 +31,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
         super(metaData);
         this.localVariable = localVariable;
 
-        addChild(this.localVariable);
+        addChildNode(this.localVariable);
     }
 
     /**
@@ -48,6 +48,11 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
      * {@inheritDoc}
      */
     public Expression getInitialValue() { return localVariable.getInitialValue(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setInitialValue(Expression init) { localVariable.setInitialValue(init);}
 
     /**
      * {@inheritDoc}
@@ -81,7 +86,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     public LocalDecl asLocalDecl() { return this; }
 
     @Override
-    public void update(int pos, AST node) { localVariable = node.asVar(); }
+    public void update(int pos, AST node) { localVariable = node.asSubNode().asVar(); }
 
     /**
      * {@code deepCopy} method.
@@ -91,7 +96,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     public AST deepCopy() {
         return new LocalDeclBuilder()
                    .setMetaData(this)
-                   .setVar(this.localVariable.deepCopy().asVar())
+                   .setVar(this.localVariable.deepCopy().asSubNode().asVar())
                    .create();
     }
 
@@ -107,7 +112,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
          * @return LocalDeclBuilder
          */
         public LocalDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ld,node);
             return this;
         }
 
@@ -126,8 +131,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
          * @return {@link LocalDecl}
          */
         public LocalDecl create() {
-            super.saveMetaData(ld);
-            ld.addChild(ld.localVariable);
+            ld.addChildNode(ld.localVariable);
             return ld;
         }
     }

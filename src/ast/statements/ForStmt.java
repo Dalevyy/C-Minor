@@ -27,11 +27,11 @@ public class ForStmt extends Statement {
         this.lOp = lOp;
         this.body = b;
 
-        addChild(this.loopControlVar);
-        addChild(this.LHS);
-        addChild(this.RHS);
-        addChild(this.lOp);
-        addChild(this.body);
+        addChildNode(this.loopControlVar);
+        addChildNode(this.LHS);
+        addChildNode(this.RHS);
+        addChildNode(this.lOp);
+        addChildNode(this.body);
     }
 
     public LocalDecl loopVar() { return this.loopControlVar; }
@@ -89,7 +89,7 @@ public class ForStmt extends Statement {
          * @return ForStmtBuilder
          */
         public ForStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(fs,node);
             return this;
         }
 
@@ -124,12 +124,11 @@ public class ForStmt extends Statement {
         }
 
         public ForStmt create() {
-            super.saveMetaData(fs);
-            fs.addChild(fs.loopControlVar);
-            fs.addChild(fs.LHS);
-            fs.addChild(fs.RHS);
-            fs.addChild(fs.lOp);
-            fs.addChild(fs.body);
+            fs.addChildNode(fs.loopControlVar);
+            fs.addChildNode(fs.LHS);
+            fs.addChildNode(fs.RHS);
+            fs.addChildNode(fs.lOp);
+            fs.addChildNode(fs.body);
             return fs;
         }
     }

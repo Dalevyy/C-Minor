@@ -53,14 +53,13 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
         this.globalVariable = globalVariable;
         this.isConstant = isConstant;
 
-        addChild(this.globalVariable);
-        setParent();
+        addChildNode(this.globalVariable);
     }
 
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return globalVariable.getInitialValue() != null; };
+    public boolean hasInitialValue() { return globalVariable.getInitialValue() != null; }
 
     /**
      * {@inheritDoc}
@@ -71,6 +70,11 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
      * {@inheritDoc}
      */
     public Expression getInitialValue() { return globalVariable.getInitialValue(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setInitialValue(Expression init) { globalVariable.setInitialValue(init); }
 
     /**
      * {@inheritDoc}
@@ -96,8 +100,13 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     public GlobalDecl asGlobalDecl() { return this; }
 
     public AST getDecl() { return this; }
-    public String getDeclName() { return globalVariable.toString(); };
+    public String getDeclName() { return globalVariable.toString(); }
 
+
+    @Override
+    protected void update(int pos, AST newNode) {
+        throw new RuntimeException("Error.");
+    }
 
     /**
      * {@code deepCopy} method.
@@ -107,7 +116,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     public AST deepCopy() {
         return new GlobalDeclBuilder()
                    .setMetaData(this)
-                   .setVar(this.globalVariable.deepCopy().asVar())
+                   .setVar(this.globalVariable.deepCopy().asSubNode().asVar())
                    .create();
     }
 
@@ -123,7 +132,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
          * @return GlobalDeclBuilder
          */
         public GlobalDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(gd,node);
             return this;
         }
 
@@ -142,8 +151,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
          * @return {@link GlobalDecl}
          */
         public GlobalDecl create() {
-            super.saveMetaData(gd);
-            gd.addChild(gd.globalVariable);
+            gd.addChildNode(gd.globalVariable);
             return gd;
         }
     }

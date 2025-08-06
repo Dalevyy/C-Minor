@@ -27,10 +27,10 @@ public class IfStmt extends Statement {
         this.elifStmts = es;
         this.elseBlock = eb;
 
-        addChild(this.cond);
-        addChild(this.ifBlock);
-        addChild(this.elifStmts);
-        addChild(this.elseBlock);
+        addChildNode(this.cond);
+        addChildNode(this.ifBlock);
+        addChildNode(this.elifStmts);
+        addChildNode(this.elseBlock);
     }
 
     public Expression condition() { return cond; }
@@ -97,7 +97,7 @@ public class IfStmt extends Statement {
          * @return IfStmtBuilder
          */
         public IfStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(is,node);
             return this;
         }
 
@@ -133,11 +133,10 @@ public class IfStmt extends Statement {
         }
 
         public IfStmt create(){
-            super.saveMetaData(is);
-            is.addChild(is.cond);
-            is.addChild(is.ifBlock);
-            is.addChild(is.elifStmts);
-            is.addChild(is.elseBlock);
+            is.addChildNode(is.cond);
+            is.addChildNode(is.ifBlock);
+            is.addChildNode(is.elifStmts);
+            is.addChildNode(is.elseBlock);
             return is;
         }
     }

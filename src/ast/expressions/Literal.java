@@ -135,7 +135,7 @@ public class Literal extends Expression {
          * @return LiteralBuilder
          */
         public LiteralBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ll,node);
             return this;
         }
 
@@ -164,7 +164,6 @@ public class Literal extends Expression {
          * @return {@link Literal}
          */
         public Literal create() {
-            super.saveMetaData(ll);
             return ll;
         }
     }

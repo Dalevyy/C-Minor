@@ -15,7 +15,7 @@ public class ReturnStmt extends Statement {
         super(metaData);
         this.expr = e;
 
-        addChild(this.expr);
+        addChildNode(this.expr);
     }
 
     public Expression expr() { return expr; }
@@ -50,7 +50,7 @@ public class ReturnStmt extends Statement {
          * @return ReturnStmtBuilder
          */
         public ReturnStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(rs,node);
             return this;
         }
 
@@ -60,8 +60,7 @@ public class ReturnStmt extends Statement {
         }
 
         public ReturnStmt create() {
-            super.saveMetaData(rs);
-            rs.addChild(rs.expr);
+            rs.addChildNode(rs.expr);
             return rs;
         }
 

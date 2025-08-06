@@ -24,10 +24,9 @@ public class ChoiceStmt extends Statement {
         this.caseStmts = cs;
         this.otherBlock = b;
 
-        addChild(this.expr);
-        addChild(this.caseStmts);
-        addChild(this.otherBlock);
-        setParent();
+        addChildNode(this.expr);
+        addChildNode(this.caseStmts);
+        addChildNode(this.otherBlock);
     }
 
     public Expression choiceExpr() { return expr; }

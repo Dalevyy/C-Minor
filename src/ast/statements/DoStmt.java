@@ -20,9 +20,8 @@ public class DoStmt extends Statement {
         this.doBlock = db;
         this.cond = c;
 
-        addChild(this.doBlock);
-        addChild(this.cond);
-        setParent();
+        addChildNode(this.doBlock);
+        addChildNode(this.cond);
     }
 
     public BlockStmt doBlock() { return doBlock; }
@@ -65,7 +64,7 @@ public class DoStmt extends Statement {
          * @return DoStmtBuilder
          */
         public DoStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ds,node);
             return this;
         }
 
@@ -85,9 +84,8 @@ public class DoStmt extends Statement {
         }
 
         public DoStmt create() {
-            super.saveMetaData(ds);
-            ds.addChild(ds.doBlock);
-            ds.addChild(ds.cond);
+            ds.addChildNode(ds.doBlock);
+            ds.addChildNode(ds.cond);
             return ds;
         }
     }
