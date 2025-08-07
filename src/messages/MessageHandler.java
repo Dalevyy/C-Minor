@@ -6,6 +6,7 @@ import messages.errors.runtime.RuntimeErrorBuilder;
 import messages.errors.scope.RedeclarationError;
 import messages.errors.scope.ScopeErrorBuilder;
 import messages.errors.semantic.SemanticErrorBuilder;
+import messages.errors.setting.SettingErrorBuilder;
 import messages.errors.syntax.SyntaxErrorBuilder;
 import messages.errors.type.TypeErrorBuilder;
 import messages.warnings.WarningBuilder;
@@ -95,6 +96,7 @@ public class MessageHandler {
             case "ModError" -> new ModErrorBuilder(this);
             case "RuntimeError" -> new RuntimeErrorBuilder(this);
             case "ScopeError" -> new ScopeErrorBuilder(this);
+            case "SettingError" -> new SettingErrorBuilder(this);
             case "SemanticError" -> new SemanticErrorBuilder(this);
             case "SyntaxError" -> new SyntaxErrorBuilder(this);
             case "TypeError" -> new TypeErrorBuilder(this);
