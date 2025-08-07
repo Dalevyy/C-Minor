@@ -61,7 +61,7 @@ public class Compiler {
      * @return An AST node representing the {@code Compilation} unit for the program.
      */
     public CompilationUnit syntaxAnalysis(String program, boolean interpretMode, boolean importMode) {
-        Parser parser = new Parser(new Lexer(program,fileName),printTokens,interpretMode,importMode);
+        Parser parser = new Parser(new Lexer(program,fileName));
         CompilationUnit root = parser.compilation();
         root.visit(new InOutStmtRewrite());
 
@@ -158,7 +158,7 @@ public class Compiler {
 
             switch(currArg) {
                 case "--start-vm":
-                    new VM().runInterpreter();
+                    new VM().readUserInput();
                 case "--print-tokens":
                     printTokens = true;
                     break;
