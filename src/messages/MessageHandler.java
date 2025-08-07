@@ -1,9 +1,9 @@
 package messages;
 
 import messages.errors.ErrorBuilder;
-import messages.errors.mod.ModError;
 import messages.errors.mod.ModErrorBuilder;
 import messages.errors.runtime.RuntimeErrorBuilder;
+import messages.errors.scope.RedeclarationError;
 import messages.errors.scope.ScopeErrorBuilder;
 import messages.errors.semantic.SemanticErrorBuilder;
 import messages.errors.syntax.SyntaxErrorBuilder;
@@ -54,15 +54,22 @@ public class MessageHandler {
     }
 
     /**
-     * Stores a message into {@link #messages} or prints the message out to the user.
+     * Stores a message into {@link #messages} or throws an exception if in interpretation mode.
+     * <p>
+     *     If we are in interpretation mode, then we need to have the VM handle the error immediately
+     *     since we will not be able to continue interpretation.
+     * </p>
      * @param msg {@link Message} that will be handled by the {@link MessageHandler}.
      */
     public void storeMessage(Message msg) {
         msg.createMessage(fileName);
 
         if(inInterpretationMode) {
-            System.out.println(msg.msg);
-            throw new RuntimeException("This is a temporary error message.");
+            // Throw special exception if we are redeclaring a node.
+            if(msg.isError() && msg.asError().isScopeError() && msg.asError().asScopeError().isRedeclarationError())
+                throw new RedeclarationError(msg.asError().asScopeError());
+
+            throw new CompilationMessage(msg);
         }
         else
             messages.add(msg);
