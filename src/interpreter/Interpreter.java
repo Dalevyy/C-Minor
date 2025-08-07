@@ -87,6 +87,7 @@ public class Interpreter extends Visitor {
      */
     public Interpreter(SymbolTable st) {
         this.stack = new RuntimeStack();
+        this.currentValue = null;
         this.currentScope = st;
         this.breakFound = false;
         this.continueFound = false;
@@ -95,12 +96,12 @@ public class Interpreter extends Visitor {
         this.returnFound = false;
         this.handler = new MessageHandler();
     }
-
+    
     /**
      * Resets the {@link #currentValue} to prevent any unwarranted errors to occur.
      *
      */
-    public void reset() {
+    public void resetValue() {
         this.currentValue = null;
         this.insideAssignment = false;
         if(this.output) {
@@ -488,6 +489,8 @@ public class Interpreter extends Visitor {
         }
     }
 
+    public void visitClassDecl(ClassDecl cd) { /* Do nothing. */ }
+
     /**
      * Begins the execution of a program in compilation mode.
      * <p><br>
@@ -642,6 +645,8 @@ public class Interpreter extends Visitor {
         stack.destroyCallFrame();
         breakFound = false;
     }
+
+    public void visitFuncDecl(FuncDecl fd) { /* Do nothing. */ }
 
     /**
      * Executes a global declaration statement.
@@ -1006,9 +1011,8 @@ public class Interpreter extends Visitor {
             return;
 
         // Special Case: If we are evaluating a complex field expression, execute this branch
-        if(currentValue != null) {
-//            && currentValue.isObject() && ne.getParent().isExpression()
-//            && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
+        if(currentValue != null && currentValue.isObject() && ne.getParent().isExpression()
+            && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
 //            // ERROR CHECK #1: This checks if the field exists for the current object.
 //            if(!currentValue.asObject().hasField(ne)) {
 //                handler.createErrorBuilder(RuntimeError.class)
