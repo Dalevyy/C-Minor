@@ -263,7 +263,8 @@ public enum MessageNumber {
     /* ######################################## COMPILER SETTING ERRORS ######################################## */
     SETTING_ERROR_1,
     SETTING_ERROR_2,
-    SETTING_ERROR_3;
+    SETTING_ERROR_3,
+    SETTING_ERROR_4;
 
     /**
      * The file location containing the compiler messages. DO NOT CHANGE.
