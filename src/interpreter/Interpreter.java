@@ -96,7 +96,7 @@ public class Interpreter extends Visitor {
         this.returnFound = false;
         this.handler = new MessageHandler();
     }
-    
+
     /**
      * Resets the {@link #currentValue} to prevent any unwarranted errors to occur.
      *
