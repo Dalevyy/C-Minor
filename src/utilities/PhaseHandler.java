@@ -87,44 +87,41 @@ public class PhaseHandler {
      * @param phase A String representing the input command used in the
      * {@link interpreter.VM} or {@link compiler.Compiler}.
      */
-    public void setFinalPhaseToExecute(String phase) {
+    public void setFinalPhaseToExecute(String phase) throws CompilationMessage {
         Vector<String> parts = new Vector<>(phase.split(" "));
 
-        try {
-            // ERROR CHECK #1: To use the "#phase" command, the user needs to write "#phase <phaseNum>"
-            if(parts.size() != 2 || !parts.get(0).equals("#phase")) {
+        // ERROR CHECK #1: To use the "#phase" command, the user needs to write "#phase <phaseNum>"
+        if(parts.size() != 2 || !parts.get(0).equals("#phase")) {
+            msgHandler.createErrorBuilder(SettingError.class)
+                      .addErrorNumber(MessageNumber.SETTING_ERROR_1)
+                      .generateError();
+        }
+
+        // ERROR CHECK #2: We need to make sure the given phase number can actually be parsed as an integer.
+        String givenPhaseNumber = parts.get(1);
+        StringBuilder phaseNumber = new StringBuilder();
+
+        for(int i = 0; i < givenPhaseNumber.length(); i++) {
+            phaseNumber.append(givenPhaseNumber.charAt(i));
+
+            if(givenPhaseNumber.charAt(i) < '0' || givenPhaseNumber.charAt(i) > '9') {
+                // We will ignore negative numbers for now and print a different error message.
+                if(givenPhaseNumber.charAt(i) == '-' && i == 0)
+                    continue;
+
                 msgHandler.createErrorBuilder(SettingError.class)
-                          .addErrorNumber(MessageNumber.SETTING_ERROR_1)
+                          .addErrorNumber(MessageNumber.SETTING_ERROR_2)
                           .generateError();
             }
+        }
 
-            // ERROR CHECK #2: We need to make sure the given phase number can actually be parsed as an integer.
-            String givenPhaseNumber = parts.get(1);
-            StringBuilder phaseNumber = new StringBuilder();
-
-            for(int i = 0; i < givenPhaseNumber.length(); i++) {
-                phaseNumber.append(givenPhaseNumber.charAt(i));
-
-                if(givenPhaseNumber.charAt(i) < '0' || givenPhaseNumber.charAt(i) > '9') {
-                    // We will ignore negative numbers for now and print a different error message.
-                    if(givenPhaseNumber.charAt(i) == '-' && i == 0)
-                        continue;
-
-                    msgHandler.createErrorBuilder(SettingError.class)
-                              .addErrorNumber(MessageNumber.SETTING_ERROR_2)
-                              .generateError();
-                }
-            }
-
-            finalPhaseToExecute = Integer.parseInt(phaseNumber.toString());
-            // ERROR CHECK #3: The given phase number needs to be in the given range of the visitor vector.
-            if(finalPhaseToExecute <= 0 || finalPhaseToExecute > allPhases.size()) {
-                finalPhaseToExecute = -1;
-                msgHandler.createErrorBuilder(SettingError.class)
-                          .addErrorNumber(MessageNumber.SETTING_ERROR_3)
-                          .generateError();
-            }
-
-        } catch(CompilationMessage msg) { msg.printMessage(); }
+        finalPhaseToExecute = Integer.parseInt(phaseNumber.toString());
+        // ERROR CHECK #3: The given phase number needs to be in the given range of the visitor vector.
+        if(finalPhaseToExecute <= 0 || finalPhaseToExecute > allPhases.size()) {
+            finalPhaseToExecute = -1;
+            msgHandler.createErrorBuilder(SettingError.class)
+                      .addErrorNumber(MessageNumber.SETTING_ERROR_3)
+                      .generateError();
+        }
     }
 }
