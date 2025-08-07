@@ -65,7 +65,9 @@ import ast.types.ScalarType.Scalars;
 import ast.types.Type;
 import ast.types.VoidType;
 import lexer.Lexer;
+import messages.CompilationMessage;
 import messages.MessageHandler;
+import messages.errors.syntax.SyntaxError;
 import micropasses.ImportHandler;
 import token.Token;
 import token.TokenType;
@@ -117,12 +119,7 @@ public class Parser {
     /**
      * Flag set when a user wants to see every token that is parsed.
      */
-    private final boolean printToks;
-
-    /**
-     * Flag set when the parser is executed by the {@link interpreter.VM}.
-     */
-    private boolean interpretMode;
+    private static boolean printTokens = false;
 
     /**
      * Flag set when the parser begins to parse an imported file.
@@ -134,14 +131,12 @@ public class Parser {
     private boolean insideIO;
     private boolean insideField;
 
-    public Parser(Lexer input, boolean printTokens) {
+    public Parser(Lexer input) {
         this.input = input;
         this.lookPos = 0;
         this.lookaheads = new Vector<>();
         this.tokenStack = new Vector<>();
         this.handler = new MessageHandler();
-        this.printToks = printTokens;
-        this.interpretMode = false;
         this.importMode = false;
         this.insideParen = false;
         this.insideIO = false;
@@ -153,15 +148,12 @@ public class Parser {
         }
     }
 
-    public Parser(Lexer input, boolean printTokens, boolean interpretMode) {
-        this(input,printTokens);
-        this.interpretMode = interpretMode;
-    }
-
-    public Parser(Lexer input, boolean printTokens, boolean interpretMode, boolean parseImport) {
-        this(input,printTokens,interpretMode);
+    public Parser(Lexer input, boolean parseImport) {
+        this(input);
         this.importMode = parseImport;
     }
+
+    public static void setPrintTokens() { printTokens = !printTokens; }
 
     private String errorPosition(int start, int end) {
         return PrettyPrint.RED
@@ -179,7 +171,7 @@ public class Parser {
         tokenStack.top().setEndLocation(currentLA().getEndPos());
 
         if(nextLA(expectedTok)) {
-            if(printToks) { System.out.println(currentLA().toString()); }
+            if(printTokens) { System.out.println(currentLA().toString()); }
             consume();
         }
         else {
@@ -187,8 +179,7 @@ public class Parser {
             input.printSyntaxError(currentLA().getStartPos());
             System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
 
-            if(interpretMode) { throw new RuntimeException(); }
-            else { System.exit(1); }
+            throw new RuntimeException();
         }
     }
 
@@ -333,7 +324,7 @@ public class Parser {
     }
 
     private Vector<ImportDecl> handleImports() {
-        ImportHandler importHandler = new ImportHandler(input.getFileName(),interpretMode);
+        ImportHandler importHandler = new ImportHandler(input.getFileName());
 
         while(nextLA(TokenType.INCLUDE))
             importHandler.enqueue(importStmt());
@@ -343,12 +334,11 @@ public class Parser {
 
     // ThisStmt will be the main method used for parsing when a user
     // runs C Minor through the virtual machine
-    public Vector<? extends AST> nextNode() throws Exception {
+    public Vector<? extends AST> nextNode() throws CompilationMessage {
         Vector<? extends AST> nodes;
 
-        // Throw an exception if user only wrote a comment
         if(nextLA(TokenType.EOF))
-            throw new Exception();
+            return new Vector<>();
         // Parse ImportDecl
         if(nextLA(TokenType.INCLUDE))
             nodes = handleImports();
@@ -393,7 +383,7 @@ public class Parser {
             System.out.println(PrettyPrint.CYAN + "Syntax Error Detected. Please try again." + PrettyPrint.RESET);
             input.printSyntaxError(currentLA().getStartPos());
             System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
-            throw new RuntimeException("EOF Not Found");
+            throw new CompilationMessage(new SyntaxError());
         }
         return nodes;
     }
@@ -442,7 +432,7 @@ public class Parser {
             System.out.println(PrettyPrint.CYAN + "Syntax Error Detected! Unexpected End of File in " + input.getFileName() + ".");
             System.exit(1);
         }
-        else if(printToks) { System.out.println(currentLA().toString()); }
+        else if(printTokens) { System.out.println(currentLA().toString()); }
 
         return new CompilationUnit(nodeToken(),input.getFileName(),imports,enums,globals,classes,funcs,md);
     }
