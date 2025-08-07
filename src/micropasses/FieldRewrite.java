@@ -38,6 +38,9 @@ public class FieldRewrite extends Visitor {
      */
     private SymbolTable currentScope;
 
+    // Temp solution!!!!!!!!!!!!!!!!! Fix when you review this class later.
+    private boolean insideClass;
+
     /**
      * Sets the current scope to be inside of a case statement.
      * @param cs Case Statement
@@ -63,9 +66,11 @@ public class FieldRewrite extends Visitor {
      * @param cd Class declaration
      */
     public void visitClassDecl(ClassDecl cd) {
+        insideClass = true;
         currentScope = cd.getScope();
         super.visitClassDecl(cd);
         currentScope = currentScope.closeScope();
+        insideClass = false;
     }
 
     /**
@@ -165,6 +170,8 @@ public class FieldRewrite extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
+        if(!insideClass)
+            return;
         if(!ne.isParentKeyword() && currentScope.findName(ne.toString()).getDecl().asClassNode().isFieldDecl()) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new ThisStmt())
