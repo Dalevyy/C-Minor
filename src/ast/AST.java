@@ -2,6 +2,7 @@ package ast;
 
 import ast.classbody.ClassNode;
 import ast.expressions.Expression;
+import ast.misc.CompilationUnit;
 import ast.misc.SubNode;
 import ast.operators.Operator;
 import ast.statements.Statement;
@@ -117,6 +118,23 @@ public abstract class AST {
         }
 
         return currentNode;
+    }
+
+    /**
+     * Retrieves the root {@link CompilationUnit} of the current {@link AST} node.
+     * @return A {@link CompilationUnit} node representing the root of the current node. If no {@link CompilationUnit}
+     * was found, then {@code null} is returned.
+     */
+    public CompilationUnit getCompilationUnit() {
+        AST currentNode = this;
+
+        while(currentNode.parent != null && !(currentNode.isSubNode() && currentNode.asSubNode().isCompilationUnit()))
+            currentNode = currentNode.parent;
+
+        if(!(currentNode.isSubNode() && currentNode.asSubNode().isCompilationUnit()))
+            return null;
+
+        return currentNode.asSubNode().asCompilationUnit();
     }
 
     /**
