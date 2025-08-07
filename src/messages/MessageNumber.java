@@ -258,7 +258,12 @@ public enum MessageNumber {
     SEMANTIC_SUGGEST_1705,
 
     /* ######################################## WARNINGS ######################################## */
-    WARNING_1;
+    WARNING_1,
+
+    /* ######################################## COMPILER SETTING ERRORS ######################################## */
+    SETTING_ERROR_1,
+    SETTING_ERROR_2,
+    SETTING_ERROR_3;
 
     /**
      * The file location containing the compiler messages. DO NOT CHANGE.
