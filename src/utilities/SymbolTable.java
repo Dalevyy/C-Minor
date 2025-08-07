@@ -28,6 +28,13 @@ public class SymbolTable {
     public void setParent(SymbolTable p) { parent = p; }
     public SymbolTable getParent() { return parent; }
 
+    public void clear() {
+        varNames.clear();
+        methodNames.clear();
+        parent = null;
+        importParent = null;
+    }
+
     public void setImportParent(SymbolTable ip) {
         if(importParent != null)
             importParent.setImportParent(ip);
