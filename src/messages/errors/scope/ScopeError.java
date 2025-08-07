@@ -1,6 +1,7 @@
 package messages.errors.scope;
 
 import ast.AST;
+import ast.misc.CompilationUnit;
 import messages.errors.Error;
 import utilities.PrettyPrint;
 
@@ -24,53 +25,30 @@ public class ScopeError extends Error {
         msg = buildMessageHeader(fileName) + buildLocationInfo() + buildMainMessage() + buildRedeclarationMessage();
     }
 
+    /**
+     * Builds a message that is displayed any time a user tries to redeclare an existing variable, function, or type.
+     * @return String that prints the location of {@link #originalDeclaration} if the user writes a redeclaration.
+     */
     private String buildRedeclarationMessage() {
         if(originalDeclaration == null)
             return "";
 
         StringBuilder sb = new StringBuilder();
+        CompilationUnit root = originalDeclaration.getCompilationUnit();
+
+        if(root != null)
+            sb.append(super.buildMessageHeader(root.toString()));
+        else
+            sb.append("\n\n");
+
+        sb.append(PrettyPrint.RED)
+          .append("Redeclaration was found.")
+          .append(PrettyPrint.RESET)
+          .append("\n")
+          .append(originalDeclaration.header());
 
         return sb.toString();
     }
-
-
-//    public String createRedeclarationMsg() {
-//        StringBuilder sb = new StringBuilder();
-//
-//        if(originalDeclaration != null) {
-//            AST compilationUnit = originalDeclaration.getCompilationUnit();
-//            if(!interpretMode || compilationUnit.isCompilation()) {
-//                sb.append("\n\nIn ")
-//                  .append(compilationUnit.asCompilation().getFile())
-//                  .append(": ")
-//                  .append(PrettyPrint.RED)
-//                  .append("Redeclaration was found.");
-//            } else {
-//                sb.append(PrettyPrint.RED)
-//                  .append("\n\nRedeclaration was found.");
-//            }
-//
-//            sb.append(PrettyPrint.RESET)
-//              .append("\n")
-//              .append(originalDeclaration.header());
-//        }
-//        return sb.toString();
-//    }
-//
-//    private String getRedeclName() {
-//        if(originalDeclaration.isTopLevelDecl())
-//            return originalDeclaration.toString();
-//        else if(originalDeclaration.isFieldDecl() || originalDeclaration.isMethodDecl())
-//            return originalDeclaration.toString();
-//        else if(originalDeclaration.isStatement() && originalDeclaration.asStatement().isLocalDecl())
-//            return originalDeclaration.toString();
-//        else if(originalDeclaration.isParamDecl())
-//            return originalDeclaration.asParamDecl().toString();
-//        else if(originalDeclaration.isTypeifier())
-//            return originalDeclaration.toString();
-//        else
-//            throw new RuntimeException("An invalid AST node was saved as a redeclaration.");
-//    }
 
     /**
      * {@inheritDoc}
@@ -84,6 +62,18 @@ public class ScopeError extends Error {
                 + "\n\n"
                 + PrettyPrint.RESET;
     }
+
+    /**
+     * Checks if the current {@link ScopeError} was generated as a result of a redeclaration.
+     * @return {@code True} if the {@link #originalDeclaration} was set to denote a redeclaration occurred,
+     * {@code False} otherwise.
+     */
+    public boolean isRedeclarationError() { return originalDeclaration != null; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isScopeError() { return true; }
 
     /**
      * {@inheritDoc}
