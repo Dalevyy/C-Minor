@@ -1,12 +1,8 @@
 package ast.misc;
 
 import ast.AST;
-import ast.topleveldecls.ClassDecl;
-import ast.topleveldecls.EnumDecl;
-import ast.topleveldecls.FuncDecl;
-import ast.topleveldecls.GlobalDecl;
-import ast.topleveldecls.ImportDecl;
-import ast.topleveldecls.MainDecl;
+import ast.topleveldecls.*;
+import micropasses.ImportHandler;
 import token.Token;
 import utilities.SymbolTable;
 import utilities.Vector;
@@ -203,6 +199,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
         this.classes.clear();
         this.functions.clear();
         this.main = null;
+        ImportHandler.clear();
     }
 
     /**
