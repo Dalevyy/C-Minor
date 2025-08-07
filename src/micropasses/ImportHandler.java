@@ -181,7 +181,7 @@ public class ImportHandler extends Visitor {
         }
 
         Compiler c = new Compiler(im.toString());
-        CompilationUnit root = c.syntaxAnalysis(program.toString(),false,true);
+        CompilationUnit root = c.syntaxAnalysis(program.toString());
         im.setCompilationUnit(root);
     }
 }
