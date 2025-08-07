@@ -116,6 +116,18 @@ public abstract class Message {
     }
 
     /**
+     * Returns {@link #msg} which stores the actual message that is printed to the user.
+     * @return String representing the current {@link Message}.
+     */
+    public String getMessage() { return msg; }
+
+    /**
+     * Returns the {@link #location} in which the message was generated for.
+     * @return {@link AST} node representing where the message was created.
+     */
+    public AST getLocation() { return location; }
+
+    /**
      * Setter for {@link #location}.
      * @param location {@link AST}
      */
