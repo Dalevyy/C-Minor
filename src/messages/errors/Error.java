@@ -15,6 +15,13 @@ import messages.errors.scope.ScopeError;
  * @author Daniel Levy
  */
 public abstract class Error extends Message {
+
+    /**
+     * Checks if the current {@link Error} object is a {@link ScopeError}.
+     * @return {@code True} if the object is a {@link ScopeError}, {@code False} otherwise.
+     */
+    public boolean isScopeError() { return false; }
+
     /**
      * Explicitly casts the current instance of {@link Error} into a {@link ScopeError}.
      * @return Current instance of {@link Error} as a {@link ScopeError}.
