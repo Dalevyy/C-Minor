@@ -1,6 +1,8 @@
 package messages;
 
 import ast.AST;
+import messages.errors.Error;
+import messages.errors.scope.ScopeError;
 import utilities.PrettyPrint;
 
 /**
@@ -142,4 +144,18 @@ public abstract class Message {
      * @param args An array of objects
      */
     public void setSuggestionArgs(Object[] args) { this.suggestionArgs = args; }
+
+    /**
+     * Checks if the current {@link Message} object is an {@link Error}.
+     * @return {@code True} if the object is an {@link Error}, {@code False} otherwise.
+     */
+    public boolean isError() { return false; }
+
+    /**
+     * Explicitly casts the current instance of {@link Message} into an {@link Error}.
+     * @return Current instance of {@link Message} as an {@link Error}.
+     */
+    public Error asError() {
+        throw new RuntimeException("The current message does not represent an Error.");
+    }
 }
