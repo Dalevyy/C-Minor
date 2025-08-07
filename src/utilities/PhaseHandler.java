@@ -80,6 +80,20 @@ public class PhaseHandler {
     }
 
     /**
+     * Adds a {@link Printer} to execute the generated {@link AST} from the parser.
+     * <p>
+     *     This will be an optional phase that a user can write in order to see how the
+     *     C Minor parse tree looks after parsing is completed.
+     * </p>
+     */
+    public void addPrinterPhase() {
+        if(!(allPhases.get(0) instanceof Printer))
+            allPhases.add(0,new Printer());
+        else
+            allPhases.remove(0);
+    }
+
+    /**
      * Sets the {@link #finalPhaseToExecute} if we would like to only run a portion of the compiler.
      * <p>
      *     This method will also make sure we wrote the correct phase number when using this command.
