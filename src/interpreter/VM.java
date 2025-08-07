@@ -2,176 +2,165 @@ package interpreter;
 
 import ast.AST;
 import ast.misc.CompilationUnit;
-import ast.misc.Var;
-import ast.topleveldecls.EnumDecl;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.IOException;
-
 import lexer.Lexer;
+import messages.CompilationMessage;
 import messages.MessageHandler;
+import messages.MessageNumber;
+import messages.errors.setting.SettingError;
 import micropasses.*;
 import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
 import parser.Parser;
 import typechecker.TypeChecker;
-import utilities.Printer;
-import utilities.SymbolTable;
+import utilities.PhaseHandler;
 import utilities.Vector;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+/**
+ * A class that initializes and sets up the C Minor virtual environment.
+ * <p>
+ *     When a user enters interpretation mode, we will set up a virtual environment
+ *     for the user to write and execute commands using a REPL.
+ * </p>
+ * @author Daniel Levy
+ */
 public class VM {
 
-    public void runInterpreter() throws IOException {
-        System.out.println("C Minor Interpreter");
+    /**
+     * The global {@link CompilationUnit} for the {@link VM}.
+     */
+    private final CompilationUnit globalUnit;
+
+    /**
+     * {@link PhaseHandler} that will execute all compilation phases when we are in the {@link VM}.
+     */
+    private final PhaseHandler phaseHandler;
+
+    /**
+     * {@link MessageHandler} that will print out errors related to compiler settings.
+     */
+    private final MessageHandler msgHandler;
+
+    /**
+     * Default constructor for {@link VM}.
+     */
+    public VM() {
+        this.globalUnit = new CompilationUnit();
+        this.phaseHandler = new PhaseHandler();
+        this.msgHandler = new MessageHandler();
+
+        setupVM();
+    }
+
+    /**
+     * Reads in user input from the {@link VM} and processes it before executing the compiler.
+     * @throws IOException An exception thrown in case there was an error reading in user input with InputStreamReader.
+     * (Not sure if an exception is ever thrown).
+     */
+    public void readUserInput() throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        CompilationUnit compilationUnit = new CompilationUnit();
 
-        // Phases
-        NameChecker nameChecker = new NameChecker(compilationUnit.getScope());
-        TypeChecker typeChecker = new TypeChecker(compilationUnit.getScope());
-        ModifierChecker modChecker = new ModifierChecker(compilationUnit.getScope());
-        Interpreter interpreter = new Interpreter(compilationUnit.getScope());
-
-        // Micropasses
-        Printer treePrinter = new Printer();
-        InOutStmtRewrite ioRewritePass = new InOutStmtRewrite();
-        PropertyMethodGeneration generatePropertyPass = new PropertyMethodGeneration();
-        VariableInitialization variableInitPass = new VariableInitialization();
-        FieldRewrite fieldRewritePass = new FieldRewrite();
-        OperatorOverloadCheck operatorOverloadPass = new OperatorOverloadCheck();
-        LoopKeywordCheck loopCheckPass = new LoopKeywordCheck();
-        TypeValidityPass classToEnumPass = new TypeValidityPass(compilationUnit.getScope());
-        ConstructorGeneration generateConstructorPass = new ConstructorGeneration();
-        PureKeywordPass purePass = new PureKeywordPass();
-
-        boolean printTokens = false;
-        boolean printAST = false;
-        boolean printST = false;
-        boolean debug = false;
-
-        MessageHandler.setInterpretationMode();
-
+        System.out.println("C Minor Interpreter\n");
         while(true) {
-            String input;
             StringBuilder program = new StringBuilder();
+            String input;
+
             System.out.print(">>> ");
             input = reader.readLine();
 
-            if(input.equals("#quit"))
-                System.exit(0);
-            else if(input.equals("#clear")) {
-                compilationUnit = new CompilationUnit();
-                nameChecker = new NameChecker(compilationUnit.getScope());
-                classToEnumPass = new TypeValidityPass(compilationUnit.getScope());
-                typeChecker = new TypeChecker(compilationUnit.getScope());
-                modChecker = new ModifierChecker(compilationUnit.getScope());
-                interpreter = new Interpreter(compilationUnit.getScope());
-                ImportHandler.clear();
-                continue;
+            switch(input) {
+                case "#quit":
+                    System.exit(0);
+                case "#clear":
+                    ImportHandler.clear();
+                    globalUnit.reset();
+                    continue;
+                case "#show-tokens":
+                    Parser.setPrintTokens();
+                    continue;
+                case "#show-tree":
+                    break;
+                case "#show-table":
+                    break;
+                case "#debug":
+                    CompilationMessage.setDebugMode();
+                    continue;
+                default:
+                    try {
+                        if(input.startsWith("#")) {
+                            if(input.startsWith("#phase"))
+                                phaseHandler.setFinalPhaseToExecute(input);
+                            else {
+                                msgHandler.createErrorBuilder(SettingError.class)
+                                          .addErrorNumber(MessageNumber.SETTING_ERROR_4)
+                                          .generateError();
+                            }
+                        }
+                    }
+                    catch(CompilationMessage msg) {
+                        msg.printMessage();
+                        continue;
+                    }
+
+                    if(input.isEmpty())
+                        continue;
             }
-            else if(input.equals("#show-tokens")) {
-                printTokens = !printTokens;
-                continue;
-            }
-            else if(input.equals("#show-tree")) {
-                printAST = !printAST;
-                continue;
-            }
-            else if(input.equals("#show-table")) {
-                printST = !printST;
-                continue;
-            }
-            else if(input.equals("#debug")) {
-                debug = !debug;
-                continue;
-            }
-            else if(input.isEmpty()) { continue; }
-            else {
-                int tabs = 0;
-                program.append(input);
+
+            int tabs = 0;
+            program.append(input);
+            tabs += input.length() - input.replace("{","").length();
+            tabs -= input.length() - input.replace("}", "").length();
+            while(tabs > 0) {
+                System.out.print("... ");
+                input = reader.readLine();
                 tabs += input.length() - input.replace("{","").length();
                 tabs -= input.length() - input.replace("}", "").length();
-                while(tabs > 0) {
-                    System.out.print("... ");
-                    input = reader.readLine();
-                    tabs += input.length() - input.replace("{","").length();
-                    tabs -= input.length() - input.replace("}", "").length();
-                    program.append(input).append("\n");
-                }
+                program.append(input).append("\n");
             }
-            Vector<? extends AST> nodes;
-            AST errorNode = null;
-            try {
-                var lexer = new Lexer(program.toString(),true);
-                var parser = new Parser(lexer, printTokens, true);
 
-                nodes = parser.nextNode();
-
-                for (AST node : nodes) {
-                    errorNode = node;
-
-                    node.visit(ioRewritePass);
-                    if(printAST)
-                        node.visit(treePrinter);
-                    node.visit(generatePropertyPass);
-                    node.visit(nameChecker);
-
-                    if(printST)
-                        System.out.println(compilationUnit.getScope().toString());
-
-                    node.visit(variableInitPass);
-                    if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl()) {
-                        node.visit(fieldRewritePass);
-                        node.visit(operatorOverloadPass);
-                    }
-
-                    node.visit(loopCheckPass);
-                    node.visit(classToEnumPass);
-                    node.visit(typeChecker);
-                    node.visit(generateConstructorPass);
-                    node.visit(modChecker);
-                    node.visit(purePass);
-
-                    if (node.isTopLevelDecl()) {
-                        if(node.asTopLevelDecl().isClassDecl())
-                            compilationUnit.addClassDecl(node.asTopLevelDecl().asClassDecl());
-                        else if(node.asTopLevelDecl().isFuncDecl())
-                            compilationUnit.addFuncDecl(node.asTopLevelDecl().asFuncDecl());
-                        else
-                            node.visit(interpreter);
-                    } else {
-                        node.visit(interpreter);
-                        //compilationUnit.getMain().getBody().addStmt(node.asStatement());
-                    }
-                }
-            }
-            catch(Exception e) {
-                generateError(e,errorNode,compilationUnit.getScope());
-                if(debug)
-                    e.printStackTrace();
-            }
-            
-            interpreter.reset();
+            runInterpreter(program.toString());
         }
     }
 
-    private void generateError(Exception e, AST location, SymbolTable st) {
-        // If a lexer/parser error occurs, do not remove anything from the symbol table.
-        if(location != null && !e.getMessage().equals("EOF Not Found") && !e.getMessage().equals("Redeclaration")) {
-            if(location.isTopLevelDecl()) {
-                if(location.asTopLevelDecl().isEnumDecl()) {
-                    EnumDecl ed = location.asTopLevelDecl().asEnumDecl();
-                    for(Var constant : ed.getConstants())
-                        st.removeName(constant.toString());
-                    st.removeName(ed.toString());
-                }
-                else if(location.asTopLevelDecl().isClassDecl() || location.asTopLevelDecl().isGlobalDecl())
-                    st.removeName(location.toString());
-                else if(location.asTopLevelDecl().isFuncDecl())
-                    st.removeName(location.asTopLevelDecl().asFuncDecl().getSignature());
-            }
-            else if((location.isSubNode() && location.asSubNode().isParamDecl() )|| location.isStatement() && location.asStatement().isLocalDecl())
-                st.removeName(location.toString());
+    /**
+     * Executes the C Minor interpreter.
+     * @param program String representation of the user program that will be parsed and analyzed by the compiler.
+     */
+    private void runInterpreter(String program) {
+        Parser parser = new Parser(new Lexer(program));
+        Vector<? extends AST> nodes;
+
+        try {
+            nodes = parser.nextNode();
+            for(AST node : nodes)
+                phaseHandler.execute(node);
         }
+        catch(CompilationMessage msg) {
+            msg.printMessage();
+            msg.updateGlobalScope(globalUnit.getScope());
+        }
+    }
+
+    /**
+     * Initializes the VM by adding the phases that will be executed to the {@link #phaseHandler}.
+     */
+    private void setupVM() {
+        MessageHandler.setInterpretationMode();
+
+        phaseHandler.addPhase(new PropertyMethodGeneration());
+        phaseHandler.addPhase(new NameChecker(globalUnit.getScope()));
+        phaseHandler.addPhase(new VariableInitialization());
+        phaseHandler.addPhase(new FieldRewrite());
+        phaseHandler.addPhase(new OperatorOverloadCheck());
+        phaseHandler.addPhase(new LoopKeywordCheck());
+        phaseHandler.addPhase(new TypeValidityPass(globalUnit.getScope()));
+        phaseHandler.addPhase(new TypeChecker(globalUnit.getScope()));
+        phaseHandler.addPhase(new ConstructorGeneration());
+        phaseHandler.addPhase(new ModifierChecker(globalUnit.getScope()));
+        phaseHandler.addPhase(new PureKeywordPass());
+        phaseHandler.addPhase(new Interpreter(globalUnit.getScope()));
     }
 }
