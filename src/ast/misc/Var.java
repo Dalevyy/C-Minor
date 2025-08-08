@@ -204,6 +204,10 @@ public class Var extends SubNode {
             return this;
         }
 
+        /**
+         * Creates a {@link Var} object.
+         * @return {@link Var}
+         */
         public Var create() {
             v.addChildNode(v.variableName);
             v.addChildNode(v.initialValue);
