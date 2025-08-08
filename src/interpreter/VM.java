@@ -66,25 +66,24 @@ public class VM {
         System.out.println("C Minor Interpreter\n");
         while(true) {
             StringBuilder program = new StringBuilder();
-            String input;
+            String input = "";
 
             System.out.print(">>> ");
             input = reader.readLine();
 
             switch(input) {
-                case "#quit":
-                    System.exit(0);
                 case "#clear":
                     ImportHandler.clear();
                     globalUnit.reset();
                     continue;
-                case "#show-tokens":
+                case "#print-tokens":
                     Parser.setPrintTokens();
                     continue;
-                case "#show-tree":
-                    break;
-                case "#show-table":
-                    break;
+                case "#print-tree":
+                    phaseHandler.addPrinterPhase();
+                    continue;
+                case "#print-table":
+                    continue;
                 case "#debug":
                     CompilationMessage.setDebugMode();
                     continue;
