@@ -46,10 +46,10 @@ public class Lexer {
     private final Vector<String> lines;
 
     /** A {@link MessageHandler} to create lexer errors. */
-    private MessageHandler handler;
+    private final MessageHandler handler;
 
-    /** Current mode the lexer is running in. */
-    private boolean interpretMode = false;
+    /** Creates a new {@code Lexer} instance in interpretation mode.*/
+    public Lexer(final String file) { this(file,""); }
 
     /**
      * Creates a new {@code Lexer} instance, will be called by the parser.
@@ -71,14 +71,7 @@ public class Lexer {
         this.currLoc = new Location();
         this.currText = "";
         this.lines = new Vector<>();
-        this.handler = new MessageHandler(this.fileName);
-    }
-
-    /** Creates a new {@code Lexer} instance in interpretation mode.*/
-    public Lexer(final String file, boolean mode) {
-        this(file,"");
-        this.interpretMode = mode;
-        this.handler = new MessageHandler();
+        this.handler = this.fileName.isEmpty() ? new MessageHandler() : new MessageHandler(this.fileName);
     }
 
     public String getFileName() { return fileName; }

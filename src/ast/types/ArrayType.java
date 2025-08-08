@@ -92,7 +92,7 @@ public class ArrayType extends Type {
          * @return ArrayTypeBuilder
          */
         public ArrayTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(at,node);
             return this;
         }
 
@@ -121,7 +121,6 @@ public class ArrayType extends Type {
          * @return {@link ArrayType}
          */
         public ArrayType create() {
-            super.saveMetaData(at);
             return at;
         }
     }

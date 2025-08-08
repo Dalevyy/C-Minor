@@ -1,25 +1,48 @@
 package ast.statements;
 
 import ast.AST;
-import ast.types.VoidType;
-import token.*;
+import token.Token;
 import utilities.Visitor;
 
-// Leaf Node
+/**
+ * A {@link Statement} representing the {@code stop} keyword.
+ * <p>
+ *     The {@code stop} keyword is used when a user wishes to terminate the
+ *     current execution of a C Minor program.
+ * </p>
+ * @author Daniel Levy
+ */
 public class StopStmt extends Statement {
 
+    /**
+     * Default constructor for {@link StopStmt}.
+     */
     public StopStmt() { this(new Token()); }
-    public StopStmt(Token t) { super(t); }
-
-    public boolean isStopStmt() { return true; }
-    public StopStmt asStopStmt() { return this; }
-
-    @Override
-    public void update(int pos, AST n) { throw new RuntimeException("A stop statement can not be updated."); }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link StopStmt}
+     * Main constructor for {@link StopStmt}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     */
+    public StopStmt(Token metaData) { super(metaData); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isStopStmt() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public StopStmt asStopStmt() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void update(int pos, AST node) { throw new RuntimeException("A stop statement can not be updated."); }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
@@ -28,6 +51,9 @@ public class StopStmt extends Statement {
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitStopStmt(this); }
 
@@ -42,12 +68,11 @@ public class StopStmt extends Statement {
         private final StopStmt ss = new StopStmt();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return StopStmtBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link StopStmtBuilder}.
          */
         public StopStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ss, node);
             return this;
         }
 
@@ -56,7 +81,6 @@ public class StopStmt extends Statement {
          * @return {@link StopStmt}
          */
         public StopStmt create() {
-            super.saveMetaData(ss);
             return ss;
         }
     }

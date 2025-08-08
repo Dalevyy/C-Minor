@@ -11,7 +11,6 @@ import ast.topleveldecls.MainDecl;
 import ast.types.ClassType;
 import messages.MessageHandler;
 import messages.MessageNumber;
-import messages.errors.ErrorBuilder;
 import messages.errors.mod.ModError;
 import utilities.SymbolTable;
 import utilities.Visitor;
@@ -58,15 +57,15 @@ public class ModifierChecker extends Visitor {
     private void sortClassMethods(HashSet<String> abstr, HashSet<String> concrete, ClassDecl cd) {
 
         // Start from the top of the inheritance hierarchy
-        if(cd.superClass() != null) {
+        if(cd.getSuperClass() != null) {
             sortClassMethods(abstr,concrete,
-                    currentScope.findName(cd.superClass().typeName()).decl().asTopLevelDecl().asClassDecl());
+                    currentScope.findName(cd.getSuperClass().typeName()).getDecl().asTopLevelDecl().asClassDecl());
         }
 
         for(String conName : concrete)
             abstr.remove(conName);
 
-        for(MethodDecl md : cd.classBlock().getMethods()) {
+        for(MethodDecl md : cd.getClassBody().getMethods()) {
             if(cd.mod.isAbstract()) {
                 abstr.add(md.toString());
                 concrete.remove(md.toString());
@@ -116,8 +115,8 @@ public class ModifierChecker extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        if(!as.LHS().isFieldExpr()) {
-            AST LHS = currentScope.findName(as.LHS().toString()).decl();
+        if(!as.getLHS().isFieldExpr()) {
+            AST LHS = currentScope.findName(as.getLHS().toString()).getDecl();
 
             if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
                 // ERROR CHECK #1: A constant can not be updated after its declaration
@@ -125,7 +124,7 @@ public class ModifierChecker extends Visitor {
                     handler.createErrorBuilder(ModError.class)
                             .addLocation(as)
                             .addErrorNumber(MessageNumber.MOD_ERROR_505)
-                            .addErrorArgs(as.LHS().toString())
+                            .addErrorArgs(as.getLHS().toString())
                             .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1505)
                             .generateError();
                 }
@@ -135,7 +134,7 @@ public class ModifierChecker extends Visitor {
                 handler.createErrorBuilder(ModError.class)
                         .addLocation(as)
                         .addErrorNumber(MessageNumber.MOD_ERROR_508)
-                        .addErrorArgs(as.LHS().toString())
+                        .addErrorArgs(as.getLHS().toString())
                         .generateError();
             }
         }
@@ -147,7 +146,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitCaseStmt(CaseStmt cs) {
         SymbolTable oldScope = currentScope;
-        currentScope = cs.symbolTable;
+        currentScope = cs.scope;
         super.visitCaseStmt(cs);
         currentScope = oldScope;
     }
@@ -157,12 +156,12 @@ public class ModifierChecker extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
-        for(CaseStmt c : cs.caseStmts())
+        for(CaseStmt c : cs.getCases())
             c.visit(this);
 
         SymbolTable oldScope = currentScope;
-        currentScope = cs.symbolTable;
-        cs.otherBlock().visit(this);
+        currentScope = cs.scope;
+        cs.getDefaultBody().visit(this);
         currentScope = oldScope;
     }
 
@@ -188,11 +187,11 @@ public class ModifierChecker extends Visitor {
      */
     public void visitClassDecl(ClassDecl cd) {
         SymbolTable oldScope = currentScope;
-        currentScope = cd.symbolTable;
+        currentScope = cd.getScope();
 
-        if(cd.superClass() != null) {
-            ClassDecl superDecl = currentScope.findName(cd.superClass().toString())
-                                                            .decl().asTopLevelDecl().asClassDecl();
+        if(cd.getSuperClass() != null) {
+            ClassDecl superDecl = currentScope.findName(cd.getSuperClass().toString())
+                                                            .getDecl().asTopLevelDecl().asClassDecl();
 
             // ERROR CHECK #1: Make sure the superclass was not declared as 'final'
             if(superDecl.mod.isFinal()) {
@@ -210,7 +209,7 @@ public class ModifierChecker extends Visitor {
                 checkAbstrClassImplementation(cd,superDecl);
         }
         this.currentClass = cd;
-        if(cd.typeParams().isEmpty())
+        if(cd.getTypeParams().isEmpty())
             super.visitClassDecl(cd);
         this.currentClass = null;
         currentScope = oldScope;
@@ -222,10 +221,10 @@ public class ModifierChecker extends Visitor {
      */
     public void visitDoStmt(DoStmt ds) {
         SymbolTable oldScope = currentScope;
-        currentScope = ds.symbolTable;
-        ds.doBlock().visit(this);
+        currentScope = ds.scope;
+        ds.getBody().visit(this);
         currentScope = oldScope;
-        ds.condition().visit(this);
+        ds.getCondition().visit(this);
     }
 
     /**
@@ -243,14 +242,14 @@ public class ModifierChecker extends Visitor {
             ClassDecl cd;
             FieldDecl fd = null;
             if(fe.getTarget().type.isClassType()) {
-                cd = currentScope.findName(fe.getTarget().type.toString()).decl().asTopLevelDecl().asClassDecl();
-                fd = cd.symbolTable.findName(fe.getAccessExpr().toString()).decl().asFieldDecl();
+                cd = currentScope.findName(fe.getTarget().type.toString()).getDecl().asTopLevelDecl().asClassDecl();
+                fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
             }
             else {
                 for(ClassType ct : fe.getTarget().type.asMultiType().getAllTypes()) {
-                    cd = currentScope.findName(ct.toString()).decl().asTopLevelDecl().asClassDecl();
-                    if(cd.symbolTable.hasName(fe.getAccessExpr().toString())) {
-                        fd = cd.symbolTable.findName(fe.getAccessExpr().toString()).decl().asFieldDecl();
+                    cd = currentScope.findName(ct.toString()).getDecl().asTopLevelDecl().asClassDecl();
+                    if(cd.getScope().hasName(fe.getAccessExpr().toString())) {
+                        fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
                         break;
                     }
                 }
@@ -276,7 +275,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitForStmt(ForStmt fs) {
         SymbolTable oldScope = currentScope;
-        currentScope = fs.symbolTable;
+        currentScope = fs.scope;
         super.visitForStmt(fs);
         currentScope = oldScope;
     }
@@ -288,8 +287,8 @@ public class ModifierChecker extends Visitor {
     public void visitFuncDecl(FuncDecl fd) {
 
         currentContext = fd;
-        currentScope = fd.symbolTable;
-        if(fd.typeParams().isEmpty())
+        currentScope = fd.getScope();
+        if(fd.getTypeParams().isEmpty())
             super.visitFuncDecl(fd);
         currentContext = null;
         currentScope = currentScope.closeScope();
@@ -300,20 +299,20 @@ public class ModifierChecker extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
+        is.getCondition().visit(this);
 
         SymbolTable oldScope = currentScope;
-        currentScope = is.symbolTableIfBlock;
-        is.ifBlock().visit(this);
+        currentScope = is.ifScope;
+        is.getIfBody().visit(this);
         currentScope = oldScope;
 
-        for(IfStmt e : is.elifStmts())
+        for(IfStmt e : is.getElifs())
             e.visit(this);
 
-        if(is.elseBlock() != null) {
+        if(is.getElseBody() != null) {
             oldScope = currentScope;
-            currentScope = is.symbolTableElseBlock;
-            is.elseBlock().visit(this);
+            currentScope = is.elseScope;
+            is.getElseBody().visit(this);
             currentScope = oldScope;
         }
     }
@@ -339,11 +338,11 @@ public class ModifierChecker extends Visitor {
         // Function Invocation
         else if(!in.targetType.isClassOrMultiType()) {
             FuncDecl fd = in.templatedFunction != null ? in.templatedFunction :
-                                              currentScope.findName(funcSignature).decl().asTopLevelDecl().asFuncDecl();
+                                              currentScope.findName(funcSignature).getDecl().asTopLevelDecl().asFuncDecl();
 
             if(currentContext == fd && fd.getSignature().equals(funcSignature))  {
                 // ERROR CHECK #1: A function can not call itself without `recurs` modifier
-                if(!fd.mod.isRecurs()) {
+                if(!fd.mod.isRecursive()) {
                     handler.createErrorBuilder(ModError.class)
                             .addLocation(in)
                             .addErrorNumber(MessageNumber.MOD_ERROR_502)
@@ -357,12 +356,12 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation
         else {
-            ClassDecl cd = currentScope.findName(in.targetType.toString()).decl().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.symbolTable.findName(in.getSignature()).decl().asMethodDecl();
+            ClassDecl cd = currentScope.findName(in.targetType.toString()).getDecl().asTopLevelDecl().asClassDecl();
+            MethodDecl md = cd.getScope().findName(in.getSignature()).getDecl().asClassNode().asMethodDecl();
 
             // ERROR CHECK #2: A method can not call itself without `recurs` modifier
             if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
-                if(!md.mods.isRecurs()) {
+                if(!md.mod.isRecursive()) {
                     handler.createErrorBuilder(ModError.class)
                             .addLocation(in)
                             .addErrorNumber(MessageNumber.MOD_ERROR_503)
@@ -372,7 +371,7 @@ public class ModifierChecker extends Visitor {
                 }
             }
             // ERROR CHECK #3: An object can only invoke public methods outside its class
-            if(!md.mods.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
+            if(!md.mod.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
                 handler.createErrorBuilder(ModError.class)
                         .addLocation(in)
                         .addErrorNumber(MessageNumber.MOD_ERROR_504)
@@ -389,7 +388,7 @@ public class ModifierChecker extends Visitor {
      * @param md Main Declaration
      */
     public void visitMainDecl(MainDecl md) {
-        currentScope = md.symbolTable;
+        currentScope = md.getScope();
         currentContext = md;
         super.visitMainDecl(md);
     }
@@ -400,7 +399,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitMethodDecl(MethodDecl md) {
         currentContext = md;
-        currentScope = md.symbolTable;
+        currentScope = md.getScope();
         super.visitMethodDecl(md);
         currentContext = null;
         currentScope = currentScope.closeScope();
@@ -422,14 +421,14 @@ public class ModifierChecker extends Visitor {
      * @param ne New Expression
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: An abstract class can not be instantiated
         if(cd.mod.isAbstract()) {
             handler.createErrorBuilder(ModError.class)
                     .addLocation(ne)
                     .addErrorNumber(MessageNumber.MOD_ERROR_506)
-                    .addErrorArgs(ne.getParent().getParent().asStatement().asLocalDecl().var().toString())
+                    .addErrorArgs(ne.getParent().getParent().asStatement().asLocalDecl().getVariableName())
                     .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1506)
                     .generateError();
         }
@@ -450,7 +449,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitWhileStmt(WhileStmt ws) {
         SymbolTable oldScope = currentScope;
-        currentScope = ws.symbolTable;
+        currentScope = ws.scope;
         super.visitWhileStmt(ws);
         currentScope = oldScope;
     }

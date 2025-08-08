@@ -79,7 +79,7 @@ public class EndlStmt extends Expression {
          * @return EndlStmtBuilder
          */
         public EndlStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(es,node);
             return this;
         }
 
@@ -88,7 +88,6 @@ public class EndlStmt extends Expression {
          * @return {@link EndlStmt}
          */
         public EndlStmt create() {
-            super.saveMetaData(es);
             return es;
         }
     }

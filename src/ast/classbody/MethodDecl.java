@@ -1,180 +1,273 @@
 package ast.classbody;
 
-import ast.*;
-import ast.expressions.UnaryExpr;
-import ast.misc.*;
-import ast.operators.*;
-import ast.statements.*;
-import ast.types.*;
-import token.*;
+import ast.AST;
+import ast.misc.Modifier;
+import ast.misc.Name;
+import ast.misc.NameDecl;
+import ast.misc.ParamDecl;
+import ast.misc.ScopeDecl;
+import ast.operators.Operator;
+import ast.statements.BlockStmt;
+import ast.topleveldecls.ClassDecl;
+import ast.types.Type;
+import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
-public class MethodDecl extends AST implements NameNode {
-
-    public SymbolTable symbolTable;
-
-    public Modifiers mods;
-
-    private Name methodName;       // Set if we have a MethodDecl
-    private Operator op;           // Set if we have a OperatorDecl
-    private Vector<ParamDecl> params;
-    private Type returnType;
-    private BlockStmt methodBlock;
-
-    private boolean isOverridden;
-    public boolean isOperatorOverload;
-
-    public MethodDecl() { this(new Token(),new Vector<>(),null,null,new Vector<>(),null,null,false); }
-    public MethodDecl(Vector<Modifier> m, Name n, Vector<ParamDecl> p, Type rt, BlockStmt b) {
-        this(new Token(),m,n,null,p,rt,b,false);
-    }
-
-    public MethodDecl(Token t, Vector<Modifier> m, Name n, Operator o, Vector<ParamDecl> p,
-                      Type rt, BlockStmt b, boolean override) {
-       super(t);
-       this.mods = new Modifiers(m);
-       this.methodName = n;
-       this.op = o;
-       this.params = p;
-       this.returnType = rt;
-       this.methodBlock = b;
-
-       this.isOverridden = override;
-
-       if(this.methodName != null) {
-           addChild(this.methodName);
-           isOperatorOverload = false;
-       }
-       else {
-           addChild(this.op);
-            isOperatorOverload = true;
-       }
-
-       addChild(this.params);
-       addChild(this.methodBlock);
-    }
-
-    public AST decl() { return this; }
-
-    public Name name() { return methodName; }
-    public Operator operator() { return op; }
-    public Vector<ParamDecl> params() { return params; }
-    public Type returnType() { return returnType; }
-    public BlockStmt methodBlock() { return methodBlock; }
-
-    private void setMods(Modifiers mods) {
-        this.mods = mods;
-    }
-
-    private void setMethodName(Name methodName) {
-        this.methodName = methodName;
-    }
-
-    private void setOperator(Operator op) {
-        this.op = op;
-        this.isOperatorOverload = true;
-    }
-
-    private void setParams(Vector<ParamDecl> params) {
-        this.params = params;
-    }
-
-    public void setReturnType(Type returnType) {
-        this.returnType = returnType;
-    }
-
-    private void setMethodBlock(BlockStmt methodBlock) {
-        this.methodBlock = methodBlock;
-    }
-
-    public boolean isOverridden() { return isOverridden; }
-
-    public String paramSignature() {
-        StringBuilder sb = new StringBuilder();
-        for(int i = 0; i < params.size(); i++)
-            sb.append(params.get(i).type().typeSignature());
-        return sb.toString();
-    }
-
-    public String methodSignature() { return this + "(" + paramSignature() + ")"; }
+/**
+ * A {@link ClassNode} that represents a method declared in a {@link ClassDecl}.
+ * @author Daniel Levy
+ */
+public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
 
     /**
-     * Checks if the current AST node is a {@link MethodDecl}.
-     * @return Boolean
+     * The scope that the method opens.
+     */
+    private SymbolTable scope;
+
+    /**
+     * The name of the method. This is not set if we are overloading an operator.
+     */
+    private Name name;
+
+    /**
+     * The {@link Operator} the method overloads. This is set only if we overload an operator.
+     */
+    private Operator op;
+
+    /**
+     * {@link Vector} of parameters that the method accepts.
+     */
+    private Vector<ParamDecl> params;
+
+    /**
+     * The return {@link Type} of the method.
+     */
+    private Type returnType;
+
+    /**
+     * {@link BlockStmt} representing the body of the method.
+     */
+    private BlockStmt body;
+
+    /**
+     * {@link Modifier} containing the access privilege of the method.
+     */
+    public Modifier mod;
+
+    /**
+     * Stores the signature of the method's parameters after {@link #getParamSignature()} is called.
+     */
+    private String paramSignature;
+
+    /**
+     * Flag that tracks if the current method was marked with the {@code override} keyword.
+     */
+    private boolean isOverridden;
+
+    /**
+     * Default constructor for {@link MethodDecl}.
+     */
+    public MethodDecl() { this(new Token(),null,null,null,new Vector<>(),null,null,false); }
+
+    /**
+     * Main constructor for {@link MethodDecl}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param mod {@link Modifier} that will be stored into {@link #mod}.
+     * @param name {@link Name} that will be stored into {@link #name}.
+     * @param op {@link Operator} that will be stored into {@link #op}.
+     * @param params {@link Vector} of {@link ParamDecl} that will be stored into {@link #params}.
+     * @param returnType {@link Type} that will be stored into {@link #returnType}.
+     * @param body {@link BlockStmt} that will be stored into {@link #body}.
+     * @param isOverridden Flag that will be stored into {@link #isOverridden}.
+     */
+    public MethodDecl(Token metaData, Modifier mod, Name name, Operator op, 
+                      Vector<ParamDecl> params, Type returnType, BlockStmt body, boolean isOverridden) {
+       super(metaData);
+       
+       this.mod = mod;
+       this.name = name;
+       this.op = op;
+       this.params = params;
+       this.returnType = returnType;
+       this.body = body;
+       this.isOverridden = isOverridden;
+       
+       if(this.name != null) 
+           addChildNode(this.name);
+       else 
+           addChildNode(this.op);
+       addChildNode(this.params);
+       addChildNode(this.body);
+    }
+
+    /**
+     * Checks if the current {@link MethodDecl} represents an operator overload.
+     * @return {@code True} if the method overloads an operator, {@code False} otherwise.
+     */
+    public boolean isOperatorOverload() { return op != null; }
+
+    /**
+     * Generates the method's signature.
+     * @return String representing the signature of the method.
+     */
+    public String getMethodSignature() { return this + "(" + getParamSignature() + ")"; }
+
+    /**
+     * Generates the parameter signature for the current method.
+     * @return {@link #paramSignature}
+     */
+    public String getParamSignature() {
+        if(paramSignature != null)
+            return paramSignature;
+
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < params.size(); i++)
+            sb.append(params.get(i).getType().typeSignature());
+
+        paramSignature = sb.toString();
+        return paramSignature;
+    }
+
+    /**
+     * Getter method for {@link #name}
+     * @return {@link #name}
+     */
+    public Name getMethodName() { return name; }
+
+    /**
+     * Getter method for {@link #op}.
+     * @return {@link #op}
+     */
+    public Operator getOperatorOverload() { return op; }
+
+    /**
+     * Getter method for {@link #params}.
+     * @return {@link #params}
+     */
+    public Vector<ParamDecl> getParams() { return params; }
+
+    /**
+     * Getter method for {@link #returnType}
+     * @return {@link #returnType}
+     */
+    public Type getReturnType() { return returnType; }
+
+    /**
+     * Getter method for {@link #body}.
+     * @return {@link #body}
+     */
+    public BlockStmt getBody() { return body; }
+
+    /**
+     * Getter method for {@link #isOverridden}
+     * @return {@link #isOverridden}
+     */
+    public boolean isOverridden() { return isOverridden; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST getDecl() { return this; }
+
+    /**
+     * {@inheritDoc}
+     * @return
+     */
+    public String getDeclName() { return toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public SymbolTable getScope() { return (scope != null) ? scope : null; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setScope(SymbolTable st) { scope = (scope == null) ? st : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public ClassDecl getClassDecl() { return parent.asClassNode().getClassDecl(); }
+
+    /**
+     * {@inheritDoc}
      */
     public boolean isMethodDecl() { return true; }
 
     /**
-     * Type cast method for {@link MethodDecl}.
-     * @return MethodDecl
+     * {@inheritDoc}
      */
     public MethodDecl asMethodDecl() { return this; }
 
     /**
-     * {@code toString} method.
-     * @return String representing the name of the method
+     * Checks if two {@link MethodDecl}'s are equal to each other.
+     * @param md The {@link MethodDecl} we want to compare with the current method.
+     * @return {@code True} if the methods share the same parameter signature, {@code False} otherwise.
      */
-    @Override
-    public String toString() { return (op != null) ? "operator" + op : methodName.toString(); }
+    public boolean equals(MethodDecl md) { return paramSignature.equals(md.paramSignature); }
 
     /**
-     * {@code update} method.
-     * @param pos Position we want to update.
-     * @param node Node we want to add to the specified position.
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() { return (op != null) ? "operator" + op : name.toString(); }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                if(this.methodName != null)
-                    this.methodName = node.asName();
+                if(name != null)
+                    name = node.asSubNode().asName();
                 else
-                    this.op = node.asOperator();
+                    op = node.asOperator();
                 break;
-            default:
-                if(pos <= this.params.size()) {
-                    this.params.remove(pos-1);
-                    this.params.add(pos-1,node.asParamDecl());
+            default: 
+                if(pos < params.size()) { 
+                    params.remove(pos-1);
+                    params.add(pos-1, node.asSubNode().asParamDecl());
                 }
-                else if(pos-1 == this.params.size())
-                    this.returnType = node.asType();
+                else if(pos-1 == params.size())
+                    returnType = node.asType();
                 else
-                    this.methodBlock = node.asStatement().asBlockStmt();
+                    body = node.asStatement().asBlockStmt();
         }
     }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link MethodDecl}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
-        MethodDeclBuilder mdb = new MethodDeclBuilder();
+        MethodDeclBuilder mb = new MethodDeclBuilder();
         Vector<ParamDecl> params = new Vector<>();
+        
         for(ParamDecl pd : this.params)
-            params.add(pd.deepCopy().asParamDecl());
+            params.add(pd.deepCopy().asSubNode().asParamDecl());
 
-        if(this.methodName != null)
-            mdb.setMethodName(this.methodName.deepCopy().asName());
+        if(name != null)
+            mb.setMethodName(name.deepCopy().asSubNode().asName());
         else
-            mdb.setOperator(this.op.deepCopy().asOperator());
+            mb.setOperator(op.deepCopy().asOperator());
 
-        if(this.isOverridden)
-            mdb.setOverridden();
+        if(isOverridden)
+            mb.setOverridden();
 
-        return mdb.setMetaData(this)
-                  .setMods(this.mods)
-                  .setParams(params)
-                  .setReturnType(this.returnType.deepCopy().asType())
-                  .setBlockStmt(this.methodBlock.deepCopy().asStatement().asBlockStmt())
-                  .create();
+        return mb.setMetaData(this)
+                 .setModifier(mod)
+                 .setParams(params)
+                 .setReturnType(returnType.deepCopy().asType())
+                 .setBlockStmt(body.deepCopy().asStatement().asBlockStmt())
+                 .create();
     }
 
     /**
-     * {@code visit} method.
-     * @param v Current visitor we are executing.
+     * {@inheritDoc}
      */
     @Override
     public void visit(Visitor v) { v.visitMethodDecl(this); }
@@ -190,78 +283,79 @@ public class MethodDecl extends AST implements NameNode {
         private final MethodDecl md = new MethodDecl();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return MethodDeclBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(md, node);
             return this;
         }
 
         /**
-         * Sets the method declaration's {@link #mods}.
-         * @param mods List of modifiers that is applied to the current method
-         * @return MethodDeclBuilder
+         * Sets the method declaration's {@link #mod}.
+         * @param mod {@link Modifier} storing the access privilege of the method.
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
-        public MethodDeclBuilder setMods(Modifiers mods) {
-            md.setMods(mods);
+        public MethodDeclBuilder setModifier(Modifier mod) {
+            md.mod = mod;
             return this;
         }
 
         /**
-         * Sets the method declaration's {@link #methodName}.
-         * @param name Name representing the name of the method
-         * @return MethodDeclBuilder
+         * Sets the method declaration's {@link #name}.
+         * @param name {@link Name} representing the name of the method
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setMethodName(Name name) {
-            md.setMethodName(name);
+            if(md.op != null)
+                md.name = name;
             return this;
         }
 
         /**
          * Sets the method declaration's {@link #op}.
-         * @param op Operator that the method overloads.
-         * @return MethodDeclBuilder
+         * @param op {@link Operator} that is overloaded by the method.
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setOperator(Operator op) {
-            md.setOperator(op);
+            if(md.name != null)
+                md.op = op;
             return this;
         }
 
         /**
          * Sets the method declaration's {@link #params}.
-         * @param params Vector of parameters that the method will accept
-         * @return MethodDeclBuilder
+         * @param params {@link Vector} of {@link ParamDecl} that the method will accept.
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setParams(Vector<ParamDecl> params) {
-            md.setParams(params);
+            md.params = params;
             return this;
         }
 
         /**
          * Sets the method declaration's {@link #returnType}.
-         * @param returnType Type representing the value that the method returns
-         * @return MethodDeclBuilder
+         * @param returnType {@link Type} representing the value that the method returns.
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setReturnType(Type returnType) {
-            md.setReturnType(returnType);
+            md.returnType = returnType;
             return this;
         }
 
         /**
-         * Sets the method declaration's {@link #methodBlock}.
-         * @param methodBlock Block statement containing the code for the method to execute
-         * @return MethodDeclBuilder
+         * Sets the method declaration's {@link #body}.
+         * @param body {@link BlockStmt} containing the code for the method to execute.
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
-        public MethodDeclBuilder setBlockStmt(BlockStmt methodBlock) {
-            md.setMethodBlock(methodBlock);
+        public MethodDeclBuilder setBlockStmt(BlockStmt body) {
+            md.body = body;
             return this;
         }
 
         /**
          * Sets the method declaration's {@link #isOverridden}.
-         * @return MethodDeclBuilder
+         * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setOverridden() {
             md.isOverridden = true;
@@ -273,11 +367,12 @@ public class MethodDecl extends AST implements NameNode {
          * @return {@link MethodDecl}
          * */
         public MethodDecl create() {
-            super.saveMetaData(md);
-            md.addChild(md.methodName);
-            md.addChild(md.op);
-            md.addChild(md.params);
-            md.addChild(md.methodBlock);
+            if(md.name != null)
+                md.addChildNode(md.name);
+            else
+                md.addChildNode(md.op);
+            md.addChildNode(md.params);
+            md.addChildNode(md.body);
             return md;
         }
     }

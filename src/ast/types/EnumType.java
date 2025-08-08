@@ -46,7 +46,7 @@ public class EnumType extends DiscreteType {
     public AST deepCopy() {
         return new EnumTypeBuilder()
                    .setMetaData(this)
-                   .setName(this.name.deepCopy().asName())
+                   .setName(this.name.deepCopy().asSubNode().asName())
                    .setConstantType(this.getDiscreteType())
                    .create();
     }
@@ -58,7 +58,7 @@ public class EnumType extends DiscreteType {
         private final EnumType et = new EnumType();
 
         public EnumTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(et,node);
             return this;
         }
 
@@ -73,7 +73,6 @@ public class EnumType extends DiscreteType {
         }
 
         public EnumType create() {
-            super.saveMetaData(et);
             return et;
         }
     }

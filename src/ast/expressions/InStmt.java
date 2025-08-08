@@ -38,7 +38,7 @@ public class InStmt extends Expression {
         super(metaData);
         this.inputExprs = inputExprs;
 
-        addChild(this.inputExprs);
+        addChildNode(this.inputExprs);
     }
 
     /**
@@ -115,7 +115,7 @@ public class InStmt extends Expression {
          * @return InStmtBuilder
          */
         public InStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(in,node);
             return this;
         }
 
@@ -134,8 +134,7 @@ public class InStmt extends Expression {
          * @return {@link InStmt}
          */
         public InStmt create() {
-            super.saveMetaData(in);
-            in.addChild(in.inputExprs);
+            in.addChildNode(in.inputExprs);
             return in;
         }
     }

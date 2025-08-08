@@ -3,7 +3,7 @@ package interpreter;
 import ast.classbody.InitDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.*;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.misc.ParamDecl;
 import ast.misc.Var;
 import ast.statements.*;
@@ -87,6 +87,7 @@ public class Interpreter extends Visitor {
      */
     public Interpreter(SymbolTable st) {
         this.stack = new RuntimeStack();
+        this.currentValue = null;
         this.currentScope = st;
         this.breakFound = false;
         this.continueFound = false;
@@ -100,7 +101,7 @@ public class Interpreter extends Visitor {
      * Resets the {@link #currentValue} to prevent any unwarranted errors to occur.
      *
      */
-    public void reset() {
+    public void resetValue() {
         this.currentValue = null;
         this.insideAssignment = false;
         if(this.output) {
@@ -140,7 +141,7 @@ public class Interpreter extends Visitor {
             // error check yay
             if(offset <= 0 || offset > currentValue.asInt()) {
                 handler.createErrorBuilder(RuntimeError.class)
-                        .addLocation(ae.getRootParent())
+                        .addLocation(ae.getFullLocation())
                         .addErrorNumber(MessageNumber.RUNTIME_ERROR_603)
                         .generateError();
             }
@@ -186,21 +187,21 @@ public class Interpreter extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        String assignOp = as.assignOp().toString();
+        String assignOp = as.getOperator().toString();
 
         insideAssignment = true;
-        as.LHS().visit(this);
+        as.getLHS().visit(this);
         Value oldValue = currentValue;
         insideAssignment = false;
 
-        as.RHS().visit(this);
+        as.getRHS().visit(this);
         Value newValue = currentValue;
 
         switch(assignOp) {
             case "=":
                 break;
             default:
-                if(as.RHS().type.isInt()) {
+                if(as.getRHS().type.isInt()) {
                     switch (assignOp) {
                         case "+=" -> newValue = new Value(oldValue.asInt() + newValue.asInt(), newValue.getType());
                         case "-=" -> newValue = new Value(oldValue.asInt() - newValue.asInt(), newValue.getType());
@@ -209,7 +210,7 @@ public class Interpreter extends Visitor {
                         case "%=" -> newValue = new Value(oldValue.asInt() % newValue.asInt(), newValue.getType());
                         case "**=" -> newValue = new Value(Math.round(Math.pow(oldValue.asInt(), newValue.asInt())), newValue.getType());
                     }
-                } else if(as.RHS().type.isReal()) {
+                } else if(as.getRHS().type.isReal()) {
                     switch(assignOp) {
                         case "+=" -> newValue = new Value(oldValue.asReal().add(newValue.asReal()), newValue.getType());
                         case "-=" -> newValue = new Value(oldValue.asReal().subtract(newValue.asReal()), newValue.getType());
@@ -218,21 +219,21 @@ public class Interpreter extends Visitor {
                         case "%=" -> newValue = new Value(oldValue.asReal().remainder(newValue.asReal()), newValue.getType());
                         case "**=" -> newValue = new Value(oldValue.asReal().pow(newValue.asReal().toBigInteger().intValue(),MathContext.DECIMAL128), newValue.getType());
                     }
-                } else if(as.RHS().type.isString())
+                } else if(as.getRHS().type.isString())
                     newValue = new Value(newValue.asString() + oldValue.asString(), newValue.getType());
         }
 
-        if(as.LHS().isNameExpr())
-            stack.setValue(as.LHS(), newValue);
-        else if(as.LHS().isFieldExpr()) {
+        if(as.getLHS().isNameExpr())
+            stack.setValue(as.getLHS(), newValue);
+        else if(as.getLHS().isFieldExpr()) {
             insideAssignment = true;
-            as.LHS().visit(this);
-            currentValue.asObject().setField(as.LHS().asFieldExpr().getFieldName(),newValue);
+            as.getLHS().visit(this);
+            currentValue.asObject().setField(as.getLHS().asFieldExpr().getFieldName(),newValue);
             insideAssignment = false;
         }
-        else if(as.LHS().isArrayExpr()) {
+        else if(as.getLHS().isArrayExpr()) {
             insideAssignment = true;
-            as.LHS().visit(this);
+            as.getLHS().visit(this);
             currentValue.asList().addElement(newValue);
             insideAssignment = false;
         }
@@ -388,10 +389,10 @@ public class Interpreter extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
-        for(LocalDecl decl : bs.decls())
+        for(LocalDecl decl : bs.getLocalDecls())
             decl.visit(this);
 
-        for(Statement s : bs.stmts()) {
+        for(Statement s : bs.getStatements()) {
             s.visit(this);
             /*
                 The `break`, `continue`, and `return` keywords will terminate
@@ -451,35 +452,35 @@ public class Interpreter extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
-        cs.choiceExpr().visit(this);
+        cs.getChoiceValue().visit(this);
 
         Value choice = currentValue;
 
-        for(int i = 0; i <= cs.caseStmts().size(); i++) {
+        for(int i = 0; i <= cs.getCases().size(); i++) {
             Value label, rightLabel;
             // Default Case Execution
-            if(i == cs.caseStmts().size()) {
-                cs.otherBlock().visit(this);
+            if(i == cs.getCases().size()) {
+                cs.getDefaultBody().visit(this);
                 break;
             }
 
-            CaseStmt currCase = cs.caseStmts().get(i);
+            CaseStmt currCase = cs.getCases().get(i);
 
-            currCase.choiceLabel().leftLabel().visit(this);
+            currCase.getLabel().getLeftConstant().visit(this);
             label = currentValue;
 
-            if(currCase.choiceLabel().rightLabel() != null) {
-                currCase.choiceLabel().rightLabel().visit(this);
+            if(currCase.getLabel().getRightConstant() != null) {
+                currCase.getLabel().getRightConstant().visit(this);
                 rightLabel = currentValue;
-                if((cs.choiceExpr().type.isInt() && (choice.asInt() >= label.asInt() && choice.asInt() <= rightLabel.asInt()))
-                || (cs.choiceExpr().type.isChar() && (choice.asChar() >= label.asChar() && choice.asChar() <= rightLabel.asChar()))) {
+                if((cs.getChoiceValue().type.isInt() && (choice.asInt() >= label.asInt() && choice.asInt() <= rightLabel.asInt()))
+                || (cs.getChoiceValue().type.isChar() && (choice.asChar() >= label.asChar() && choice.asChar() <= rightLabel.asChar()))) {
                     currCase.visit(this);
                     break;
                 }
             } else {
-                if(cs.choiceExpr().type.isInt() && (choice.asInt() == label.asInt())
-                || cs.choiceExpr().type.isChar() && (choice.asChar() == label.asChar())
-                || cs.choiceExpr().type.isString() && (choice.asString().equals(label.asString()))) {
+                if(cs.getChoiceValue().type.isInt() && (choice.asInt() == label.asInt())
+                || cs.getChoiceValue().type.isChar() && (choice.asChar() == label.asChar())
+                || cs.getChoiceValue().type.isString() && (choice.asString().equals(label.asString()))) {
                     currCase.visit(this);
                     break;
                 }
@@ -487,6 +488,8 @@ public class Interpreter extends Visitor {
             }
         }
     }
+
+    public void visitClassDecl(ClassDecl cd) { /* Do nothing. */ }
 
     /**
      * Begins the execution of a program in compilation mode.
@@ -499,21 +502,21 @@ public class Interpreter extends Visitor {
      * </p>
      * @param c Compilation unit representing the program we are executing
      */
-    public void visitCompilation(Compilation c) {
-        for(ImportDecl im : c.imports()) {
+    public void visitCompilationUnit(CompilationUnit c) {
+        for(ImportDecl im : c.getImports()) {
             im.visit(this);
-            c.addClassDecl(im.getCompilationUnit().classDecls());
-            c.addFuncDecl(im.getCompilationUnit().funcDecls());
+            c.addClassDecl(im.getCompilationUnit().getClasses());
+            c.addFuncDecl(im.getCompilationUnit().getFunctions());
         }
 
-        for(EnumDecl ed : c.enumDecls())
+        for(EnumDecl ed : c.getEnums())
             ed.visit(this);
 
-        for(GlobalDecl gd : c.globalDecls())
+        for(GlobalDecl gd : c.getGlobals())
             gd.visit(this);
 
-        if(c.mainDecl() != null)
-            c.mainDecl().mainBody().visit(this);
+        if(c.getMain() != null)
+            c.getMain().getBody().visit(this);
     }
 
     /**
@@ -538,13 +541,13 @@ public class Interpreter extends Visitor {
      */
     public void visitDoStmt(DoStmt ds) {
         do {
-            ds.doBlock().visit(this);
+            ds.getBody().visit(this);
 
             if(breakFound || returnFound)
                 break;
 
             continueFound = false;
-            ds.condition().visit(this);
+            ds.getCondition().visit(this);
         } while(currentValue.asBool());
 
         breakFound = false;
@@ -559,8 +562,8 @@ public class Interpreter extends Visitor {
      * @param ed Enum Declaration
      */
     public void visitEnumDecl(EnumDecl ed) {
-        for(Var constant : ed.constants()) {
-            constant.init().visit(this);
+        for(Var constant : ed.getConstants()) {
+            constant.getInitialValue().visit(this);
             stack.addValue(constant, currentValue);
         }
     }
@@ -608,30 +611,30 @@ public class Interpreter extends Visitor {
      * @param fs For Statement
      */
     public void visitForStmt(ForStmt fs) {
-        String loopOp = fs.loopOp().toString();
+        String loopOp = fs.getLoopOperator().toString();
 
-        fs.condLHS().visit(this);
+        fs.getStartValue().visit(this);
         Value LHS = currentValue;
 
-        fs.condRHS().visit(this);
+        fs.getEndValue().visit(this);
         Value RHS = currentValue;
 
         // Handles both iterating over Ints and Chars
         switch(loopOp) {
-            case "<.." -> LHS = new Value(LHS.asInt() + 1, fs.condLHS().type);
-            case "..<" -> RHS = new Value(RHS.asInt() - 1, fs.condRHS().type);
+            case "<.." -> LHS = new Value(LHS.asInt() + 1, fs.getStartValue().type);
+            case "..<" -> RHS = new Value(RHS.asInt() - 1, fs.getEndValue().type);
             case "<..<" -> {
-                LHS = new Value(LHS.asInt() + 1, fs.condLHS().type);
-                RHS = new Value(RHS.asInt() - 1, fs.condRHS().type);
+                LHS = new Value(LHS.asInt() + 1, fs.getStartValue().type);
+                RHS = new Value(RHS.asInt() - 1, fs.getEndValue().type);
             }
         }
 
         stack.createCallFrame();
-        stack.addValue(fs.loopVar(),LHS);
+        stack.addValue(fs.getControlVariable(),LHS);
 
         for(int i = LHS.asInt(); i <= RHS.asInt(); i++) {
-            stack.setValue(fs.loopVar(),new Value(i,fs.condLHS().type));
-            fs.forBlock().visit(this);
+            stack.setValue(fs.getControlVariable(),new Value(i,fs.getStartValue().type));
+            fs.getBody().visit(this);
 
             if(breakFound || returnFound)
                 break;
@@ -643,6 +646,8 @@ public class Interpreter extends Visitor {
         breakFound = false;
     }
 
+    public void visitFuncDecl(FuncDecl fd) { /* Do nothing. */ }
+
     /**
      * Executes a global declaration statement.
      * <p><br>
@@ -652,9 +657,9 @@ public class Interpreter extends Visitor {
      * @param gd Global Declaration
      */
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.var().init() != null)
-            gd.var().init().visit(this);
-        stack.addValue(gd.var(), currentValue);
+        if(gd.getInitialValue() != null)
+            gd.getInitialValue().visit(this);
+        stack.addValue(gd.getVariableName(), currentValue);
     }
 
     /**
@@ -668,23 +673,23 @@ public class Interpreter extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
+        is.getCondition().visit(this);
 
         if(currentValue.asBool())
-            is.ifBlock().visit(this);
+            is.getIfBody().visit(this);
         else {
-            if(!is.elifStmts().isEmpty()) {
-                for(int i = 0; i < is.elifStmts().size(); i++) {
-                    IfStmt elif = is.elifStmts().get(i);
-                    elif.condition().visit(this);
+            if(!is.getElifs().isEmpty()) {
+                for(int i = 0; i < is.getElifs().size(); i++) {
+                    IfStmt elif = is.getElifs().get(i);
+                    elif.getCondition().visit(this);
                     if(currentValue.asBool()) {
-                        elif.ifBlock().visit(this);
+                        elif.getIfBody().visit(this);
                         return;
                     }
                 }
             }
-            if(is.elseBlock() != null)
-                is.elseBlock().visit(this);
+            if(is.getElseBody() != null)
+                is.getElseBody().visit(this);
         }
     }
 
@@ -700,10 +705,10 @@ public class Interpreter extends Visitor {
     public void visitInitDecl(InitDecl id) {
         RuntimeObject obj = currentValue.asObject();
 
-        for(AssignStmt as : id.assignStmts()) {
-            if(!obj.hasField(as.LHS())) {
-                as.RHS().visit(this);
-                obj.setField(as.LHS(), currentValue);
+        for(AssignStmt as : id.getInitStmts()) {
+            if(!obj.hasField(as.getLHS())) {
+                as.getRHS().visit(this);
+                obj.setField(as.getLHS(), currentValue);
             }
         }
 
@@ -814,36 +819,36 @@ public class Interpreter extends Visitor {
         // Function Invocation
         if(in.targetType.isVoidType()) {
             FuncDecl fd = (in.templatedFunction != null)
-                    ? in.templatedFunction : currentScope.findName(in.getSignature()).decl().asTopLevelDecl().asFuncDecl();
-            params = fd.params();
-            currentScope = fd.symbolTable;
+                    ? in.templatedFunction : currentScope.findName(in.getSignature()).getDecl().asTopLevelDecl().asFuncDecl();
+            params = fd.getParams();
+            currentScope = fd.getScope();
 
             // Save arguments into respective parameters and add to the stack.
             for(int i = 0; i < in.getArgs().size(); i++)
                 stack.addValue(params.get(i),args.get(i));
 
 
-            fd.funcBlock().visit(this);
+            fd.getBody().visit(this);
         }
         // Method Invocation
         else {
             // ERROR CHECK #1: This checks if the object's type is assignment compatible with the expected object type.
             if(!ClassType.classAssignmentCompatibility(obj.getCurrentType(),in.targetType.asClassType())) {
                 handler.createErrorBuilder(RuntimeError.class)
-                        .addLocation(in.getRootParent())
+                        .addLocation(in.getFullLocation())
                         .addErrorNumber(MessageNumber.RUNTIME_ERROR_604)
                         .addErrorArgs(in.toString(),obj.getCurrentType(),in.targetType)
                         .generateError();
             }
 
             // Find the class that contains the specific method we want to call
-            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType()).decl().asTopLevelDecl().asClassDecl();
-            while(!cd.symbolTable.hasName(in.getSignature()))
-                cd = currentScope.findName(cd.superClass()).decl().asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClassType()).getDecl().asTopLevelDecl().asClassDecl();
+            while(!cd.getScope().hasName(in.getSignature()))
+                cd = currentScope.findName(cd.getSuperClass()).getDecl().asTopLevelDecl().asClassDecl();
 
-            MethodDecl md = cd.symbolTable.findName(in.getSignature()).decl().asMethodDecl();
-            params = md.params();
-            currentScope = md.symbolTable;
+            MethodDecl md = cd.getScope().findName(in.getSignature()).getDecl().asClassNode().asMethodDecl();
+            params = md.getParams();
+            currentScope = md.getScope();
 
             // Create a 'this' pointer when we invoke an object's method for the first time
             stack.addValue("this",obj);
@@ -852,7 +857,7 @@ public class Interpreter extends Visitor {
             for(int i = 0; i < in.getArgs().size(); i++)
                 stack.addValue(params.get(i),args.get(i));
 
-            md.methodBlock().visit(this);
+            md.getBody().visit(this);
         }
 
         // Figure out which variables need to be updated.
@@ -862,7 +867,7 @@ public class Interpreter extends Visitor {
                 String argName = in.getArgs().get(i).toString();
                 ParamDecl currParam = params.get(i);
 
-                if(currParam.mod.isOut() || currParam.mod.isInOut() || currParam.mod.isRef())
+                if(currParam.mod.isOutMode() || currParam.mod.isInOutMode() || currParam.mod.isRefMode())
                     varsToUpdate.put(argName,stack.getValue(currParam));
             }
         }
@@ -985,9 +990,9 @@ public class Interpreter extends Visitor {
      * @param ld Local Declaration
      */
     public void visitLocalDecl(LocalDecl ld) {
-        if(ld.var().init() != null)
-            ld.var().init().visit(this);
-        stack.addValue(ld.var(), currentValue);
+        if(ld.hasInitialValue())
+            ld.getInitialValue().visit(this);
+        stack.addValue(ld.getVariableName(), currentValue);
     }
 
     /**
@@ -1006,17 +1011,16 @@ public class Interpreter extends Visitor {
             return;
 
         // Special Case: If we are evaluating a complex field expression, execute this branch
-        if(currentValue != null
-            && currentValue.isObject() && ne.getParent().isExpression()
+        if(currentValue != null && currentValue.isObject() && ne.getParent().isExpression()
             && (ne.getParent().asExpression().isFieldExpr() || ne.getParent().asExpression().isArrayExpr())) {
-            // ERROR CHECK #1: This checks if the field exists for the current object.
-            if(!currentValue.asObject().hasField(ne)) {
-                handler.createErrorBuilder(RuntimeError.class)
-                    .addLocation(ne.getRootParent())
-                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
-                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
-                    .generateError();
-            }
+//            // ERROR CHECK #1: This checks if the field exists for the current object.
+//            if(!currentValue.asObject().hasField(ne)) {
+//                handler.createErrorBuilder(RuntimeError.class)
+//                    .addLocation(ne.getRootParent())
+//                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
+//                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
+//                    .generateError();
+//            }
             currentValue = currentValue.asObject().getField(ne);
         }
         else {
@@ -1024,7 +1028,7 @@ public class Interpreter extends Visitor {
             // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
             if(currentValue == null && !insideAssignment) {
                 handler.createErrorBuilder(RuntimeError.class)
-                    .addLocation(ne.getRootParent())
+                    .addLocation(ne.getFullLocation())
                     .addErrorNumber(MessageNumber.RUNTIME_ERROR_607)
                     .addErrorArgs(ne)
                     .generateError();
@@ -1044,15 +1048,15 @@ public class Interpreter extends Visitor {
      */
     public void visitNewExpr(NewExpr ne) {
         RuntimeObject obj = new RuntimeObject(ne.type);
-        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
 
         for(Var field : ne.getInitialFields()) {
-            field.init().visit(this);
+            field.getInitialValue().visit(this);
             obj.setField(field, currentValue);
         }
 
         currentValue = obj;
-        cd.constructor().visit(this);
+        cd.getConstructor().visit(this);
     }
 
     /**
@@ -1094,8 +1098,8 @@ public class Interpreter extends Visitor {
      * @param rs Return Statement
      */
     public void visitReturnStmt(ReturnStmt rs) {
-        if(rs.expr() != null)
-            rs.expr().visit(this);
+        if(rs.getReturnValue() != null)
+            rs.getReturnValue().visit(this);
         returnFound = true;
     }
 
@@ -1164,16 +1168,16 @@ public class Interpreter extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
-        ws.condition().visit(this);
+        ws.getCondition().visit(this);
 
         while(currentValue.asBool()) {
-            ws.whileBlock().visit(this);
+            ws.getBody().visit(this);
 
             if(breakFound || returnFound)
                 break;
 
             continueFound = false;
-            ws.condition().visit(this);
+            ws.getCondition().visit(this);
         }
         breakFound = false;
     }

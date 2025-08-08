@@ -45,8 +45,8 @@ public class CastExpr extends Expression {
         this.castType = castType;
         this.castExpr = castExpr;
 
-        addChild(this.castType);
-        addChild(this.castExpr);
+        addChildNode(this.castType);
+        addChildNode(this.castExpr);
     }
 
     /**
@@ -138,7 +138,7 @@ public class CastExpr extends Expression {
          * @return CastExprBuilder
          */
         public CastExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ce,node);
             return this;
         }
 
@@ -167,9 +167,8 @@ public class CastExpr extends Expression {
          * @return {@link CastExpr}
          */
         public CastExpr create() {
-            super.saveMetaData(ce);
-            ce.addChild(ce.castType);
-            ce.addChild(ce.castExpr);
+            ce.addChildNode(ce.castType);
+            ce.addChildNode(ce.castExpr);
             return ce;
         }
     }

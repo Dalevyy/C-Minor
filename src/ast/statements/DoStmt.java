@@ -1,93 +1,165 @@
 package ast.statements;
 
 import ast.AST;
-import ast.classbody.MethodDecl;
-import ast.expressions.*;
-import token.*;
-import utilities.Visitor;
+import ast.expressions.Expression;
+import ast.misc.ScopeDecl;
+import token.Token;
 import utilities.SymbolTable;
+import utilities.Visitor;
 
-public class DoStmt extends Statement {
+/**
+ * A {@link Statement} node representing a do while loop.
+ * @author Daniel Levy
+ */
+public class DoStmt extends Statement implements ScopeDecl {
 
-    public SymbolTable symbolTable;
+    /**
+     * The scope opened by the current {@link DoStmt}.
+     */
+    public SymbolTable scope;
 
-    private BlockStmt doBlock;
-    private Expression cond;
+    /**
+     * The {@link BlockStmt} representing the loop's body.
+     */
+    private BlockStmt body;
 
+    /**
+     * An {@link Expression} representing the conditional expression to execute the loop.
+     */
+    private Expression condition;
+
+    /**
+     * Default constructor for {@link DoStmt}.
+     */
     public DoStmt() { this(new Token(),null,null); }
-    public DoStmt(Token t, BlockStmt db, Expression c) {
-        super(t);
-        this.doBlock = db;
-        this.cond = c;
 
-        addChild(this.doBlock);
-        addChild(this.cond);
-        setParent();
+    /**
+     * Main constructor for {@link DoStmt}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param body {@link BlockStmt} to store into {@link #body}.
+     * @param condition {@link Expression} to store into {@link #condition}.
+     */
+    public DoStmt(Token metaData, BlockStmt body, Expression condition) {
+        super(metaData);
+
+        this.body = body;
+        this.condition = condition;
+
+        addChildNode(this.body);
+        addChildNode(this.condition);
     }
 
-    public BlockStmt doBlock() { return doBlock; }
-    public Expression condition() { return cond; }
+    /**
+     * Getter method for {@link #body}.
+     * @return {@link BlockStmt}
+     */
+    public BlockStmt getBody() { return body; }
 
+    /**
+     * Getter method for {@link #condition}.
+     * @return {@link Expression}
+     */
+    public Expression getCondition() { return condition; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setScope(SymbolTable newScope) { scope = (scope == null) ? newScope : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public SymbolTable getScope() { return scope; }
+
+    /**
+     * {@inheritDoc}
+     */
     public boolean isDoStmt() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
     public DoStmt asDoStmt() { return this; }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                doBlock = node.asStatement().asBlockStmt();
+                body = node.asStatement().asBlockStmt();
                 break;
             case 1:
-                cond = node.asExpression();
+                condition = node.asExpression();
                 break;
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AST deepCopy() {
         return new DoStmtBuilder()
                    .setMetaData(this)
-                   .setBlockStmt(this.doBlock.deepCopy().asStatement().asBlockStmt())
-                   .setCondition(this.cond.deepCopy().asExpression())
-                   .setSymbolTable(this.symbolTable)
+                   .setBody(body.deepCopy().asStatement().asBlockStmt())
+                   .setCondition(condition.deepCopy().asExpression())
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitDoStmt(this); }
 
+    /**
+     * Internal class that builds a {@link DoStmt} object.
+     */
     public static class DoStmtBuilder extends NodeBuilder {
+
+        /**
+         * {@link DoStmt} object we are building.
+         */
         private final DoStmt ds = new DoStmt();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return DoStmtBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link DoStmtBuilder}.
          */
         public DoStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ds, node);
             return this;
         }
 
-        public DoStmtBuilder setBlockStmt(BlockStmt doBlock) {
-            ds.doBlock = doBlock;
+        /**
+         * Sets the do statement's {@link #body}.
+         * @param body {@link BlockStmt} representing the body of the do statement.
+         * @return Current instance of {@link DoStmtBuilder}.
+         */
+        public DoStmtBuilder setBody(BlockStmt body) {
+            ds.body = body;
             return this;
         }
 
-        public DoStmtBuilder setCondition(Expression cond) {
-            ds.cond = cond;
+        /**
+         * Sets the do statement's {@link #condition}.
+         * @param condition {@link Expression} representing the condition to execute the do statement.
+         * @return Current instance of {@link DoStmtBuilder}.
+         */
+        public DoStmtBuilder setCondition(Expression condition) {
+            ds.condition = condition;
             return this;
         }
 
-        public DoStmtBuilder setSymbolTable(SymbolTable st) {
-            ds.symbolTable = st;
-            return this;
-        }
-
+        /**
+         * Creates a {@link DoStmt} object.
+         * @return {@link DoStmt}
+         */
         public DoStmt create() {
-            super.saveMetaData(ds);
-            ds.addChild(ds.doBlock);
-            ds.addChild(ds.cond);
+            ds.addChildNode(ds.body);
+            ds.addChildNode(ds.condition);
             return ds;
         }
     }

@@ -49,9 +49,9 @@ public class BinaryExpr extends Expression {
         this.RHS = RHS;
         this.binOp = op;
 
-        addChild(this.LHS);
-        addChild(this.RHS);
-        addChild(this.binOp);
+        addChildNode(this.LHS);
+        addChildNode(this.RHS);
+        addChildNode(this.binOp);
     }
 
     /**
@@ -159,7 +159,7 @@ public class BinaryExpr extends Expression {
          * @return BinaryExprBuilder
          */
         public BinaryExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(be,node);
             return this;
         }
 
@@ -198,10 +198,9 @@ public class BinaryExpr extends Expression {
          * @return {@link BinaryExpr}
          */
         public BinaryExpr create() {
-            super.saveMetaData(be);
-            be.addChild(be.getLHS());
-            be.addChild(be.getRHS());
-            be.addChild(be.getBinaryOp());
+            be.addChildNode(be.getLHS());
+            be.addChildNode(be.getRHS());
+            be.addChildNode(be.getBinaryOp());
             return be;
         }
     }

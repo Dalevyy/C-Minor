@@ -37,7 +37,7 @@ public class ListLiteral extends Literal {
         super(metaData, ConstantType.LIST);
         this.inits = inits;
 
-        addChild(this.inits);
+        addChildNode(this.inits);
     }
 
     /**
@@ -114,7 +114,7 @@ public class ListLiteral extends Literal {
          * @return ListLiteralBuilder
          */
         public ListLiteralBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ll,node);
             return this;
         }
 
@@ -133,8 +133,7 @@ public class ListLiteral extends Literal {
          * @return {@link ListLiteral}
          */
         public ListLiteral create() {
-            super.saveMetaData(ll);
-            ll.addChild(ll.inits);
+            ll.addChildNode(ll.inits);
             return ll;
         }
     }

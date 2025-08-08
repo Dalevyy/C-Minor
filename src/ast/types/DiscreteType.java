@@ -73,7 +73,7 @@ public class DiscreteType extends Type {
          * @return DiscreteTypeBuilder
          */
         public DiscreteTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(dt,node);
             return this;
         }
 
@@ -92,7 +92,6 @@ public class DiscreteType extends Type {
          * @return {@link DiscreteType}
          */
         public DiscreteType create() {
-            super.saveMetaData(dt);
             return dt;
         }
     }

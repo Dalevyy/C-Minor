@@ -9,9 +9,9 @@ import ast.expressions.FieldExpr;
 import ast.expressions.Invocation;
 import ast.expressions.NameExpr;
 import ast.expressions.NewExpr;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.misc.ParamDecl;
-import ast.misc.Typeifier;
+import ast.misc.TypeParam;
 import ast.misc.Var;
 import ast.statements.AssignStmt;
 import ast.statements.BlockStmt;
@@ -92,24 +92,24 @@ public class NameChecker extends Visitor {
      * @param baseClass The base class the user is inheriting from.
      */
     private void addBaseClassTable(ClassDecl baseClass) {
-        for(String name : baseClass.symbolTable.getAllNames().keySet()) {
-            AST currentDecl = baseClass.symbolTable.findName(name).decl();
-            if(currentDecl.isFieldDecl()) {
+        for(String name : baseClass.getScope().getAllNames().keySet()) {
+            AST currentDecl = baseClass.getScope().findName(name).getDecl();
+            if(currentDecl.asClassNode().isFieldDecl()) {
                 // ERROR CHECK #1: This checks if the field was already defined in the class hierarchy.
                 if(currentScope.hasName(name)) {
                     handler.createErrorBuilder(ScopeError.class)
-                           .addLocation(currentClass.symbolTable.findName(name).decl())
+                           .addLocation(currentClass.getScope().findName(name).getDecl())
                            .addErrorNumber(MessageNumber.SCOPE_ERROR_324)
                            .addErrorArgs(name, currentClass)
                            .asScopeErrorBuilder()
                            .addOriginalDeclaration(currentDecl)
                            .generateError();
                 }
-                currentScope.addName(name,currentDecl.asFieldDecl());
+                currentScope.addName(name,currentDecl.asClassNode().asFieldDecl());
             }
         }
 
-        for(String name : baseClass.symbolTable.getMethodNames())
+        for(String name : baseClass.getScope().getMethodNames())
             currentScope.addMethod(name);
     }
 
@@ -126,14 +126,14 @@ public class NameChecker extends Visitor {
      */
     private void checkOverriddenMethods(ClassDecl baseClass) {
         // Visit each method defined in the current class we are in
-        for(MethodDecl subMethod : currentClass.classBlock().getMethods()) {
+        for(MethodDecl subMethod : currentClass.getClassBody().getMethods()) {
             boolean methodFoundInBaseClass = false;
 
             subMethod.visit(this);
 
             if(baseClass != null) {
-                for(MethodDecl baseMethod : baseClass.classBlock().getMethods()) {
-                    if(baseMethod.methodSignature().equals(subMethod.methodSignature())) {
+                for(MethodDecl baseMethod : baseClass.getClassBody().getMethods()) {
+                    if(baseMethod.getMethodSignature().equals(subMethod.getMethodSignature())) {
                         methodFoundInBaseClass = true;
                         // ERROR CHECK #1: This checks if the user marked the method as overridden in the subclass.
                         if(!subMethod.isOverridden()) {
@@ -171,11 +171,11 @@ public class NameChecker extends Visitor {
      */
     public void visitAssignStmt(AssignStmt as) {
         // ERROR CHECK #1: This checks if a valid name was used in the LHS of an assignment statement.
-        if(!as.LHS().isNameExpr() && !as.LHS().isFieldExpr() && !as.LHS().isArrayExpr()) {
+        if(!as.getLHS().isNameExpr() && !as.getLHS().isFieldExpr() && !as.getLHS().isArrayExpr()) {
             handler.createErrorBuilder(SemanticError.class)
                    .addLocation(as)
                    .addErrorNumber(MessageNumber.SEMANTIC_ERROR_707)
-                   .addErrorArgs(as.LHS())
+                   .addErrorArgs(as.getLHS())
                    .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1702)
                    .generateError();
         }
@@ -214,7 +214,7 @@ public class NameChecker extends Visitor {
                            .generateError();
                 }
 
-                AST cd = currentScope.findName(be.getRHS().toString()).decl();
+                AST cd = currentScope.findName(be.getRHS().toString()).getDecl();
                 // ERROR CHECK #2: This checks if the RHS represents a class name.
                 if(!cd.isTopLevelDecl() || !cd.asTopLevelDecl().isClassDecl()) {
                     handler.createErrorBuilder(ScopeError.class)
@@ -242,9 +242,9 @@ public class NameChecker extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openNewScope();
 
-        for(LocalDecl ld : bs.decls())
+        for(LocalDecl ld : bs.getLocalDecls())
             ld.visit(this);
-        for(Statement s : bs.stmts())
+        for(Statement s : bs.getStatements())
             s.visit(this);
 
         if(bs.getParent() == null)
@@ -260,10 +260,10 @@ public class NameChecker extends Visitor {
      * @param cs Case Statement
      */
     public void visitCaseStmt(CaseStmt cs) {
-        cs.choiceLabel().visit(this);
-        cs.caseBlock().visit(this);
+        cs.getLabel().visit(this);
+        cs.getBody().visit(this);
 
-        cs.symbolTable = currentScope;
+        cs.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -278,13 +278,13 @@ public class NameChecker extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
-        cs.choiceExpr().visit(this);
+        cs.getChoiceValue().visit(this);
 
-        for(CaseStmt c : cs.caseStmts())
+        for(CaseStmt c : cs.getCases())
             c.visit(this);
 
-        cs.otherBlock().visit(this);
-        cs.symbolTable = currentScope;
+        cs.getDefaultBody().visit(this);
+        cs.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -307,15 +307,15 @@ public class NameChecker extends Visitor {
                    .addErrorNumber(MessageNumber.SCOPE_ERROR_307)
                    .addErrorArgs(cd)
                    .asScopeErrorBuilder()
-                   .addOriginalDeclaration(currentScope.findName(cd.toString()).decl())
+                   .addOriginalDeclaration(currentScope.findName(cd.toString()).getDecl())
                    .generateError();
         }
 
         currentScope.addName(cd.toString(),cd);
 
-        if(cd.superClass() != null) {
+        if(cd.getSuperClass() != null) {
             // ERROR CHECK #2: This checks if the class tries to inherit itself.
-            if(cd.toString().equals(cd.superClass().toString())) {
+            if(cd.toString().equals(cd.getSuperClass().toString())) {
                 handler.createErrorBuilder(ScopeError.class)
                         .addLocation(cd)
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_308)
@@ -324,27 +324,27 @@ public class NameChecker extends Visitor {
             }
 
             // ERROR CHECK #3: This checks if the inherited class was declared in the program.
-            if(!currentScope.hasNameSomewhere(cd.superClass().toString())) {
+            if(!currentScope.hasNameSomewhere(cd.getSuperClass().toString())) {
                 handler.createErrorBuilder(ScopeError.class)
                         .addLocation(cd)
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_309)
-                        .addErrorArgs(cd,cd.superClass())
+                        .addErrorArgs(cd,cd.getSuperClass())
                         .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1301)
-                        .addSuggestionArgs(cd.superClass())
+                        .addSuggestionArgs(cd.getSuperClass())
                         .generateError();
             }
 
-            baseClass = currentScope.findName(cd.superClass().toString()).decl().asTopLevelDecl().asClassDecl();
+            baseClass = currentScope.findName(cd.getSuperClass().toString()).getDecl().asTopLevelDecl().asClassDecl();
         }
 
         currentScope = currentScope.openNewScope();
-        cd.symbolTable = currentScope;
+        cd.setScope(currentScope);
         currentClass = cd;
 
-        for(Typeifier tp : cd.typeParams())
+        for(TypeParam tp : cd.getTypeParams())
             currentScope.addName(tp.toString(),tp);
 
-        for(FieldDecl fd : cd.classBlock().getFields())
+        for(FieldDecl fd : cd.getClassBody().getFields())
             fd.visit(this);
 
         if(baseClass != null)
@@ -363,9 +363,9 @@ public class NameChecker extends Visitor {
      * </p>
      * @param c Compilation Unit
      */
-    public void visitCompilation(Compilation c) {
-        super.visitCompilation(c);
-        c.globalTable = currentScope;
+    public void visitCompilationUnit(CompilationUnit c) {
+        super.visitCompilationUnit(c);
+        c.setScope(currentScope);
     }
 
     /**
@@ -377,12 +377,12 @@ public class NameChecker extends Visitor {
      * @param ds Do Statement
      */
     public void visitDoStmt(DoStmt ds) {
-        ds.doBlock().visit(this);
+        ds.getBody().visit(this);
 
-        ds.symbolTable = currentScope;
+        ds.scope = currentScope;
         currentScope = currentScope.closeScope();
 
-        ds.condition().visit(this);
+        ds.getCondition().visit(this);
     }
 
     /**
@@ -403,21 +403,21 @@ public class NameChecker extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_321)
                     .addErrorArgs(ed)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(ed.toString()).decl())
+                    .addOriginalDeclaration(currentScope.findName(ed.toString()).getDecl())
                     .generateError();
         }
 
         currentScope.addName(ed.toString(),ed);
 
         // ERROR CHECK #2: This checks if each constant name in the enum was already declared somewhere in the program.
-        for(Var constant : ed.constants()) {
+        for(Var constant : ed.getConstants()) {
             if(currentScope.hasName(constant.toString())) {
                 handler.createErrorBuilder(ScopeError.class)
                         .addLocation(ed)
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_322)
                         .addErrorArgs(constant,ed)
                         .asScopeErrorBuilder()
-                        .addOriginalDeclaration(currentScope.findName(constant.toString()).decl())
+                        .addOriginalDeclaration(currentScope.findName(constant.toString()).getDecl())
                         .generateError();
             }
             currentScope.addName(constant.toString(),ed);
@@ -436,7 +436,7 @@ public class NameChecker extends Visitor {
     public void visitFieldDecl(FieldDecl fd) {
         // ERROR CHECK #1: This checks if the field name was already used in the current class.
         if(currentScope.hasName(fd.toString())) {
-            AST varLocation = currentScope.findName(fd.toString()).decl();
+            AST varLocation = currentScope.findName(fd.toString()).getDecl();
 
 //            if(interpretMode)
 //                currentScope = currentScope.closeScope();
@@ -452,11 +452,11 @@ public class NameChecker extends Visitor {
 
         currentScope.addName(fd.toString(),fd);
 
-        if(fd.var().init() != null) {
-            currentVariable = fd.toString();
-            fd.var().init().visit(this);
-            currentVariable = "";
-        }
+//        if(fd.var().init() != null) {
+//            currentVariable = fd.toString();
+//            fd.var().init().visit(this);
+//            currentVariable = "";
+//        }
     }
 
     /**
@@ -488,16 +488,16 @@ public class NameChecker extends Visitor {
     public void visitForStmt(ForStmt fs) {
         currentScope = currentScope.openNewScope();
 
-        fs.loopVar().visit(this);
-        fs.condLHS().visit(this);
-        fs.condRHS().visit(this);
+        fs.getControlVariable().visit(this);
+        fs.getStartValue().visit(this);
+        fs.getEndValue().visit(this);
 
-        for(LocalDecl ld : fs.forBlock().decls())
+        for(LocalDecl ld : fs.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : fs.forBlock().stmts())
+        for(Statement s : fs.getBody().getStatements())
             s.visit(this);
 
-        fs.symbolTable = currentScope;
+        fs.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -520,7 +520,7 @@ public class NameChecker extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_306)
                     .addErrorArgs(fd)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(fd.getSignature()).decl())
+                    .addOriginalDeclaration(currentScope.findName(fd.getSignature()).getDecl())
                     .generateError();
         }
 
@@ -528,15 +528,15 @@ public class NameChecker extends Visitor {
         currentScope.addMethod(fd.toString());
 
         currentScope = currentScope.openNewScope();
-        fd.symbolTable = currentScope;
+        fd.setScope(currentScope);
 
-        for(Typeifier tp : fd.typeParams())
+        for(TypeParam tp : fd.getTypeParams())
             currentScope.addName(tp.toString(),tp);
-        for(ParamDecl pd : fd.params())
+        for(ParamDecl pd : fd.getParams())
             pd.visit(this);
-        for(LocalDecl ld : fd.funcBlock().decls())
+        for(LocalDecl ld : fd.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : fd.funcBlock().stmts())
+        for(Statement s : fd.getBody().getStatements())
             s.visit(this);
 
         currentScope = currentScope.closeScope();
@@ -559,17 +559,17 @@ public class NameChecker extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_302)
                     .addErrorArgs(gd)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(gd.toString()).decl())
+                    .addOriginalDeclaration(currentScope.findName(gd.toString()).getDecl())
                     .generateError();
         }
 
         currentScope.addName(gd.toString(), gd);
 
-        if(gd.var().init() != null) {
-            currentVariable = gd.toString();
-            gd.var().init().visit(this);
-            currentVariable = "";
-        }
+//        if(gd.var().init() != null) {
+//            currentVariable = gd.toString();
+//            gd.var().init().visit(this);
+//            currentVariable = "";
+//        }
     }
 
     /**
@@ -582,18 +582,18 @@ public class NameChecker extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
-        is.ifBlock().visit(this);
+        is.getCondition().visit(this);
+        is.getIfBody().visit(this);
 
-        is.symbolTableIfBlock = currentScope;
+        is.ifScope = currentScope;
         currentScope = currentScope.closeScope();
 
-        for(IfStmt e : is.elifStmts())
+        for(IfStmt e : is.getElifs())
             e.visit(this);
 
-        if(is.elseBlock() != null) {
-            is.elseBlock().visit(this);
-            is.symbolTableElseBlock = currentScope;
+        if(is.getElseBody() != null) {
+            is.getElseBody().visit(this);
+            is.elseScope = currentScope;
             currentScope = currentScope.closeScope();
         }
     }
@@ -660,17 +660,17 @@ public class NameChecker extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_300)
                     .addErrorArgs(ld)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(ld.toString()).decl())
+                    .addOriginalDeclaration(currentScope.findName(ld.toString()).getDecl())
                     .generateError();
         }
 
         currentScope.addName(ld.toString(),ld);
-
-        if(ld.var().init() != null) {
-            currentVariable = ld.toString();
-            ld.var().init().visit(this);
-            currentVariable = "";
-        }
+//
+//        if(ld.var().init() != null) {
+//            currentVariable = ld.toString();
+//            ld.var().init().visit(this);
+//            currentVariable = "";
+//        }
     }
 
     /**
@@ -685,15 +685,15 @@ public class NameChecker extends Visitor {
      * @param md Main Declaration
      */
     public void visitMainDecl(MainDecl md) {
-        for(ParamDecl e : md.args())
+        for(ParamDecl e : md.getParams())
             e.visit(this);
 
-        for(LocalDecl ld : md.mainBody().decls())
+        for(LocalDecl ld : md.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : md.mainBody().stmts())
+        for(Statement s : md.getBody().getStatements())
             s.visit(this);
 
-        md.symbolTable = currentScope;
+        md.setScope(currentScope);
         currentScope.closeScope();
     }
 
@@ -709,10 +709,10 @@ public class NameChecker extends Visitor {
      */
     public void visitMethodDecl(MethodDecl md) {
         // ERROR CHECK #1: This checks to make sure we are not redeclaring a method with the same type arguments.
-        if(currentScope.hasName(md.methodSignature())) {
+        if(currentScope.hasName(md.getMethodSignature())) {
             // We will only error out if the method was redeclared in the same class twice. If the method overrides
             // a base class method, then we will check if the method was overridden correctly at a later point.
-            if(currentClass.superClass() == null || !currentClass.symbolTable.hasName(md.methodSignature())) {
+            if(currentClass.getSuperClass() == null || !currentClass.getScope().hasName(md.getMethodSignature())) {
 //                if(interpretMode)
 //                    currentScope = currentScope.closeScope();
 
@@ -721,22 +721,22 @@ public class NameChecker extends Visitor {
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_313)
                         .addErrorArgs(md,currentClass)
                         .asScopeErrorBuilder()
-                        .addOriginalDeclaration(currentScope.findName(md.methodSignature()).decl())
+                        .addOriginalDeclaration(currentScope.findName(md.getMethodSignature()).getDecl())
                         .generateError();
             }
         }
 
-        currentScope.addName(md.methodSignature(), md);
+        currentScope.addName(md.getMethodSignature(), md);
         currentScope.addMethod(md.toString());
 
         currentScope = currentScope.openNewScope();
-        md.symbolTable = currentScope;
+        md.setScope(currentScope);
 
-        for(ParamDecl pd : md.params())
+        for(ParamDecl pd : md.getParams())
             pd.visit(this);
-        for(LocalDecl ld : md.methodBlock().decls())
+        for(LocalDecl ld : md.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : md.methodBlock().stmts())
+        for(Statement s : md.getBody().getStatements())
             s.visit(this);
 
         currentScope = currentScope.closeScope();
@@ -757,15 +757,15 @@ public class NameChecker extends Visitor {
             // ERROR CHECK #1: This checks if the 'parent' keyword was used outside of a class.
             if(currentClass == null) {
                 handler.createErrorBuilder(ScopeError.class)
-                        .addLocation(ne.getRootParent())
+                        .addLocation(ne.getFullLocation())
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_318)
                         .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1302)
                         .generateError();
             }
             // ERROR CHECK #2: This checks if the 'parent' keyword is used in a class with no inherited classes.
-            if(currentClass.superClass() == null) {
+            if(currentClass.getSuperClass() == null) {
                 handler.createErrorBuilder(ScopeError.class)
-                        .addLocation(ne.getRootParent())
+                        .addLocation(ne.getFullLocation())
                         .addErrorArgs(currentClass)
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_319)
                         .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1303)
@@ -775,7 +775,7 @@ public class NameChecker extends Visitor {
         // ERROR CHECK #3: This checks if the name was not declared somewhere in the program.
         else if(!currentScope.isNameUsedAnywhere(ne.toString())) {
             handler.createErrorBuilder(ScopeError.class)
-                    .addLocation(ne.getRootParent())
+                    .addLocation(ne.getFullLocation())
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_304)
                     .addErrorArgs(ne)
                     .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1300)
@@ -783,13 +783,13 @@ public class NameChecker extends Visitor {
                     .generateError();
         }
         else {
-            AST varDecl = currentScope.findName(ne.toString()).decl();
+            AST varDecl = currentScope.findName(ne.toString()).getDecl();
 
             // ERROR CHECK #4: This checks if an enum type is used as a name.
             if(varDecl.isTopLevelDecl()) {
                 if (varDecl.asTopLevelDecl().isEnumDecl() && varDecl.toString().equals(ne.toString())) {
                     handler.createErrorBuilder(ScopeError.class)
-                            .addLocation(ne.getRootParent())
+                            .addLocation(ne.getFullLocation())
                             .addErrorNumber(MessageNumber.SCOPE_ERROR_320)
                             .addErrorArgs(ne)
                             .generateError();
@@ -798,7 +798,7 @@ public class NameChecker extends Visitor {
 
             // ERROR CHECK #5: This checks if any variable declaration contains its own name when initialized.
             if(!currentVariable.isEmpty() && currentVariable.equals(ne.toString())) {
-                AST decl = currentScope.findName(currentVariable).decl();
+                AST decl = currentScope.findName(currentVariable).getDecl();
                 ErrorBuilder eb = handler.createErrorBuilder(ScopeError.class)
                                       .addLocation(decl)
                                       .addErrorArgs(currentVariable);
@@ -847,11 +847,11 @@ public class NameChecker extends Visitor {
                     .addErrorArgs(ne.getClassType())
                     .generateError();
         }
-        ClassDecl cd = currentScope.findName(ne.getClassType().getClassName().toString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.getClassType().getClassName().toString()).getDecl().asTopLevelDecl().asClassDecl();
         HashSet<String> seen = new HashSet<>();
         for(Var v : ne.getInitialFields()) {
             // ERROR CHECK #2: This checks if the field being initialized was declared in the class.
-            if(!cd.symbolTable.hasName(v.toString())) {
+            if(!cd.getScope().hasName(v.toString())) {
                 handler.createErrorBuilder(ScopeError.class)
                         .addLocation(ne)
                         .addErrorNumber(MessageNumber.SCOPE_ERROR_315)
@@ -867,7 +867,7 @@ public class NameChecker extends Visitor {
                         .generateError();
             }
             seen.add(v.toString());
-            v.init().visit(this);
+            v.getInitialValue().visit(this);
         }
     }
 
@@ -891,7 +891,7 @@ public class NameChecker extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_305)
                     .addErrorArgs(pd)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(pd).decl())
+                    .addOriginalDeclaration(currentScope.findName(pd).getDecl())
                     .generateError();
         }
         currentScope.addName(pd.toString(),pd);
@@ -930,10 +930,10 @@ public class NameChecker extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
-        ws.condition().visit(this);
-        ws.whileBlock().visit(this);
+        ws.getCondition().visit(this);
+        ws.getBody().visit(this);
 
-        ws.symbolTable = currentScope;
+        ws.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 }

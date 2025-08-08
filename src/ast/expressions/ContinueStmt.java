@@ -79,7 +79,7 @@ public class ContinueStmt extends Expression {
          * @return ContinueStmtBuilder
          */
         public ContinueStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(cs,node);
             return this;
         }
 
@@ -88,7 +88,6 @@ public class ContinueStmt extends Expression {
          * @return {@link ContinueStmt}
          */
         public ContinueStmt create() {
-            super.saveMetaData(cs);
             return cs;
         }
     }

@@ -48,7 +48,7 @@ public class NameExpr extends Expression {
         if(name != null && name.toString().equals("parent"))
             this.isParent = true;
 
-        addChild(this.name);
+        addChildNode(this.name);
     }
 
     /**
@@ -103,7 +103,7 @@ public class NameExpr extends Expression {
      * @param node Node we want to add to the specified position.
      */
     @Override
-    public void update(int pos, AST node) { name = node.asName(); }
+    public void update(int pos, AST node) { name = node.asSubNode().asName(); }
 
     /**
      * {@code deepCopy} method.
@@ -113,7 +113,7 @@ public class NameExpr extends Expression {
     public AST deepCopy(){
         return new NameExprBuilder()
                    .setMetaData(this)
-                   .setName(this.name.deepCopy().asName())
+                   .setName(this.name.deepCopy().asSubNode().asName())
                    .create();
     }
 
@@ -140,7 +140,7 @@ public class NameExpr extends Expression {
          * @return NameExprBuilder
          */
         public NameExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ne,node);
             return this;
         }
 
@@ -159,8 +159,7 @@ public class NameExpr extends Expression {
          * @return {@link NameExpr}
          */
         public NameExpr create() {
-            super.saveMetaData(ne);
-            ne.addChild(ne.name);
+            ne.addChildNode(ne.name);
             return ne;
         }
     }

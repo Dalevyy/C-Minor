@@ -1,6 +1,6 @@
 package micropasses;
 
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.topleveldecls.ImportDecl;
 import compiler.Compiler;
 import java.io.BufferedReader;
@@ -54,21 +54,12 @@ public class ImportHandler extends Visitor {
      */
     private final static Vector<String> seenImports = new Vector<>();
 
-    /**
-     * Creates a default {@code ImportHandler} object.
-     * @param mode ThisStmt represents the compiler mode we are in.
-     */
-    public ImportHandler(boolean mode) {
-        this.handler = new MessageHandler();
-    }
 
     /**
      * Creates an {@code ImportHandler} object.
      * @param mainFile ThisStmt is a String that represents the original file we were compiling
-     * @param mode ThisStmt represents the compiler mode we are in.
      */
-    public ImportHandler(String mainFile, boolean mode) {
-        this(mode);
+    public ImportHandler(String mainFile) {
         this.currFile = mainFile;
         seenImports.add(mainFile);
         this.handler = new MessageHandler(mainFile);
@@ -190,7 +181,7 @@ public class ImportHandler extends Visitor {
         }
 
         Compiler c = new Compiler(im.toString());
-        Compilation root = c.syntaxAnalysis(program.toString(),false,true);
-        im.addCompilationUnit(root);
+        CompilationUnit root = c.syntaxAnalysis(program.toString());
+        im.setCompilationUnit(root);
     }
 }

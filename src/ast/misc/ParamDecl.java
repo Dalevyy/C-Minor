@@ -1,78 +1,140 @@
 package ast.misc;
 
-import ast.*;
-import ast.types.*;
-import token.*;
+import ast.AST;
+import ast.types.Type;
+import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
 
-/*
-___________________________ ParamDecl ___________________________
-A ParamDecl represents a parameter that is declared for either a
-FuncDecl or a MethodDecl. Parameters will take the form of
-'<mod> <name>:<type>`.
-_________________________________________________________________
-*/
-public class ParamDecl extends AST implements NameNode {
+/**
+ * A {@link SubNode} type representing a parameter.
+ * <p>
+ *     A C Minor parameter can be declared with either a {@link ast.classbody.MethodDecl} or
+ *     a {@link ast.topleveldecls.FuncDecl}. There are 4 passing modes in C Minor:
+ *     <ol>
+ *         <li>In</li>
+ *         <li>Out</li>
+ *         <li>In Out</li>
+ *         <li>Ref</li>
+ *     </ol>
+ * </p>
+ * @author Daniel Levy
+ */
+public class ParamDecl extends SubNode implements NameDecl {
 
-    public Modifiers mod;
-
+    /**
+     * The name of the parameter.
+     */
     private Name name;
-    private Type paramType;
 
+    /**
+     * The declared type of the parameter.
+     */
+    private Type type;
+
+    /**
+     * The parameter's passing mode.
+     */
+    public Modifier mod;
+
+    /**
+     * Default constructor for {@link ParamDecl}.
+     */
     public ParamDecl() { this(new Token(),null,null,null); }
-    public ParamDecl(Modifier m, Name n, Type paramType) { this(new Token(),m,n, paramType); }
 
-    public ParamDecl(Token t, Modifier m, Name n, Type paramType) {
-        super(t);
-        this.mod = new Modifiers(m);
-        this.name = n;
-        this.paramType = paramType;
+    /**
+     * Main constructor for {@link ParamDecl}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param mod {@link Modifier} to store into {@link #mod}.
+     * @param name {@link Name} to store into {@link #name}.
+     * @param type {@link Type} to store into {@link #type}.
+     */
+    public ParamDecl(Token metaData, Modifier mod, Name name, Type type) {
+        super(metaData);
 
-        addChild(this.name);
+        this.mod = mod;
+        this.name = name;
+        this.type = type;
     }
 
-    public Type type() { return paramType; }
+    /**
+     * Getter method for {@link #type}.
+     * @return {@link Type}
+     */
+    public Type getType() { return type; }
 
-    @Override
-    public String toString() { return name.toString(); }
+    /**
+     * Setter method to reset {@link #type}.
+     * <p>
+     *     This will be called by the {@link micropasses.TypeValidityPass} when we are updating
+     *     the type of a {@link ParamDecl}.
+     * </p>
+     * @param type {@link Type} we wish to replace the current type with.
+     */
+    public void setType(Type type) { this.type = type;}
 
-    public void setType(Type t) { this.paramType = t;}
-    public AST decl() { return this;}
-
-    public boolean isParamDecl() { return true; }
-    public ParamDecl asParamDecl() { return this; }
-
-    public boolean isParamTypeTemplated(Vector<Typeifier> typeParams) {
-        for(Typeifier typeParam : typeParams) {
-            if(typeParam.toString().equals(paramType.typeSignature()))
+    /**
+     * Checks if the current parameter is templated.
+     * @param typeParams {@link Vector} of type parameters we will check to see if they are used in {@link #type}.
+     * @return {@code True} if the parameter is templated, {@code False} otherwise.
+     */
+    public boolean isParameterTemplated(Vector<TypeParam> typeParams) {
+        for(TypeParam tp : typeParams) {
+            if(tp.equals(type.typeSignature()))
                 return true;
         }
         return false;
     }
 
-    @Override
-    public void update(int pos, AST n) {
-        switch(pos) {
-            case 0:
-                name = n.asName();
-                break;
-            case 1:
-                paramType = n.asType();
-                break;
-        }
-    }
+    /**
+     * {@inheritDoc}
+     */
+    public AST getDecl() { return this;}
 
+    /**
+     * {@inheritDoc}
+     */
+    public String getDeclName() { return name.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isParamDecl() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public ParamDecl asParamDecl() { return this; }
+
+    /**
+     * Returns the name of the parameter.
+     * @return String representation of the parameter's name.
+     */
+    @Override
+    public String toString() { return name.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void update(int pos, AST node) { throw new RuntimeException("A parameter declaration can not be updated.");}
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AST deepCopy() {
         return new ParamDeclBuilder()
                    .setMetaData(this)
-                   .setMod(this.mod)
-                   .setName(this.name.deepCopy().asName())
-                   .setType(this.paramType.deepCopy().asType())
+                   .setModifier(mod)
+                   .setName(name.deepCopy().asSubNode().asName())
+                   .setType(type.deepCopy().asSubNode().asType())
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitParamDecl(this); }
 
@@ -87,29 +149,28 @@ public class ParamDecl extends AST implements NameNode {
         private final ParamDecl pd = new ParamDecl();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return FieldDeclBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link ParamDeclBuilder}.
          */
         public ParamDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(pd, node);
             return this;
         }
 
         /**
          * Sets the parameter declaration's {@link #mod}.
-         * @param mod Modifier representing the passing technique of the parameter
-         * @return ParamDeclBuilder
+         * @param mod {@link Modifier} representing the passing mode of the parameter
+         * @return Current instance of {@link ParamDeclBuilder}.
          */
-        public ParamDeclBuilder setMod(Modifiers mod) {
+        public ParamDeclBuilder setModifier(Modifier mod) {
             pd.mod = mod;
             return this;
         }
 
         /**
          * Sets the parameter declaration's {@link #name}.
-         * @param name Name that represents the parameter
-         * @return ParamDeclBuilder
+         * @param name {@link Name} that represents the parameter's identification.
+         * @return Current instance of {@link ParamDeclBuilder}.
          */
         public ParamDeclBuilder setName(Name name) {
             pd.name = name;
@@ -117,12 +178,12 @@ public class ParamDecl extends AST implements NameNode {
         }
 
         /**
-         * Sets the parameter declaration's {@link #paramType}.
-         * @param type Type representing the data type the parameter represents
-         * @return ParamDeclBuilder
+         * Sets the parameter declaration's {@link #type}.
+         * @param type {@link Type} representing the data type the parameter stores
+         * @return Current instance of {@link ParamDeclBuilder}.
          */
         public ParamDeclBuilder setType(Type type) {
-            pd.setType(type);
+            pd.type = type;
             return this;
         }
 
@@ -130,10 +191,6 @@ public class ParamDecl extends AST implements NameNode {
          * Creates a {@link ParamDecl} object.
          * @return {@link ParamDecl}
          */
-        public ParamDecl create() {
-            super.saveMetaData(pd);
-            pd.addChild(pd.name);
-            return pd;
-        }
+        public ParamDecl create() { return pd; }
     }
 }

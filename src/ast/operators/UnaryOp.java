@@ -112,7 +112,7 @@ public class UnaryOp extends Operator {
          * @return UnaryOpBuilder
          */
         public UnaryOpBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(uo,node);
             return this;
         }
 
@@ -131,7 +131,6 @@ public class UnaryOp extends Operator {
          * @return {@link UnaryOp}
          */
         public UnaryOp create() {
-            super.saveMetaData(uo);
             return uo;
         }
     }

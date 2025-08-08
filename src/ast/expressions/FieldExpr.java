@@ -56,8 +56,8 @@ public class FieldExpr extends Expression {
         if(this.accessExpr != null)
          this.isInvocation = this.accessExpr.isInvocation();
 
-        addChild(this.target);
-        addChild(this.accessExpr);
+        addChildNode(this.target);
+        addChildNode(this.accessExpr);
     }
 
     /**
@@ -191,7 +191,7 @@ public class FieldExpr extends Expression {
          * @return FieldExprBuilder
          */
         public FieldExprBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(fe,node);
             return this;
         }
 
@@ -229,9 +229,8 @@ public class FieldExpr extends Expression {
          * @return {@link FieldExpr}
          */
         public FieldExpr create() {
-            super.saveMetaData(fe);
-            fe.addChild(fe.target);
-            fe.addChild(fe.accessExpr);
+            fe.addChildNode(fe.target);
+            fe.addChildNode(fe.accessExpr);
             return fe;
         }
     }

@@ -1,9 +1,15 @@
 package utilities;
 
-import ast.classbody.*;
+import ast.classbody.ClassBody;
+import ast.classbody.FieldDecl;
+import ast.classbody.InitDecl;
+import ast.classbody.MethodDecl;
 import ast.expressions.*;
 import ast.misc.*;
-import ast.operators.*;
+import ast.operators.AssignOp;
+import ast.operators.BinaryOp;
+import ast.operators.LoopOp;
+import ast.operators.UnaryOp;
 import ast.statements.*;
 import ast.topleveldecls.*;
 import ast.types.*;
@@ -28,12 +34,11 @@ public abstract class Visitor {
     public void visitBreakStmt(BreakStmt bs) { bs.visitChildren(this); }
     public void visitCaseStmt(CaseStmt cs) { cs.visitChildren(this); }
     public void visitCastExpr(CastExpr ce) { ce.visitChildren(this); }
-    public void visitChoiceLabel(Label cl) { cl.visitChildren(this); }
     public void visitChoiceStmt(ChoiceStmt chs) { chs.visitChildren(this); }
     public void visitClassBody(ClassBody cb) { cb.visitChildren(this); }
     public void visitClassDecl(ClassDecl cd) { cd.visitChildren(this); }
     public void visitClassType(ClassType ct) { ct.visitChildren(this); }
-    public void visitCompilation(Compilation c) { c.visitChildren(this); }
+    public void visitCompilationUnit(CompilationUnit cu) { cu.visitChildren(this); }
     public void visitContinueStmt(ContinueStmt cs) { cs.visitChildren(this); }
     public void visitDiscreteType(DiscreteType dt) { dt.visitChildren(this); }
     public void visitDoStmt(DoStmt ds) { ds.visitChildren(this); }
@@ -51,6 +56,7 @@ public abstract class Visitor {
     public void visitInitDecl(InitDecl id) { id.visitChildren(this); }
     public void visitInStmt(InStmt ins) { ins.visitChildren(this); }
     public void visitInvocation(Invocation i) { i.visitChildren(this); }
+    public void visitLabel(Label l) { l.visitChildren(this);}
     public void visitListLiteral(ListLiteral ll) { ll.visitChildren(this); }
     public void visitListStmt(ListStmt ls) { ls.visitChildren(this); }
     public void visitListType(ListType lt) { lt.visitChildren(this); }
@@ -71,7 +77,7 @@ public abstract class Visitor {
     public void visitScalarType(ScalarType st) { st.visitChildren(this); }
     public void visitStopStmt(StopStmt ss) { ss.visitChildren(this); }
     public void visitThis(ThisStmt t) { t.visitChildren(this); }
-    public void visitTypeifier(Typeifier t) { t.visitChildren(this); }
+    public void visitTypeParam(TypeParam tp) { tp.visitChildren(this); }
     public void visitUnaryExpr(UnaryExpr ue) { ue.visitChildren(this); }
     public void visitUnaryOp(UnaryOp uo) { uo.visitChildren(this); }
     public void visitVar(Var v) { v.visitChildren(this); }

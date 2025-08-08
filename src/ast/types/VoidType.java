@@ -54,7 +54,7 @@ public class VoidType extends Type {
          * @return VoidTypeBuilder
          */
         public VoidTypeBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(vt,node);
             return this;
         }
 
@@ -63,7 +63,6 @@ public class VoidType extends Type {
          * @return {@link VoidType}
          */
         public VoidType create() {
-            super.saveMetaData(vt);
             return vt;
         }
     }

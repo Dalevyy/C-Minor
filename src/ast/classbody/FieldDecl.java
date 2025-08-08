@@ -1,90 +1,135 @@
 package ast.classbody;
 
 import ast.AST;
+import ast.expressions.Expression;
 import ast.misc.Modifier;
-import ast.misc.Modifiers;
-import ast.misc.NameNode;
+import ast.misc.Name;
+import ast.misc.NameDecl;
 import ast.misc.Var;
-import ast.types.*;
-import token.*;
+import ast.misc.VarDecl;
+import ast.topleveldecls.ClassDecl;
+import ast.types.Type;
+import token.Token;
 import utilities.Visitor;
 
-public class FieldDecl extends AST implements NameNode {
-
-    private void setMod(Modifiers mod) {
-        this.mod = mod;
-    }
-
-    public Modifiers mod;
-
-    private void setVar(Var var) {
-        this.var = var;
-    }
-
-    private Var var;
-    private Type type;
-
-    public FieldDecl() { this(new Token(),null,null,null); }
-    public FieldDecl(Token t, Modifier m, Var v, Type type) {
-        super(t);
-        this.mod = new Modifiers(m);
-        this.var = v;
-        this.type = type;
-
-        addChild(this.var);
-        setParent();
-    }
-
-    public AST decl() { return this; }
-
-    public Var var() { return var; }
-    public void setType(Type t) { this.type = t; }
-    public Type type() { return type; }
+/**
+ * A {@link ClassNode} that stores a field declaration written in a {@link ClassDecl}.
+ * @author Daniel Levy
+ */
+public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
 
     /**
-     * Checks if the current AST node is a {@link FieldDecl}.
-     * @return Boolean
+     * A {@link Var} representing a field variable for an object.
+     */
+    private Var fieldVariable;
+
+    /**
+     * {@link Modifier} containing the access privilege of the field.
+     */
+    public Modifier mod;
+
+    /**
+     * Default constructor for {@link FieldDecl}.
+     */
+    public FieldDecl() { this(new Token(), null, null); }
+
+    /**
+     * Main constructor for {@link FieldDecl}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param mod {@link Modifier} that will be stored into {@link #mod}.
+     * @param fieldVariable {@link Var} that will be stored into {@link #fieldVariable}.
+     */
+    public FieldDecl(Token metaData, Modifier mod, Var fieldVariable) {
+        super(metaData);
+
+        this.mod = mod;
+        this.fieldVariable = fieldVariable;
+
+        addChildNode(this.fieldVariable);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean hasInitialValue() { return fieldVariable.getInitialValue() != null; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Name getVariableName() { return fieldVariable.getVariableName(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Expression getInitialValue() { return fieldVariable.getInitialValue(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setInitialValue(Expression init) { fieldVariable.setInitialValue(init); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Type getDeclaredType() { return fieldVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String toString() { return fieldVariable.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST asAST() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public AST getDecl() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public String getDeclName() { return fieldVariable.toString();}
+
+    /**
+     * {@inheritDoc}
+     */
+    public ClassDecl getClassDecl() { return parent.asClassNode().getClassDecl(); }
+
+    /**
+     * {@inheritDoc}
      */
     public boolean isFieldDecl() { return true; }
 
     /**
-     * Type cast method for {@link FieldDecl}.
-     * @return FieldDecl
+     * {@inheritDoc}
      */
     public FieldDecl asFieldDecl() { return this; }
 
     /**
-     * {@code toString} method.
-     * @return String representing the name of the field
+     * {@inheritDoc}
      */
     @Override
-    public String toString() { return var().toString(); }
+    public void update(int pos, AST node) { fieldVariable = node.asSubNode().asVar(); }
 
     /**
-     * {@code update} method.
-     * @param pos Position we want to update.
-     * @param node Node we want to add to the specified position.
-     */
-    @Override
-    public void update(int pos, AST node) { this.var = node.asVar(); }
-
-    /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link FieldDecl}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
         return new FieldDeclBuilder()
-                .setMetaData(this)
-                .setMod(mod)
-                .setVar(this.var.deepCopy().asVar())
-                .setType(this.type.deepCopy().asType())
-                .create();
+                   .setMetaData(this)
+                   .setMod(mod)
+                   .setFieldVariable(fieldVariable.deepCopy().asSubNode().asVar())
+                   .create();
     }
 
     /**
-     * {@code visit} method.
-     * @param v Current visitor we are executing.
+     * {@inheritDoc}
      */
     @Override
     public void visit(Visitor v) { v.visitFieldDecl(this); }
@@ -100,42 +145,31 @@ public class FieldDecl extends AST implements NameNode {
         private final FieldDecl fd = new FieldDecl();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return FieldDeclBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link FieldDeclBuilder}.
          */
         public FieldDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(fd, node);
             return this;
         }
 
         /**
          * Sets the field declaration's {@link #mod}.
-         * @param mod Modifier representing the access ability of the modifier.
-         * @return FieldDeclBuilder
+         * @param mod {@link ast.misc.Modifier} representing the access rules for the field.
+         * @return Current instance of {@link FieldDeclBuilder}.
          */
-        public FieldDeclBuilder setMod(Modifiers mod) {
-            fd.setMod(mod);
+        public FieldDeclBuilder setMod(Modifier mod) {
+            fd.mod = mod;
             return this;
         }
 
         /**
-         * Sets the field declaration's {@link #var}.
-         * @param var Variable that represents the field
-         * @return FieldDeclBuilder
+         * Sets the field declaration's {@link #fieldVariable}.
+         * @param fieldVariable {@link Var} that represents the variable the field declares.
+         * @return Current instance of {@link FieldDeclBuilder}.
          */
-        public FieldDeclBuilder setVar(Var var) {
-            fd.setVar(var);
-            return this;
-        }
-
-        /**
-         * Sets the field declaration's {@link #type}.
-         * @param type Type representing the data type the field represents
-         * @return FieldDeclBuilder
-         */
-        public FieldDeclBuilder setType(Type type) {
-            fd.setType(type);
+        public FieldDeclBuilder setFieldVariable(Var fieldVariable) {
+            fd.fieldVariable = fieldVariable;
             return this;
         }
 
@@ -144,8 +178,7 @@ public class FieldDecl extends AST implements NameNode {
          * @return {@link FieldDecl}
          */
         public FieldDecl create() {
-            super.saveMetaData(fd);
-            fd.addChild(fd.var);
+            fd.addChildNode(fd.fieldVariable);
             return fd;
         }
     }

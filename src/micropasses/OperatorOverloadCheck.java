@@ -36,10 +36,10 @@ public class OperatorOverloadCheck extends Visitor {
      * @param md Method declaration
      */
     public void visitMethodDecl(MethodDecl md) {
-        if(md.isOperatorOverload) {
-            if(md.operator().isUnaryOp()) {
+        if(md.isOperator()) {
+            if(md.getOperatorOverload().isUnaryOp()) {
                 // ERROR CHECK #1: Make sure a unary operator overload has no arguments
-                if(!md.params().isEmpty()) {
+                if(!md.getParams().isEmpty()) {
                     handler.createErrorBuilder(SemanticError.class)
                         .addLocation(md)
                         .addErrorNumber(MessageNumber.SEMANTIC_ERROR_701)
@@ -48,7 +48,7 @@ public class OperatorOverloadCheck extends Visitor {
             }
             else {
                 // ERROR CHECK #2: Make sure a binary operator overload has only one argument
-                if(md.params().size() != 1) {
+                if(md.getParams().size() != 1) {
                     handler.createErrorBuilder(SemanticError.class)
                             .addLocation(md)
                             .addErrorNumber(MessageNumber.SEMANTIC_ERROR_702)

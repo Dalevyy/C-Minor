@@ -1,96 +1,165 @@
 package ast.statements;
 
 import ast.AST;
-import ast.expressions.*;
-import token.*;
-import utilities.Visitor;
+import ast.expressions.Expression;
+import ast.misc.ScopeDecl;
+import token.Token;
 import utilities.SymbolTable;
+import utilities.Visitor;
 
-public class WhileStmt extends Statement {
+/**
+ * A {@link Statement} node representing a while loop.
+ * @author Daniel Levy
+ */
+public class WhileStmt extends Statement implements ScopeDecl {
 
-    public SymbolTable symbolTable;
+    /**
+     * The scope opened by the current {@link WhileStmt}.
+     */
+    public SymbolTable scope;
 
-    private Expression cond;
-    private BlockStmt whileBlock;
+    /**
+     * An {@link Expression} representing the condition to execute the while loop.
+     */
+    private Expression condition;
 
+    /**
+     * A {@link BlockStmt} representing the body of the while loop.
+     */
+    private BlockStmt body;
+
+    /**
+     * Default constructor for {@link WhileStmt}.
+     */
     public WhileStmt() { this(new Token(),null,null); }
-    public WhileStmt(Token t, Expression cond, BlockStmt whileBlock) {
-        super(t);
-        this.cond = cond;
-        this.whileBlock = whileBlock;
 
-        addChild(this.cond);
-        addChild(this.whileBlock);
-        setParent();
+    /**
+     * Main constructor for {@link WhileStmt}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param condition {@link Expression} to store into {@link #condition}.
+     * @param body {@link BlockStmt} to store into {@link #body}.
+     */
+    public WhileStmt(Token metaData, Expression condition, BlockStmt body) {
+        super(metaData);
+
+        this.condition = condition;
+        this.body = body;
+
+        addChildNode(this.condition);
+        addChildNode(this.body);
     }
 
-    public Expression condition() { return cond; }
-    public BlockStmt whileBlock() { return whileBlock; }
+    /**
+     * Getter method for {@link #condition}.
+     * @return {@link Expression}
+     */
+    public Expression getCondition() { return condition; }
 
+    /**
+     * Getter method for {@link #body}.
+     * @return {@link BlockStmt}
+     */
+    public BlockStmt getBody() { return body; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setScope(SymbolTable newScope) { scope = (scope == null) ? newScope : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public SymbolTable getScope() { return scope; }
+
+    /**
+     * {@inheritDoc}
+     */
     public boolean isWhileStmt() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
     public WhileStmt asWhileStmt() { return this; }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void update(int pos, AST n) {
+    public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                cond = n.asExpression();
+                condition = node.asExpression();
                 break;
             case 1:
-                whileBlock = n.asStatement().asBlockStmt();
+                body = node.asStatement().asBlockStmt();
                 break;
         }
     }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link WhileStmt}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
         return new WhileStmtBuilder()
                    .setMetaData(this)
-                   .setCondition(this.cond.deepCopy().asExpression())
-                   .setBlockStmt(this.whileBlock.deepCopy().asStatement().asBlockStmt())
-                   .setSymbolTable(this.symbolTable)
+                   .setCondition(condition.deepCopy().asExpression())
+                   .setBlockStmt(body.deepCopy().asStatement().asBlockStmt())
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitWhileStmt(this); }
 
+    /**
+     * Internal class that builds a {@link WhileStmt} object.
+     */
     public static class WhileStmtBuilder extends NodeBuilder {
+
+        /**
+         * {@link WhileStmt} object we are building.
+         */
         private final WhileStmt ws = new WhileStmt();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return WhileStmtBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link WhileStmtBuilder}.
          */
         public WhileStmtBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ws, node);
             return this;
         }
 
-        public WhileStmtBuilder setCondition(Expression cond) {
-            ws.cond = cond;
+        /**
+         * Sets the while statement's {@link #condition}.
+         * @param condition {@link Expression} representing the condition of the while loop.
+         * @return Current instance of {@link WhileStmtBuilder}.
+         */
+        public WhileStmtBuilder setCondition(Expression condition) {
+            ws.condition = condition;
             return this;
         }
 
-        public WhileStmtBuilder setBlockStmt(BlockStmt whileBlock) {
-            ws.whileBlock = whileBlock;
+        /**
+         * Sets the while statement's {@link #body}.
+         * @param body {@link BlockStmt} representing the body of the while loop.
+         * @return Current instance of {@link WhileStmtBuilder}.
+         */
+        public WhileStmtBuilder setBlockStmt(BlockStmt body) {
+            ws.body = body;
             return this;
         }
 
-        public WhileStmtBuilder setSymbolTable(SymbolTable st) {
-            ws.symbolTable = st;
-            return this;
-        }
-
+        /**
+         * Creates a {@link WhileStmt} object.
+         * @return {@link WhileStmt}
+         */
         public WhileStmt create() {
-            super.saveMetaData(ws);
-            ws.addChild(ws.cond);
-            ws.addChild(ws.whileBlock);
+            ws.addChildNode(ws.condition);
+            ws.addChildNode(ws.body);
             return ws;
         }
     }

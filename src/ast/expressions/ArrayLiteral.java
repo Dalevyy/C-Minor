@@ -53,8 +53,8 @@ public class ArrayLiteral extends Literal {
         this.inits = inits;
         this.numOfDims = dims.isEmpty() ? 1 : dims.size();
 
-        addChild(this.dims);
-        addChild(this.inits);
+        addChildNode(this.dims);
+        addChildNode(this.inits);
     }
 
     /**
@@ -161,7 +161,7 @@ public class ArrayLiteral extends Literal {
          * @return ArrayLiteralBuilder
          */
         public ArrayLiteralBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(al,node);
             return this;
         }
 
@@ -190,9 +190,8 @@ public class ArrayLiteral extends Literal {
          * @return {@link ArrayLiteral}
          */
         public ArrayLiteral create() {
-            super.saveMetaData(al);
-            al.addChild(al.getArrayDims());
-            al.addChild(al.getArrayInits());
+            al.addChildNode(al.getArrayDims());
+            al.addChildNode(al.getArrayInits());
             return al;
         }
     }

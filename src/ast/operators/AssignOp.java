@@ -118,7 +118,7 @@ public class AssignOp extends Operator {
          * @return AssignOpBuilder
          */
         public AssignOpBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(ao,node);
             return this;
         }
 
@@ -137,7 +137,6 @@ public class AssignOp extends Operator {
          * @return {@link AssignOp}
          */
         public AssignOp create() {
-            super.saveMetaData(ao);
             return ao;
         }
     }

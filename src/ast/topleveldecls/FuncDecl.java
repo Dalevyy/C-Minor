@@ -1,77 +1,193 @@
 package ast.topleveldecls;
 
-import ast.*;
-import ast.misc.*;
-import ast.statements.*;
-import ast.types.*;
-import token.*;
+import ast.AST;
+import ast.misc.Modifier;
+import ast.misc.Name;
+import ast.misc.NameDecl;
+import ast.misc.ParamDecl;
+import ast.misc.ScopeDecl;
+import ast.misc.TypeParam;
+import ast.statements.BlockStmt;
+import ast.types.Type;
+import token.Token;
 import utilities.Vector;
 import utilities.Visitor;
 import utilities.SymbolTable;
 
-public class FuncDecl extends TopLevelDecl implements NameNode {
+/**
+ * A {@link TopLevelDecl} node that represents a function.
+ * @author Daniel Levy
+ */
+public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
 
-    public SymbolTable symbolTable;
-    public Modifiers mod;
+    /**
+     * The scope of the function.
+     */
+    private SymbolTable scope;
 
+    /**
+     * The name of the function.
+     */
     private Name name;
-    private Vector<Typeifier> typeParams;
+
+    /**
+     * List of type parameters the function has. This is only set if the function is a template.
+     */
+    private Vector<TypeParam> typeParams;
+
+    /**
+     * List of parameters the function will accept.
+     */
     private Vector<ParamDecl> params;
-    private Type retType;
-    private BlockStmt block;
+
+    /**
+     * The return type of the function.
+     */
+    private Type returnType;
+
+    /**
+     * The body of the function.
+     */
+    private BlockStmt body;
+
+    /**
+     * {@link Modifier} that tells us if the function is {@code pure} or {@code recursive}.
+     */
+    public Modifier mod;
 
     /**
      * Signature of the current function in the form {@code <funcName>(<paramTypeSignatures>)}
      */
     private String signature;
 
-    public FuncDecl() { this(new Token(),null,null,new Vector<>(),new Vector<>(),null,null); }
-    public FuncDecl(Token t, Modifier m, Name n, Vector<Typeifier> tp, Vector<ParamDecl> p, Type rt, BlockStmt b) {
-        super(t);
-        this.mod = new Modifiers(m);
-        this.name = n;
-        this.typeParams = tp;
-        this.params = p;
-        this.retType = rt;
-        this.block = b;
+    /**
+     * The signature of the function's parameters.
+     */
+    private String paramSignature;
 
-        addChild(this.name);
-        addChild(this.typeParams);
-        addChild(this.params);
-        addChild(this.retType);
-        addChild(this.block);
-        setParent();
+    /**
+     * Default constructor for {@link FuncDecl}.
+     */
+    public FuncDecl() { this(new Token(),null,null,new Vector<>(),new Vector<>(),null,null); }
+
+    /**
+     * Main constructor for {@link FuncDecl}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param mod {@link Modifier} that will be stored into {@link #mod}.
+     * @param name {@link Name} that will be stored into {@link #name}.
+     * @param typeParams {@link Vector} of type parameters that will be stored into {@link #typeParams}.
+     * @param params {@link Vector} of {@link ParamDecl} that will be stored into {@link #params}.
+     * @param returnType {@link Type} that will be stored into {@link #returnType}.
+     * @param body {@link BlockStmt} that will be stored into {@link #body}.
+     */
+    public FuncDecl(Token metaData, Modifier mod, Name name, Vector<TypeParam> typeParams,
+                    Vector<ParamDecl> params, Type returnType, BlockStmt body) {
+        super(metaData);
+
+        this.mod = mod;
+        this.name = name;
+        this.typeParams = typeParams;
+        this.params = params;
+        this.returnType = returnType;
+        this.body = body;
+
+        addChildNode(this.typeParams);
+        addChildNode(this.params);
+        addChildNode(this.body);
 
         if(this.name != null)
             createSignature();
     }
 
-    public Name name() { return name; }
-    public Vector<Typeifier> typeParams() { return typeParams; }
-    public Vector<ParamDecl> params() { return params; }
-    public Type returnType() { return retType; }
-    public BlockStmt funcBlock() { return block; }
+    /**
+     * Checks if the function is a template or not.
+     * @return {@code True} if the function is a template, {@code False} otherwise.
+     */
+    public boolean isTemplate() { return !typeParams.isEmpty(); }
 
-    public AST decl() { return this; }
+    /**
+     * Getter method for {@link #name}.
+     * @return {@link Name}
+     */
+    public Name getName() { return name; }
 
-    public boolean isFuncDecl() { return true; }
-    public FuncDecl asFuncDecl() { return this; }
+    /**
+     * Getter method for {@link #typeParams}.
+     * @return {@link Vector} of type parameters
+     */
+    public Vector<TypeParam> getTypeParams() { return typeParams; }
 
-    public void setReturnType(Type returnType) { this.retType = returnType; }
+    /**
+     * Getter method for {@link #params}.
+     * @return {@link Vector} of parameters
+     */
+    public Vector<ParamDecl> getParams() { return params; }
 
-    public boolean isTemplate() { return !this.typeParams.isEmpty(); }
+    /**
+     * Getter method for {@link #returnType}.
+     * @return {@link Type}
+     */
+    public Type getReturnType() { return returnType; }
 
-    public void removeTypeParams(){
-        for(Typeifier tp : this.typeParams)
-            symbolTable.removeName(tp.toString());
-        this.typeParams = new Vector<>();
-    }
+    /**
+     * Getter method for {@link #body}.
+     * @return {@link BlockStmt}
+     */
+    public BlockStmt getBody() { return body; }
 
+    /**
+     * Getter method for {@link #signature}
+     * @return String representation of the function's signature.
+     */
     public String getSignature() { return signature; }
 
     /**
+     * Getter method for {@link #paramSignature}.
+     * <p>
+     *     This method also generates the parameter signature and prevents it from being generated again.
+     * </p>
+     * @return String representation of the function's parameter signature.
+     */
+    public String getParamSignature() {
+        if(paramSignature != null)
+            return paramSignature;
+
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < params.size(); i++)
+            sb.append(params.get(i).getType().typeSignature());
+        paramSignature = sb.toString();
+        return paramSignature;
+    }
+
+    /**
+     * Sets the value of {@link #returnType}.
+     * <p>
+     *     This will be called during the {@link micropasses.TypeValidityPass} when we are checking if
+     *     all types are valid.
+     * </p>
+     * @param returnType The {@link Type} we will update {@link #returnType} to store.
+     */
+    public void updateReturnType(Type returnType) { this.returnType = returnType; }
+
+    // Come back later to make sure this is good
+    public void removeTypeParams(){
+        for(TypeParam tp : this.typeParams)
+            //scope.removeName(tp.toString());
+        this.typeParams = new Vector<>();
+    }
+
+    /**
+     * Updates the {@link #signature} of the current function.
+     * <p>
+     *     This method will be used by {@link micropasses.TypeValidityPass} in order to
+     *     change the function's signature when a template function is instantiated.
+     * </p>
+     */
+    public void resetSignature() { createSignature(); }
+
+    /**
      * Creates the function signature.
-     * <p><br>
+     * <p>
      *     This method will create the signature for the current function when it is initialized.
      *     We do this at initialization since the signature will not change, so we can improve the
      *     compiler's performance. If we have a template function, then all parameters that use a
@@ -87,7 +203,7 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
 
         if(isTemplate()) {
             for(ParamDecl param : params) {
-                if(param.isParamTypeTemplated(typeParams))
+                if(param.isParameterTemplated(typeParams))
                     sb.append(".");
                 else
                     sb.append(param.getType().typeSignature());
@@ -102,45 +218,82 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
     }
 
     /**
-     * Updates the {@link #signature} of the current function.
-     * <p><br>
-     *     This method will be used by {@link micropasses.TypeValidityPass} in order to
-     *     change the function's signature when a template function is instantiated.
-     * </p>
+     * {@inheritDoc}
      */
-    public void resetSignature() { createSignature(); }
+    public AST getDecl() { return this; }
 
-    @Override
-    public String header() {
-        int endColumn = retType.location.end.column;
-        return  startLine() + "| " + text.substring(0,endColumn) + "\n";
-    }
+    /**
+     * {@inheritDoc}
+     */
+    public String getDeclName() { return name.toString(); }
 
+    /**
+     * {@inheritDoc}
+     */
+    public SymbolTable getScope() { return (scope != null) ? scope : null; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setScope(SymbolTable st) { scope = (scope == null) ? st : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isFuncDecl() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public FuncDecl asFuncDecl() { return this; }
+
+    /**
+     * Returns the name of the function.
+     * @return String representation of the function name.
+     */
     @Override
     public String toString() { return name.toString(); }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String header() {
+        int endColumn = returnType.getLocation().end.column;
+        return getLocation().start.line + "| " + text.substring(0,endColumn) + "\n";
+    }
+
+    @Override
+    protected void update(int pos, AST newNode) { throw new RuntimeException("A function can not be updated."); }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public AST deepCopy() {
-        Vector<Typeifier> typeParams = new Vector<>();
+        Vector<TypeParam> typeParams = new Vector<>();
         Vector<ParamDecl> params = new Vector<>();
 
-        for(Typeifier tp : this.typeParams)
-            typeParams.add(tp.deepCopy().asTypeifier());
+        for(TypeParam tp : this.typeParams)
+            typeParams.add(tp.deepCopy().asSubNode().asTypeParam());
+
         for(ParamDecl pd : this.params)
-            params.add(pd.deepCopy().asParamDecl());
+            params.add(pd.deepCopy().asSubNode().asParamDecl());
 
         return new FuncDeclBuilder()
                    .setMetaData(this)
-                   .setMods(this.mod)
-                   .setFuncName(this.name.deepCopy().asName())
+                   .setMods(mod)
+                   .setFuncName(name.deepCopy().asSubNode().asName())
                    .setTypeArgs(typeParams)
                    .setParams(params)
-                   .setReturnType(this.retType.deepCopy().asType())
-                   .setBlockStmt(this.block.deepCopy().asStatement().asBlockStmt())
-                   .setSymbolTable(this.symbolTable)
+                   .setReturnType(returnType.deepCopy().asType())
+                   .setBlockStmt(body.deepCopy().asStatement().asBlockStmt())
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitFuncDecl(this); }
 
@@ -155,29 +308,28 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
         private final FuncDecl fd = new FuncDecl();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return FuncDeclBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
         public FuncDeclBuilder setMetaData(AST node) {
-            super.setMetaData(node);
+            super.setMetaData(fd, node);
             return this;
         }
 
         /**
          * Sets the function declaration's {@link #mod}.
-         * @param mods List of modifiers that is applied to the current function
-         * @return FuncDeclBuilder
+         * @param mod {@link Modifier} that is applied to the current function.
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
-        public FuncDeclBuilder setMods(Modifiers mods) {
-            fd.mod = mods;
+        public FuncDeclBuilder setMods(Modifier mod) {
+            fd.mod = mod;
             return this;
         }
 
         /**
          * Sets the function declaration's {@link #name}.
-         * @param name Name representing the name of the function
-         * @return FuncDeclBuilder
+         * @param name {@link Name} representing the name of the function
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
         public FuncDeclBuilder setFuncName(Name name) {
             fd.name = name;
@@ -186,18 +338,18 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
 
         /**
          * Sets the function declaration's {@link #typeParams}.
-         * @param typeArgs Vector of typeifiers that the function has
-         * @return FuncDeclBuilder
+         * @param typeParams {@link Vector} of type parameters the function might have.
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
-        public FuncDeclBuilder setTypeArgs(Vector<Typeifier> typeArgs) {
-            fd.typeParams = typeArgs;
+        public FuncDeclBuilder setTypeArgs(Vector<TypeParam> typeParams) {
+            fd.typeParams = typeParams;
             return this;
         }
 
         /**
          * Sets the function declaration's {@link #params}.
-         * @param params Vector of parameters that the function will accept
-         * @return FuncDeclBuilder
+         * @param params {@link Vector} of parameters that the function will accept
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
         public FuncDeclBuilder setParams(Vector<ParamDecl> params) {
             fd.params = params;
@@ -206,26 +358,21 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
 
         /**
          * Sets the function declaration's {@link #returnType}.
-         * @param returnType Type representing the value that the function returns
-         * @return FuncDeclBuilder
+         * @param returnType {@link Type} representing the value that the function returns.
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
         public FuncDeclBuilder setReturnType(Type returnType) {
-            fd.retType = returnType;
+            fd.returnType = returnType;
             return this;
         }
 
         /**
-         * Sets the function declaration's {@link #block}.
-         * @param funcBlock Block statement containing the code for the function to execute
-         * @return FuncDeclBuilder
+         * Sets the function declaration's {@link #body}.
+         * @param body {@link BlockStmt} containing the code for the function to execute.
+         * @return Current instance of {@link FuncDeclBuilder}.
          */
-        public FuncDeclBuilder setBlockStmt(BlockStmt funcBlock) {
-            fd.block = funcBlock;
-            return this;
-        }
-
-        public FuncDeclBuilder setSymbolTable(SymbolTable st) {
-            fd.symbolTable = st;
+        public FuncDeclBuilder setBlockStmt(BlockStmt body) {
+            fd.body = body;
             return this;
         }
 
@@ -234,11 +381,9 @@ public class FuncDecl extends TopLevelDecl implements NameNode {
          * @return {@link FuncDecl}
          * */
         public FuncDecl create() {
-            super.saveMetaData(fd);
-            fd.addChild(fd.name);
-            fd.addChild(fd.typeParams);
-            fd.addChild(fd.params);
-            fd.addChild(fd.block);
+            fd.addChildNode(fd.typeParams);
+            fd.addChildNode(fd.params);
+            fd.addChildNode(fd.body);
             fd.createSignature();
             return fd;
         }

@@ -5,9 +5,9 @@ import ast.classbody.FieldDecl;
 import ast.classbody.MethodDecl;
 import ast.expressions.Invocation;
 import ast.expressions.NewExpr;
-import ast.misc.Compilation;
+import ast.misc.CompilationUnit;
 import ast.misc.ParamDecl;
-import ast.misc.Typeifier;
+import ast.misc.TypeParam;
 import ast.statements.LocalDecl;
 import ast.topleveldecls.*;
 import ast.types.ClassType;
@@ -48,7 +48,7 @@ public class TypeValidityPass extends Visitor {
     /**
      * List containing all the type parameters belonging to a template class or function.
      */
-    private Vector<Typeifier> currentTypeParams;
+    private Vector<TypeParam> currentTypeParams;
 
     /**
      * List containing the type arguments used to instantiate a template class or function.
@@ -103,12 +103,12 @@ public class TypeValidityPass extends Visitor {
     private EnumType buildEnumType(ClassType metaData, EnumDecl ed) {
         EnumTypeBuilder enumTypeBuilder = new EnumTypeBuilder();
 
-        if(ed.type().asEnumType().constantType().isInt())
+        if(ed.getConstantType().asEnumType().constantType().isInt())
             enumTypeBuilder.setConstantType(Discretes.INT);
         else
             enumTypeBuilder.setConstantType(Discretes.CHAR);
 
-        enumTypeBuilder.setName(ed.name());
+        enumTypeBuilder.setName(ed.getName());
         enumTypeBuilder.setMetaData(metaData);
         return enumTypeBuilder.create();
     }
@@ -127,7 +127,7 @@ public class TypeValidityPass extends Visitor {
      * @return Boolean
      */
     private boolean nameShadowsTypeParam(String name) {
-        for(Typeifier tp : currentTypeParams)
+        for(TypeParam tp : currentTypeParams)
             if(name.equals(tp.toString()))
                 return true;
 
@@ -225,7 +225,7 @@ public class TypeValidityPass extends Visitor {
         //                 a type parameter. If no resolution can be made, we will print out a type error.
         if(!currentScope.hasNameSomewhere(ct.getClassNameAsString())) {
             handler.createErrorBuilder(TypeError.class)
-                    .addLocation(ct.getRootParent())
+                    .addLocation(ct.getFullLocation())
                     .addErrorNumber(MessageNumber.TYPE_ERROR_443)
                     .addErrorArgs(ct)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1440)
@@ -239,13 +239,13 @@ public class TypeValidityPass extends Visitor {
         //               we replace the template type with the passed type argument.
         if(currentTypeArgs != null) {
             for(int i = 0; i < currentTypeParams.size(); i++) {
-                Typeifier typeParam = currentTypeParams.get(i);
+                TypeParam typeParam = currentTypeParams.get(i);
                 if(typeParam.equals(ct.toString()))
                     return Type.instantiateType(ct, currentTypeArgs.get(i));
             }
         }
 
-        AST classTypeDecl = currentScope.findName(ct.getClassNameAsString()).decl();
+        AST classTypeDecl = currentScope.findName(ct.getClassNameAsString()).getDecl();
 
         // Case 1: The class type represents an enum. This means we need to rewrite it to represent an enum type.
         if(classTypeDecl.isTopLevelDecl() && classTypeDecl.asTopLevelDecl().isEnumDecl())
@@ -257,9 +257,9 @@ public class TypeValidityPass extends Visitor {
         }
         // ERROR CHECK #2: If the class type does not represent an enum, a class, or a type parameter,
         //                 then this means a variable name was used as a type which is not allowed.
-        else if(!classTypeDecl.isTypeifier()) {
+        else if(!classTypeDecl.isSubNode() || !classTypeDecl.asSubNode().isTypeParam()) {
             handler.createErrorBuilder(TypeError.class)
-                    .addLocation(ct.getRootParent())
+                    .addLocation(ct.getFullLocation())
                     .addErrorNumber(MessageNumber.TYPE_ERROR_465)
                     .addErrorArgs(ct)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1452)
@@ -281,16 +281,16 @@ public class TypeValidityPass extends Visitor {
      * @param ct {@link ClassType} representing a potential template type
      */
     private void checkIfTemplateTypeIsValid(ClassType ct) {
-        ClassDecl template = currentScope.findName(ct.getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl template = currentScope.findName(ct.getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: When a template type is written, we want to make sure the correct number of
         //                 type arguments were passed. This will be based on the number of type parameters
         //                 the template class was declared with. There are 2 possible errors here.
-        if(template.typeParams().size() != ct.typeArgs().size()) {
+        if(template.getTypeParams().size() != ct.typeArgs().size()) {
             // Case 1: This error is generated when a user writes type arguments for a non-template class type.
-            if(template.typeParams().isEmpty()) {
+            if(template.getTypeParams().isEmpty()) {
                 handler.createErrorBuilder(TypeError.class)
-                        .addLocation(ct.getRootParent())
+                        .addLocation(ct.getFullLocation())
                         .addErrorNumber(MessageNumber.TYPE_ERROR_444)
                         .addErrorArgs(template)
                         .generateError();
@@ -298,12 +298,12 @@ public class TypeValidityPass extends Visitor {
             // Case 2: This error is generated when the wrong number of type arguments were used for a template class type.
             else {
                 ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
-                                      .addLocation(ct.getRootParent())
+                                      .addLocation(ct.getFullLocation())
                                       .addErrorNumber(MessageNumber.TYPE_ERROR_445)
                                       .addErrorArgs(template)
-                                      .addSuggestionArgs(template, template.typeParams().size());
+                                      .addSuggestionArgs(template, template.getTypeParams().size());
 
-                if(template.typeParams().size() == 1)
+                if(template.getTypeParams().size() == 1)
                     eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1441).generateError();
                 else
                     eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1442).generateError();
@@ -311,19 +311,19 @@ public class TypeValidityPass extends Visitor {
         }
 
         // We now look through each type parameter of the template class.
-        for (int i = 0; i < template.typeParams().size(); i++) {
-            Typeifier typeParam = template.typeParams().get(i);
+        for (int i = 0; i < template.getTypeParams().size(); i++) {
+            TypeParam typeParam = template.getTypeParams().get(i);
 
             // ERROR CHECK #2: If a user prefixed the type parameter with a type annotation, then we will check if
             //                 the passed type argument can be used in the current type argument. If no type annotation
             //                 was given, this check is not needed, and we will let the type checker handle the rest.
             if(!typeParam.isValidTypeArg(ct.typeArgs().get(i))) {
                 handler.createErrorBuilder(TypeError.class)
-                        .addLocation(ct.getRootParent())
+                        .addLocation(ct.getFullLocation())
                         .addErrorNumber(MessageNumber.TYPE_ERROR_446)
                         .addErrorArgs(ct.typeArgs().get(i), template)
                         .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1443)
-                        .addSuggestionArgs(template, typeParam.possibleTypeToString(), i + 1)
+                        .addSuggestionArgs(template, typeParam.getPossibleType(), i + 1)
                         .generateError();
             }
         }
@@ -344,9 +344,9 @@ public class TypeValidityPass extends Visitor {
         // If the template class was already instantiated with the given type arguments,
         // then we don't want to reinstantiate it and instead get the instantiated class.
         if(instantiatedClasses.contains(ct.toString()))
-            return currentScope.findName(ct).decl().asTopLevelDecl().asClassDecl();
+            return currentScope.findName(ct).getDecl().asTopLevelDecl().asClassDecl();
 
-        ClassDecl template = currentScope.findName(ct.getClassNameAsString()).decl().asTopLevelDecl().asClassDecl();
+        ClassDecl template = currentScope.findName(ct.getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
         ClassDecl copyOfTemplate = template.deepCopy().asTopLevelDecl().asClassDecl();
 
         // We need to rerun the name checker, so the copy of the template can
@@ -388,7 +388,7 @@ public class TypeValidityPass extends Visitor {
         // in the root table for the invocation. If this signature exists, then this implies there is a more specific
         // template available, thus it needs to be instantiated instead of using the one already available for us.
         if(instantiatedFunctions.contains(in.templateSignature()) && !currentScope.getRootTable().hasName(in.getSignature()))
-            return currentScope.findName(in.templateSignature()).decl().asTopLevelDecl().asFuncDecl();
+            return currentScope.findName(in.templateSignature()).getDecl().asTopLevelDecl().asFuncDecl();
 
         FuncDecl copyOfTemplate = template.deepCopy().asTopLevelDecl().asFuncDecl();
 
@@ -422,10 +422,10 @@ public class TypeValidityPass extends Visitor {
      */
     public void visitClassDecl(ClassDecl cd) {
         SymbolTable oldScope = currentScope;
-        currentScope = cd.symbolTable;
+        currentScope = cd.getScope();
 
         if(cd.isTemplate())
-            currentTypeParams = cd.typeParams();
+            currentTypeParams = cd.getTypeParams();
 
         super.visitClassDecl(cd);
 
@@ -439,11 +439,11 @@ public class TypeValidityPass extends Visitor {
      *     During compilation mode, {@code visitCompilation} will be the first
      *     method executed when we start the type validity micropass.
      * </p>
-     * @param c {@link Compilation}
+     * @param c {@link CompilationUnit}
      */
-    public void visitCompilation(Compilation c) {
-        currentScope = c.globalTable;
-        super.visitCompilation(c);
+    public void visitCompilationUnit(CompilationUnit c) {
+        currentScope = c.getScope();
+        super.visitCompilationUnit(c);
     }
 
     /**
@@ -455,13 +455,13 @@ public class TypeValidityPass extends Visitor {
      * @param fd {@link FieldDecl}
      */
     public void visitFieldDecl(FieldDecl fd) {
-        if(fd.type().isStructuredType()) {
-            Type updatedType = rewriteStructuredType(fd.type());
-            fd.setType(updatedType);
+        if(fd.getDeclaredType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(fd.getDeclaredType());
+            //fd.setType(updatedType);
         }
 
-        if(fd.var().init() != null)
-            fd.var().init().visit(this);
+        if(fd.hasInitialValue())
+            fd.getInitialValue().visit(this);
     }
 
     /**
@@ -476,20 +476,20 @@ public class TypeValidityPass extends Visitor {
     public void visitFuncDecl(FuncDecl fd) {
         SymbolTable oldScope = currentScope;
         String prevSignature = fd.getSignature();
-        currentScope = fd.symbolTable;
+        currentScope = fd.getScope();
 
-        if(!fd.typeParams().isEmpty())
-            currentTypeParams = fd.typeParams();
+        if(!fd.getTypeParams().isEmpty())
+            currentTypeParams = fd.getTypeParams();
 
-        for(ParamDecl pd : fd.params())
+        for(ParamDecl pd : fd.getParams())
             pd.visit(this);
 
-        if(fd.returnType().isStructuredType()) {
-            Type updatedType = rewriteStructuredType(fd.returnType());
-            fd.setReturnType(updatedType);
+        if(fd.getReturnType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(fd.getReturnType());
+            //fd.setReturnType(updatedType);
         }
 
-        fd.funcBlock().visit(this);
+        fd.getBody().visit(this);
 
         // If we are visiting an instantiated function, we need to consider that the name checker would have
         // stored the function signature into the class scope using generic type parameters. Thus, we should
@@ -513,13 +513,13 @@ public class TypeValidityPass extends Visitor {
      * @param gd {@link GlobalDecl}
      */
     public void visitGlobalDecl(GlobalDecl gd) {
-        if(gd.type().isStructuredType()) {
-            Type updatedType = rewriteStructuredType(gd.type());
-            gd.setType(updatedType);
+        if(gd.getDeclaredType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(gd.getDeclaredType());
+            //gd.setType(updatedType);
         }
 
-        if(gd.var().init() != null)
-            gd.var().init().visit(this);
+        if(gd.hasInitialValue())
+            gd.getInitialValue().visit(this);
     }
 
     /**
@@ -559,17 +559,17 @@ public class TypeValidityPass extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_328)
                     .addErrorArgs(ld)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(ld).decl())
+                    .addOriginalDeclaration(currentScope.findName(ld).getDecl())
                     .generateError();
         }
 
-        if(ld.type().isStructuredType()) {
-            Type updatedType = rewriteStructuredType(ld.type());
-            ld.setType(updatedType);
+        if(ld.getDeclaredType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(ld.getDeclaredType());
+           // ld.setType(updatedType);
         }
 
-        if(ld.var().init() != null)
-            ld.var().init().visit(this);
+        if(ld.hasInitialValue())
+            ld.getInitialValue().visit(this);
     }
 
     /**
@@ -583,24 +583,24 @@ public class TypeValidityPass extends Visitor {
      * @param md {@link MethodDecl}
      */
     public void visitMethodDecl(MethodDecl md) {
-        String prevMethodSignature = md.methodSignature();
+        String prevMethodSignature = md.getMethodSignature();
 
-        for(ParamDecl pd : md.params())
+        for(ParamDecl pd : md.getParams())
             pd.visit(this);
 
-        if(md.returnType().isStructuredType()) {
-            Type updatedType = rewriteStructuredType(md.returnType());
-            md.setReturnType(updatedType);
+        if(md.getReturnType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(md.getReturnType());
+            //md.setReturnType(updatedType);
         }
 
-        md.methodBlock().visit(this);
+        md.getBody().visit(this);
 
         // If we are visiting an instantiated class, we need to consider that the name checker would have
         // stored the method signature into the class scope using generic type parameters. Thus, we should
         // manually remove the previous method signature and update the key to be the new signature.
         if(currentTypeArgs != null) {
             currentScope.removeName(prevMethodSignature);
-            currentScope.addName(md.methodSignature(), md);
+            currentScope.addName(md.getMethodSignature(), md);
         }
     }
 
@@ -639,12 +639,12 @@ public class TypeValidityPass extends Visitor {
                     .addErrorNumber(MessageNumber.SCOPE_ERROR_328)
                     .addErrorArgs(pd)
                     .asScopeErrorBuilder()
-                    .addOriginalDeclaration(currentScope.findName(pd).decl())
+                    .addOriginalDeclaration(currentScope.findName(pd).getDecl())
                     .generateError();
         }
 
-        if(pd.type().isStructuredType()) {
-            Type updatedType = rewriteStructuredType(pd.type());
+        if(pd.getType().isStructuredType()) {
+            Type updatedType = rewriteStructuredType(pd.getType());
             pd.setType(updatedType);
         }
     }
