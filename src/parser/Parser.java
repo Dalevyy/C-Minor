@@ -918,7 +918,7 @@ public class Parser {
     // 20. method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement
     private MethodDecl methodClass() {
         tokenStack.add(currentLA());
-        Modifier mod = new Modifier();
+        Modifier mod = methodModifier();
 
         while(nextLA(TokenType.FINAL) || nextLA(TokenType.PURE) || nextLA(TokenType.RECURS)) {
             tokenStack.add(currentLA());
