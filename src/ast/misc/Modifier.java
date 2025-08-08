@@ -2,6 +2,7 @@ package ast.misc;
 
 import ast.AST;
 import token.Token;
+import utilities.Vector;
 import utilities.Visitor;
 
 /**
@@ -71,9 +72,17 @@ public class Modifier extends SubNode {
     private boolean isRefMode = false;
 
     /**
+     * A {@link Vector} containing each modifier as a string (for debug printing).
+     */
+    private final Vector<String> allModifiers;
+
+    /**
      * Default constructor for {@link Modifier}.
      */
-    public Modifier() { super(new Token()); }
+    public Modifier() {
+        super(new Token());
+        this.allModifiers = new Vector<>();
+    }
 
     /**
      * Returns value of {@link #isPublic}.
@@ -144,57 +153,112 @@ public class Modifier extends SubNode {
     /**
      * Sets {@link #isPublic} to be {@code True}.
      */
-    public void setPublic() { isPublic = true; }
+    public void setPublic() {
+        if(!isPublic) {
+            isPublic = true;
+            allModifiers.add("public");
+        }
+    }
 
     /**
      * Sets {@link #isProtected} to be {@code True}.
      */
-    public void setProtected() { isProtected = true; }
+    public void setProtected() {
+        if(!isProperty) {
+            isProtected = true;
+            allModifiers.add("protected");
+        }
+    }
 
     /**
      * Sets {@link #isProperty} to be {@code True}.
      */
-    public void setProperty() { isProperty = true; }
+    public void setProperty() {
+        if(!isProperty) {
+            isProperty = true;
+            allModifiers.add("property");
+        }
+    }
 
     /**
      * Sets {@link #isFinal} to be {@code True}.
      */
-    public void setFinal() { isFinal = true; }
+    public void setFinal() {
+        if(!isFinal) {
+            isFinal = true;
+            allModifiers.add("final");
+        }
+    }
 
     /**
      * Sets {@link #isAbstract} to be {@code True}.
      */
-    public void setAbstract() { isAbstract = true; }
+    public void setAbstract() {
+        if(!isAbstract) {
+            isAbstract = true;
+            allModifiers.add("abstract");
+        }
+    }
 
     /**
      * Sets {@link #isPure} to be {@code True}.
      */
-    public void setPure() { isPure = true; }
+    public void setPure() {
+        if(!isPure) {
+            isPure = true;
+            allModifiers.add("pure");
+        }
+    }
 
     /**
      * Sets {@link #isRecursive} to be {@code True}.
      */
-    public void setRecursive() { isRecursive = true; }
+    public void setRecursive() {
+        if(!isRecursive) {
+            isRecursive = true;
+            allModifiers.add("recursive");
+        }
+    }
 
     /**
      * Sets {@link #isInMode} to be {@code True}.
      */
-    public void setInMode() { isInMode = true; }
+    public void setInMode() {
+        if(!isInMode) {
+            isInMode = true;
+            allModifiers.add("in");
+        }
+    }
 
     /**
      * Sets {@link #isOutMode} to be {@code True}.
      */
-    public void setOutMode() { isOutMode = true; }
+    public void setOutMode() {
+        if(!isOutMode) {
+            isOutMode = true;
+            allModifiers.add("out");
+        }
+    }
 
     /**
      * Sets {@link #isInOutMode} to be {@code True}.
      */
-    public void setInOutMode() { isInOutMode = true; }
+    public void setInOutMode() {
+        if(!isInOutMode) {
+            isInOutMode = true;
+            allModifiers.add("inout");
+        }
+    }
 
     /**
      * Sets {@link #isRefMode} to be {@code True}.
      */
-    public void setRefMode() { isRefMode = true; }
+    public void setRefMode() {
+        if(!isRefMode) {
+            isRefMode = true;
+            allModifiers.add("ref");
+        }
+    }
 
     /**
      * {@inheritDoc}
@@ -227,4 +291,20 @@ public class Modifier extends SubNode {
      */
     @Override
     public void visit(Visitor v){ v.visitModifier(this); }
+
+    /**
+     * Creates a string representation of all modifiers being used.
+     * @return String with each modifier name listed.
+     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 0; i < allModifiers.size()-1; i++)
+            sb.append(allModifiers.get(i)).append(", ");
+
+        sb.append(allModifiers.get(allModifiers.size()-1));
+
+        return sb.toString();
+    }
 }
