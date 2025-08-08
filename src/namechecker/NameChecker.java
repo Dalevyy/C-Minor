@@ -171,11 +171,11 @@ public class NameChecker extends Visitor {
      */
     public void visitAssignStmt(AssignStmt as) {
         // ERROR CHECK #1: This checks if a valid name was used in the LHS of an assignment statement.
-        if(!as.LHS().isNameExpr() && !as.LHS().isFieldExpr() && !as.LHS().isArrayExpr()) {
+        if(!as.getLHS().isNameExpr() && !as.getLHS().isFieldExpr() && !as.getLHS().isArrayExpr()) {
             handler.createErrorBuilder(SemanticError.class)
                    .addLocation(as)
                    .addErrorNumber(MessageNumber.SEMANTIC_ERROR_707)
-                   .addErrorArgs(as.LHS())
+                   .addErrorArgs(as.getLHS())
                    .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1702)
                    .generateError();
         }
@@ -242,9 +242,9 @@ public class NameChecker extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openNewScope();
 
-        for(LocalDecl ld : bs.decls())
+        for(LocalDecl ld : bs.getLocalDecls())
             ld.visit(this);
-        for(Statement s : bs.stmts())
+        for(Statement s : bs.getStatements())
             s.visit(this);
 
         if(bs.getParent() == null)
@@ -260,10 +260,10 @@ public class NameChecker extends Visitor {
      * @param cs Case Statement
      */
     public void visitCaseStmt(CaseStmt cs) {
-        cs.choiceLabel().visit(this);
-        cs.caseBlock().visit(this);
+        cs.getLabel().visit(this);
+        cs.getBody().visit(this);
 
-        cs.symbolTable = currentScope;
+        cs.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -278,13 +278,13 @@ public class NameChecker extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
-        cs.choiceExpr().visit(this);
+        cs.getChoiceValue().visit(this);
 
-        for(CaseStmt c : cs.caseStmts())
+        for(CaseStmt c : cs.getCases())
             c.visit(this);
 
-        cs.otherBlock().visit(this);
-        cs.symbolTable = currentScope;
+        cs.getDefaultBody().visit(this);
+        cs.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -377,12 +377,12 @@ public class NameChecker extends Visitor {
      * @param ds Do Statement
      */
     public void visitDoStmt(DoStmt ds) {
-        ds.doBlock().visit(this);
+        ds.getBody().visit(this);
 
-        ds.symbolTable = currentScope;
+        ds.scope = currentScope;
         currentScope = currentScope.closeScope();
 
-        ds.condition().visit(this);
+        ds.getCondition().visit(this);
     }
 
     /**
@@ -488,16 +488,16 @@ public class NameChecker extends Visitor {
     public void visitForStmt(ForStmt fs) {
         currentScope = currentScope.openNewScope();
 
-        fs.loopVar().visit(this);
-        fs.condLHS().visit(this);
-        fs.condRHS().visit(this);
+        fs.getControlVariable().visit(this);
+        fs.getStartValue().visit(this);
+        fs.getEndValue().visit(this);
 
-        for(LocalDecl ld : fs.forBlock().decls())
+        for(LocalDecl ld : fs.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : fs.forBlock().stmts())
+        for(Statement s : fs.getBody().getStatements())
             s.visit(this);
 
-        fs.symbolTable = currentScope;
+        fs.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 
@@ -534,9 +534,9 @@ public class NameChecker extends Visitor {
             currentScope.addName(tp.toString(),tp);
         for(ParamDecl pd : fd.getParams())
             pd.visit(this);
-        for(LocalDecl ld : fd.getBody().decls())
+        for(LocalDecl ld : fd.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : fd.getBody().stmts())
+        for(Statement s : fd.getBody().getStatements())
             s.visit(this);
 
         currentScope = currentScope.closeScope();
@@ -582,18 +582,18 @@ public class NameChecker extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
-        is.ifBlock().visit(this);
+        is.getCondition().visit(this);
+        is.getIfBody().visit(this);
 
-        is.symbolTableIfBlock = currentScope;
+        is.ifScope = currentScope;
         currentScope = currentScope.closeScope();
 
-        for(IfStmt e : is.elifStmts())
+        for(IfStmt e : is.getElifs())
             e.visit(this);
 
-        if(is.elseBlock() != null) {
-            is.elseBlock().visit(this);
-            is.symbolTableElseBlock = currentScope;
+        if(is.getElseBody() != null) {
+            is.getElseBody().visit(this);
+            is.elseScope = currentScope;
             currentScope = currentScope.closeScope();
         }
     }
@@ -688,9 +688,9 @@ public class NameChecker extends Visitor {
         for(ParamDecl e : md.getParams())
             e.visit(this);
 
-        for(LocalDecl ld : md.getBody().decls())
+        for(LocalDecl ld : md.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : md.getBody().stmts())
+        for(Statement s : md.getBody().getStatements())
             s.visit(this);
 
         md.setScope(currentScope);
@@ -734,9 +734,9 @@ public class NameChecker extends Visitor {
 
         for(ParamDecl pd : md.getParams())
             pd.visit(this);
-        for(LocalDecl ld : md.getBody().decls())
+        for(LocalDecl ld : md.getBody().getLocalDecls())
             ld.visit(this);
-        for(Statement s : md.getBody().stmts())
+        for(Statement s : md.getBody().getStatements())
             s.visit(this);
 
         currentScope = currentScope.closeScope();
@@ -930,10 +930,10 @@ public class NameChecker extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
-        ws.condition().visit(this);
-        ws.whileBlock().visit(this);
+        ws.getCondition().visit(this);
+        ws.getBody().visit(this);
 
-        ws.symbolTable = currentScope;
+        ws.scope = currentScope;
         currentScope = currentScope.closeScope();
     }
 }

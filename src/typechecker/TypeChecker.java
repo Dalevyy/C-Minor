@@ -7,7 +7,6 @@ import ast.expressions.*;
 import ast.expressions.FieldExpr.FieldExprBuilder;
 import ast.expressions.Invocation.InvocationBuilder;
 import ast.expressions.Literal.ConstantType;
-import ast.expressions.Literal.LiteralBuilder;
 import ast.misc.*;
 import ast.operators.AssignOp.AssignType;
 import ast.statements.*;
@@ -576,50 +575,50 @@ public class TypeChecker extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        as.LHS().visit(this);
-        Type lType = as.LHS().type;
+        as.getLHS().visit(this);
+        Type lType = as.getLHS().type;
 
         // ERROR CHECK #1: An array literal can only be assigned to
         //                 a variable storing an array
-        if(!lType.isArrayType() && as.RHS().isArrayLiteral()) {
+        if(!lType.isArrayType() && as.getRHS().isArrayLiteral()) {
             handler.createErrorBuilder(TypeError.class)
                     .addLocation(as)
                     .addErrorNumber(MessageNumber.TYPE_ERROR_450)
                     .generateError();
         }
 
-        if(as.RHS().isArrayLiteral() || as.RHS().isListLiteral()) {
+        if(as.getRHS().isArrayLiteral() || as.getRHS().isListLiteral()) {
             Type oldTarget = currentTarget;
             currentTarget = lType;
 
-            as.RHS().visit(this);
+            as.getRHS().visit(this);
             currentTarget = oldTarget;
         }
         else
-            as.RHS().visit(this);
+            as.getRHS().visit(this);
 
-        Type rType = as.RHS().type;
+        Type rType = as.getRHS().type;
 
         // ERROR CHECK #1: Make sure both the variable and value type are the same
         if(!Type.assignmentCompatible(lType,rType)) {
             handler.createErrorBuilder(TypeError.class)
                     .addLocation(as)
                     .addErrorNumber(MessageNumber.TYPE_ERROR_403)
-                    .addErrorArgs(as.LHS().toString(),lType,rType)
+                    .addErrorArgs(as.getLHS().toString(),lType,rType)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1401)
                     .addSuggestionArgs(lType)
                     .generateError();
         }
 
-        if(as.assignOp().getAssignOp() != AssignType.EQ) {
-            if(as.assignOp().getAssignOp() == AssignType.PLUSEQ) {
+        if(as.getOperator().getAssignOp() != AssignType.EQ) {
+            if(as.getOperator().getAssignOp() == AssignType.PLUSEQ) {
                 // ERROR CHECK #2: For a '+=' operation, the only allowed types
                 //                 are Int, Real, and String
                 if (lType.isBool() || lType.isChar() || lType.isClassOrMultiType())
                     handler.createErrorBuilder(TypeError.class)
                             .addLocation(as)
                             .addErrorNumber(MessageNumber.TYPE_ERROR_403)
-                            .addErrorArgs(as.LHS().toString(),lType,rType)
+                            .addErrorArgs(as.getLHS().toString(),lType,rType)
                             .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1402)
                             .generateError();
             }
@@ -630,9 +629,9 @@ public class TypeChecker extends Visitor {
                     handler.createErrorBuilder(TypeError.class)
                             .addLocation(as)
                             .addErrorNumber(MessageNumber.TYPE_ERROR_404)
-                            .addErrorArgs(as.assignOp(),lType)
+                            .addErrorArgs(as.getOperator(),lType)
                             .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1403)
-                            .addSuggestionArgs(as.assignOp())
+                            .addSuggestionArgs(as.getOperator())
                             .generateError();
             }
         }
@@ -943,40 +942,40 @@ public class TypeChecker extends Visitor {
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
         boolean prev = inControlStmt;
-        cs.choiceExpr().visit(this);
-        Type choiceType = cs.choiceExpr().type;
+        cs.getChoiceValue().visit(this);
+        Type choiceType = cs.getChoiceValue().type;
 
         // ERROR CHECK #1: Choice statements only support Int, Char, and String
         if(!(choiceType.isInt() || choiceType.isChar() || choiceType.isString())) {
             handler.createErrorBuilder(TypeError.class)
-                    .addLocation(cs.choiceExpr())
+                    .addLocation(cs.getChoiceValue())
                     .addErrorNumber(MessageNumber.TYPE_ERROR_416)
                     .addErrorArgs(choiceType)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1422)
                     .generateError();
         }
 
-        for(CaseStmt curr : cs.caseStmts()) {
-            curr.choiceLabel().visit(this);
-            Type labelType = curr.choiceLabel().getLeftConstant().type;
+        for(CaseStmt curr : cs.getCases()) {
+            curr.getLabel().visit(this);
+            Type labelType = curr.getLabel().getLeftConstant().type;
 
             // ERROR CHECK #2: Make sure the case label's type corresponds
             //                 to the type of the choice statement expression
             if(!Type.assignmentCompatible(labelType,choiceType)) {
                 handler.createErrorBuilder(TypeError.class)
-                        .addLocation(curr.choiceLabel())
+                        .addLocation(curr.getLabel())
                         .addErrorNumber(MessageNumber.TYPE_ERROR_417)
                         .addErrorArgs(labelType, choiceType)
                         .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
                         .generateError();
             }
 
-            if(curr.choiceLabel().getRightConstant() != null) {
-                labelType = curr.choiceLabel().getRightConstant().type;
+            if(curr.getLabel().getRightConstant() != null) {
+                labelType = curr.getLabel().getRightConstant().type;
                 // ERROR CHECK #3: Same as ERROR CHECK #2, but now for the right label
                 if(!Type.assignmentCompatible(labelType,choiceType)) {
                     handler.createErrorBuilder(TypeError.class)
-                            .addLocation(curr.choiceLabel())
+                            .addLocation(curr.getLabel())
                             .addErrorNumber(MessageNumber.TYPE_ERROR_417)
                             .addErrorArgs(labelType,choiceType)
                             .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
@@ -987,7 +986,7 @@ public class TypeChecker extends Visitor {
                 //                 there is only one label allowed per case statement
                 if(choiceType.isString()) {
                     handler.createErrorBuilder(TypeError.class)
-                            .addLocation(curr.choiceLabel())
+                            .addLocation(curr.getLabel())
                             .addErrorNumber(MessageNumber.TYPE_ERROR_418)
                             .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1424)
                             .generateError();
@@ -995,38 +994,38 @@ public class TypeChecker extends Visitor {
 
                 // ERROR CHECK #5: Make sure label's right constant is greater than left constant
                 if(choiceType.isInt()) {
-                    int lLabel = curr.choiceLabel().getLeftConstant().asInt();
-                    int rLabel = curr.choiceLabel().getLeftConstant().asInt();
+                    int lLabel = curr.getLabel().getLeftConstant().asInt();
+                    int rLabel = curr.getLabel().getLeftConstant().asInt();
                     if(rLabel <= lLabel) {
                         handler.createErrorBuilder(TypeError.class)
-                                .addLocation(curr.choiceLabel())
+                                .addLocation(curr.getLabel())
                                 .addErrorNumber(MessageNumber.TYPE_ERROR_419)
                                 .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
                                 .generateError();
                     }
                 }
                 else if(choiceType.isChar()) {
-                    char lLabel = curr.choiceLabel().getLeftConstant().asChar();
-                    char rLabel = curr.choiceLabel().getLeftConstant().asChar();
+                    char lLabel = curr.getLabel().getLeftConstant().asChar();
+                    char rLabel = curr.getLabel().getLeftConstant().asChar();
                     if(rLabel <= lLabel) {
                         handler.createErrorBuilder(TypeError.class)
-                                .addLocation(curr.choiceLabel())
+                                .addLocation(curr.getLabel())
                                 .addErrorNumber(MessageNumber.TYPE_ERROR_419)
                                 .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
                                 .generateError();
                     }
                 }
             }
-            currentScope = curr.symbolTable;
+            currentScope = curr.scope;
             inControlStmt = true;
-            curr.caseBlock().visit(this);
+            curr.getBody().visit(this);
             inControlStmt = prev;
             currentScope = currentScope.closeScope();
         }
 
-        currentScope = cs.symbolTable;
+        currentScope = cs.scope;
         inControlStmt = true;
-        cs.otherBlock().visit(this);
+        cs.getDefaultBody().visit(this);
         inControlStmt = prev;
         currentScope = currentScope.closeScope();
     }
@@ -1084,19 +1083,19 @@ public class TypeChecker extends Visitor {
      */
     public void visitDoStmt(DoStmt ds) {
         boolean prev = inControlStmt;
-        currentScope = ds.symbolTable;
+        currentScope = ds.scope;
         inControlStmt = true;
-        ds.doBlock().visit(this);
+        ds.getBody().visit(this);
         inControlStmt = prev;
         currentScope = currentScope.closeScope();
 
-        ds.condition().visit(this);
+        ds.getCondition().visit(this);
         // ERROR CHECK #1: The do while loop's condition must be a boolean
-        if(!ds.condition().type.isBool()) {
+        if(!ds.getCondition().type.isBool()) {
             handler.createErrorBuilder(TypeError.class)
-                    .addLocation(ds.condition())
+                    .addLocation(ds.getCondition())
                     .addErrorNumber(MessageNumber.TYPE_ERROR_412)
-                    .addErrorArgs(ds.condition().type)
+                    .addErrorArgs(ds.getCondition().type)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1418)
                     .generateError();
         }
@@ -1289,9 +1288,9 @@ public class TypeChecker extends Visitor {
      */
     public void visitForStmt(ForStmt fs) {
         boolean prev = inControlStmt;
-        currentScope = fs.symbolTable;
+        currentScope = fs.scope;
 
-        fs.loopVar().visit(this);
+        fs.getControlVariable().visit(this);
         //Type varType = fs.loopVar().type();
 
         // ERROR CHECK #1: Make sure loop control variable is an Int, Char, or Enum
@@ -1304,15 +1303,15 @@ public class TypeChecker extends Visitor {
 //                    .generateError();
 //        }
 
-        fs.condLHS().visit(this);
-        fs.condRHS().visit(this);
+        fs.getStartValue().visit(this);
+        fs.getEndValue().visit(this);
 
         // ERROR CHECK #2: Make sure the LHS and RHS conditions have the same type
-        if(!Type.assignmentCompatible(fs.condLHS().type,fs.condRHS().type)) {
+        if(!Type.assignmentCompatible(fs.getStartValue().type,fs.getEndValue().type)) {
             handler.createErrorBuilder(TypeError.class)
                     .addLocation(fs)
                     .addErrorNumber(MessageNumber.TYPE_ERROR_414)
-                    .addErrorArgs(fs.condLHS().type,fs.condRHS().type)
+                    .addErrorArgs(fs.getStartValue().type,fs.getEndValue().type)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1420)
                     .generateError();
         }
@@ -1327,9 +1326,9 @@ public class TypeChecker extends Visitor {
 //                    .generateError();
 //        }
 
-        if(fs.forBlock() != null) { 
+        if(fs.getBody() != null) {
             inControlStmt = true;
-            fs.forBlock().visit(this); 
+            fs.getBody().visit(this);
             inControlStmt = prev;
         }
         currentScope = currentScope.closeScope();
@@ -1444,28 +1443,28 @@ public class TypeChecker extends Visitor {
      */
     public void visitIfStmt(IfStmt is) {
         boolean prev = inControlStmt;
-        is.condition().visit(this);
+        is.getCondition().visit(this);
 
         // ERROR CHECK #1: The if statement's conditional expression must be a boolean
-        if(!is.condition().type.isBool()) {
+        if(!is.getCondition().type.isBool()) {
             handler.createErrorBuilder(TypeError.class)
-                    .addLocation(is.condition())
+                    .addLocation(is.getCondition())
                     .addErrorNumber(MessageNumber.TYPE_ERROR_410)
-                    .addErrorArgs(is.condition().type)
+                    .addErrorArgs(is.getCondition().type)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1416)
                     .generateError();
         }
 
-        currentScope = is.symbolTableIfBlock;
+        currentScope = is.ifScope;
         inControlStmt = true;
-        is.ifBlock().visit(this);
+        is.getIfBody().visit(this);
         currentScope = currentScope.closeScope();
 
-        for(IfStmt e : is.elifStmts()) { e.visit(this); }
+        for(IfStmt e : is.getElifs()) { e.visit(this); }
 
-        if(is.elseBlock() != null) {
-            currentScope = is.symbolTableElseBlock;
-            is.elseBlock().visit(this);
+        if(is.getElseBody() != null) {
+            currentScope = is.elseScope;
+            is.getElseBody().visit(this);
             currentScope = currentScope.closeScope();
         }
         inControlStmt = prev;
@@ -2108,8 +2107,8 @@ public class TypeChecker extends Visitor {
      * @param rs Return Statement
      */
     public void visitReturnStmt(ReturnStmt rs) {
-        if(rs.expr() != null) {
-            rs.expr().visit(this);
+        if(rs.getReturnValue() != null) {
+            rs.getReturnValue().visit(this);
 
             Type rType;
             if(currentMethod.asClassNode().isMethodDecl())
@@ -2124,29 +2123,29 @@ public class TypeChecker extends Visitor {
                 ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
                 if(currentMethod.asClassNode().isMethodDecl()) {
                         eb.addErrorNumber(MessageNumber.TYPE_ERROR_426)
-                          .addErrorArgs(currentMethod,currentClass,rs.expr().type)
+                          .addErrorArgs(currentMethod,currentClass,rs.getReturnValue().type)
                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1430)
                           .generateError();
                 }
                 else {
                         eb.addErrorNumber(MessageNumber.TYPE_ERROR_425)
-                          .addErrorArgs(currentMethod,rs.expr().type)
+                          .addErrorArgs(currentMethod,rs.getReturnValue().type)
                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1429)
                           .generateError();
                 }
             }
             // ERROR CHECK #2: Check if the return value's type matches the return type
-            if(!Type.assignmentCompatible(rType,rs.expr().type)) {
+            if(!Type.assignmentCompatible(rType,rs.getReturnValue().type)) {
                 ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
                 if(currentMethod.asClassNode().isMethodDecl()) {
                         eb.addErrorNumber(MessageNumber.TYPE_ERROR_428)
-                          .addErrorArgs(currentMethod,currentClass,rs.expr().type,rType)
+                          .addErrorArgs(currentMethod,currentClass,rs.getReturnValue().type,rType)
                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
                           .generateError();
                 }
                 else {
                         eb.addErrorNumber(MessageNumber.TYPE_ERROR_427)
-                          .addErrorArgs(currentMethod,rs.expr().type,rType)
+                          .addErrorArgs(currentMethod,rs.getReturnValue().type,rType)
                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
                           .generateError();
                 }
@@ -2305,21 +2304,21 @@ public class TypeChecker extends Visitor {
      */
     public void visitWhileStmt(WhileStmt ws) {
         boolean prev = inControlStmt;
-        ws.condition().visit(this);
+        ws.getCondition().visit(this);
 
         // ERROR CHECK #1: The while loop's condition must be a boolean
-        if(!ws.condition().type.isBool()) {
+        if(!ws.getCondition().type.isBool()) {
             handler.createErrorBuilder(TypeError.class)
-                    .addLocation(ws.condition())
+                    .addLocation(ws.getCondition())
                     .addErrorNumber(MessageNumber.TYPE_ERROR_411)
-                    .addErrorArgs(ws.condition().type)
+                    .addErrorArgs(ws.getCondition().type)
                     .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1417)
                     .generateError();
         }
 
-        currentScope = ws.symbolTable;
+        currentScope = ws.scope;
         inControlStmt = true;
-        ws.whileBlock().visit(this);
+        ws.getBody().visit(this);
         inControlStmt = prev;
         currentScope = currentScope.closeScope();
     }

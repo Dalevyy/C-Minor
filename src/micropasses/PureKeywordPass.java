@@ -59,11 +59,11 @@ public class PureKeywordPass extends Visitor {
     }
 
     public void visitAssignStmt(AssignStmt as) {
-        if(insidePureMethod && methodChangesState(currentScope.findName(as.LHS()).getDecl())) {
+        if(insidePureMethod && methodChangesState(currentScope.findName(as.getLHS()).getDecl())) {
             handler.createWarningBuilder()
                     .addLocation(as)
                     .addWarningNumber(MessageNumber.WARNING_1)
-                    .addWarningArgs(as.LHS(),methodName)
+                    .addWarningArgs(as.getLHS(),methodName)
                     .generateWarning();
         }
     }
@@ -93,11 +93,11 @@ public class PureKeywordPass extends Visitor {
     }
 
     public void visitRetypeStmt(RetypeStmt rt) {
-        if(insidePureMethod && methodChangesState(currentScope.findName(rt.LHS()).getDecl())) {
+        if(insidePureMethod && methodChangesState(currentScope.findName(rt.getLHS()).getDecl())) {
             handler.createWarningBuilder()
                     .addLocation(rt)
                     .addWarningNumber(MessageNumber.WARNING_1)
-                    .addWarningArgs(rt.LHS(),methodName)
+                    .addWarningArgs(rt.getLHS(),methodName)
                     .generateWarning();
         }
     }

@@ -46,7 +46,7 @@ public class FieldRewrite extends Visitor {
      * @param cs Case Statement
      */
     public void visitCaseStmt(CaseStmt cs) {
-        currentScope = cs.symbolTable;
+        currentScope = cs.scope;
         super.visitCaseStmt(cs);
         currentScope = currentScope.closeScope();
     }
@@ -56,7 +56,7 @@ public class FieldRewrite extends Visitor {
      * @param chs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt chs) {
-        currentScope = chs.symbolTable;
+        currentScope = chs.scope;
         super.visitChoiceStmt(chs);
         currentScope = currentScope.closeScope();
     }
@@ -97,7 +97,7 @@ public class FieldRewrite extends Visitor {
      * @param ds Do Statement
      */
     public void visitDoStmt(DoStmt ds) {
-        currentScope = ds.symbolTable;
+        currentScope = ds.scope;
         super.visitDoStmt(ds);
         currentScope = currentScope.closeScope();
     }
@@ -119,7 +119,7 @@ public class FieldRewrite extends Visitor {
      * @param fs For Statement
      */
     public void visitForStmt(ForStmt fs) {
-        currentScope = fs.symbolTable;
+        currentScope = fs.scope;
         super.visitForStmt(fs);
         currentScope = currentScope.closeScope();
     }
@@ -129,16 +129,16 @@ public class FieldRewrite extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
-        currentScope = is.symbolTableIfBlock;
-        is.ifBlock().visit(this);
+        is.getCondition().visit(this);
+        currentScope = is.ifScope;
+        is.getIfBody().visit(this);
 
-        for(IfStmt elifStmt : is.elifStmts())
+        for(IfStmt elifStmt : is.getElifs())
             elifStmt.visit(this);
 
-        if(is.elseBlock() != null) {
-            currentScope = is.symbolTableElseBlock;
-            is.elseBlock().visit(this);
+        if(is.getElseBody() != null) {
+            currentScope = is.elseScope;
+            is.getElseBody().visit(this);
         }
         currentScope = currentScope.closeScope();
     }
@@ -186,7 +186,7 @@ public class FieldRewrite extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
-        currentScope = ws.symbolTable;
+        currentScope = ws.scope;
         super.visitWhileStmt(ws);
         currentScope = currentScope.closeScope();
     }

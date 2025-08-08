@@ -115,8 +115,8 @@ public class ModifierChecker extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        if(!as.LHS().isFieldExpr()) {
-            AST LHS = currentScope.findName(as.LHS().toString()).getDecl();
+        if(!as.getLHS().isFieldExpr()) {
+            AST LHS = currentScope.findName(as.getLHS().toString()).getDecl();
 
             if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
                 // ERROR CHECK #1: A constant can not be updated after its declaration
@@ -124,7 +124,7 @@ public class ModifierChecker extends Visitor {
                     handler.createErrorBuilder(ModError.class)
                             .addLocation(as)
                             .addErrorNumber(MessageNumber.MOD_ERROR_505)
-                            .addErrorArgs(as.LHS().toString())
+                            .addErrorArgs(as.getLHS().toString())
                             .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1505)
                             .generateError();
                 }
@@ -134,7 +134,7 @@ public class ModifierChecker extends Visitor {
                 handler.createErrorBuilder(ModError.class)
                         .addLocation(as)
                         .addErrorNumber(MessageNumber.MOD_ERROR_508)
-                        .addErrorArgs(as.LHS().toString())
+                        .addErrorArgs(as.getLHS().toString())
                         .generateError();
             }
         }
@@ -146,7 +146,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitCaseStmt(CaseStmt cs) {
         SymbolTable oldScope = currentScope;
-        currentScope = cs.symbolTable;
+        currentScope = cs.scope;
         super.visitCaseStmt(cs);
         currentScope = oldScope;
     }
@@ -156,12 +156,12 @@ public class ModifierChecker extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
-        for(CaseStmt c : cs.caseStmts())
+        for(CaseStmt c : cs.getCases())
             c.visit(this);
 
         SymbolTable oldScope = currentScope;
-        currentScope = cs.symbolTable;
-        cs.otherBlock().visit(this);
+        currentScope = cs.scope;
+        cs.getDefaultBody().visit(this);
         currentScope = oldScope;
     }
 
@@ -221,10 +221,10 @@ public class ModifierChecker extends Visitor {
      */
     public void visitDoStmt(DoStmt ds) {
         SymbolTable oldScope = currentScope;
-        currentScope = ds.symbolTable;
-        ds.doBlock().visit(this);
+        currentScope = ds.scope;
+        ds.getBody().visit(this);
         currentScope = oldScope;
-        ds.condition().visit(this);
+        ds.getCondition().visit(this);
     }
 
     /**
@@ -275,7 +275,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitForStmt(ForStmt fs) {
         SymbolTable oldScope = currentScope;
-        currentScope = fs.symbolTable;
+        currentScope = fs.scope;
         super.visitForStmt(fs);
         currentScope = oldScope;
     }
@@ -299,20 +299,20 @@ public class ModifierChecker extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
+        is.getCondition().visit(this);
 
         SymbolTable oldScope = currentScope;
-        currentScope = is.symbolTableIfBlock;
-        is.ifBlock().visit(this);
+        currentScope = is.ifScope;
+        is.getIfBody().visit(this);
         currentScope = oldScope;
 
-        for(IfStmt e : is.elifStmts())
+        for(IfStmt e : is.getElifs())
             e.visit(this);
 
-        if(is.elseBlock() != null) {
+        if(is.getElseBody() != null) {
             oldScope = currentScope;
-            currentScope = is.symbolTableElseBlock;
-            is.elseBlock().visit(this);
+            currentScope = is.elseScope;
+            is.getElseBody().visit(this);
             currentScope = oldScope;
         }
     }
@@ -449,7 +449,7 @@ public class ModifierChecker extends Visitor {
      */
     public void visitWhileStmt(WhileStmt ws) {
         SymbolTable oldScope = currentScope;
-        currentScope = ws.symbolTable;
+        currentScope = ws.scope;
         super.visitWhileStmt(ws);
         currentScope = oldScope;
     }

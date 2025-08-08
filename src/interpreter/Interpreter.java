@@ -187,21 +187,21 @@ public class Interpreter extends Visitor {
      * @param as Assignment Statement
      */
     public void visitAssignStmt(AssignStmt as) {
-        String assignOp = as.assignOp().toString();
+        String assignOp = as.getOperator().toString();
 
         insideAssignment = true;
-        as.LHS().visit(this);
+        as.getLHS().visit(this);
         Value oldValue = currentValue;
         insideAssignment = false;
 
-        as.RHS().visit(this);
+        as.getRHS().visit(this);
         Value newValue = currentValue;
 
         switch(assignOp) {
             case "=":
                 break;
             default:
-                if(as.RHS().type.isInt()) {
+                if(as.getRHS().type.isInt()) {
                     switch (assignOp) {
                         case "+=" -> newValue = new Value(oldValue.asInt() + newValue.asInt(), newValue.getType());
                         case "-=" -> newValue = new Value(oldValue.asInt() - newValue.asInt(), newValue.getType());
@@ -210,7 +210,7 @@ public class Interpreter extends Visitor {
                         case "%=" -> newValue = new Value(oldValue.asInt() % newValue.asInt(), newValue.getType());
                         case "**=" -> newValue = new Value(Math.round(Math.pow(oldValue.asInt(), newValue.asInt())), newValue.getType());
                     }
-                } else if(as.RHS().type.isReal()) {
+                } else if(as.getRHS().type.isReal()) {
                     switch(assignOp) {
                         case "+=" -> newValue = new Value(oldValue.asReal().add(newValue.asReal()), newValue.getType());
                         case "-=" -> newValue = new Value(oldValue.asReal().subtract(newValue.asReal()), newValue.getType());
@@ -219,21 +219,21 @@ public class Interpreter extends Visitor {
                         case "%=" -> newValue = new Value(oldValue.asReal().remainder(newValue.asReal()), newValue.getType());
                         case "**=" -> newValue = new Value(oldValue.asReal().pow(newValue.asReal().toBigInteger().intValue(),MathContext.DECIMAL128), newValue.getType());
                     }
-                } else if(as.RHS().type.isString())
+                } else if(as.getRHS().type.isString())
                     newValue = new Value(newValue.asString() + oldValue.asString(), newValue.getType());
         }
 
-        if(as.LHS().isNameExpr())
-            stack.setValue(as.LHS(), newValue);
-        else if(as.LHS().isFieldExpr()) {
+        if(as.getLHS().isNameExpr())
+            stack.setValue(as.getLHS(), newValue);
+        else if(as.getLHS().isFieldExpr()) {
             insideAssignment = true;
-            as.LHS().visit(this);
-            currentValue.asObject().setField(as.LHS().asFieldExpr().getFieldName(),newValue);
+            as.getLHS().visit(this);
+            currentValue.asObject().setField(as.getLHS().asFieldExpr().getFieldName(),newValue);
             insideAssignment = false;
         }
-        else if(as.LHS().isArrayExpr()) {
+        else if(as.getLHS().isArrayExpr()) {
             insideAssignment = true;
-            as.LHS().visit(this);
+            as.getLHS().visit(this);
             currentValue.asList().addElement(newValue);
             insideAssignment = false;
         }
@@ -389,10 +389,10 @@ public class Interpreter extends Visitor {
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
-        for(LocalDecl decl : bs.decls())
+        for(LocalDecl decl : bs.getLocalDecls())
             decl.visit(this);
 
-        for(Statement s : bs.stmts()) {
+        for(Statement s : bs.getStatements()) {
             s.visit(this);
             /*
                 The `break`, `continue`, and `return` keywords will terminate
@@ -452,35 +452,35 @@ public class Interpreter extends Visitor {
      * @param cs Choice Statement
      */
     public void visitChoiceStmt(ChoiceStmt cs) {
-        cs.choiceExpr().visit(this);
+        cs.getChoiceValue().visit(this);
 
         Value choice = currentValue;
 
-        for(int i = 0; i <= cs.caseStmts().size(); i++) {
+        for(int i = 0; i <= cs.getCases().size(); i++) {
             Value label, rightLabel;
             // Default Case Execution
-            if(i == cs.caseStmts().size()) {
-                cs.otherBlock().visit(this);
+            if(i == cs.getCases().size()) {
+                cs.getDefaultBody().visit(this);
                 break;
             }
 
-            CaseStmt currCase = cs.caseStmts().get(i);
+            CaseStmt currCase = cs.getCases().get(i);
 
-            currCase.choiceLabel().getLeftConstant().visit(this);
+            currCase.getLabel().getLeftConstant().visit(this);
             label = currentValue;
 
-            if(currCase.choiceLabel().getRightConstant() != null) {
-                currCase.choiceLabel().getRightConstant().visit(this);
+            if(currCase.getLabel().getRightConstant() != null) {
+                currCase.getLabel().getRightConstant().visit(this);
                 rightLabel = currentValue;
-                if((cs.choiceExpr().type.isInt() && (choice.asInt() >= label.asInt() && choice.asInt() <= rightLabel.asInt()))
-                || (cs.choiceExpr().type.isChar() && (choice.asChar() >= label.asChar() && choice.asChar() <= rightLabel.asChar()))) {
+                if((cs.getChoiceValue().type.isInt() && (choice.asInt() >= label.asInt() && choice.asInt() <= rightLabel.asInt()))
+                || (cs.getChoiceValue().type.isChar() && (choice.asChar() >= label.asChar() && choice.asChar() <= rightLabel.asChar()))) {
                     currCase.visit(this);
                     break;
                 }
             } else {
-                if(cs.choiceExpr().type.isInt() && (choice.asInt() == label.asInt())
-                || cs.choiceExpr().type.isChar() && (choice.asChar() == label.asChar())
-                || cs.choiceExpr().type.isString() && (choice.asString().equals(label.asString()))) {
+                if(cs.getChoiceValue().type.isInt() && (choice.asInt() == label.asInt())
+                || cs.getChoiceValue().type.isChar() && (choice.asChar() == label.asChar())
+                || cs.getChoiceValue().type.isString() && (choice.asString().equals(label.asString()))) {
                     currCase.visit(this);
                     break;
                 }
@@ -541,13 +541,13 @@ public class Interpreter extends Visitor {
      */
     public void visitDoStmt(DoStmt ds) {
         do {
-            ds.doBlock().visit(this);
+            ds.getBody().visit(this);
 
             if(breakFound || returnFound)
                 break;
 
             continueFound = false;
-            ds.condition().visit(this);
+            ds.getCondition().visit(this);
         } while(currentValue.asBool());
 
         breakFound = false;
@@ -611,30 +611,30 @@ public class Interpreter extends Visitor {
      * @param fs For Statement
      */
     public void visitForStmt(ForStmt fs) {
-        String loopOp = fs.loopOp().toString();
+        String loopOp = fs.getLoopOperator().toString();
 
-        fs.condLHS().visit(this);
+        fs.getStartValue().visit(this);
         Value LHS = currentValue;
 
-        fs.condRHS().visit(this);
+        fs.getEndValue().visit(this);
         Value RHS = currentValue;
 
         // Handles both iterating over Ints and Chars
         switch(loopOp) {
-            case "<.." -> LHS = new Value(LHS.asInt() + 1, fs.condLHS().type);
-            case "..<" -> RHS = new Value(RHS.asInt() - 1, fs.condRHS().type);
+            case "<.." -> LHS = new Value(LHS.asInt() + 1, fs.getStartValue().type);
+            case "..<" -> RHS = new Value(RHS.asInt() - 1, fs.getEndValue().type);
             case "<..<" -> {
-                LHS = new Value(LHS.asInt() + 1, fs.condLHS().type);
-                RHS = new Value(RHS.asInt() - 1, fs.condRHS().type);
+                LHS = new Value(LHS.asInt() + 1, fs.getStartValue().type);
+                RHS = new Value(RHS.asInt() - 1, fs.getEndValue().type);
             }
         }
 
         stack.createCallFrame();
-        stack.addValue(fs.loopVar(),LHS);
+        stack.addValue(fs.getControlVariable(),LHS);
 
         for(int i = LHS.asInt(); i <= RHS.asInt(); i++) {
-            stack.setValue(fs.loopVar(),new Value(i,fs.condLHS().type));
-            fs.forBlock().visit(this);
+            stack.setValue(fs.getControlVariable(),new Value(i,fs.getStartValue().type));
+            fs.getBody().visit(this);
 
             if(breakFound || returnFound)
                 break;
@@ -673,23 +673,23 @@ public class Interpreter extends Visitor {
      * @param is If Statement
      */
     public void visitIfStmt(IfStmt is) {
-        is.condition().visit(this);
+        is.getCondition().visit(this);
 
         if(currentValue.asBool())
-            is.ifBlock().visit(this);
+            is.getIfBody().visit(this);
         else {
-            if(!is.elifStmts().isEmpty()) {
-                for(int i = 0; i < is.elifStmts().size(); i++) {
-                    IfStmt elif = is.elifStmts().get(i);
-                    elif.condition().visit(this);
+            if(!is.getElifs().isEmpty()) {
+                for(int i = 0; i < is.getElifs().size(); i++) {
+                    IfStmt elif = is.getElifs().get(i);
+                    elif.getCondition().visit(this);
                     if(currentValue.asBool()) {
-                        elif.ifBlock().visit(this);
+                        elif.getIfBody().visit(this);
                         return;
                     }
                 }
             }
-            if(is.elseBlock() != null)
-                is.elseBlock().visit(this);
+            if(is.getElseBody() != null)
+                is.getElseBody().visit(this);
         }
     }
 
@@ -706,9 +706,9 @@ public class Interpreter extends Visitor {
         RuntimeObject obj = currentValue.asObject();
 
         for(AssignStmt as : id.getInitStmts()) {
-            if(!obj.hasField(as.LHS())) {
-                as.RHS().visit(this);
-                obj.setField(as.LHS(), currentValue);
+            if(!obj.hasField(as.getLHS())) {
+                as.getRHS().visit(this);
+                obj.setField(as.getLHS(), currentValue);
             }
         }
 
@@ -1098,8 +1098,8 @@ public class Interpreter extends Visitor {
      * @param rs Return Statement
      */
     public void visitReturnStmt(ReturnStmt rs) {
-        if(rs.expr() != null)
-            rs.expr().visit(this);
+        if(rs.getReturnValue() != null)
+            rs.getReturnValue().visit(this);
         returnFound = true;
     }
 
@@ -1168,16 +1168,16 @@ public class Interpreter extends Visitor {
      * @param ws While Statement
      */
     public void visitWhileStmt(WhileStmt ws) {
-        ws.condition().visit(this);
+        ws.getCondition().visit(this);
 
         while(currentValue.asBool()) {
-            ws.whileBlock().visit(this);
+            ws.getBody().visit(this);
 
             if(breakFound || returnFound)
                 break;
 
             continueFound = false;
-            ws.condition().visit(this);
+            ws.getCondition().visit(this);
         }
         breakFound = false;
     }
