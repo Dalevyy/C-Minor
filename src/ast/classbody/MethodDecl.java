@@ -103,6 +103,12 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
     }
 
     /**
+     * Checks if the current {@link MethodDecl} represents an operator overload.
+     * @return {@code True} if the method overloads an operator, {@code False} otherwise.
+     */
+    public boolean isOperatorOverload() { return op != null; }
+
+    /**
      * Generates the method's signature.
      * @return String representing the signature of the method.
      */
