@@ -56,6 +56,12 @@ public abstract class AST {
     }
 
     /**
+     * Getter method for {@link #text}.
+     * @return String representation of the current {@link AST} node.
+     */
+    public String getText() { return text; }
+
+    /**
      * Getter method that returns {@link #location}.
      * @return {@link Location} where the AST is at in the program's file.
      */
