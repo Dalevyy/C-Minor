@@ -34,7 +34,6 @@ public abstract class Visitor {
     public void visitBreakStmt(BreakStmt bs) { bs.visitChildren(this); }
     public void visitCaseStmt(CaseStmt cs) { cs.visitChildren(this); }
     public void visitCastExpr(CastExpr ce) { ce.visitChildren(this); }
-    public void visitChoiceLabel(Label cl) { cl.visitChildren(this); }
     public void visitChoiceStmt(ChoiceStmt chs) { chs.visitChildren(this); }
     public void visitClassBody(ClassBody cb) { cb.visitChildren(this); }
     public void visitClassDecl(ClassDecl cd) { cd.visitChildren(this); }
@@ -57,6 +56,7 @@ public abstract class Visitor {
     public void visitInitDecl(InitDecl id) { id.visitChildren(this); }
     public void visitInStmt(InStmt ins) { ins.visitChildren(this); }
     public void visitInvocation(Invocation i) { i.visitChildren(this); }
+    public void visitLabel(Label l) { l.visitChildren(this);}
     public void visitListLiteral(ListLiteral ll) { ll.visitChildren(this); }
     public void visitListStmt(ListStmt ls) { ls.visitChildren(this); }
     public void visitListType(ListType lt) { lt.visitChildren(this); }

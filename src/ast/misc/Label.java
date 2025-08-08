@@ -110,7 +110,7 @@ public class Label extends AST {
      * {@inheritDoc}
      */
     @Override
-    public void visit(Visitor v) { v.visitChoiceLabel(this); }
+    public void visit(Visitor v) { v.visitLabel(this); }
 
     /**
      * Internal class that builds a {@link Label} object.
