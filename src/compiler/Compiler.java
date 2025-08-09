@@ -1,7 +1,6 @@
 package compiler;
 
 import ast.misc.CompilationUnit;
-import groovy.transform.Pure;
 import interpreter.Interpreter;
 import interpreter.VM;
 import java.io.BufferedReader;
@@ -78,7 +77,7 @@ public class Compiler {
      * @param root Compilation unit representing the program we want to compile
      */
     private void semanticAnalysis(CompilationUnit root, boolean execute) {
-        root.visit(new PropertyMethodGeneration());
+        root.visit(new PropertyGenerator());
         root.visit(new NameChecker(fileName));
         root.visit(new VariableInitialization(fileName));
         root.visit(new FieldRewrite());

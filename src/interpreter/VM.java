@@ -66,7 +66,7 @@ public class VM {
         System.out.println("C Minor Interpreter\n");
         while(true) {
             StringBuilder program = new StringBuilder();
-            String input = "";
+            String input;
 
             System.out.print(">>> ");
             input = reader.readLine();
@@ -149,7 +149,7 @@ public class VM {
     private void setupVM() {
         MessageHandler.setInterpretationMode();
 
-        phaseHandler.addPhase(new PropertyMethodGeneration());
+        phaseHandler.addPhase(new PropertyGenerator());
         phaseHandler.addPhase(new NameChecker(globalUnit.getScope()));
         phaseHandler.addPhase(new VariableInitialization());
         phaseHandler.addPhase(new FieldRewrite());
