@@ -98,6 +98,16 @@ public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
+    public boolean isMethod() { return false; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isFunction() { return false; }
+
+    /**
+     * {@inheritDoc}
+     */
     public ClassDecl getClassDecl() { return parent.asClassNode().getClassDecl(); }
 
     /**

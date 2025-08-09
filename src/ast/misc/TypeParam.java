@@ -122,6 +122,16 @@ public class TypeParam extends SubNode implements NameDecl {
     public String getDeclName() { return name.toString(); }
 
     /**
+     * {@inheritDoc}
+     */
+    public boolean isMethod() { return false; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isFunction() { return false; }
+
+    /**
      * Returns the name of the type parameter.
      * @return String representation of the type parameter.
      */

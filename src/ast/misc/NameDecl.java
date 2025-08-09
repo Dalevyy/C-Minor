@@ -43,4 +43,16 @@ public interface NameDecl {
      * @return String representation of the declaration's name.
      */
     String getDeclName();
+
+    /**
+     * Checks if the current {@link NameDecl} represents a method.
+     * @return {@code True} if the {@link NameDecl} is a {@link ast.classbody.MethodDecl}, {@code False} otherwise.
+     */
+    boolean isMethod();
+
+    /**
+     * Checks if the current {@link NameDecl} represents a function.
+     * @return {@code True} if the {@link NameDecl} is a {@link ast.topleveldecls.FuncDecl}, {@code False} otherwise.
+     */
+    boolean isFunction();
 }

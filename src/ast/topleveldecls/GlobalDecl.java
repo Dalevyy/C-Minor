@@ -57,6 +57,12 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     }
 
     /**
+     * Checks if the current {@link GlobalDecl} represents a constant variable.
+     * @return {@code True} if the {@link GlobalDecl} is a constant, {@code False} otherwise.
+     */
+    public boolean isConstant() { return isConstant; }
+
+    /**
      * {@inheritDoc}
      */
     public boolean hasInitialValue() { return globalVariable.getInitialValue() != null; }
@@ -92,44 +98,72 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
      */
     public AST asAST() { return this; }
 
-    // ????????????????
-    public boolean isClassType() { return false; }
-    public boolean isConstant() { return isConstant; }
-
-    public boolean isGlobalDecl() { return true; }
-    public GlobalDecl asGlobalDecl() { return this; }
-
+    /**
+     * {@inheritDoc}
+     */
     public AST getDecl() { return this; }
-    public String getDeclName() { return globalVariable.toString(); }
-
-
-    @Override
-    protected void update(int pos, AST newNode) {
-        throw new RuntimeException("Error.");
-    }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link GlobalDecl}
+     * {@inheritDoc}
+     */
+    public String getDeclName() { return globalVariable.toString(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isMethod() { return false; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isFunction() { return false; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isGlobalDecl() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public GlobalDecl asGlobalDecl() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void update(int pos, AST node) { this.globalVariable = node.asSubNode().asVar();}
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
         return new GlobalDeclBuilder()
                    .setMetaData(this)
-                   .setVar(this.globalVariable.deepCopy().asSubNode().asVar())
+                   .setVar(globalVariable.deepCopy().asSubNode().asVar())
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitGlobalDecl(this); }
 
+    /**
+     * Internal class that builds a {@link GlobalDecl} object.
+     */
     public static class GlobalDeclBuilder extends NodeBuilder {
+
+        /**
+         * {@link GlobalDecl} object we are building.
+         */
         private final GlobalDecl gd = new GlobalDecl();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return GlobalDeclBuilder
+         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link GlobalDeclBuilder}.
          */
         public GlobalDeclBuilder setMetaData(AST node) {
             super.setMetaData(gd,node);
@@ -138,11 +172,11 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
 
         /**
          * Sets the global declaration's {@link #globalVariable}.
-         * @param var Variable that represents the global declaration
-         * @return GlobalDeclBuilder
+         * @param globalVariable {@link Var} that represents the variable created by the global declaration.
+         * @return Current instance of {@link GlobalDeclBuilder}
          */
-        public GlobalDeclBuilder setVar(Var var) {
-            gd.globalVariable = var;
+        public GlobalDeclBuilder setVar(Var globalVariable) {
+            gd.globalVariable = globalVariable;
             return this;
         }
 
