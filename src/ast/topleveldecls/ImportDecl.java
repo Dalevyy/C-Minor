@@ -139,7 +139,7 @@ public class ImportDecl extends TopLevelDecl{
         /**
          * Creates an {@link ImportDecl} object.
          * @return {@link ImportDecl}
-         * */
+         */
         public ImportDecl create() { return id; }
     }
 }
