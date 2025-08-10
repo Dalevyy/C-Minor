@@ -1,186 +1,253 @@
 package utilities;
 
 import ast.AST;
-import ast.misc.NameDecl;
+import ast.classbody.MethodDecl;
 import ast.topleveldecls.FuncDecl;
+import ast.misc.NameDecl;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Iterator;
+import utilities.Vector.VectorIterator;
 
-// SymbolTable needs to be fixed for imports... no lol
 public class SymbolTable {
 
-    private final HashMap<String, NameDecl> varNames;
-    private final HashSet<String> methodNames;
+    /**
+     * A {@link HashMap} that tracks all declared variables names in a program.
+     */
+    private HashMap<String, NameDecl> names;
+
+    /**
+     * A {@link HashMap} that tracks all declared functions/methods in a program.
+     * <p>
+     *     This will only be used by the global scope and class scopes.
+     * </p>
+     */
+    private HashMap<String, SymbolTable> methods;
+
+    /**
+     * The parent {@link SymbolTable} that the current scope is nested in.
+     */
     private SymbolTable parent;
+
+    /**
+     * A parent {@link SymbolTable} that points to an imported file's scope (if applicable).
+     */
     private SymbolTable importParent;
 
+    /**
+     * String name for the current scope (used for debugging purposes).
+     */
+    private String description;
+
+    /**
+     * Default constructor for {@link SymbolTable}.
+     */
     public SymbolTable() {
-        varNames = new HashMap<>();
-        methodNames = new HashSet<>();
-
+        this.names = new HashMap<>();
+        this.methods = new HashMap<>();
     }
 
-    public SymbolTable(SymbolTable p) {
+    /**
+     * Constructor for {@link SymbolTable} to create a new nested scope.
+     * @param prevScope {@link SymbolTable} that the new scope resides within.
+     */
+    public SymbolTable(SymbolTable prevScope) {
         this();
-        parent = p;
+        this.parent = prevScope;
     }
 
-    public void setParent(SymbolTable p) { parent = p; }
-    public SymbolTable getParent() { return parent; }
+    public SymbolTable getMethods() {
+        SymbolTable currentScope = this;
 
-    public void clear() {
-        varNames.clear();
-        methodNames.clear();
-        parent = null;
-        importParent = null;
+        while(currentScope.parent != null) {
+            // Outside of the global scope, a class scope will be the only scope that uses both the names
+            // and method tables which is why this condition needs to exist.
+            if(!currentScope.names.isEmpty() && !currentScope.methods.isEmpty())
+                break;
+            currentScope = currentScope.parent;
+        }
+
+        return currentScope;
     }
 
-    public void setImportParent(SymbolTable ip) {
-        if(importParent != null)
-            importParent.setImportParent(ip);
+    /**
+     * Adds a declared name into the scope's {@link #names}
+     * @param node A {@link NameDecl} we wish to add into the current scope.
+     */
+    public void addName(NameDecl node) { names.put(node.getDeclName(),node); }
+
+    public void addName(String name, NameDecl node) { names.put(name,node); }
+
+    /**
+     * Checks if a passed {@link NameDecl} is contained in the current scope.
+     * @param node The {@link AST} node we want to see if it's in the scope.
+     * @return {@code True} if the {@link NameDecl} is contained in the current scope, {@code False} otherwise.
+     */
+    public boolean hasName(AST node) { return hasName(node.toString()); }
+
+    public boolean hasName(String name) { return names.containsKey(name) || importParent.hasName(name); }
+
+    public boolean hasNameInProgram(AST node) { return hasNameInProgram(node.toString()); }
+
+    private boolean hasNameInProgram(String name) {
+        if(names.containsKey(name))
+            return true;
+        else if(parent != null)
+            return parent.hasNameInProgram(name);
+        else if(importParent != null)
+            return importParent.hasNameInProgram(name);
         else
-            importParent = ip;
+            return false;
     }
 
-    public SymbolTable getImportParent() { return importParent; }
+    /**
+     * Finds and return a {@link NameDecl} in the scope hierarchy.
+     * @param name The name we are searching for in the scope hierarchy.
+     * @return A {@link NameDecl} if we find the closest declaration for the name, {@code null} otherwise.
+     */
+    public AST findName(String name) {
+        NameDecl node = names.get(name);
 
-    public SymbolTable getRootTable() {
-        if(parent == null)
-            return this;
+        if(node != null)
+            return node.getDecl();
+        else if(parent != null)
+            return parent.findName(name);
+        else if(importParent != null)
+            return importParent.findName(name);
         else
-            return parent.getRootTable();
+            return null;
     }
 
-    public Vector<FuncDecl> getAllFuncNames() {
-        SymbolTable rootTable = getRootTable();
-        Vector<FuncDecl> lst = new Vector<>();
+    public AST findName(AST node) { return findName(node.toString()); }
 
-        for(NameDecl name : getRootTable().getAllNames().values())
-            if(name.getDecl().isTopLevelDecl() && name.getDecl().asTopLevelDecl().isFuncDecl())
-                lst.add(name.getDecl().asTopLevelDecl().asFuncDecl());
-
-        return lst;
+    /**
+     * Removes a name from the scope hierarchy.
+     * <p>
+     *     This method should only be called when a {@link messages.CompilationMessage} is thrown
+     *     when interpretation mode is executing.
+     * </p>
+     * @param node The {@link AST} node we wish to remove from the current scope.
+     */
+    public void removeName(AST node) {
+        if(names.remove(node.toString()) == null)
+            parent.removeName(node);
     }
 
-    public void addName(String name, NameDecl n) { varNames.put(name,n); }
-    public void addNameToRootTable(String name, NameDecl n) {
-        if(parent != null)
-            parent.addNameToRootTable(name,n);
-        else
-            this.addName(name,n);
-    }
+    /**
+     * Adds a function/method to the scope's {@link #methods}.
+     * @param method The {@link NameDecl} representing a function/method that will be added.
+     */
+    public void addMethod(NameDecl method) {
+        if(!hasMethod(method))
+            methods.put(method.getDeclName(), new SymbolTable());
 
-    public void addMethod(String methodName) { methodNames.add(methodName); }
-
-    public NameDecl findName(String name) {
-        NameDecl nameFound = varNames.get(name);
-        if(nameFound != null) return nameFound;
-        else if(parent != null) return parent.findName(name);
-        else if(importParent != null) return importParent.findName(name);
-        else return null;
-    }
-
-    public NameDecl findName(AST node) { return findName(node.toString()); }
-
-    public boolean hasName(String name) {
-        return varNames.containsKey(name) || hasNameInImportTable(name);
-    }
-
-    public boolean hasNameSomewhere(String name) {
-        if(hasName(name)) return true;
-        else if(parent != null) return parent.hasNameSomewhere(name);
-        else if(importParent != null) return importParent.hasName(name);
-        else return false;
-    }
-
-    public boolean hasNameInImportTable(String name) {
-        if(importParent != null)
-            return importParent.hasName(name);
-        return false;
-    }
-
-    public boolean hasMethod(String name) { return methodNames.contains(name); }
-
-    public boolean hasMethodSomewhere(String name) {
-        if(hasMethod(name)) return true;
-        else if(parent != null) return parent.hasMethodSomewhere(name);
-        else if(importParent != null) return importParent.hasMethod(name);
-        else return false;
-    }
-
-    public void removeName(String name) {
-        if(varNames.remove(name) == null) { parent.removeName(name); }
-        // Gets the job done :)
-        if(name.contains("/") && methodNames.contains(name.substring(0,name.indexOf("/")))) {
-             for(String n : varNames.keySet()) {
-                 if(n.contains("/") && n.substring(0,n.indexOf("/")).equals(name.substring(0,name.indexOf("/")))) {
-                     return;
-                 }
-             }
-             methodNames.remove(name.substring(0,name.indexOf("/")));
+        SymbolTable methodTable = methods.get(method.getDeclName());
+        if(method.isFunction()) {
+            FuncDecl fd = method.getDecl().asTopLevelDecl().asFuncDecl();
+            methodTable.addName(fd.getParamSignature(), method);
+        }
+        else {
+            MethodDecl md = method.getDecl().asClassNode().asMethodDecl();
+            methodTable.addName(md.getParamSignature(), method);
         }
     }
 
-    public HashMap<String,NameDecl> getAllNames() { return varNames; }
-    public HashSet<String> getMethodNames() { return methodNames; }
+    public boolean hasMethod(NameDecl node) { return methods.containsKey(node.toString()); }
+    public boolean hasMethod(String name) { return methods.containsKey(name) || importParent.hasMethod(name); }
 
-    public boolean isNameUsedAnywhere(String name) {
-        return hasNameSomewhere(name) || hasMethodSomewhere(name);
+    /**
+     * Checks if a function/method overload exists within the {@link #methods} table.
+     * <p>
+     *     We will use the parameter signature of the function/method to store each valid
+     *     overload in the {@link #methods} table. If we know that a parameter signature already
+     *     exists for a given function/method, that implies that the overload already exists
+     *     which means we have a redeclaration.
+     * </p>
+     * @param method The {@link NameDecl} we wish to check for an overload.
+     * @return {@code True} if the overload exists, {@code False} otherwise.
+     */
+    public boolean hasMethodOverload(NameDecl method) {
+        if(!(method.isMethod() || method.isFunction()) || !hasMethod(method))
+            return false;
+
+        SymbolTable methodTable = methods.get(method.getDeclName());
+        String paramSignature;
+
+        if(method.isFunction())
+            paramSignature = method.getDecl().asTopLevelDecl().asFuncDecl().getParamSignature();
+        else
+            paramSignature = method.getDecl().asClassNode().asMethodDecl().getParamSignature();
+
+        return methodTable.hasName(paramSignature);
     }
 
-    public SymbolTable openNewScope() { return new SymbolTable(this); }
+    public AST findMethod(NameDecl method) {
+        if(method.isFunction())
+            return findMethod(method.getDeclName(),method.getDecl().asTopLevelDecl().asFuncDecl().getParamSignature());
+        else if(method.isMethod())
+            return findMethod(method.getDeclName(),method.getDecl().asClassNode().asMethodDecl().getParamSignature());
+        else
+            throw new RuntimeException("The passed name declaration does not represent a function or method.");
+    }
+
+    public AST findMethod(String methodName, String signature) {
+        SymbolTable methodTable = methods.get(methodName);
+
+        if(methodTable.hasName(signature))
+            return methodTable.names.get(signature).getDecl();
+        else
+            return null;
+    }
+
+    /**
+     * Creates a new scope to store names into.
+     * @return A {@link SymbolTable} representing the newly opened scope.
+     */
+    public SymbolTable openScope() { return new SymbolTable(this); }
+
+    /**
+     * Closes the current scope.
+     * @return The parent {@link SymbolTable} (if not in the global scope).
+     */
     public SymbolTable closeScope() { return parent; }
 
-    public String indent(int level) { return "  ".repeat(level); }
+    /**
+     * Resets the current {@link SymbolTable} instance.
+     */
+    public void clear() {
+        this.names = new HashMap<>();
+        this.methods = new HashMap<>();
+        this.parent = null;
+        this.importParent = null;
+    }
 
-    public void addEntries(StringBuilder sb, int level, HashSet<SymbolTable> visited) {
-        StringBuilder constructs = new StringBuilder();
-        constructs.append("\n" + indent(level+1) + "Top Level Names");
-        sb.append(indent(level+1) + "Variable Names");
-        for(var entry : varNames.entrySet()) {
-            sb.append("\n" + indent(level + 1));
-            if (entry.getValue().getDecl().isStatement()) {
-                sb.append(indent(level + 2) + "Local: " + entry.getKey());
-            }
-            else if (entry.getValue().getDecl().isTopLevelDecl()) {
-                if (entry.getValue().getDecl().asTopLevelDecl().isEnumDecl()) {
-                    constructs.append("\n" + indent(level + 2) + "Enum: " + entry.getKey());
-                } else if (entry.getValue().getDecl().asTopLevelDecl().isGlobalDecl()) {
-                    sb.append("\n" + indent(level + 2) + "Global: " + entry.getKey());
-                } else if (entry.getValue().getDecl().asTopLevelDecl().isClassDecl()) {
-                    constructs.append("\n" + indent(level + 2) + "Class: " + entry.getKey());
-                } else if (entry.getValue().getDecl().asTopLevelDecl().isFuncDecl()) {
-                    constructs.append("\n" + indent(level + 2) + "Function: " + entry.getKey());
-                }
-            }
-            else if (entry.getValue().getDecl().asClassNode().isFieldDecl()) {
-                sb.append(indent(level + 2) + "Field: " + entry.getKey());
-            }
-            else if (entry.getValue().getDecl().asClassNode().isMethodDecl()) {
-                sb.append(indent(level + 2) + "Method: " + entry.getKey());
-            }
+    /**
+     * An internal iterator class that will go through {@link #names}.
+     */
+    public static class NameIterator implements Iterator {
+
+        /**
+         * An internal iterator to keep track of the names we have seen.
+         */
+        private final VectorIterator names;
+
+        /**
+         * Default constructor for {@link NameIterator}.
+         * @param scope The {@link SymbolTable} we will create an iterator for.
+         */
+        public NameIterator(SymbolTable scope) {
+            this.names = new VectorIterator(new Vector<>(scope.names.values().toArray()));
         }
-        sb.append(constructs);
-    }
 
-    public String symbolTableToString(HashSet<SymbolTable> visited, int level) {
-        StringBuilder sb = new StringBuilder();
-        visited.add(this);
-        sb.append(indent(level) + "Level " + (level+1) + "\n");
-        addEntries(sb,level,visited);
+        /**
+         * Checks if {@link #names} can still be iterated.
+         * @return {@code True} if the iterator has not checked all of {@link #names}, {@code False} otherwise.
+         */
+        public boolean hasNext() { return names.hasNext(); }
 
-        if(parent != null && !visited.contains(parent)) { parent.addEntries(sb,level+1,visited); }
-        else if(importParent != null && !visited.contains(parent)) { importParent.addEntries(sb,level+1,visited); }
-        return sb.toString();
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        HashSet<SymbolTable> visited = new HashSet<>();
-        sb.append("____________________________ SYMBOL TABLE ____________________________\n");
-        sb.append(symbolTableToString(visited,0));
-        sb.append("\n______________________________________________________________________\n");
-        return sb.toString();
+        /**
+         * Returns the next {@link NameDecl} from {@link #names}.
+         * @return {@link NameDecl}
+         */
+        public AST next() { return ((NameDecl)names.next()).getDecl(); }
     }
 }
