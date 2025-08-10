@@ -18,30 +18,30 @@ import utilities.Visitor;
 import java.util.HashSet;
 
 public class ModifierChecker extends Visitor {
-
+/*
     private SymbolTable currentScope;
     private AST currentContext;
     private ClassDecl currentClass;
     private boolean parentFound = false;
 
-    /**
+    *//**
      * Creates modifier checker in compilation mode
-     */
+     *//*
     public ModifierChecker(String fileName) {
         this.currentScope = null;
         this.handler = new MessageHandler(fileName);
     }
 
-    /**
+    *//**
      * Creates modifier checker in interpretation mode
      * @param st Symbol Table
-     */
+     *//*
     public ModifierChecker(SymbolTable st) {
         this.currentScope = st;
         this.handler = new MessageHandler();
     }
 
-    /**
+    *//**
      * Determines if abstract methods were implemented in concrete classes.<br><br>
      * <p>
      *     ThisStmt algorithm comes from Dr. Pedersen's compilers textbook, and it will
@@ -53,7 +53,7 @@ public class ModifierChecker extends Visitor {
      * @param abstr Current set of abstract methods
      * @param concrete Current set of concrete methods
      * @param cd Current class we are checking method implementation for
-     */
+     *//*
     private void sortClassMethods(HashSet<String> abstr, HashSet<String> concrete, ClassDecl cd) {
 
         // Start from the top of the inheritance hierarchy
@@ -77,7 +77,7 @@ public class ModifierChecker extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Checks if the user correctly implements an inherited abstract class.<br><br>
      * <p>
      *     ThisStmt method will validate if a user correctly inherits from an abstract
@@ -87,7 +87,7 @@ public class ModifierChecker extends Visitor {
      * </p>
      * @param subClass   Subclass representing concrete class inheriting abstract class
      * @param superClass Superclass representing an abstract class
-     */
+     *//*
     private void checkAbstrClassImplementation(ClassDecl subClass, ClassDecl superClass) {
         HashSet<String> concretes = new HashSet<>();
         HashSet<String> abstracts = new HashSet<>();
@@ -105,7 +105,7 @@ public class ModifierChecker extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Checks modifier usage for assignment statements.<br><br>
      * <p>
      *     Since constant variables are allowed in C Minor, we have to check
@@ -113,7 +113,7 @@ public class ModifierChecker extends Visitor {
      *     programs. In this case, we are checking for enum and global constants.
      * </p>
      * @param as Assignment Statement
-     */
+     *//*
     public void visitAssignStmt(AssignStmt as) {
         if(!as.getLHS().isFieldExpr()) {
             AST LHS = currentScope.findName(as.getLHS().toString()).getDecl();
@@ -140,10 +140,10 @@ public class ModifierChecker extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Sets current scope inside case block
      * @param cs Case Statement
-     */
+     *//*
     public void visitCaseStmt(CaseStmt cs) {
         SymbolTable oldScope = currentScope;
         currentScope = cs.scope;
@@ -151,10 +151,10 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
-    /**
+    *//**
      * Sets current scope inside choice's other block
      * @param cs Choice Statement
-     */
+     *//*
     public void visitChoiceStmt(ChoiceStmt cs) {
         for(CaseStmt c : cs.getCases())
             c.visit(this);
@@ -165,7 +165,7 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
-    /** Checks class modifier usage.<br><br>
+    *//** Checks class modifier usage.<br><br>
      * <p>
      *     All modifier checks in classes relate to inheritance, and there
      *     are currently two checks we need to do.
@@ -184,7 +184,7 @@ public class ModifierChecker extends Visitor {
      *     </ol>
      * </p>
      * @param cd Class Declaration
-     */
+     *//*
     public void visitClassDecl(ClassDecl cd) {
         SymbolTable oldScope = currentScope;
         currentScope = cd.getScope();
@@ -215,10 +215,10 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
-    /**
+    *//**
      * Sets current scope inside do while loop's block.
      * @param ds Do Statement
-     */
+     *//*
     public void visitDoStmt(DoStmt ds) {
         SymbolTable oldScope = currentScope;
         currentScope = ds.scope;
@@ -227,7 +227,7 @@ public class ModifierChecker extends Visitor {
         ds.getCondition().visit(this);
     }
 
-    /**
+    *//**
      * Checks field expression modifier usage.<br><br>
      * <p>
      *     We only have one modifier check to perform for field expressions
@@ -235,7 +235,7 @@ public class ModifierChecker extends Visitor {
      *     outside of a class if they were declared public.
      * </p>
      * @param fe Field Expressions
-     */
+     *//*
     public void visitFieldExpr(FieldExpr fe) {
         fe.getTarget().visit(this);
         if(fe.getAccessExpr().isNameExpr() || fe.getAccessExpr().isArrayExpr()) {
@@ -269,10 +269,10 @@ public class ModifierChecker extends Visitor {
         parentFound = false;
     }
 
-    /**
+    *//**
      * Sets current scope inside for block
      * @param fs For Statement
-     */
+     *//*
     public void visitForStmt(ForStmt fs) {
         SymbolTable oldScope = currentScope;
         currentScope = fs.scope;
@@ -280,10 +280,10 @@ public class ModifierChecker extends Visitor {
         currentScope = oldScope;
     }
 
-    /**
+    *//**
      * Sets current scope to be inside current function.
      * @param fd Function Declaration
-     */
+     *//*
     public void visitFuncDecl(FuncDecl fd) {
 
         currentContext = fd;
@@ -294,10 +294,10 @@ public class ModifierChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
-    /**
+    *//**
      * Sets current scope inside of if statement's blocks
      * @param is If Statement
-     */
+     *//*
     public void visitIfStmt(IfStmt is) {
         is.getCondition().visit(this);
 
@@ -317,7 +317,7 @@ public class ModifierChecker extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Checks invocation modifier usage.<br><br>
      * <p>
      *     For both function and method invocations, we need to check if
@@ -327,7 +327,7 @@ public class ModifierChecker extends Visitor {
      *     order to be able to call it outside of the class.
      * </p>
      * @param in Invocation
-     */
+     *//*
     public void visitInvocation(Invocation in) {
         String funcSignature = in.getSignature();
 
@@ -383,20 +383,20 @@ public class ModifierChecker extends Visitor {
         super.visitInvocation(in);
     }
 
-    /**
+    *//**
      * Sets current scope to be inside <verb>main</verb> function.
      * @param md Main Declaration
-     */
+     *//*
     public void visitMainDecl(MainDecl md) {
         currentScope = md.getScope();
         currentContext = md;
         super.visitMainDecl(md);
     }
 
-    /**
+    *//**
      * Sets current scope to be inside current method.
      * @param md Method Declaration
-     */
+     *//*
     public void visitMethodDecl(MethodDecl md) {
         currentContext = md;
         currentScope = md.getScope();
@@ -410,7 +410,7 @@ public class ModifierChecker extends Visitor {
             parentFound = true;
     }
 
-    /**
+    *//**
      * Checks new expression modifier usage.<br><br>
      * <p>
      *     When we are instantiating an object, we want to make sure a user is
@@ -419,7 +419,7 @@ public class ModifierChecker extends Visitor {
      *     check we need to perform.
      * </p>
      * @param ne New Expression
-     */
+     *//*
     public void visitNewExpr(NewExpr ne) {
         ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
 
@@ -443,14 +443,14 @@ public class ModifierChecker extends Visitor {
             e.visit(this);
     }
 
-    /**
+    *//**
      * Sets current scope inside while block.
      * @param ws While Statement
-     */
+     *//*
     public void visitWhileStmt(WhileStmt ws) {
         SymbolTable oldScope = currentScope;
         currentScope = ws.scope;
         super.visitWhileStmt(ws);
         currentScope = oldScope;
-    }
+    }*/
 }

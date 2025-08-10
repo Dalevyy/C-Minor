@@ -51,7 +51,7 @@ public abstract class Message {
      * @param fileName The file in which the error is generated for (if applicable).
      */
     public void createMessage(String fileName) {
-        msg = buildMessageHeader(fileName) + buildLocationInfo() + buildMainMessage() + buildSupplementalMessage();
+        msg = buildMessageHeader(fileName) + buildMainMessage() + buildLocationInfo() + buildSupplementalMessage();
     }
 
     /**
@@ -65,7 +65,7 @@ public abstract class Message {
      * Builds a string representing the location in the program that the message is generated for.
      * @return String representation of the {@link #location}.
      */
-    protected String buildLocationInfo() { return (location == null) ? "" : location.header(); }
+    protected String buildLocationInfo() { return (location == null) ? "" : PrettyPrint.RESET + location.header(); }
 
     /**
      * Builds the main message that the user needs to see.
@@ -75,7 +75,7 @@ public abstract class Message {
         if(messageType == null)
             throw new RuntimeException("The message being created was not given a specified message number.");
 
-        String msg = PrettyPrint.RED + messageType.getMessage() + PrettyPrint.RESET;
+        String msg = messageType.getMessage() + "\n";
 
         // Replace every "<argN>" with the actual argument (where N <= len(args))
         if(args != null) {

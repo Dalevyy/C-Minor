@@ -22,7 +22,7 @@ public class ScopeError extends Error {
      */
     @Override
     public void createMessage(String fileName) {
-        msg = buildMessageHeader(fileName) + buildLocationInfo() + buildMainMessage() + buildRedeclarationMessage();
+        msg = buildMessageHeader(fileName) + buildMainMessage() + buildLocationInfo() + buildRedeclarationMessage();
     }
 
     /**
@@ -39,10 +39,10 @@ public class ScopeError extends Error {
         if(root != null)
             sb.append(super.buildMessageHeader(root.toString()));
         else
-            sb.append("\n\n");
+            sb.append("\n");
 
         sb.append(PrettyPrint.RED)
-          .append("Redeclaration was found.")
+          .append("The current scope already contains the following declaration:")
           .append(PrettyPrint.RESET)
           .append("\n")
           .append(originalDeclaration.header());
@@ -56,11 +56,10 @@ public class ScopeError extends Error {
     @Override
     protected String buildMessageHeader(String fileName) {
         return super.buildMessageHeader(fileName)
-                + PrettyPrint.YELLOW
+                + PrettyPrint.RED
                 + "Scope Error "
                 + messageNumber()
-                + "\n\n"
-                + PrettyPrint.RESET;
+                + ": ";
     }
 
     /**

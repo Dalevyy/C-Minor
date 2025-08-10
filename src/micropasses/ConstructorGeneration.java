@@ -27,50 +27,50 @@ import utilities.Visitor;
  * @author Daniel Levy
  */
 public class ConstructorGeneration extends Visitor {
-
-    /**
-     * Creates an {@link ast.classbody.InitDecl} for the current class.
-     * @param cd Class Declaration
-     */
-    public void visitClassDecl(ClassDecl cd) {
-        Vector<AssignStmt> initParams = new Vector<>();
-
-        // For every field declared in the current class, we will create an
-        // assignment statement that will be stored in the generated constructor.
-        for(String key : cd.getScope().getAllNames().keySet()) {
-            if(cd.getScope().findName(key).getDecl().asClassNode().isFieldDecl()) {
-                FieldDecl currFieldDecl = cd.getScope().findName(key).getDecl().asClassNode().asFieldDecl();
-                initParams.add(
-                    new AssignStmtBuilder()
-                        .setLHS(
-                            new FieldExprBuilder()
-                                .setTarget(new ThisStmt())
-                                .setAccessExpr(
-                                    new NameExprBuilder()
-                                        .setName(currFieldDecl.getVariableName())
-                                        .create()
-                                )
-                                .create()
-                        )
-                        .setRHS(currFieldDecl.getInitialValue())
-                        .setAssignOp(
-                            new AssignOpBuilder()
-                                .setAssignOperator(AssignType.EQ)
-                                .create()
-                        )
-                        .create());
-            }
-        }
-
-        cd.setConstructor(
-            new InitDeclBuilder()
-                .setInits(initParams)
-                .create()
-        );
-    }
-
-    public void visitNewExpr(NewExpr ne) {
-        if(ne.createsFromTemplate())
-            ne.getInstantiatedClass().visit(this);
-    }
+//
+//    /**
+//     * Creates an {@link ast.classbody.InitDecl} for the current class.
+//     * @param cd Class Declaration
+//     */
+//    public void visitClassDecl(ClassDecl cd) {
+//        Vector<AssignStmt> initParams = new Vector<>();
+//
+//        // For every field declared in the current class, we will create an
+//        // assignment statement that will be stored in the generated constructor.
+//        for(String key : cd.getScope().getAllNames().keySet()) {
+//            if(cd.getScope().findName(key).getDecl().asClassNode().isFieldDecl()) {
+//                FieldDecl currFieldDecl = cd.getScope().findName(key).getDecl().asClassNode().asFieldDecl();
+//                initParams.add(
+//                    new AssignStmtBuilder()
+//                        .setLHS(
+//                            new FieldExprBuilder()
+//                                .setTarget(new ThisStmt())
+//                                .setAccessExpr(
+//                                    new NameExprBuilder()
+//                                        .setName(currFieldDecl.getVariableName())
+//                                        .create()
+//                                )
+//                                .create()
+//                        )
+//                        .setRHS(currFieldDecl.getInitialValue())
+//                        .setAssignOp(
+//                            new AssignOpBuilder()
+//                                .setAssignOperator(AssignType.EQ)
+//                                .create()
+//                        )
+//                        .create());
+//            }
+//        }
+//
+//        cd.setConstructor(
+//            new InitDeclBuilder()
+//                .setInits(initParams)
+//                .create()
+//        );
+//    }
+//
+//    public void visitNewExpr(NewExpr ne) {
+//        if(ne.createsFromTemplate())
+//            ne.getInstantiatedClass().visit(this);
+//    }
 }

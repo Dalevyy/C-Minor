@@ -180,7 +180,7 @@ public class ImportHandler extends Visitor {
                 .generateError();
         }
 
-        Compiler c = new Compiler(im.toString());
+        Compiler c = new Compiler();
         CompilationUnit root = c.syntaxAnalysis(program.toString());
         im.setCompilationUnit(root);
     }

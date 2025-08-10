@@ -151,15 +151,15 @@ public class VM {
 
         phaseHandler.addPhase(new PropertyGenerator());
         phaseHandler.addPhase(new NameChecker(globalUnit.getScope()));
-        phaseHandler.addPhase(new VariableInitialization());
-        phaseHandler.addPhase(new FieldRewrite());
-        phaseHandler.addPhase(new OperatorOverloadCheck());
-        phaseHandler.addPhase(new LoopKeywordCheck());
-        phaseHandler.addPhase(new TypeValidityPass(globalUnit.getScope()));
-        phaseHandler.addPhase(new TypeChecker(globalUnit.getScope()));
-        phaseHandler.addPhase(new ConstructorGeneration());
-        phaseHandler.addPhase(new ModifierChecker(globalUnit.getScope()));
-        phaseHandler.addPhase(new PureKeywordPass());
-        phaseHandler.addPhase(new Interpreter(globalUnit.getScope()));
+//        phaseHandler.addPhase(new VariableInitialization());
+//        phaseHandler.addPhase(new FieldRewrite());
+//        phaseHandler.addPhase(new OperatorOverloadCheck());
+//        phaseHandler.addPhase(new LoopKeywordCheck());
+//        phaseHandler.addPhase(new TypeValidityPass(globalUnit.getScope()));
+//        phaseHandler.addPhase(new TypeChecker(globalUnit.getScope()));
+//        phaseHandler.addPhase(new ConstructorGeneration());
+//        phaseHandler.addPhase(new ModifierChecker(globalUnit.getScope()));
+//        phaseHandler.addPhase(new PureKeywordPass());
+//        phaseHandler.addPhase(new Interpreter(globalUnit.getScope()));
     }
 }

@@ -40,51 +40,51 @@ import java.util.HashMap;
  * @author Daniel Levy
  */
 public class Interpreter extends Visitor {
-
-    /**
+/*
+    *//**
      * An imitation of a {@link RuntimeStack}
-     */
+     *//*
     private RuntimeStack stack;
 
-    /**
+    *//**
      * {@link SymbolTable} to denote the current scope we are in for calling functions/methods.
-     */
+     *//*
     private SymbolTable currentScope;
 
-    /**
+    *//**
      * Stores the current value the interpreter is evaluating.
-     */
+     *//*
     private Value currentValue;
 
-    /**
+    *//**
      * Flag set when a {@code break} statement is found.
-     */
+     *//*
     private boolean breakFound;
 
-    /**
+    *//**
      * Flag set when a {@code continue} statement is found.
-     */
+     *//*
     private boolean continueFound;
 
-    /**
+    *//**
      * Flag set when the {@link Interpreter} executes an assignment statement.
-     */
+     *//*
     private boolean insideAssignment;
 
-    /**
+    *//**
      * Flag set when the {@link Interpreter} executes an output statement.
-     */
+     *//*
     private boolean output;
 
-    /**
+    *//**
      * Flag set when a {@code return} statement is found.
-     */
+     *//*
     private boolean returnFound;
 
-    /**
+    *//**
      * Creates interpreter for the VM.
      * @param st Symbol Table
-     */
+     *//*
     public Interpreter(SymbolTable st) {
         this.stack = new RuntimeStack();
         this.currentValue = null;
@@ -97,10 +97,10 @@ public class Interpreter extends Visitor {
         this.handler = new MessageHandler();
     }
 
-    /**
+    *//**
      * Resets the {@link #currentValue} to prevent any unwarranted errors to occur.
      *
-     */
+     *//*
     public void resetValue() {
         this.currentValue = null;
         this.insideAssignment = false;
@@ -110,7 +110,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Evaluates an array expression.
      * <p><br>
      *     We will retrieve the array from the stack, and we will access whatever
@@ -119,7 +119,7 @@ public class Interpreter extends Visitor {
      *     error checking.
      * </p>
      * @param ae Array Expression
-     */
+     *//*
     public void visitArrayExpr(ArrayExpr ae) {
         ae.getArrayTarget().visit(this);
         RuntimeList lst = currentValue.asList();
@@ -156,7 +156,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Evaluates an array literal.
      * <p><br>
      *     Arrays are static in C Minor, so a user can not change its size
@@ -165,7 +165,7 @@ public class Interpreter extends Visitor {
      *     This will emulate an array in memory during runtime.
      * </p>
      * @param al Array Literal
-     */
+     *//*
     public void visitArrayLiteral(ArrayLiteral al) {
         RuntimeList arr = new RuntimeList(al);
 
@@ -177,7 +177,7 @@ public class Interpreter extends Visitor {
         currentValue = arr;
     }
 
-    /**
+    *//**
      * Executes an assignment statement.
      * <p><br>
      *     We will evaluate the LHS and RHS of the {@link AssignStmt}, so we
@@ -185,7 +185,7 @@ public class Interpreter extends Visitor {
      *     the resulting value into the stack.
      * </p>
      * @param as Assignment Statement
-     */
+     *//*
     public void visitAssignStmt(AssignStmt as) {
         String assignOp = as.getOperator().toString();
 
@@ -239,7 +239,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Evaluates a binary expression.
      * <p><br>
      *     We first need to evaluate the values of the LHS and RHS of the current
@@ -247,7 +247,7 @@ public class Interpreter extends Visitor {
      *     based on the type the binary expression evaluates to.
      * </p>
      * @param be Binary Expression
-     */
+     *//*
     public void visitBinaryExpr(BinaryExpr be) {
         String binOp = be.getBinaryOp().toString();
 
@@ -374,7 +374,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes a block statement.
      * <p><br>
      *     We will create a new call frame on the {@link #stack} every time
@@ -385,7 +385,7 @@ public class Interpreter extends Visitor {
      *     us to terminate the execution of the block), we will destroy the call frame.
      * </p>
      * @param bs Block Statement
-     */
+     *//*
     public void visitBlockStmt(BlockStmt bs) {
         stack = stack.createCallFrame();
 
@@ -394,10 +394,10 @@ public class Interpreter extends Visitor {
 
         for(Statement s : bs.getStatements()) {
             s.visit(this);
-            /*
+            *//*
                 The `break`, `continue`, and `return` keywords will terminate
                 the execution of the current block statement we are in.
-            */
+            *//*
             if(returnFound || breakFound || continueFound)
                 break;
         }
@@ -405,24 +405,24 @@ public class Interpreter extends Visitor {
         stack = stack.destroyCallFrame();
     }
 
-    /**
+    *//**
      * Executes a break statement.
      * <p><br>
      *     When a break statement is executed, we will set the {@link #breakFound}
      *     flag to be true. This means we will need to terminate the current loop
      *     statement that is executing.
      * @param bs Break Statement
-     */
+     *//*
     public void visitBreakStmt(BreakStmt bs) { breakFound = true; }
 
-    /**
+    *//**
      * Evaluates a cast expression.
      * <p><br>
      *     We will evaluate the cast expression's value and
      *     typecast it to the appropriate type.
      * </p>
      * @param cs Cast Expression
-     */
+     *//*
     public void visitCastExpr(CastExpr cs) {
         cs.getCastExpr().visit(this);
         if(cs.getCastType().isInt()) {
@@ -441,7 +441,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes a choice statement.
      * <p><br>
      *     We will first evaluate the choice value. Then, we will go through
@@ -450,7 +450,7 @@ public class Interpreter extends Visitor {
      *     does not belong to any label, then we will execute the default statement.
      * </p>
      * @param cs Choice Statement
-     */
+     *//*
     public void visitChoiceStmt(ChoiceStmt cs) {
         cs.getChoiceValue().visit(this);
 
@@ -489,9 +489,9 @@ public class Interpreter extends Visitor {
         }
     }
 
-    public void visitClassDecl(ClassDecl cd) { /* Do nothing. */ }
+    public void visitClassDecl(ClassDecl cd) { *//* Do nothing. *//* }
 
-    /**
+    *//**
      * Begins the execution of a program in compilation mode.
      * <p><br>
      *     For the time being, we are going to execute programs via
@@ -501,7 +501,7 @@ public class Interpreter extends Visitor {
      *     be saved into the runtime stack before visiting the main function.
      * </p>
      * @param c Compilation unit representing the program we are executing
-     */
+     *//*
     public void visitCompilationUnit(CompilationUnit c) {
         for(ImportDecl im : c.getImports()) {
             im.visit(this);
@@ -519,17 +519,17 @@ public class Interpreter extends Visitor {
             c.getMain().getBody().visit(this);
     }
 
-    /**
+    *//**
      * Executes a continue statement.
      * <p><br>
      *     When a continue statement is executed, we will set the {@link #continueFound}
      *     flag to be true. This means we will need to end the current loop iteration early
      *     and move on to the next iteration.
      * @param cs Continue Statement
-     */
+     *//*
     public void visitContinueStmt(ContinueStmt cs) { continueFound = true; }
 
-    /**
+    *//**
      * Executes a do while loop.
      * <p><br>
      *     A do while loop requires the loop to execute at least once and
@@ -538,7 +538,7 @@ public class Interpreter extends Visitor {
      *     while loop to help us execute the code.
      * </p>
      * @param ds Do Statement
-     */
+     *//*
     public void visitDoStmt(DoStmt ds) {
         do {
             ds.getBody().visit(this);
@@ -553,14 +553,14 @@ public class Interpreter extends Visitor {
         breakFound = false;
     }
 
-    /**
+    *//**
      * Executes an enum declaration.
      * <p>
      *     We will evaluate each constant in the enumeration and store
      *     each constant into the runtime stack.
      * </p>
      * @param ed Enum Declaration
-     */
+     *//*
     public void visitEnumDecl(EnumDecl ed) {
         for(Var constant : ed.getConstants()) {
             constant.getInitialValue().visit(this);
@@ -568,7 +568,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Evaluates a field expression.
      * <p><br>
      *     We will evaluate the target expression first to get the
@@ -577,7 +577,7 @@ public class Interpreter extends Visitor {
      *     will make sure to set {@link #currentValue} to be the object.
      * </p>
      * @param fe Field Expression
-     */
+     *//*
     public void visitFieldExpr(FieldExpr fe) {
         fe.getTarget().visit(this);
         RuntimeObject obj = currentValue.asObject();
@@ -600,7 +600,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes a for statement.
      * <p><br>
      *     Since for loops are static in C Minor, we will evaluate the LHS and
@@ -609,7 +609,7 @@ public class Interpreter extends Visitor {
      *     terminates early or once all iterations are completed.
      * </p>
      * @param fs For Statement
-     */
+     *//*
     public void visitForStmt(ForStmt fs) {
         String loopOp = fs.getLoopOperator().toString();
 
@@ -646,23 +646,23 @@ public class Interpreter extends Visitor {
         breakFound = false;
     }
 
-    public void visitFuncDecl(FuncDecl fd) { /* Do nothing. */ }
+    public void visitFuncDecl(FuncDecl fd) { *//* Do nothing. *//* }
 
-    /**
+    *//**
      * Executes a global declaration statement.
      * <p><br>
      *     By executing a global declaration, we will allocate
      *     space on the runtime stack to store a new global value.
      * </p>
      * @param gd Global Declaration
-     */
+     *//*
     public void visitGlobalDecl(GlobalDecl gd) {
         if(gd.getInitialValue() != null)
             gd.getInitialValue().visit(this);
         stack.addValue(gd.getVariableName(), currentValue);
     }
 
-    /**
+    *//**
      * Executes an if statement.
      * <p><br>
      *     An if statement is only executed if its condition evaluates to be true.
@@ -671,7 +671,7 @@ public class Interpreter extends Visitor {
      *     else statement (if applicable).
      * </p>
      * @param is If Statement
-     */
+     *//*
     public void visitIfStmt(IfStmt is) {
         is.getCondition().visit(this);
 
@@ -693,7 +693,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes a constructor declaration.
      * <p><br>
      *     A constructor declaration is only visited after a {@code visitNewExpr}
@@ -701,7 +701,7 @@ public class Interpreter extends Visitor {
      *     the user didn't initialize for the newly created object.
      * </p>
      * @param id Init Declaration
-     */
+     *//*
     public void visitInitDecl(InitDecl id) {
         RuntimeObject obj = currentValue.asObject();
 
@@ -715,7 +715,7 @@ public class Interpreter extends Visitor {
         currentValue = obj;
     }
 
-    /**
+    *//**
      * Executes an input statement.
      * <p><br>
      *     In C Minor, the interpreter will handle all runtime errors for the
@@ -724,7 +724,7 @@ public class Interpreter extends Visitor {
      *     the program.
      * </p>
      * @param in Input Statement
-     */
+     *//*
     public void visitInStmt(InStmt in) {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String input = "";
@@ -771,17 +771,17 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes an import declaration.
      * <p><br>
      *     For an import declaration, we simply want to execute its compilation unit
      *     and add all of its top level declarations into the interpreter.
      * </p>
      * @param im Import Declaration
-     */
+     *//*
     public void visitImportDecl(ImportDecl im) { im.getCompilationUnit().visit(this); }
 
-    /**
+    *//**
      * Evaluates an invocation.
      * <p>
      *     An invocation will result in a call to a function or a method. In
@@ -791,7 +791,7 @@ public class Interpreter extends Visitor {
      *     to handle it for us.
      * </p>
      * @param in Invocation
-     */
+     *//*
     public void visitInvocation(Invocation in) {
         RuntimeObject obj = null;
         if(currentValue != null && currentValue.isObject())
@@ -881,7 +881,7 @@ public class Interpreter extends Visitor {
             stack.setValue(varName,varsToUpdate.get(varName));
     }
 
-    /**
+    *//**
      * Evaluates a list literal.
      * <p><br>
      *     Lists are dynamic in C Minor, so a user may change the size of
@@ -891,7 +891,7 @@ public class Interpreter extends Visitor {
      *     {@link RuntimeList} to emulate a list in memory during runtime.
      * </p>
      * @param ll List Literal
-     */
+     *//*
     public void visitListLiteral(ListLiteral ll) {
         RuntimeList lst = new RuntimeList(ll);
 
@@ -903,7 +903,7 @@ public class Interpreter extends Visitor {
         currentValue = lst;
     }
 
-    /**
+    *//**
      * Executes a list statement command.
      * <p><br>
      *     This method will execute the current list command based on the
@@ -911,7 +911,7 @@ public class Interpreter extends Visitor {
      *     an exception for the user.
      * </p>
      * @param ls The current list statement we will be executing.
-     */
+     *//*
     public void visitListStmt(ListStmt ls) {
         if(ls.getInvocation() != null) {
             ls.getInvocation().visit(this);
@@ -971,31 +971,31 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Evaluates a literal.
      * <p><br>
      *     We create a new value to represent the literal
      *     and store the result into {@link #currentValue}.
      * </p>
      * @param li Literal
-     */
+     *//*
     public void visitLiteral(Literal li) { currentValue = new Value(li); }
 
-    /**
+    *//**
      * Executes a local declaration statement.
      * <p><br>
      *     By executing a local declaration, we will allocate
      *     space on the runtime stack to store a new local value.
      * </p>
      * @param ld Local Declaration
-     */
+     *//*
     public void visitLocalDecl(LocalDecl ld) {
         if(ld.hasInitialValue())
             ld.getInitialValue().visit(this);
         stack.addValue(ld.getVariableName(), currentValue);
     }
 
-    /**
+    *//**
      * Evaluates a name expression.
      * <p><br>
      *     Any time the interpreter encounters a name, it will access
@@ -1004,7 +1004,7 @@ public class Interpreter extends Visitor {
      *     unless it doesn't exist.
      * </p>
      * @param ne Name Expression
-     */
+     *//*
     public void visitNameExpr(NameExpr ne) {
         // Ignore any names that refer to 'parent' keyword.
         if(ne.isParentKeyword())
@@ -1036,7 +1036,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Evaluates a new expression.
      * <p><br>
      *     We will create a {@link RuntimeObject} whenever we visit a {@link NewExpr}.
@@ -1045,7 +1045,7 @@ public class Interpreter extends Visitor {
      *     of the rest of the fields.
      * </p>
      * @param ne New Expression
-     */
+     *//*
     public void visitNewExpr(NewExpr ne) {
         RuntimeObject obj = new RuntimeObject(ne.type);
         ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
@@ -1059,14 +1059,14 @@ public class Interpreter extends Visitor {
         cd.getConstructor().visit(this);
     }
 
-    /**
+    *//**
      * Executes an output statement.
      * <p><br>
      *     We will visit every expression  in the current output
      *     statement and print each value to the terminal.
      * </p>
      * @param os Output Statement
-     */
+     *//*
     public void visitOutStmt(OutStmt os) {
         for(Expression e : os.getOutExprs()) {
             e.visit(this);
@@ -1087,7 +1087,7 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes a return statement.
      * <p><br>
      *     When we encounter a return statement, we will set the
@@ -1096,38 +1096,38 @@ public class Interpreter extends Visitor {
      *     will evaluate the value that needs to be returned (if applicable).
      * </p>
      * @param rs Return Statement
-     */
+     *//*
     public void visitReturnStmt(ReturnStmt rs) {
         if(rs.getReturnValue() != null)
             rs.getReturnValue().visit(this);
         returnFound = true;
     }
 
-    /**
+    *//**
      * Executes a retype statement.
      * <p><br>
      *     By executing a retype statement, we are creating a new instance
      *     of the object and saving the object into the stack.
      * </p>
      * @param rt Retype Statement
-     */
+     *//*
     public void visitRetypeStmt(RetypeStmt rt) {
         rt.getNewObject().visit(this);
         stack.setValue(rt.getName(), currentValue);
         currentValue = null;
     }
 
-    /**
+    *//**
      * Executes a stop statement.
      * <p><br>
      *     If a stop statement is written by the user, we
      *     will simply terminate the C Minor interpreter.
      * </p>
      * @param ss Stop Statement
-     */
+     *//*
     public void visitStopStmt(StopStmt ss) { System.exit(1); }
 
-    /**
+    *//**
      * Executes a {@link ThisStmt}.
      * <p><br>
      *     When we are executing code related to an object, we want to make sure we
@@ -1136,16 +1136,16 @@ public class Interpreter extends Visitor {
      *     we are inside of a class.
      * </p>
      * @param ts ThisStmt
-     */
+     *//*
     public void visitThis(ThisStmt ts) { currentValue = stack.getValue("this"); }
 
-    /**
+    *//**
      * Evaluates a unary expression.
      * <p><br>
      *     We will evaluate the unary expression and save its value.
      * </p>
      * @param ue Unary Expression
-     */
+     *//*
     public void visitUnaryExpr(UnaryExpr ue) {
         ue.getExpr().visit(this);
         
@@ -1159,14 +1159,14 @@ public class Interpreter extends Visitor {
         }
     }
 
-    /**
+    *//**
      * Executes a while loop.
      * <p><br>
      *     A while loop will be executed as long as its condition remains true.
      *     We will be using a Java while loop internally to help us execute the code.
      * </p>
      * @param ws While Statement
-     */
+     *//*
     public void visitWhileStmt(WhileStmt ws) {
         ws.getCondition().visit(this);
 
@@ -1180,5 +1180,5 @@ public class Interpreter extends Visitor {
             ws.getCondition().visit(this);
         }
         breakFound = false;
-    }
+    }*/
 }

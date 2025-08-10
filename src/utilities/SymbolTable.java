@@ -84,7 +84,9 @@ public class SymbolTable {
      */
     public boolean hasName(AST node) { return hasName(node.toString()); }
 
-    public boolean hasName(String name) { return names.containsKey(name) || importParent.hasName(name); }
+    public boolean hasName(String name) { return names.containsKey(name) || hasImportedName(name); }
+
+    public boolean hasImportedName(String name) { return importParent != null && importParent.hasName(name); }
 
     public boolean hasNameInProgram(AST node) { return hasNameInProgram(node.toString()); }
 

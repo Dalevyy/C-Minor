@@ -22,5 +22,5 @@ public class Main {
      * </p>
      * @param args The arguments the user passes into the compiler
      */
-    public static void main(String[] args) throws IOException { new Compiler("").compile(args); }
+    public static void main(String[] args) throws IOException { new Compiler().compile(args); }
 }

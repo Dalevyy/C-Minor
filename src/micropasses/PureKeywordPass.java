@@ -24,81 +24,81 @@ import utilities.Visitor;
  * @author Daniel Levy
  */
 public class PureKeywordPass extends Visitor {
-
-    private SymbolTable currentScope;
-    private String methodName;
-    private boolean insidePureMethod;
-
-    public PureKeywordPass() { this.handler = new MessageHandler();
-    }
-
-    public PureKeywordPass(String fileName) { this.handler = new MessageHandler(fileName);
-    }
-
-    /**
-     * Determines if a variable is changing state while inside a pure method.
-     * <p><br>
-     *     This is a helper method that checks if a given declaration from the
-     *     {@link AST} matches a set of criteria defined in the method. If this
-     *     criteria is met, this means the variable associated with the declaration
-     *     is updated in some way and thus could be producing a side effect.
-     * </p>
-     * @param decl {@link AST} node that could be changing state
-     * @return Boolean
-     */
-    private boolean methodChangesState(AST decl) {
-        if(!decl.isSubNode() || !decl.asSubNode().isParamDecl())
-            return false;
-        ParamDecl pd = decl.asSubNode().asParamDecl();
-        if(pd.mod.isOutMode()
-                               || pd.mod.isInOutMode()
-                               || pd.mod.isRefMode())
-            return true;
-
-        return decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl();
-    }
-
-    public void visitAssignStmt(AssignStmt as) {
-        if(insidePureMethod && methodChangesState(currentScope.findName(as.getLHS()).getDecl())) {
-            handler.createWarningBuilder()
-                    .addLocation(as)
-                    .addWarningNumber(MessageNumber.WARNING_1)
-                    .addWarningArgs(as.getLHS(),methodName)
-                    .generateWarning();
-        }
-    }
-
-    public void visitCompilationUnit(CompilationUnit c) {
-        super.visitCompilationUnit(c);
-    }
-
-    public void visitFuncDecl(FuncDecl fd) {
-        if(fd.mod.isPure()) {
-            insidePureMethod = true;
-            methodName = fd.toString();
-            currentScope = fd.getScope();
-            super.visitFuncDecl(fd);
-            insidePureMethod = false;
-        }
-    }
-
-    public void visitMethodDecl(MethodDecl md) {
-        if(md.mod.isPure()) {
-            insidePureMethod = true;
-            methodName = md.toString();
-            currentScope = md.getScope();
-            super.visitMethodDecl(md);
-            insidePureMethod = false;
-        }
-    }
-
-    public void visitRetypeStmt(RetypeStmt rt) {
-        if(insidePureMethod && methodChangesState(currentScope.findName(rt.getLHS()).getDecl())) {
-            handler.createWarningBuilder()
-                    .addLocation(rt)
-                    .addWarningNumber(MessageNumber.WARNING_1)
-                    .addWarningArgs(rt.getLHS(),methodName)
-                    .generateWarning();
-        }
-    }
+//
+//    private SymbolTable currentScope;
+//    private String methodName;
+//    private boolean insidePureMethod;
+//
+//    public PureKeywordPass() { this.handler = new MessageHandler();
+//    }
+//
+//    public PureKeywordPass(String fileName) { this.handler = new MessageHandler(fileName);
+//    }
+//
+//    /**
+//     * Determines if a variable is changing state while inside a pure method.
+//     * <p><br>
+//     *     This is a helper method that checks if a given declaration from the
+//     *     {@link AST} matches a set of criteria defined in the method. If this
+//     *     criteria is met, this means the variable associated with the declaration
+//     *     is updated in some way and thus could be producing a side effect.
+//     * </p>
+//     * @param decl {@link AST} node that could be changing state
+//     * @return Boolean
+//     */
+//    private boolean methodChangesState(AST decl) {
+//        if(!decl.isSubNode() || !decl.asSubNode().isParamDecl())
+//            return false;
+//        ParamDecl pd = decl.asSubNode().asParamDecl();
+//        if(pd.mod.isOutMode()
+//                               || pd.mod.isInOutMode()
+//                               || pd.mod.isRefMode())
+//            return true;
+//
+//        return decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl();
+//    }
+//
+//    public void visitAssignStmt(AssignStmt as) {
+//        if(insidePureMethod && methodChangesState(currentScope.findName(as.getLHS()).getDecl())) {
+//            handler.createWarningBuilder()
+//                    .addLocation(as)
+//                    .addWarningNumber(MessageNumber.WARNING_1)
+//                    .addWarningArgs(as.getLHS(),methodName)
+//                    .generateWarning();
+//        }
+//    }
+//
+//    public void visitCompilationUnit(CompilationUnit c) {
+//        super.visitCompilationUnit(c);
+//    }
+//
+//    public void visitFuncDecl(FuncDecl fd) {
+//        if(fd.mod.isPure()) {
+//            insidePureMethod = true;
+//            methodName = fd.toString();
+//            currentScope = fd.getScope();
+//            super.visitFuncDecl(fd);
+//            insidePureMethod = false;
+//        }
+//    }
+//
+//    public void visitMethodDecl(MethodDecl md) {
+//        if(md.mod.isPure()) {
+//            insidePureMethod = true;
+//            methodName = md.toString();
+//            currentScope = md.getScope();
+//            super.visitMethodDecl(md);
+//            insidePureMethod = false;
+//        }
+//    }
+//
+//    public void visitRetypeStmt(RetypeStmt rt) {
+//        if(insidePureMethod && methodChangesState(currentScope.findName(rt.getLHS()).getDecl())) {
+//            handler.createWarningBuilder()
+//                    .addLocation(rt)
+//                    .addWarningNumber(MessageNumber.WARNING_1)
+//                    .addWarningArgs(rt.getLHS(),methodName)
+//                    .generateWarning();
+//        }
+//    }
 }

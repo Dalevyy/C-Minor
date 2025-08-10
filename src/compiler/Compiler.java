@@ -12,6 +12,7 @@ import modifierchecker.ModifierChecker;
 import namechecker.NameChecker;
 import parser.Parser;
 import typechecker.TypeChecker;
+import utilities.PhaseHandler;
 import utilities.PrettyPrint;
 import utilities.Printer;
 
@@ -25,23 +26,25 @@ import utilities.Printer;
  * @author Daniel Levy
  */
 public class Compiler {
+
     /** Flag that will print out a C Minor AST. */
     private static Boolean printParseTree = false;
 
-    /** File we are currently compiling */
-    private String fileName = "";
+    /**
+     * The file we are currently compiling.
+     */
+    private String fileName;
 
     /**
-     * Creates a {@code Compiler} object.
-     * @param fileName File we are trying to compile
+     * A {@link PhaseHandler} to handle the execution of the compiler phases.
      */
-    public Compiler(String fileName) { this.fileName = fileName; }
+    private final PhaseHandler handler = new PhaseHandler();
 
     /** Begins the C Minor compilation process. */
     public void compile(String[] args) throws IOException {
         String input = readProgram(args);
         CompilationUnit root = syntaxAnalysis(input);
-        semanticAnalysis(root,true);
+        semanticAnalysis(root);
     }
 
     /**
@@ -59,7 +62,6 @@ public class Compiler {
     public CompilationUnit syntaxAnalysis(String program) {
         Parser parser = new Parser(new Lexer(program,fileName));
         CompilationUnit root = parser.compilation();
-        root.visit(new InOutStmtRewrite());
 
         if(printParseTree)
             root.visit(new Printer());
@@ -76,9 +78,10 @@ public class Compiler {
      * </p>
      * @param root Compilation unit representing the program we want to compile
      */
-    private void semanticAnalysis(CompilationUnit root, boolean execute) {
-        root.visit(new PropertyGenerator());
-        root.visit(new NameChecker());
+    private void semanticAnalysis(CompilationUnit root) {
+        handler.addPhase(new PropertyGenerator());
+        handler.addPhase(new NameChecker());
+        handler.execute(root);
 //        root.visit(new VariableInitialization(fileName));
 //        root.visit(new FieldRewrite());
 //        root.visit(new OperatorOverloadCheck());
