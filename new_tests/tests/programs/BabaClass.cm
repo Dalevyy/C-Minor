@@ -1,0 +1,25 @@
+// NOT ALLOWED!!!!!!!!!!!!!!!!!!!!!!
+// More classes
+final class A {
+    public b:B = uninit
+    public a:A = uninit
+    public value:Int = uninit
+}
+
+final class B {
+    public a:A = uninit
+    public b:B = uninit 
+    public value:Int = uninit
+}
+
+def main() => Void {
+	def a:A = new A(a=1,b=2) 
+	def b:B = new B(a=3,b=4) 
+
+	set a.b = b.b
+    set	b.a = a.a
+
+	set a.b.a.b.a.b = b.a.b.a.b.a.b.a.b
+	set a.b.a.b.a.value = 8
+	set b.a.b.a.b.value = a.b.a.b.a.b.a.b.a.value
+}

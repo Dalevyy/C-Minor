@@ -1,0 +1,15 @@
+/*
+    New Expression Test 1:
+        This test checks to see if we can instantiate an object
+        containing an array as a field and if we can access an
+        element from this array.
+
+    OUTPUT:
+        'a[3] = 3'
+*/
+class A {
+    public x:Array[Int]
+}
+
+def a:A = new A(x=Array(1,2,3)) 
+cout << 'a[3] = ' << a.x[3] << endl

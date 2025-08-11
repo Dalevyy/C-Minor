@@ -1,0 +1,4 @@
+
+def func(in a:Int) => Void {}
+
+func(3.14)

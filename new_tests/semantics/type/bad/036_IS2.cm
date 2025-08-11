@@ -1,0 +1,10 @@
+
+if(3 < 4) {
+
+} else if(4 > 3) {
+
+} else if (4 + 3) {
+
+} else if(True == False) {
+
+} else {}

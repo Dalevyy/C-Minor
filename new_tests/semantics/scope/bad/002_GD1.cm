@@ -1,0 +1,3 @@
+
+def global a:Int = 5
+def global a:Int = 8

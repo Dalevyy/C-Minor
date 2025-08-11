@@ -1,0 +1,8 @@
+/*
+    Type Error 455
+
+    1| def arr:Array[Int] = Array[2][3](1,2,3,4)
+    A 1-dimensional array can not have multiple dimensions specified.
+*/
+
+def arr:Array[Int] = Array[2][3](1,2,3,4)

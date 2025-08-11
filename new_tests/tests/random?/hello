@@ -1,0 +1,6 @@
+
+for(def a:Int in 1..5) {
+	for(def b:Int in 6..10) {
+		cout << 'Hello' << ' '
+    }	
+}

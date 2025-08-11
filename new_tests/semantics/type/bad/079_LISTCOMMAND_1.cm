@@ -1,0 +1,10 @@
+/*
+    Type Error 449
+
+    1| append(a,3,4,5,'hi')
+    The append list command needs 2 arguments, not 5.
+*/
+
+def a:List[Int] = List(1,2,3)
+
+append(a,3,4,5,'hi')

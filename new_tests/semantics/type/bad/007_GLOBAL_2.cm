@@ -1,0 +1,11 @@
+/*
+    Type Error 401
+
+    1| def global a:Char = 3
+    Global variable 'a' was declared with type Char, but 'a' was initialized to a value of type Int.
+
+    Suggestion:
+    A variable declared with type Char must be initialized to a value of type Char.
+*/
+
+def global a:Char = 3 

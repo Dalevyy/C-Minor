@@ -1,0 +1,5 @@
+
+def a:Int = 5 
+def b:Int = 7
+
+a instanceof b 

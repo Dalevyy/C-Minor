@@ -1,0 +1,4 @@
+
+class myClass {
+    public myVar:Real = 'c'
+}

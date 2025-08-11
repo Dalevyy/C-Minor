@@ -1,0 +1,4 @@
+
+def global a:Int = 5
+
+def func(in a:Int) => Void {}

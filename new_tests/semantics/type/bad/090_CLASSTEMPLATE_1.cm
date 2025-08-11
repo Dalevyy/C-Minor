@@ -1,0 +1,13 @@
+/*
+    Type Error 446
+
+    1| def a:A<Real> = uninit
+    'Real' does not represent a valid type argument for the class 'A'.
+
+    Suggestion:
+    Class 'A' must have a discrete type at position 1 of the corresponding class type.
+*/
+
+class A<discr T> {}
+
+def a:A<Real> = uninit
