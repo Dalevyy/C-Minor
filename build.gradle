@@ -34,4 +34,4 @@ test {
     useJUnitPlatform()
 }
 
-test.finalizedBy jacoco
+test.finalizedBy jacocoTestReport
