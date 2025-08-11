@@ -24,6 +24,12 @@ dependencies {
     testImplementation 'org.spockframework:spock-core:2.4-M6-groovy-3.0'
 }
 
+jacocoTestReport {
+    reports {
+        csv.required = true
+    }
+}
+
 test {
     useJUnitPlatform()
 }
