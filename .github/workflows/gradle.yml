@@ -43,6 +43,9 @@ jobs:
         name: Test Report
         path: build/reports/tests/test
 
+    - name: jacoco-badge-generator
+      uses: cicirello/jacoco-badge-generator@v2.12.1
+
     # NOTE: The Gradle Wrapper is the default and recommended way to run Gradle (https://docs.gradle.org/current/userguide/gradle_wrapper.html).
     # If your project does not have the Gradle Wrapper configured, you can use the following configuration to run Gradle with a specified version.
     #
