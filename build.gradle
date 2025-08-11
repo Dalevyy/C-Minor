@@ -1,6 +1,9 @@
+//file:noinspection GroovyAssignabilityCheck
+//file:noinspection GrUnresolvedAccess
 plugins {
     id 'java'
     id 'groovy'
+    id 'jacoco'
 }
 
 group = 'cminor'
@@ -24,3 +27,5 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+test.finalizedBy jacocoTestReport
