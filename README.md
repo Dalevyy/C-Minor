@@ -1,3 +1,5 @@
+[![Java CI with Gradle](https://github.com/Dalevyy/C-Minor/actions/workflows/gradle.yml/badge.svg)](https://github.com/Dalevyy/C-Minor/actions/workflows/gradle.yml)
+
 C Minor is a pedagogical language created by Dr. Minor and Dr. Cisneros at the University of Nevada, Las Vegas.
 
 C Minor is a C-based language that is statically scoped and typed. The goal of this language is to provide first
