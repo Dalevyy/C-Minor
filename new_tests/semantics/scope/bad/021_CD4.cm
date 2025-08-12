@@ -1,0 +1,8 @@
+
+class A {
+    public x:Int 
+}
+
+class B inherits A {
+    public x:Int 
+}

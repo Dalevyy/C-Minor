@@ -1,0 +1,6 @@
+
+choice('hi') {
+    on 'hey' {}
+    on 'yo' .. 'sup' {}
+    other {}
+}

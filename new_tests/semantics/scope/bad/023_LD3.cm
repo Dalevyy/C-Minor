@@ -1,0 +1,16 @@
+/*
+Scope Error 328
+
+2| def t:Int = 5
+Local variable 't' redeclares the type parameter 't' which is not allowed.
+
+Redeclaration was found.
+1| class A<discr t>
+*/
+
+class A<discr t> {
+    public method print() => Void {
+        def t:Int = 5
+        cout << t
+    }
+}

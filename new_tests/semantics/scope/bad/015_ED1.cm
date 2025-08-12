@@ -1,0 +1,3 @@
+
+def WEEKS type = {MON = 1 }
+def WEEKS type = {TUES = 2 }

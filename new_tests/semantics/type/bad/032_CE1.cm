@@ -1,0 +1,3 @@
+
+def a:Int = 4
+Bool(a)

@@ -1,0 +1,6 @@
+
+class A {
+    public method print() => Void {
+        return 'c'
+    }
+}

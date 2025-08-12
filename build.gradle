@@ -1,0 +1,37 @@
+//file:noinspection GroovyAssignabilityCheck
+//file:noinspection GrUnresolvedAccess
+plugins {
+    id 'java'
+    id 'groovy'
+    id 'jacoco'
+}
+
+group = 'cminor'
+version = 'beta'
+
+jar {
+    manifest {
+        attributes 'Main-Class':'cminor.Main'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.codehaus.groovy:groovy-all:3.0.25'
+    testImplementation 'org.spockframework:spock-core:2.4-M6-groovy-3.0'
+}
+
+jacocoTestReport {
+    reports {
+        csv.required = true
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+test.finalizedBy jacocoTestReport

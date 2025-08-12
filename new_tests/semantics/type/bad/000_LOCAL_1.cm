@@ -1,0 +1,8 @@
+/*
+    Type Error 400
+    Local variable 'a' was declared with type Int, but 'a' was initialized to a value of type Real.
+
+    Suggestion: A variable declared with type Int must be initialized to a value of type Int.
+*/
+
+def local a:Int = 3.14 

@@ -1,0 +1,12 @@
+/*
+    Type Error 403
+
+    1| set a /= True
+    Variable 'a' was declared with type Char, but 'a' was assigned a value of type Bool.
+
+    Suggestion:
+    A variable declared with type Char can only be assigned values of type Char.
+*/
+
+def global a:Char = 'c'
+set a /= True 

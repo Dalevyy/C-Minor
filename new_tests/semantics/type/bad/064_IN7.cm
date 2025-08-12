@@ -1,0 +1,11 @@
+
+class A {
+    public method print(in a:Int) => Void {}
+}
+
+class B inherits A {
+    public method print(in a:Real) => Void {}
+}
+
+def b:B = new B()
+b.print('hello')

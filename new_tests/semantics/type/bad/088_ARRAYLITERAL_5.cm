@@ -1,0 +1,8 @@
+/*
+    Type Error 460
+
+    1| def a:Array[Array[Int]] = Array(Array(1,2,3),Array(4,5))
+    The size of the multidimensional array is unknown.
+*/
+
+def a:Array[Array[Int]] = Array(Array(1,2,3),Array(4,5))

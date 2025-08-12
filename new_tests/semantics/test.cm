@@ -1,0 +1,25 @@
+
+class Person {
+    public firstName:String
+    public lastName:String
+    public age:Int
+
+    public method print() => Void {
+        cout << 'Name: ' << firstName << ' ' << lastName
+        cout << 'Age: ' << age
+    }
+
+    public operator+(in obj:Person) => Person {
+        def fN:String = firstName + obj.firstName
+        def lN:String = lastName + obj.lastName
+        def a:Int = age + obj.age
+        return new Person(firstName=fN,lastName=lN,age=a)
+    }
+}
+
+
+def p1:Person = new Person(firstName='John',lastName='Doe',age=27)
+def p2:Person = new Person(firstName='Mary',lastName='Ann',age=29)
+
+def p3:Person = p1 + p2
+p3.print()

@@ -1,0 +1,14 @@
+// Infinite loop lol 
+def binarySearch(out arr:Array[Int], in num:Int) => Bool {
+    def l:Int = 1, r:Int = 10
+    while(l <= r) {
+        def mid:Int = (l+r)/2
+        if(arr[mid] == num) { return True }
+        else if(arr[mid] > num) { set r = mid - 1 }
+        else { set l = mid }
+    }
+    return False
+}
+
+def a:Array[Int] = Array(1,2,3,4,5,6,7,8,9,10)
+binarySearch(a,6)

@@ -1,0 +1,31 @@
+/*
+    FizzBuzz Program - Contributed by Jonah Lewis 
+
+    This program is based on the fizz buzz Leetcode
+    problem.
+*/
+def FizzBuzz() => Void {
+    for(def i:Int in 1..100) {
+        def fizzybuzzy:Bool = False
+
+        if(i%3 == 0) {
+            cout << 'fizz'
+            set fizzybuzzy = True
+        }
+
+        if(i%5 == 0) {
+            cout << 'buzz'
+            set fizzybuzzy = True
+        }
+
+        if(not fizzybuzzy) {
+            cout << i
+        }
+        set i += 1
+    }
+}
+
+def main() => Void {
+   FizzBuzz()
+   stop
+}

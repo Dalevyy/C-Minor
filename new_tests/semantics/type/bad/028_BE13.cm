@@ -1,0 +1,4 @@
+
+def a:Int = 3
+def b:Int = 4
+a or b 

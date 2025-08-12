@@ -1,0 +1,12 @@
+/*
+    Type Error 403
+
+    1| set a += 3.14
+    Variable 'a' was declared with type Int, but 'a' was assigned a value of type Real.
+
+    Suggestion:
+    A variable declared with type Int can only be assigned values of type Int.
+*/
+
+def global a:Int = 5 
+set a += 3.14
