@@ -14,7 +14,7 @@ import cminor.utilities.Visitor;
  *     This node contains all the necessary information to analyze a user's program after a
  *     parse tree is generated. If we are in compilation mode, then a {@link CompilationUnit}
  *     will act as the root node. If we are in interpretation mode, then we will create a
- *     global {@link CompilationUnit} that will be used by the {@link interpreter.VM}. This
+ *     global {@link CompilationUnit} that will be used by the {@link cminor.interpreter.VM}. This
  *     compilation unit will store all constructs a user declares while executing the virtual
  *     environment.
  * </p>
@@ -69,7 +69,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
     /**
      * Default constructor for {@link CompilationUnit}.
      * <p>
-     *     This will be called by the {@link interpreter.VM} when it initializes the virtual environment.
+     *     This will be called by the {@link cminor.interpreter.VM} when it initializes the virtual environment.
      * </p>
      */
     public CompilationUnit() {
@@ -146,7 +146,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
     /**
      * Adds a new {@link ClassDecl} to the current {@link CompilationUnit}.
      * <p>
-     *     This method is only called by the {@link interpreter.VM} any time a class is
+     *     This method is only called by the {@link cminor.interpreter.VM} any time a class is
      *     written by the user. It will be saved into the VM's virtual environment, so the
      *     user can continue to use it after it was declared.
      * </p>
@@ -157,9 +157,9 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
     /**
      * Adds a list of {@link ClassDecl} to the current {@link CompilationUnit}.
      * <p>
-     *     In interpretation mode, a user is able to import files directly in the {@link interpreter.VM}.
+     *     In interpretation mode, a user is able to import files directly in the {@link cminor.interpreter.VM}.
      *     As a result, we need to make sure that all classes from the imported files are added to the
-     *     virtual environment which is what this method will do for us in the {@link interpreter.Interpreter}.
+     *     virtual environment which is what this method will do for us in the {@link cminor.interpreter.Interpreter}.
      * </p>
      * @param classes A {@link Vector} of classes that comes from an imported file when written in the VM.
      */
@@ -168,7 +168,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
     /**
      * Adds a new {@link FuncDecl} to the current {@link CompilationUnit}.
      * <p>
-     *     This method is only called by the {@link interpreter.VM} any time a function is
+     *     This method is only called by the {@link cminor.interpreter.VM} any time a function is
      *     written by the user.
      * </p>
      * @param function The {@link FuncDecl} we wish to add to the VM's virtual environment.
@@ -187,7 +187,7 @@ public class CompilationUnit extends SubNode implements ScopeDecl {
     /**
      * Resets the current {@link CompilationUnit} and removes all of its stored constructs.
      * <p>
-     *     This method should only be called by the {@link interpreter.VM} when a user writes
+     *     This method should only be called by the {@link cminor.interpreter.VM} when a user writes
      *     {@code #clear} in order to remove any declared constructs within the VM.
      * </p>
      */
