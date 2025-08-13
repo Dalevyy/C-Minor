@@ -5,6 +5,8 @@ import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
+import cminor.micropasses.PropertyGenerator;
+import cminor.micropasses.SemanticAnalyzer;
 import cminor.namechecker.NameChecker;
 
 /**
@@ -22,12 +24,14 @@ public class PhaseHandler {
     /**
      * {@link Vector} containing every phase that will be executed.
      */
-    private final Vector<Visitor> allPhases;
+    private Vector<Visitor> phases;
 
     /**
      * {@link MessageHandler} that will deal with any compiler-related command errors.
      */
     private final MessageHandler msgHandler;
+
+    private SymbolTable globalScope;
 
     /**
      * An optional number that denotes which phase the compilation process should stop at.
@@ -37,24 +41,32 @@ public class PhaseHandler {
      *     compiler works.
      * </p>
      */
-    private int finalPhaseToExecute = -1;
+    private PhaseNumber finalPhase;
 
     /**
      * Default constructor for {@link PhaseHandler}.
      */
     public PhaseHandler() {
-        this.allPhases = new Vector<>();
+        this.phases = new Vector<>();
         this.msgHandler = new MessageHandler();
+        this.finalPhase = null;
+        this.globalScope = null;
+    }
+
+    public PhaseHandler(SymbolTable globalScope) {
+        this();
+        this.globalScope = globalScope;
+        setup();
     }
 
     /**
      * Adds a {@link Visitor} to execute.
      * @param v {@link Visitor}
      */
-    public void addPhase(Visitor v) { allPhases.add(v); }
+    public void addPhase(Visitor v) { phases.add(v); }
 
     /**
-     * Executes all {@link Visitor} in {@link #allPhases}.
+     * Executes all {@link Visitor} in {@link #phases}.
      * <p>
      *     If an error occurs while executing in interpretation mode, then an exception will
      *     be thrown and caught by the {@link cminor.interpreter.VM}.
@@ -62,22 +74,22 @@ public class PhaseHandler {
      * @param node The {@link AST} node that executes each {@link Visitor}.
      */
     public void execute(AST node) {
-        if(finalPhaseToExecute != -1 && finalPhaseToExecute != allPhases.size()) {
+        if(finalPhase != null) {
             executeUntilFinalPhase(node);
             return;
         }
 
-        for(Visitor v : allPhases)
+        for(Visitor v : phases)
             node.visit(v);
     }
 
     /**
-     * Executes only a specified amount of {@link Visitor} based on the value of {@link #finalPhaseToExecute}.
+     * Executes only a specified amount of {@link Visitor} based on the value of {@link #finalPhase}.
      * @param node The {@link AST} we would like to execute each {@link Visitor} with.
      */
     private void executeUntilFinalPhase(AST node) {
-        for(int i = 0; i < finalPhaseToExecute; i++)
-            node.visit(allPhases.get(i));
+        for(int i = 0; i < finalPhase.ordinal(); i++)
+            node.visit(phases.get(i));
     }
 
     /**
@@ -88,21 +100,21 @@ public class PhaseHandler {
      * </p>
      */
     public void addPrinterPhase() {
-        if(!(allPhases.get(0) instanceof Printer))
-            allPhases.add(0,new Printer());
+        if(!(phases.getFirst() instanceof Printer))
+            phases.add(0,new Printer());
         else
-            allPhases.remove(0);
+            phases.removeFirst();
     }
 
     /**
-     * Sets the {@link #finalPhaseToExecute} if we would like to only run a portion of the compiler.
+     * Sets the {@link #finalPhase} if we would like to only run a portion of the compiler.
      * <p>
      *     This method will also make sure we wrote the correct phase number when using this command.
      * </p>
      * @param phase A String representing the input command used in the
      * {@link cminor.interpreter.VM} or {@link cminor.compiler.Compiler}.
      */
-    public void setFinalPhaseToExecute(String phase) throws CompilationMessage {
+    public void setFinalPhase(String phase) throws CompilationMessage {
         Vector<String> parts = new Vector<>(phase.split(" "));
 
         // ERROR CHECK #1: To use the "#phase" command, the user needs to write "#phase <phaseNum>"
@@ -130,25 +142,32 @@ public class PhaseHandler {
             }
         }
 
-        finalPhaseToExecute = Integer.parseInt(phaseNumber.toString());
+        int finalPhaseToExecute = Integer.parseInt(phaseNumber.toString());
         // ERROR CHECK #3: The given phase number needs to be in the given range of the visitor vector.
-        if(finalPhaseToExecute <= 0 || finalPhaseToExecute > allPhases.size()) {
+        if(finalPhaseToExecute <= 0 || finalPhaseToExecute > phases.size()) {
             finalPhaseToExecute = -1;
             msgHandler.createErrorBuilder(SettingError.class)
                       .addErrorNumber(MessageNumber.SETTING_ERROR_3)
                       .generateError();
         }
+
+        finalPhase = PhaseNumber.values()[finalPhaseToExecute];
     }
 
-    // Temporary- probably need to think about how phases are added since annoying
-    public void resetPhases(SymbolTable globalScope) {
-        if(allPhases.get(0) instanceof Printer) {
-            allPhases.remove(2);
-            allPhases.add(2,new NameChecker(globalScope));
-        } else {
-            allPhases.remove(1);
-            allPhases.add(1,new NameChecker(globalScope));
-        }
+    /**
+     * Sets the {@link #finalPhase} to execute. This method should only be called by the unit tests.
+     * @param phase The final {@link PhaseNumber} we wish to execute before terminating the compiler.
+     */
+    public void setFinalPhase(PhaseNumber phase) { finalPhase = phase; }
+
+    private void reset() {
+        this.phases = new Vector<>();
+        setup();
     }
 
+    private void setup() {
+        phases.add(new SemanticAnalyzer());
+        phases.add(new PropertyGenerator());
+        phases.add(new NameChecker(globalScope));
+    }
 }
