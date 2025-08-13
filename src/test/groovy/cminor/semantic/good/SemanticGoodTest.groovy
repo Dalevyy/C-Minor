@@ -5,6 +5,34 @@ import cminor.semantic.SemanticTest
 
 class SemanticGoodTest extends SemanticTest {
 
+    def "Assignment Statement - Valid LHS"() {
+        when: "An assignment statement is written."
+        input = '''
+                        set a = 5
+                        set a.f.b = 'c'
+                        set a[3][5] = 3.14
+                    '''
+        vm.runInterpreter(input)
+
+        then: "No error should occur if the LHS represents a variable."
+        notThrown CompilationMessage
+
+    }
+
+    def "Binary Expression - Valid \"instanceof\" and \"!instanceof\""() {
+        when: "An instanceof or !instanceof operation is written."
+            input = '''
+                        a instanceof A
+                        a.f.g instanceof B
+                        a[3] !instanceof C
+                        a() instanceof D
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error should occur since a valid LHS was written for the operation."
+            notThrown CompilationMessage
+    }
+
     def "Break Statement - Inside For Loop"() {
         when: "A break statement is written inside a for loop."
             input = '''
@@ -196,6 +224,19 @@ class SemanticGoodTest extends SemanticTest {
             vm.runInterpreter(input)
 
         then: "No errors occur since each output expression is valid."
+            notThrown CompilationMessage
+    }
+
+    def "Retype Statement - Valid LHS"() {
+        when: "A retype statement is written."
+            input = '''
+                        retype a = new A()
+                        retype a[4] = new A()
+                        retype a.f.b = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error is thrown if the LHS represents a variable."
             notThrown CompilationMessage
     }
 }

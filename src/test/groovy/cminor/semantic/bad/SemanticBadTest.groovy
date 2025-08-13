@@ -6,6 +6,54 @@ import cminor.semantic.SemanticTest
 
 class SemanticBadTest extends SemanticTest {
 
+    def "Assignment Statement - Invalid LHS"() {
+        when: "An assignment statement tries to assign to a binary expression."
+        input = '''
+                        set a+3 = 5
+                    '''
+        vm.runInterpreter(input)
+
+        then: "An error is thrown since it is not possible to assign to a binary value."
+        error = thrown CompilationMessage
+        error.msg.messageType == MessageNumber.SEMANTIC_ERROR_707
+    }
+
+    def "Assignment Statement - Invalid LHS 2"() {
+        when: "An assignment statement contains an invocation in its LHS."
+            input = '''
+                        set f() = 3
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since an invocation can't be assigned to."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_707
+    }
+
+    def "Binary Expression - Invalid LHS for \"instanceof\""() {
+        when: "An instanceof operation is written with an invalid LHS."
+            input = '''
+                        a+3 instanceof A
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since the LHS has to be only a name that can be evaluated."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_708
+    }
+
+    def "Binary Expression - Invalid LHS for \"!instanceof\""() {
+        when: "A !instanceof operation is written with an invalid LHS."
+            input = '''
+                            ~f() !instanceof A
+                        '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since the LHS has to be only a name that can be evaluated."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_708
+    }
+
     def "Break Statement - Not Inside a Loop"() {
         when: "A break statement is written outside of a loop."
             input = '''
@@ -160,4 +208,15 @@ class SemanticBadTest extends SemanticTest {
             error.msg.messageType == MessageNumber.SEMANTIC_ERROR_714
     }
 
+    def "Retype Statement - Invalid LHS"() {
+        when: "The LHS of a retype statement contains a binary expression."
+        input = '''
+                        retype a+3 = new A(x=5)
+                    '''
+        vm.runInterpreter(input)
+
+        then: "An error is thrown since a binary expression can't be retyped."
+        error = thrown CompilationMessage
+        error.msg.messageType == MessageNumber.SEMANTIC_ERROR_709
+    }
 }
