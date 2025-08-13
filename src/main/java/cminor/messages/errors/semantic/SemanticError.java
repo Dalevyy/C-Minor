@@ -15,10 +15,9 @@ public class SemanticError extends Error {
     @Override
     protected String buildMessageHeader(String fileName) {
         return super.buildMessageHeader(fileName)
-                + PrettyPrint.CYAN
+                + PrettyPrint.RED
                 + "Semantic Error "
                 + messageNumber()
-                + "\n\n"
-                + PrettyPrint.RESET;
+                + ": ";
     }
 }

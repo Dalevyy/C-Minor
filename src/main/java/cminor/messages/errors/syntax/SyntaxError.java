@@ -15,10 +15,9 @@ public class SyntaxError extends Error {
     @Override
     protected String buildMessageHeader(String fileName) {
         return super.buildMessageHeader(fileName)
-                + PrettyPrint.CYAN
+                + PrettyPrint.RED
                 + "Syntax Error "
                 + messageNumber()
-                + "\n\n"
-                + PrettyPrint.RESET;
+                + ": ";
     }
 }
