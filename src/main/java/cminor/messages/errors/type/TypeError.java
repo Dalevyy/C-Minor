@@ -15,10 +15,9 @@ public class TypeError extends Error {
     @Override
     protected String buildMessageHeader(String fileName) {
         return super.buildMessageHeader(fileName)
-                + PrettyPrint.GREEN
+                + PrettyPrint.RED
                 + "Type Error "
                 + messageNumber()
-                + "\n\n"
-                + PrettyPrint.RESET;
+                + ": ";
     }
 }

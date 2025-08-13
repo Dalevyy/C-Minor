@@ -13,6 +13,7 @@ import cminor.namechecker.NameChecker;
 import cminor.parser.Parser;
 import cminor.typechecker.TypeChecker;
 import cminor.utilities.PhaseHandler;
+import cminor.utilities.PhaseNumber;
 import cminor.utilities.Vector;
 
 import java.io.BufferedReader;
@@ -37,7 +38,7 @@ public class VM {
     /**
      * {@link PhaseHandler} that will execute all compilation phases when we are in the {@link VM}.
      */
-    private final PhaseHandler phaseHandler;
+    private PhaseHandler phaseHandler;
 
     /**
      * {@link MessageHandler} that will print out errors related to compiler settings.
@@ -48,11 +49,11 @@ public class VM {
      * Default constructor for {@link VM}.
      */
     public VM() {
-        this.globalUnit = new CompilationUnit();
-        this.phaseHandler = new PhaseHandler();
-        this.msgHandler = new MessageHandler();
+        MessageHandler.setInterpretationMode();
 
-        setupVM();
+        this.globalUnit = new CompilationUnit();
+        this.phaseHandler = new PhaseHandler(this.globalUnit.getScope());
+        this.msgHandler = new MessageHandler();
     }
 
     /**
@@ -60,11 +61,11 @@ public class VM {
      * <p>
      *     This will only be used when building and testing the compiler.
      * </p>
-     * @param num The last phase the compiler will execute before terminating.
+     * @param phase The last phase the compiler will execute before terminating.
      */
-    public VM(int num) {
+    public VM(PhaseNumber phase) {
         this();
-        phaseHandler.setFinalPhaseToExecute("#phase " + num);
+        phaseHandler.setFinalPhase(phase);
     }
 
     /**
@@ -106,7 +107,7 @@ public class VM {
                     try {
                         if(input.startsWith("#")) {
                             if(input.startsWith("#phase"))
-                                phaseHandler.setFinalPhaseToExecute(input);
+                                phaseHandler.setFinalPhase(input);
                             else {
                                 msgHandler.createErrorBuilder(SettingError.class)
                                           .addErrorNumber(MessageNumber.SETTING_ERROR_4)
@@ -159,29 +160,8 @@ public class VM {
             try { phaseHandler.execute(node); }
             catch(CompilationMessage msg) {
                 msg.updateGlobalScope(globalUnit.getScope());
-                phaseHandler.resetPhases(globalUnit.getScope());
                 msg.printMessage();
             }
         }
-    }
-
-    /**
-     * Initializes the VM by adding the phases that will be executed to the {@link #phaseHandler}.
-     */
-    private void setupVM() {
-        MessageHandler.setInterpretationMode();
-
-        phaseHandler.addPhase(new PropertyGenerator());
-        phaseHandler.addPhase(new NameChecker(globalUnit.getScope()));
-//        phaseHandler.addPhase(new VariableInitialization());
-//        phaseHandler.addPhase(new FieldRewrite());
-//        phaseHandler.addPhase(new OperatorOverloadCheck());
-//        phaseHandler.addPhase(new LoopKeywordCheck());
-//        phaseHandler.addPhase(new TypeValidityPass(globalUnit.getScope()));
-//        phaseHandler.addPhase(new TypeChecker(globalUnit.getScope()));
-//        phaseHandler.addPhase(new ConstructorGeneration());
-//        phaseHandler.addPhase(new ModifierChecker(globalUnit.getScope()));
-//        phaseHandler.addPhase(new PureKeywordPass());
-//      phaseHandler.addPhase(new Interpreter(globalUnit.getScope()));
     }
 }

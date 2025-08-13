@@ -18,7 +18,6 @@ public class RuntimeError extends Error {
                 + PrettyPrint.RED
                 + "Runtime Error "
                 + messageNumber()
-                + "\n\n"
-                + PrettyPrint.RESET;
+                + ": ";
     }
 }

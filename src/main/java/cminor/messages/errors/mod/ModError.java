@@ -15,10 +15,9 @@ public class ModError extends Error {
     @Override
     protected String buildMessageHeader(String fileName) {
         return super.buildMessageHeader(fileName)
-                + PrettyPrint.YELLOW
+                + PrettyPrint.RED
                 + "Modifier Error "
                 + messageNumber()
-                + "\n\n"
-                + PrettyPrint.RESET;
+                + ": ";
     }
 }

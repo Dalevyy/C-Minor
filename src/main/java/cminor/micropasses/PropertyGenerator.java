@@ -34,7 +34,7 @@ import cminor.utilities.Visitor;
  *     C Minor supports the {@code property} attribute which allows a user to
  *     automatically generate a getter and setter for a field. The getter and
  *     setter will be named {@code get<fieldName>} and {@code set<fieldName>}
- *     respectively. This micropass executes before the {@link namechecker.NameChecker}
+ *     respectively. This micropass executes before the {@link cminor.namechecker.NameChecker}
  *     because we need to make sure these methods are available or else we will
  *     get incorrect scope errors.
  * </p>
@@ -169,7 +169,7 @@ public class PropertyGenerator extends Visitor {
 
         /**
          * Creates a {@link BlockStmt} to represent the body of a getter and setter.
-         * @param stmt {@link Statement} that is contained inside of the body
+         * @param stmt {@link Statement} that is contained inside the body
          * @return {@link BlockStmt} representing the body of a method.
          */
         private BlockStmt buildMethodBody(Statement stmt) {

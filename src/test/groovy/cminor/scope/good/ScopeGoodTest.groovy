@@ -1,16 +1,16 @@
 package cminor.scope.good
 
-import cminor.CompilationTest
 import cminor.messages.CompilationMessage
+import cminor.scope.ScopeTest
 
-class ScopeGoodTest extends CompilationTest {
+class ScopeGoodTest extends ScopeTest {
 
     def "Local Declaration - Solo Scope"() {
         when: "A local variable is declared."
             input = ''' 
                         def a:Int = 5 
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error should occur."
             notThrown CompilationMessage
@@ -24,7 +24,7 @@ class ScopeGoodTest extends CompilationTest {
                             def a:Int = 5
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "Both names can be resolved based on their scope, so no error occurs."
             notThrown CompilationMessage
@@ -47,7 +47,7 @@ class ScopeGoodTest extends CompilationTest {
                             }
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "Each name will be able to be resolved, and no error occurs."
             notThrown CompilationMessage
@@ -58,7 +58,7 @@ class ScopeGoodTest extends CompilationTest {
             input = '''
                         def global a:Int = 5
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error is thrown."
             notThrown CompilationMessage
@@ -70,7 +70,7 @@ class ScopeGoodTest extends CompilationTest {
                         def a:Int = 5
                         cout << a
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error will occur."
             notThrown CompilationMessage
@@ -84,7 +84,7 @@ class ScopeGoodTest extends CompilationTest {
                             def a:Int = 6
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since each variable is unique to its declared scope."
             notThrown CompilationMessage
@@ -101,7 +101,7 @@ class ScopeGoodTest extends CompilationTest {
                             def a:Int = 7
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs because both variables are unique to their respective scopes."
             notThrown CompilationMessage
@@ -117,7 +117,7 @@ class ScopeGoodTest extends CompilationTest {
                             else if(a == 4) { def a:Int = 9 }
                             else { def a:Int = 10 }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs because each individual variable is unique to its declared scope."
             notThrown CompilationMessage
@@ -131,7 +131,7 @@ class ScopeGoodTest extends CompilationTest {
                             cout << a
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since we are able to resolve the variable that needs to be accessed."
             notThrown CompilationMessage
@@ -159,7 +159,7 @@ class ScopeGoodTest extends CompilationTest {
                             else { set b = 50 }
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "All names will be able to be resolved correctly."
             notThrown CompilationMessage
@@ -173,7 +173,7 @@ class ScopeGoodTest extends CompilationTest {
                             other { def a:Int = 6 }
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since the variable is unique to its scope."
             notThrown CompilationMessage
@@ -188,7 +188,7 @@ class ScopeGoodTest extends CompilationTest {
                             other { def a:Int = 7 }
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No errors occur since the variable is unique to its scope."
             notThrown CompilationMessage
@@ -206,7 +206,7 @@ class ScopeGoodTest extends CompilationTest {
                             other { def a:Int = 10 }   
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "Each variable will be unique to its declared scope, so no errors will occur."
             notThrown CompilationMessage
@@ -222,7 +222,7 @@ class ScopeGoodTest extends CompilationTest {
                             set a += 5
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "All names are able to be resolved, and no errors occur."
             notThrown CompilationMessage
@@ -238,7 +238,7 @@ class ScopeGoodTest extends CompilationTest {
                             set a -= 5
                         } while(a >= 0)
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "All names used in the loop can be resolved, and no errors are generated."
             notThrown CompilationMessage
@@ -254,7 +254,7 @@ class ScopeGoodTest extends CompilationTest {
                             b+a
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "The names used in a for loop are able to be resolved correctly."
             notThrown CompilationMessage
@@ -266,7 +266,7 @@ class ScopeGoodTest extends CompilationTest {
                         def a type = {b=3, c=4, d=5 }
                         def e type = {g=6, h=7, i=8 }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since all names used are unique."
             notThrown CompilationMessage
@@ -277,7 +277,7 @@ class ScopeGoodTest extends CompilationTest {
             input = '''
                         def func(in a:Int) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error should be generated."
             notThrown CompilationMessage
@@ -289,7 +289,7 @@ class ScopeGoodTest extends CompilationTest {
                         def func(in a:Int) => Void {}
                         def func(in a:Real) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No errors occur since we are able to resolve both functions used with their parameter types."
             notThrown CompilationMessage
@@ -304,7 +304,7 @@ class ScopeGoodTest extends CompilationTest {
                         def func(in d:Char) => Void {}
                         def func(in e:Int, in f:Int, in g:String, in h:Real) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "Each overload can be resolved since each one will be unique."
             notThrown CompilationMessage
@@ -315,7 +315,7 @@ class ScopeGoodTest extends CompilationTest {
             input = '''
                         def func<discr t, scalar s, u>(in a:Int, in b:Char) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since all names are unique and can be resolved."
             notThrown CompilationMessage
@@ -327,7 +327,7 @@ class ScopeGoodTest extends CompilationTest {
                         def global a:Int = 5
                         def func(in a:Int) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since the parameter name is found in a function's scope instead of the global scope."
             notThrown CompilationMessage
@@ -339,7 +339,7 @@ class ScopeGoodTest extends CompilationTest {
                         def global t:Char = 'c'
                         def func<discr t>() => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since the type parameter is allowed to shadow the top level declaration."
             notThrown CompilationMessage
@@ -354,7 +354,7 @@ class ScopeGoodTest extends CompilationTest {
                             protected c:Real
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error should be generated."
             notThrown CompilationMessage
@@ -366,7 +366,7 @@ class ScopeGoodTest extends CompilationTest {
                         class A<discr t> {}
                         class B<discr t, scalar s> {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since the template class is unique."
             notThrown CompilationMessage
@@ -383,7 +383,7 @@ class ScopeGoodTest extends CompilationTest {
                             protected b:Real = 6.35
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error occurs since the class scope is different from the global scope."
             notThrown CompilationMessage
@@ -396,7 +396,7 @@ class ScopeGoodTest extends CompilationTest {
                             public method print() => Void {}
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error will occur."
             notThrown CompilationMessage
@@ -413,7 +413,7 @@ class ScopeGoodTest extends CompilationTest {
                                 public method print(in d:Int, in e:Real, out f:Char) => Void {}
                             }
                         '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error will occur since each overload is unique."
             notThrown CompilationMessage
@@ -432,7 +432,7 @@ class ScopeGoodTest extends CompilationTest {
                         def b:A = new A(x=6)
                         def c:A = new A(z='d',y=3.89)
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error is thrown if each field in the class is instantiated at most one time."
             notThrown CompilationMessage

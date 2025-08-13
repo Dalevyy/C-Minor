@@ -270,6 +270,13 @@ public abstract class AST {
     }
 
     /**
+     * Returns the {@link #text} that the current {@link AST} node is storing.
+     * @return String representation of the code fragment the {@link AST} node represents.
+     */
+    @Override
+    public String toString() { return text; }
+
+    /**
      * Internal class that will build the metadata for an {@link AST} node.
      */
     protected static class NodeBuilder {
