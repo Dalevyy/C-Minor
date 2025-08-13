@@ -1,10 +1,10 @@
 package cminor.scope.bad
 
-import cminor.CompilationTest
 import cminor.messages.CompilationMessage
 import cminor.messages.MessageNumber
+import cminor.scope.ScopeTest
 
-class ScopeBadTest extends CompilationTest {
+class ScopeBadTest extends ScopeTest {
 
     def "Local Declaration - Redeclaration in the Same Scope"() {
         when: "Two local variables with the same name are declared in the same scope."
@@ -12,7 +12,7 @@ class ScopeBadTest extends CompilationTest {
                             def a:Int = 5
                             def a:Int = 5
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "A redeclaration error will occur."
             error = thrown CompilationMessage
@@ -24,7 +24,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                             def a:Int = a
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since the variable has no value."
             error = thrown CompilationMessage
@@ -36,7 +36,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                             def a:Int = (3*5)+a-9
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since the variable has no value."
             error = thrown CompilationMessage
@@ -49,7 +49,7 @@ class ScopeBadTest extends CompilationTest {
                         def global a:Int = 5
                         def global a:Int = 5
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error will occur since we can't resolve both variable names."
             error = thrown CompilationMessage
@@ -61,7 +61,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         def global a:Int = a
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since there is no value yet assigned to the variable."
             error = thrown CompilationMessage
@@ -74,7 +74,7 @@ class ScopeBadTest extends CompilationTest {
                         class A {}
                         def global A:Int = 5
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error occurs since the same name can not be used for multiple top level declarations."
             error = thrown CompilationMessage
@@ -87,7 +87,7 @@ class ScopeBadTest extends CompilationTest {
                         def a type = { b=2 }
                         def global b:Int = 5
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since the constant and global variable have a name conflict."
             error = thrown CompilationMessage
@@ -99,7 +99,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         a
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since the name can't be resolved."
             error = thrown CompilationMessage
@@ -115,7 +115,7 @@ class ScopeBadTest extends CompilationTest {
                             def a:Int = 6
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error will occur since we are redeclaring the first variable."
             error = thrown CompilationMessage
@@ -129,7 +129,7 @@ class ScopeBadTest extends CompilationTest {
                             def a:Int = 7
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error will occur since the control variable is contained in the for loop's scope."
             error = thrown CompilationMessage
@@ -142,7 +142,7 @@ class ScopeBadTest extends CompilationTest {
                         def WEEKS type = { MON = 1 }
                         def WEEKS type = { TUES = 2 }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since there is a name conflict between the two enums."
             error = thrown CompilationMessage
@@ -155,7 +155,7 @@ class ScopeBadTest extends CompilationTest {
                         def a type = { b=1,c=2 }
                         def d type = { e=3,b=4 }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since it will not be known which constant the name refers to."
             error = thrown CompilationMessage
@@ -168,7 +168,7 @@ class ScopeBadTest extends CompilationTest {
                         def func(in a:Int) => Void {}
                         def func(in b:Int) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error occurs because we are redeclaring an existing overloaded function."
             error = thrown CompilationMessage
@@ -180,7 +180,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         def func(in a:Int, in a:Int) => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since we are not able to resolve which parameter the name refers to."
             error = thrown CompilationMessage
@@ -192,7 +192,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         def func<discr t, scalar t>() => Void {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error occurs since we will not know which parameter the name resolves to."
             error = thrown CompilationMessage
@@ -205,7 +205,7 @@ class ScopeBadTest extends CompilationTest {
                         class A {}
                         class A {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since this is not allowed."
             error = thrown CompilationMessage
@@ -218,7 +218,7 @@ class ScopeBadTest extends CompilationTest {
                         def global a:Int = 5
                         class a {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since the name is reused for a different construct."
             error = thrown CompilationMessage
@@ -230,7 +230,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         class A inherits A {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since it makes no sense."
             error = thrown CompilationMessage
@@ -242,7 +242,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         class A inherits B {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is printed out."
             error = thrown CompilationMessage
@@ -255,7 +255,7 @@ class ScopeBadTest extends CompilationTest {
                         def B:Int = 5
                         class A inherits B {}
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since classes can only inherit from other classes"
             error = thrown CompilationMessage
@@ -270,7 +270,7 @@ class ScopeBadTest extends CompilationTest {
                             protected x:Real
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since we are not able to tell which field needs to be used."
             error = thrown CompilationMessage
@@ -284,7 +284,7 @@ class ScopeBadTest extends CompilationTest {
                             protected x:Int = x 
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is created since the field can't be used at this point."
             error = thrown CompilationMessage
@@ -299,7 +299,7 @@ class ScopeBadTest extends CompilationTest {
                             public method print(in b:Int) => Void {}
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since we are redeclaring an existing overload."
             error = thrown CompilationMessage
@@ -311,7 +311,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         def a:A = new A()
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since it's not possible to instantiate the object."
             error = thrown CompilationMessage
@@ -324,7 +324,7 @@ class ScopeBadTest extends CompilationTest {
                         def local A:Int = 5
                         def b:A = new A()
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since the object is not able to be instantiated."
             error = thrown CompilationMessage
@@ -341,7 +341,7 @@ class ScopeBadTest extends CompilationTest {
                         
                         def a:A = new A(x=5,z=6,y=4)
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is created since we can not initialize a field that doesn't exist in the class."
             error = thrown CompilationMessage
@@ -358,7 +358,7 @@ class ScopeBadTest extends CompilationTest {
                         
                         def a:A = new A(x=5,y=4,x=6)
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is generated since a field should only be initialized once."
             error = thrown CompilationMessage
@@ -370,7 +370,7 @@ class ScopeBadTest extends CompilationTest {
             input = '''
                         parent
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since we are not able to resolve what the parent is."
             error = thrown CompilationMessage
@@ -386,7 +386,7 @@ class ScopeBadTest extends CompilationTest {
                             }
                         }
                     '''
-            VM.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is created since the parent keyword has to reference the base class."
             error = thrown CompilationMessage
