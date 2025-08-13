@@ -27,7 +27,7 @@ public class RedeclarationError extends CompilationMessage {
      * </p>
      */
     @Override
-    public boolean updateGlobalScope(SymbolTable globalScope) { return false; }
+    public void updateGlobalScope(SymbolTable globalScope) { /* DO NOTHING */ }
 
     /**
      * {@inheritDoc}

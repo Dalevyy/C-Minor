@@ -21,16 +21,16 @@ import cminor.utilities.Visitor;
  * Name Resolution Pass.
  * <p>
  *     This is the first major semantic pass responsible for scope resolution. Here,
- *     we are checking whether or not a user properly used names within their program.
+ *     we are checking whether a user properly used names within their program.
  *     At the end of this phase, we will have generated a {@link SymbolTable} for each
- *     {@link ast.misc.ScopeDecl} that we will constantly reference during other compilation phases.
+ *     {@link cminor.ast.misc.ScopeDecl} that we will constantly reference during other compilation phases.
  * </p>
  * @author Daniel Levy
  */
 public class NameChecker extends Visitor {
 
     /**
-     * Current scope we are name checking within.
+     * Current scope we are resolving names in.
      */
     private SymbolTable currentScope;
 
@@ -50,7 +50,7 @@ public class NameChecker extends Visitor {
 
     /**
      * Creates {@link NameChecker} in interpretation mode
-     * @param globalScope {@link SymbolTable} representing the default scope of the {@link interpreter.VM}.
+     * @param globalScope {@link SymbolTable} representing the default scope of the {@link cminor.interpreter.VM}.
      */
     public NameChecker(SymbolTable globalScope) {
         this();
@@ -70,7 +70,7 @@ public class NameChecker extends Visitor {
         as.getLHS().visit(this);
 
         // ERROR CHECK #1: For an assignment, we need to make sure the LHS can actually store a value.
-        if(helper.canExpressionBeAssignedTo(as.getLHS())) {
+        if(!helper.canExpressionBeAssignedTo(as.getLHS())) {
             ErrorBuilder eb = handler.createErrorBuilder(SemanticError.class)
                                      .addLocation(as)
                                      .addErrorArgs(as.getLHS());
@@ -131,7 +131,7 @@ public class NameChecker extends Visitor {
                            .addErrorArgs(be.getRHS(), be.getBinaryOp())
                            .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1304)
                            .addSuggestionArgs(be.getBinaryOp())
-                            .generateError();
+                           .generateError();
                 }
         }
     }
@@ -147,7 +147,6 @@ public class NameChecker extends Visitor {
      */
     public void visitBlockStmt(BlockStmt bs) {
         currentScope = currentScope.openScope();
-
         super.visitBlockStmt(bs);
 
         /*
@@ -199,7 +198,7 @@ public class NameChecker extends Visitor {
      */
     public void visitClassDecl(ClassDecl cd) {
         // ERROR CHECK #1: We need to make sure the current class does not redeclare an existing top level declaration.
-        if(currentScope.hasNameInProgram(cd)) {
+        if(currentScope.hasName(cd)) {
             handler.createErrorBuilder(ScopeError.class)
                    .addLocation(cd)
                    .addErrorNumber(MessageNumber.SCOPE_ERROR_307)
@@ -223,7 +222,7 @@ public class NameChecker extends Visitor {
 
             // ERROR CHECK #3: This ensures the inherited class was already declared in the program. The scope
             //                 resolution is done in a single pass, so classes must be declared in the right order.
-            if(!currentScope.hasNameInProgram(cd.getSuperClass().getClassName())) {
+            if(!helper.isValidClassName(cd.getSuperClass().getClassName())) {
                 handler.createErrorBuilder(ScopeError.class)
                        .addLocation(cd)
                        .addErrorNumber(MessageNumber.SCOPE_ERROR_309)
@@ -329,7 +328,7 @@ public class NameChecker extends Visitor {
     /**
      * Resolves all names associated with a {@link FieldDecl}.
      * <p>
-     *     When declaring a field inside of a class, we want to make sure its name is unique to
+     *     When declaring a field inside a class, we want to make sure its name is unique to
      *     all other declared fields in the class. If the field is declared inside a subclass, then
      *     we will check if it's contained in the base class when returning to {@link #visitClassDecl(ClassDecl)}.
      * </p>
@@ -522,8 +521,8 @@ public class NameChecker extends Visitor {
      * @param ld {@link LocalDecl}
      */
     public void visitLocalDecl(LocalDecl ld) {
-        // ERROR CHECK #1: A user can not redeclare a local variable with a name that was already declared
-        //                 in the current scope.
+        // ERROR CHECK #1: A user can not redeclare a local variable with a name that
+        //                 was already declared in the current scope.
         if(currentScope.hasName(ld)) {
             handler.createErrorBuilder(ScopeError.class)
                    .addLocation(ld)
@@ -606,27 +605,8 @@ public class NameChecker extends Visitor {
      * @param ne Name Expression
      */
     public void visitNameExpr(NameExpr ne) {
-        if(ne.isParentKeyword()) {
-            AST root = ne.getFullLocation();
-            // ERROR CHECK #1: This checks if the 'parent' keyword was used outside of a class.
-            if(!root.isTopLevelDecl() || !root.asTopLevelDecl().isClassDecl()) {
-                handler.createErrorBuilder(ScopeError.class)
-                       .addLocation(ne.getFullLocation())
-                       .addErrorNumber(MessageNumber.SCOPE_ERROR_318)
-                       .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1302)
-                       .generateError();
-            }
-            // ERROR CHECK #2: This checks if the 'parent' keyword is used in a class with no inherited classes.
-            if(root.asTopLevelDecl().asClassDecl().getSuperClass() == null) {
-                handler.createErrorBuilder(ScopeError.class)
-                       .addLocation(ne.getFullLocation())
-                       .addErrorArgs(root)
-                       .addErrorNumber(MessageNumber.SCOPE_ERROR_319)
-                       .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1303);
-            }
-        }
-        // ERROR CHECK #3: This checks if the name was not declared somewhere in the program.
-        else if(!currentScope.hasNameInProgram(ne)) {
+        // ERROR CHECK #1: This checks if the name was not declared somewhere in the program.
+        if(!currentScope.hasNameInProgram(ne)) {
             handler.createErrorBuilder(ScopeError.class)
                    .addLocation(ne.getFullLocation())
                    .addErrorNumber(MessageNumber.SCOPE_ERROR_304)
@@ -664,7 +644,7 @@ public class NameChecker extends Visitor {
      */
     public void visitNewExpr(NewExpr ne) {
         // ERROR CHECK #1: To instantiate a class, it must be declared somewhere in the user's program.
-        if(!currentScope.hasNameInProgram(ne.getClassName())) {
+        if(!helper.isValidClassName(ne.getClassName())) {
             handler.createErrorBuilder(ScopeError.class)
                    .addLocation(ne)
                    .addErrorNumber(MessageNumber.SCOPE_ERROR_314)
@@ -699,10 +679,41 @@ public class NameChecker extends Visitor {
     }
 
     /**
+     * Resolves if the {@code parent} keyword was correctly used.
+     * <p>
+     *     For the {@code parent} keyword, we need to ensure it is only used within
+     *     classes that inherit from other classes. All other usages will generate an error.
+     * </p>
+     * @param ps {@link ParentStmt}
+     */
+    public void visitParentStmt(ParentStmt ps) {
+        AST root = ps.getTopLevelDecl();
+
+        // ERROR CHECK #1: This checks if the 'parent' keyword was used outside a class.
+        if(!root.isTopLevelDecl() || !root.asTopLevelDecl().isClassDecl()) {
+            handler.createErrorBuilder(ScopeError.class)
+                    .addLocation(root)
+                    .addErrorNumber(MessageNumber.SCOPE_ERROR_318)
+                    .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1302)
+                    .generateError();
+        }
+
+        // ERROR CHECK #2: This checks if the 'parent' keyword is used in a class with no inherited classes.
+        if(root.asTopLevelDecl().asClassDecl().getSuperClass() == null) {
+            handler.createErrorBuilder(ScopeError.class)
+                    .addLocation(root)
+                    .addErrorArgs(root.asTopLevelDecl().asClassDecl().getName())
+                    .addErrorNumber(MessageNumber.SCOPE_ERROR_319)
+                    .addSuggestionNumber(MessageNumber.SCOPE_SUGGEST_1303)
+                    .generateError();
+        }
+    }
+
+    /**
      * Resolves the name of a {@link ParamDecl}.
      * <p>
      *     We are going to allow a user to shadow a name already declared in a top level declaration
-     *     or inside of a class. This means the parameter name checking is concerned with making sure
+     *     or inside a class. This means the parameter name checking is concerned with making sure
      *     we are not using the same parameter name for multiple parameters.
      * </p>
      * @param pd {@link ParamDecl}
@@ -775,10 +786,10 @@ public class NameChecker extends Visitor {
         /**
          * Checks if an appropriate expression was written on the LHS of an {@link AssignStmt}.
          * <p>
-         *     In this case, the LHS has to either be a {@link NameExpr} or an {@link ast.expressions.ArrayExpr}
+         *     In this case, the LHS has to either be a {@link NameExpr} or an {@link cminor.ast.expressions.ArrayExpr}
          *     in order to allow a value to be assigned. If the LHS represents a {@link FieldExpr}, then we need
          *     to recursively call this method until we have the final expression contained in the field expression
-         *     to determine if its valid. Note: We will not allow any invocations (including those that return objects)
+         *     to determine if it's valid. Note: We will not allow any invocations (including those that return objects)
          *     to be present on the LHS of an assignment.
          * </p>
          * @param LHS The current {@link Expression} we are checking which is found on the LHS of an {@link AssignStmt}.
@@ -791,6 +802,20 @@ public class NameChecker extends Visitor {
                 return canExpressionBeAssignedTo(LHS.asFieldExpr().getAccessExpr());
             else
                 return false;
+        }
+
+        /**
+         * Checks if a passed {@link AST} node represents a valid class name.
+         * @param name The {@link AST} node we want to verify if it represents a class.
+         * @return {@code True} if the node can be traced back to a
+         *          {@link cminor.ast.topleveldecls.ClassDecl}, {@code False} otherwise.
+         */
+        public boolean isValidClassName(AST name) {
+            if(!currentScope.hasNameInProgram(name))
+                return false;
+
+            AST decl = currentScope.findName(name);
+            return decl.isTopLevelDecl() && decl.asTopLevelDecl().isClassDecl();
         }
 
         /**
@@ -849,7 +874,7 @@ public class NameChecker extends Visitor {
                 //                 then the user must explicitly use the `override` keyword in the subclass to denote
                 //                 the subclass method will be called instead of the base class method when using
                 //                 objects of the subclass type.
-                if(baseClass.containsMethod(subMethod)) {
+                if(baseClass != null && baseClass.containsMethod(subMethod)) {
                     methodFoundInBaseClass = true;
                     if(!subMethod.isOverridden()) {
                         handler.createErrorBuilder(ScopeError.class)
@@ -908,8 +933,14 @@ public class NameChecker extends Visitor {
             // If the base case is not executed, then recursively check each child that the current expression points
             // to (Note: Every child is an expression if contained inside another expression, so no exceptions here!)
             for(AST child : currExpr.getChildren()) {
-                if(variableNameInInitialization(varName, child.asExpression()))
-                    return true;
+                if(child.isExpression()) {
+                    // Ignore invocations and field expressions since their names might be the same as the variable!
+                    if(child.asExpression().isInvocation() || child.asExpression().isFieldExpr())
+                        continue;
+
+                    if(variableNameInInitialization(varName, child.asExpression()))
+                        return true;
+                }
             }
 
             return false;

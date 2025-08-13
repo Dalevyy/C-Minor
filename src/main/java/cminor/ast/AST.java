@@ -127,6 +127,19 @@ public abstract class AST {
     }
 
     /**
+     * Retrieves the closest {@link TopLevelDecl} the current node is contained in.
+     * @return {@link AST} representing the closest {@link TopLevelDecl} (if it exists).
+     */
+    public AST getTopLevelDecl() {
+        AST currentNode = this;
+
+        while(currentNode.parent != null && !currentNode.isTopLevelDecl())
+            currentNode = currentNode.parent;
+
+        return currentNode;
+    }
+
+    /**
      * Retrieves the root {@link CompilationUnit} of the current {@link AST} node.
      * @return A {@link CompilationUnit} node representing the root of the current node. If no {@link CompilationUnit}
      * was found, then {@code null} is returned.

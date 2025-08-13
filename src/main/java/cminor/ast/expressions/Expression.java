@@ -8,6 +8,7 @@ import cminor.token.Token;
  * An abstract {@link AST} node class representing an expression.
  * @author Daniel Levy
  */
+@SuppressWarnings("ALL")
 public abstract class Expression extends AST {
 
     /**
@@ -118,6 +119,12 @@ public abstract class Expression extends AST {
     public boolean isOutStmt() { return false; }
 
     /**
+     * Checks if the current AST node is a {@link ParentStmt}.
+     * @return Boolean
+     */
+    public boolean isParentStmt() { return false; }
+
+    /**
      * Checks if the current AST node is a {@link ThisStmt}.
      * @return Boolean
      */
@@ -224,6 +231,14 @@ public abstract class Expression extends AST {
      * @return OutStmt
      */
     public OutStmt asOutStmt() { throw new RuntimeException("Expression can not be casted into an OutStmt.\n"); }
+
+    /**
+     * Type cast method for {@link ParentStmt}.
+     * @return {@link ParentStmt}
+     */
+    public ParentStmt asParentStmt() {
+        throw new RuntimeException("Expression can not be casted into a ParentStmt.\n");
+    }
 
     /**
      * Type cast method for {@link ThisStmt}.

@@ -51,7 +51,6 @@ public class BinaryExpr extends Expression {
 
         addChildNode(this.LHS);
         addChildNode(this.RHS);
-        addChildNode(this.binOp);
     }
 
     /**
@@ -200,7 +199,6 @@ public class BinaryExpr extends Expression {
         public BinaryExpr create() {
             be.addChildNode(be.getLHS());
             be.addChildNode(be.getRHS());
-            be.addChildNode(be.getBinaryOp());
             return be;
         }
     }

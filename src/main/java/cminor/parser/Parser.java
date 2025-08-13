@@ -4,24 +4,8 @@ import cminor.ast.AST;
 import cminor.ast.classbody.ClassBody;
 import cminor.ast.classbody.FieldDecl;
 import cminor.ast.classbody.MethodDecl;
-import cminor.ast.expressions.ArrayExpr;
-import cminor.ast.expressions.ArrayLiteral;
-import cminor.ast.expressions.BinaryExpr;
-import cminor.ast.expressions.BreakStmt;
-import cminor.ast.expressions.CastExpr;
-import cminor.ast.expressions.ContinueStmt;
-import cminor.ast.expressions.EndlStmt;
-import cminor.ast.expressions.Expression;
-import cminor.ast.expressions.FieldExpr;
-import cminor.ast.expressions.InStmt;
-import cminor.ast.expressions.Invocation;
-import cminor.ast.expressions.ListLiteral;
-import cminor.ast.expressions.Literal;
+import cminor.ast.expressions.*;
 import cminor.ast.expressions.Literal.ConstantType;
-import cminor.ast.expressions.NameExpr;
-import cminor.ast.expressions.NewExpr;
-import cminor.ast.expressions.OutStmt;
-import cminor.ast.expressions.UnaryExpr;
 import cminor.ast.misc.TypeParam;
 import cminor.ast.misc.TypeParam.TypeAnnotation;
 import cminor.ast.misc.*;
@@ -1741,7 +1725,7 @@ public class Parser {
         }
         else {
             match(TokenType.PARENT);
-            return new NameExpr(nodeToken(),new Name("parent"));
+            return new ParentStmt(nodeToken());
         }
     }
 

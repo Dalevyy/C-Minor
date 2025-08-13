@@ -44,7 +44,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     private ClassBody body;
 
     /**
-     * The constructor of the current class. This will be set by the {@link micropasses.ConstructorGeneration} pass.
+     * The constructor of the current class. This will be set by the {@link cminor.micropasses.ConstructorGeneration} pass.
      */
     private InitDecl constructor;
 
@@ -200,12 +200,13 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
      */
     @Override
     public String header() {
-        int endColumn;
-        if(!typeParams.isEmpty())
-            endColumn = typeParams.top().getLocation().end.column;
-        else
-            endColumn = name.getLocation().end.column;
-        return getLocation().start.line + "| " + text.substring(0,endColumn) + "\n";
+        StringBuilder sb = new StringBuilder();
+
+        sb.append(getLocation().start.line)
+          .append("| ")
+          .append(text, 0, text.indexOf("{"));
+
+        return sb.toString();
     }
 
     /**
