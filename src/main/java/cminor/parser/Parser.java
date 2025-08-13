@@ -531,7 +531,7 @@ public class Parser {
             match(TokenType.EQ);
             if(nextLA(TokenType.UNINIT)) {
                 match(TokenType.UNINIT);
-                return new Var(nodeToken(),n,t);
+                return new Var(nodeToken(),n,new Literal(),t); // give it some random value
             }
             else {
                 Expression e = expression();
