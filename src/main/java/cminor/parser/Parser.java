@@ -1052,7 +1052,7 @@ public class Parser {
     // 27. operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement
     private MethodDecl operatorClass() {
         tokenStack.add(currentLA());
-        Modifier mod = new Modifier();
+        Modifier mod = methodModifier();
 
         if(nextLA(TokenType.FINAL)) {
             mod.setFinal();
