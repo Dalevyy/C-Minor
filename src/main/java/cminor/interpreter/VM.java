@@ -56,6 +56,18 @@ public class VM {
     }
 
     /**
+     * Constructor that will initialize the {@link VM} to only run until a certain phase.
+     * <p>
+     *     This will only be used when building and testing the compiler.
+     * </p>
+     * @param num The last phase the compiler will execute before terminating.
+     */
+    public VM(int num) {
+        this();
+        phaseHandler.setFinalPhaseToExecute("#phase " + num);
+    }
+
+    /**
      * Reads in user input from the {@link VM} and processes it before executing the compiler.
      * @throws IOException An exception thrown in case there was an error reading in user input with InputStreamReader.
      * (Not sure if an exception is ever thrown).
@@ -146,8 +158,9 @@ public class VM {
         for(AST node : nodes) {
             try { phaseHandler.execute(node); }
             catch(CompilationMessage msg) {
-                msg.printMessage();
                 msg.updateGlobalScope(globalUnit.getScope());
+                phaseHandler.resetPhases(globalUnit.getScope());
+                msg.printMessage();
             }
         }
     }

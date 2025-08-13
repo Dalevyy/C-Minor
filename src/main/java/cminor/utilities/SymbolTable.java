@@ -130,7 +130,7 @@ public class SymbolTable {
      * @param node The {@link AST} node we wish to remove from the current scope.
      */
     public void removeName(AST node) {
-        if(names.remove(node.toString()) == null)
+        if(names.remove(node.toString()) == null && parent != null)
             parent.removeName(node);
     }
 

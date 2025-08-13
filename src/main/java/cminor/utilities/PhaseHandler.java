@@ -5,6 +5,7 @@ import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
+import cminor.namechecker.NameChecker;
 
 /**
  * A class designed to store and execute all compiler phases.
@@ -138,4 +139,16 @@ public class PhaseHandler {
                       .generateError();
         }
     }
+
+    // Temporary- probably need to think about how phases are added since annoying
+    public void resetPhases(SymbolTable globalScope) {
+        if(allPhases.get(0) instanceof Printer) {
+            allPhases.remove(2);
+            allPhases.add(2,new NameChecker(globalScope));
+        } else {
+            allPhases.remove(1);
+            allPhases.add(1,new NameChecker(globalScope));
+        }
+    }
+
 }

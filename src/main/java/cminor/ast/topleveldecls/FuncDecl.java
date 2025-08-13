@@ -268,10 +268,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
      * {@inheritDoc}
      */
     @Override
-    public String header() {
-        int endColumn = returnType.getLocation().end.column;
-        return getLocation().start.line + "| " + text.substring(0,endColumn) + "\n";
-    }
+    public String header() { return getLocation().start.line + "| " + text.substring(0, text.indexOf("{")); }
 
     @Override
     protected void update(int pos, AST newNode) { throw new RuntimeException("A function can not be updated."); }
