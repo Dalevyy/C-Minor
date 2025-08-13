@@ -74,21 +74,10 @@ public class NameChecker extends Visitor {
         switch(be.getBinaryOp().getBinaryType()) {
             case INSTOF:
             case NINSTOF:
-                Expression LHS = be.getLHS();
                 Expression RHS = be.getRHS();
-                // ERROR CHECK #1: This makes sure some name is present on the LHS of an instanceof operation.
-                if (!(LHS.isNameExpr() || LHS.isArrayExpr() || LHS.isFieldExpr() || LHS.isInvocation())) {
-                    handler.createErrorBuilder(SemanticError.class)
-                           .addLocation(be)
-                           .addErrorNumber(MessageNumber.SEMANTIC_ERROR_708)
-                           .addErrorArgs(be.getLHS(), be.getBinaryOp())
-                           .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1703)
-                           .addSuggestionArgs(be.getBinaryOp())
-                           .generateError();
-                }
 
                 AST declOfRHS = currentScope.findName(be.getRHS());
-                // ERROR CHECK #2: The RHS of an instanceof operation has to be the name of a class.
+                // ERROR CHECK #1: The RHS of an instanceof operation has to be the name of a class.
                 if (!RHS.isNameExpr() || !declOfRHS.isTopLevelDecl() || !declOfRHS.asTopLevelDecl().isClassDecl()) {
                     handler.createErrorBuilder(ScopeError.class)
                            .addLocation(be)
