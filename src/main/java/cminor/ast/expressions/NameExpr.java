@@ -6,11 +6,10 @@ import cminor.token.Token;
 import cminor.utilities.Visitor;
 
 /**
- * An {@link AST} node class representing a name expression.
- * <p><br>
- *     A name expression represents any time a name is used outside
- *     of a declaration. Every name needs to resolve back to a declaration
- *     which will be done by the {@link namechecker.NameChecker}.
+ * An {@link Expression} representing the usage of a name.
+ * <p>
+ *     Every name needs to resolve back to a declaration, and
+ *     this will be done by the {@link cminor.namechecker.NameChecker}.
  * </p>
  * @author Daniel Levy
  */
@@ -20,11 +19,6 @@ public class NameExpr extends Expression {
      * Name that the current {@link NameExpr} is representing.
      */
     private Name name;
-
-    /**
-     * Flag that indicates if the current {@link NameExpr} is the {@code parent} keyword.
-     */
-    private boolean isParent;
 
     /**
      * Default constructor for {@link NameExpr}
@@ -44,18 +38,9 @@ public class NameExpr extends Expression {
      */
     public NameExpr(Token metaData, Name name) {
         super(metaData);
+
         this.name = name;
-        if(name != null && name.toString().equals("parent"))
-            this.isParent = true;
-
-        addChildNode(this.name);
     }
-
-    /**
-     * Checks if the current {@link NameExpr} represents the keyword {@code parent}.
-     * @return Boolean
-     */
-    public boolean isParentKeyword() { return this.isParent; }
 
     /**
      * Getter for {@link #name}.
@@ -64,29 +49,12 @@ public class NameExpr extends Expression {
     public Name getName() { return name; }
 
     /**
-     * Setter for {@link #name}.
-     * @param name Name
-     */
-    private void setName(Name name) {
-        this.name = name;
-        if(name.toString().equals("parent"))
-            setParentKeyword();
-    }
-
-    /**
-     * Setter for {@link #isParent}.
-     */
-    private void setParentKeyword() { this.isParent = true; }
-
-    /**
-     * Checks if the current AST node is a {@link NameExpr}.
-     * @return Boolean
+     * {@inheritDoc}
      */
     public boolean isNameExpr() { return true; }
 
     /**
-     * Type cast method for {@link NameExpr}.
-     * @return NameExpr
+     * {@inheritDoc}
      */
     public NameExpr asNameExpr() { return this; }
 
@@ -98,28 +66,26 @@ public class NameExpr extends Expression {
     public String toString() { return name.toString(); }
 
     /**
-     * {@code update} method.
-     * @param pos Position we want to update.
-     * @param node Node we want to add to the specified position.
+     * {@inheritDoc}
      */
     @Override
-    public void update(int pos, AST node) { name = node.asSubNode().asName(); }
+    public void update(int pos, AST node) {
+        throw new RuntimeException("A name expression can not be updated.");
+    }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link NameExpr}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy(){
         return new NameExprBuilder()
                    .setMetaData(this)
-                   .setName(this.name.deepCopy().asSubNode().asName())
+                   .setName(name.deepCopy().asSubNode().asName())
                    .create();
     }
 
     /**
-     * {@code visit} method.
-     * @param v Current visitor we are executing.
+     * {@inheritDoc}
      */
     @Override
     public void visit(Visitor v) { v.visitNameExpr(this); }
@@ -135,9 +101,8 @@ public class NameExpr extends Expression {
         private final NameExpr ne = new NameExpr();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return NameExprBuilder
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link NameExprBuilder}.
          */
         public NameExprBuilder setMetaData(AST node) {
             super.setMetaData(ne,node);
@@ -146,11 +111,11 @@ public class NameExpr extends Expression {
 
         /**
          * Sets the name expression's {@link #name}.
-         * @param name Name that the name expression refers to
-         * @return NameExprBuilder
+         * @param name {@link Name} that the name expression refers to
+         * @return Current instance of {@link NameExprBuilder}.
          */
         public NameExprBuilder setName(Name name) {
-            ne.setName(name);
+            ne.name = name;
             return this;
         }
 
@@ -158,9 +123,6 @@ public class NameExpr extends Expression {
          * Creates a {@link NameExpr} object.
          * @return {@link NameExpr}
          */
-        public NameExpr create() {
-            ne.addChildNode(ne.name);
-            return ne;
-        }
+        public NameExpr create() { return ne; }
     }
 }
