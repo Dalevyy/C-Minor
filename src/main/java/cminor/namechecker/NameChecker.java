@@ -58,41 +58,6 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Checks if an {@link AssignStmt} is written correctly.
-     * <p>
-     *     This visit will ensure that any names used in the LHS and RHS of an assignment
-     *     can properly be resolved. Additionally, we will check if a user has a valid LHS
-     *     that can be assigned to. See {@link NameCheckerHelper#canExpressionBeAssignedTo(Expression)}.
-     * </p>
-     * @param as {@link AssignStmt}
-     */
-    public void visitAssignStmt(AssignStmt as) {
-        as.getLHS().visit(this);
-
-        // ERROR CHECK #1: For an assignment, we need to make sure the LHS can actually store a value.
-        if(!helper.canExpressionBeAssignedTo(as.getLHS())) {
-            ErrorBuilder eb = handler.createErrorBuilder(SemanticError.class)
-                                     .addLocation(as)
-                                     .addErrorArgs(as.getLHS());
-
-            // We will generate a different error message when an error occurs within a retype statement.
-            if(as.isRetypeStmt()) {
-                eb.addErrorNumber(MessageNumber.SEMANTIC_ERROR_709)
-                  .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1704);
-            }
-            else {
-                eb.addErrorNumber(MessageNumber.SEMANTIC_ERROR_707)
-                  .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1702);
-
-            }
-
-            eb.generateError();
-        }
-
-        as.getRHS().visit(this);
-    }
-
-    /**
      * Resolves all names found in a {@link BinaryExpr}.
      * <p>
      *     During this visit, we only have to do a specific check to ensure a user correctly wrote
@@ -733,16 +698,6 @@ public class NameChecker extends Visitor {
     }
 
     /**
-     * Checks if a retype statement is written correctly.
-     * <p>
-     *     Since a retype statement is an {@link AssignStmt}, we will call {@link #visitAssignStmt(AssignStmt)}
-     *     to perform name checking since the checks needed during this phase are identical.
-     * </p>
-     * @param rt {@link RetypeStmt}
-     */
-    public void visitRetypeStmt(RetypeStmt rt) { visitAssignStmt(rt); }
-
-    /**
      * Resolves the name of a {@link TypeParam}.
      * <p>
      *     For a type parameter, we will allow a user to shadow previously declared names. Thus,
@@ -782,27 +737,6 @@ public class NameChecker extends Visitor {
      * An inner class that stores all helper methods used by the {@link NameChecker}.
      */
     private class NameCheckerHelper {
-
-        /**
-         * Checks if an appropriate expression was written on the LHS of an {@link AssignStmt}.
-         * <p>
-         *     In this case, the LHS has to either be a {@link NameExpr} or an {@link cminor.ast.expressions.ArrayExpr}
-         *     in order to allow a value to be assigned. If the LHS represents a {@link FieldExpr}, then we need
-         *     to recursively call this method until we have the final expression contained in the field expression
-         *     to determine if it's valid. Note: We will not allow any invocations (including those that return objects)
-         *     to be present on the LHS of an assignment.
-         * </p>
-         * @param LHS The current {@link Expression} we are checking which is found on the LHS of an {@link AssignStmt}.
-         * @return {@code True} if a value can be assigned to the {@code LHS} expression, {@code False} otherwise.
-         */
-        public boolean canExpressionBeAssignedTo(Expression LHS) {
-            if(LHS.isNameExpr() || LHS.isArrayExpr())
-                return true;
-            else if(LHS.isFieldExpr())
-                return canExpressionBeAssignedTo(LHS.asFieldExpr().getAccessExpr());
-            else
-                return false;
-        }
 
         /**
          * Checks if a passed {@link AST} node represents a valid class name.
