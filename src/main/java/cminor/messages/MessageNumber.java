@@ -168,6 +168,11 @@ public enum MessageNumber {
     SEMANTIC_ERROR_708,
     SEMANTIC_ERROR_709,
     SEMANTIC_ERROR_710,
+    SEMANTIC_ERROR_711,
+    SEMANTIC_ERROR_712,
+    SEMANTIC_ERROR_713,
+    SEMANTIC_ERROR_714,
+    SEMANTIC_ERROR_715,
 
     /* ######################################## SCOPE SUGGESTIONS ######################################## */
     SCOPE_SUGGEST_1300,
