@@ -1,6 +1,0 @@
-
-def main() => Void {
-    if() {
-        cout << 'True'
-    }
-}

@@ -1,5 +1,0 @@
-
-def main() => Void {
-    def myNum = 5 Int  
-    def myNum = 9 Int 
-}

@@ -1,4 +1,0 @@
-
-def global a:Int = 5 
-def global b:String = 'hi' 
-a == b 

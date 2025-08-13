@@ -1,5 +1,0 @@
-
-def MONTHS type = {JAN,FEB,MAR}
-def MONTHS type = {APR,MAY,JUN}
-
-def main() => Void { }

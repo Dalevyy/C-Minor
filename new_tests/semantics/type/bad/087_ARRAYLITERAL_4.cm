@@ -1,8 +1,0 @@
-/*
-    Type Error 459
-
-    1| Array(1,2,3,'c',5)
-    A value of type Char was initialized to an Array that stores Int values.
-*/
-
-def arr:Array[Int] = Array(1,2,3,'c',5)

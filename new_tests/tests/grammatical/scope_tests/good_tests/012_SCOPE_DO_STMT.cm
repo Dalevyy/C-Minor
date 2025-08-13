@@ -1,9 +1,0 @@
-
-def main() => Void {
-    def local myNum = 1.23 Real
-
-    do {
-        set myNum += 2.34
-    }
-    while(myNum < 10.00)
-}

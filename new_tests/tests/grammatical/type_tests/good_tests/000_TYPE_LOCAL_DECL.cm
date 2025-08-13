@@ -1,8 +1,0 @@
-
-def main() => Void {
-    def local a = 5 Int
-    def local b = 3.14 Real
-    def local c = 'c' Char
-    def local d = True Bool
-    def local e = 'hello world' String
-}

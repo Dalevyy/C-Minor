@@ -1,7 +1,0 @@
-def main() => Void {
-    def local a = 5 Int 
-
-    while a != 10 next set a += 1 {
-        cout << 'While loop running'
-    }
-}

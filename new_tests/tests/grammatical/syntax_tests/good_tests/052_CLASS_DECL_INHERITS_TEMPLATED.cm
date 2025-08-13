@@ -1,5 +1,0 @@
-abstr class templateClass<Int,Int> {}
-
-final class templateSubClass<Double,Double> inherits templateClass<Int,Int> {}
-
-def main() => Void {}

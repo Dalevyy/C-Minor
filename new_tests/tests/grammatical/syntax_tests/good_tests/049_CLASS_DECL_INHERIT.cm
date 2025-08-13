@@ -1,7 +1,0 @@
-
-class myClass { }
-
-
-final class mySubClass inherits myClass { }
-
-def main() => Void { }

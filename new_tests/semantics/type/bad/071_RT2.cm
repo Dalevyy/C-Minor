@@ -1,6 +1,0 @@
-
-class A {}
-class B {} 
-
-def a:A = new A()
-retype a = new B()

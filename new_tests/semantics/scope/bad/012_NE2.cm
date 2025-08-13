@@ -1,7 +1,0 @@
-
-class A {
-    protected x:Int 
-    public method print() => Void {
-        parent.x 
-    }
-}

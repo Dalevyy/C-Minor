@@ -1,9 +1,0 @@
-
-def factorial(in a:Int) => Int {
-    if(a==0) { return 1 }
-    return a * factorial(a-1)
-}
-
-def main() => Void {
-    cout << factorial(3)
-}

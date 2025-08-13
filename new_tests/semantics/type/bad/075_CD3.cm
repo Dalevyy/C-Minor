@@ -1,4 +1,0 @@
-
-class A<discr t> {}
-
-def a:A<Int,Real> = new A()

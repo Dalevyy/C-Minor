@@ -1,6 +1,0 @@
-
-def global a Int
-
-def testFunc(in a Int) => Void { }
-
-def main() => Void {}

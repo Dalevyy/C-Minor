@@ -1,6 +1,0 @@
-
-def global myVal = 3 Int
-
-def myVal() => Void {}
-
-def main() => Void {}

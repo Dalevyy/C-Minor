@@ -1,4 +1,0 @@
-
-def a:Int = 5
-
-3 instanceof a 

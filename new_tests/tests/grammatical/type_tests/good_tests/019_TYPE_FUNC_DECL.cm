@@ -1,6 +1,0 @@
-
-def func(in a Int) => Int {
-    return 5+3-4*12
-}
-
-def main() => Void {}
