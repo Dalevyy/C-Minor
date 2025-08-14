@@ -1,98 +1,65 @@
 package cminor.ast.types;
 
-import cminor.ast.AST;
-import cminor.ast.operators.UnaryOp;
 import cminor.token.Token;
-import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
-/*
-___________________________ DiscreteType ___________________________
-The second level of C Minor's primitive types will be discrete types
-denoted by the DiscreteType node. These types will include Int, Char,
-Bool, and also Enum.
-____________________________________________________________________
-*/
-public class DiscreteType extends Type {
-
-    public enum Discretes { INT, CHAR, BOOL, ENUM }
-    private static final Vector<String> names = new Vector<>(new String[]{ "Int", "Char", "Bool", "Enum" });
-
-    protected Discretes specificType;
-
-    public DiscreteType() { this(new Token(),null); }
-    public DiscreteType(Discretes d) { this(new Token(),d); }
-    public DiscreteType(Token t, Discretes d) {
-        super(t);
-        this.specificType = d;
-    }
-
-    public boolean isDiscreteType() { return true; }
-    public boolean isScalarType() { return true; }
-    public DiscreteType asDiscreteType() { return this; }
-    public Discretes getDiscreteType() { return specificType; }
-
-    private void setSpecificType(Discretes specificType) {
-        this.specificType = specificType;
-    }
-
-    @Override
-    public String typeName() { return names.get(specificType.ordinal()); }
-
-    @Override
-    public String toString() { return typeName(); }
+/**
+ * A {@link ScalarType} representing a type that contains a discrete value.
+ * <p>
+ *     A discrete value is any value that is fixed in size. In this case, the types
+ *     {@code Int}, {@code Char}, and {@code Bool} are considered discrete types and
+ *     are a subset of the {@link ScalarType}.
+ * </p>
+ * @author Daniel Levy
+ */
+public class DiscreteType extends ScalarType {
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link DiscreteType}
+     * Default constructor for {@link DiscreteType}.
      */
-    @Override
-    public AST deepCopy() {
-        return new DiscreteTypeBuilder()
-                   .setMetaData(this)
-                   .setSpecificDiscreteType(this.specificType)
-                   .create();
-    }
+    public DiscreteType() { this(new Token(),null); }
 
+    /**
+     * Constructor to generate a {@link DiscreteType} when given a specific type.
+     * @param discrete {@link Scalars} to store into {@link #scalar}.
+     */
+    public DiscreteType(Scalars discrete) { this(new Token(), discrete); }
+
+    /**
+     * Main constructor for {@link DiscreteType}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param discrete {@link Scalars} to store into {@link #scalar}.
+     */
+    public DiscreteType(Token metaData, Scalars discrete) { super(metaData,discrete); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isInt() { return scalar == Scalars.INT; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isChar() { return scalar == Scalars.CHAR; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isBool() { return scalar == Scalars.BOOL; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isDiscrete() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public DiscreteType asDiscrete() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitDiscreteType(this); }
-
-    /**
-     * Internal class that builds a {@link DiscreteType} object.
-     */
-    public static class DiscreteTypeBuilder extends NodeBuilder {
-
-        /**
-         * {@link DiscreteType} object we are building.
-         */
-        private final DiscreteType dt = new DiscreteType();
-
-        /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return DiscreteTypeBuilder
-         */
-        public DiscreteTypeBuilder setMetaData(AST node) {
-            super.setMetaData(dt,node);
-            return this;
-        }
-
-        /**
-         * Sets the discrete type's {@link #specificType}.
-         * @param specificType {@link Discretes} representing the actual type the discrete type represents
-         * @return DiscreteTypeBuilder
-         */
-        public DiscreteTypeBuilder setSpecificDiscreteType(Discretes specificType) {
-            dt.setSpecificType(specificType);
-            return this;
-        }
-
-        /**
-         * Creates a {@link DiscreteType} object.
-         * @return {@link DiscreteType}
-         */
-        public DiscreteType create() {
-            return dt;
-        }
-    }
 }
