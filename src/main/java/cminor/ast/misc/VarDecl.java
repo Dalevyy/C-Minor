@@ -51,6 +51,15 @@ public interface VarDecl {
     Type getDeclaredType();
 
     /**
+     * Setter method to reset the type associated with a variable.
+     * <p>
+     *     This method should only be called by the {@link cminor.micropasses.TypeValidator}.
+     * </p>
+     * @param type The {@link Type} we wish to replace the current declared type with.
+     */
+    void setDeclaredType(Type type);
+
+    /**
      * {@code toString} method that returns the name of the variable as a string.
      * @return String representation of the variable's name.
      */

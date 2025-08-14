@@ -90,6 +90,11 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
+    public void setDeclaredType(Type type) { globalVariable.setDeclaredType(type);}
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String toString() { return globalVariable.toString(); }
 

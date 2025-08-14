@@ -101,6 +101,12 @@ public class Var extends SubNode {
     public Type getDeclaratedType() { return declaredType; }
 
     /**
+     * Setter method for {@link #declaredType}.
+     * @param type The {@link Type} to store into {@link #declaredType}.
+     */
+    public void setDeclaredType(Type type) { this.declaredType = type; }
+
+    /**
      * {@inheritDoc}
      */
     public boolean isVar() { return true; }

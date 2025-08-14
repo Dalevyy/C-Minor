@@ -67,6 +67,11 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
+    public void setDeclaredType(Type type) { localVariable.setDeclaredType(type);}
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String toString() { return localVariable.toString(); }
 
