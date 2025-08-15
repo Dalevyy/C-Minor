@@ -160,14 +160,10 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     }
 
     /**
-     * Sets the value of {@link #returnType}.
-     * <p>
-     *     This will be called during the {@link micropasses.TypeValidityPass} when we are checking if
-     *     all types are valid.
-     * </p>
-     * @param returnType The {@link Type} we will update {@link #returnType} to store.
+     * Setter for {@link #returnType}. This should only be called by {@link cminor.micropasses.TypeValidator}.
+     * @param returnType {@link Type} to save into {@link #returnType}.
      */
-    public void updateReturnType(Type returnType) { this.returnType = returnType; }
+    public void setReturnType(Type returnType) { this.returnType = returnType; }
 
     // Come back later to make sure this is good
     public void removeTypeParams(){

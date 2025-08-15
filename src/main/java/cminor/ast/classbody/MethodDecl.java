@@ -161,6 +161,12 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
     public BlockStmt getBody() { return body; }
 
     /**
+     * Setter for {@link #returnType}. This should only be called by {@link cminor.micropasses.TypeValidator}.
+     * @param returnType {@link Type} to save into {@link #returnType}.
+     */
+    public void setReturnType(Type returnType) { this.returnType = returnType; }
+
+    /**
      * Getter method for {@link #isOverridden}
      * @return {@link #isOverridden}
      */
