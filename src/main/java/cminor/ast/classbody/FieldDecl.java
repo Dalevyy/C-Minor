@@ -72,12 +72,12 @@ public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public Type getDeclaredType() { return fieldVariable.getDeclaratedType(); }
+    public Type getType() { return fieldVariable.getDeclaratedType(); }
 
     /**
      * {@inheritDoc}
      */
-    public void setDeclaredType(Type type) { fieldVariable.setDeclaredType(type);}
+    public void setType(Type type) { fieldVariable.setDeclaredType(type);}
 
     /**
      * {@inheritDoc}

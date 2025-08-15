@@ -48,7 +48,7 @@ public interface VarDecl {
      * @return {@link Type} representing the variable's type. If no type was given
      * (for field and enum constants), return {@code null}.
      */
-    Type getDeclaredType();
+    Type getType();
 
     /**
      * Setter method to reset the type associated with a variable.
@@ -57,7 +57,7 @@ public interface VarDecl {
      * </p>
      * @param type The {@link Type} we wish to replace the current declared type with.
      */
-    void setDeclaredType(Type type);
+    void setType(Type type);
 
     /**
      * {@code toString} method that returns the name of the variable as a string.

@@ -62,12 +62,12 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public Type getDeclaredType() { return localVariable.getDeclaratedType(); }
+    public Type getType() { return localVariable.getDeclaratedType(); }
 
     /**
      * {@inheritDoc}
      */
-    public void setDeclaredType(Type type) { localVariable.setDeclaredType(type);}
+    public void setType(Type type) { localVariable.setDeclaredType(type);}
 
     /**
      * {@inheritDoc}
