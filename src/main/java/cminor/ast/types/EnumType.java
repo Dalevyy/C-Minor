@@ -23,11 +23,6 @@ public class EnumType extends DiscreteType {
     private Name name;
 
     /**
-     * The {@link Type} that each constant declared in {@link #name} will represent.
-     */
-    private DiscreteType valueType;
-
-    /**
      * Default constructor for {@link EnumType}.
      */
     public EnumType() { super(); }
@@ -55,7 +50,6 @@ public class EnumType extends DiscreteType {
         return new EnumTypeBuilder()
                    .setMetaData(this)
                    .setName(name.deepCopy().asSubNode().asName())
-                   .setValueType(valueType.deepCopy().asType().asDiscrete())
                    .create();
     }
 
@@ -91,16 +85,6 @@ public class EnumType extends DiscreteType {
          */
         public EnumTypeBuilder setName(Name name) {
             et.name = name;
-            return this;
-        }
-
-        /**
-         * Sets the enum type's {@link #valueType}.
-         * @param valueType The {@link DiscreteType} representing the type of the enum's constants.
-         * @return Current instance of {@link EnumTypeBuilder}.
-         */
-        public EnumTypeBuilder setValueType(DiscreteType valueType) {
-            et.valueType = valueType;
             return this;
         }
 
