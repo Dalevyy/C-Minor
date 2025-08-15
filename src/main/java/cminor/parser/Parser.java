@@ -42,7 +42,6 @@ import cminor.ast.topleveldecls.MainDecl;
 import cminor.ast.types.ArrayType;
 import cminor.ast.types.ClassType;
 import cminor.ast.types.DiscreteType;
-import cminor.ast.types.DiscreteType.Discretes;
 import cminor.ast.types.ListType;
 import cminor.ast.types.ScalarType;
 import cminor.ast.types.ScalarType.Scalars;
@@ -51,7 +50,6 @@ import cminor.ast.types.VoidType;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
-import cminor.messages.errors.syntax.SyntaxError;
 import cminor.micropasses.ImportHandler;
 import cminor.token.Token;
 import cminor.token.TokenType;
@@ -562,8 +560,8 @@ public class Parser {
             Type ty = type();
             match(TokenType.RBRACK);
 
-            if(ty.isListType()) {
-                ty.asListType().numOfDims += 1;
+            if(ty.isList()) {
+                ty.asList().dims += 1;
                 ty.copyMetaData(nodeToken());
                 return ty;
             }
@@ -580,8 +578,8 @@ public class Parser {
 
             input.setText(tokenStack.top());
 
-            if(ty.isArrayType()) {
-                ty.asArrayType().numOfDims += 1;
+            if(ty.isArray()) {
+                ty.asArray().dims += 1;
                 ty.copyMetaData(nodeToken());
                 return ty;
             }
@@ -647,7 +645,7 @@ public class Parser {
             match(TokenType.BOOL);
 
             if(nextLA(TokenType.LBRACK)) {
-                DiscreteType arrType = new DiscreteType(tokenStack.top(),Discretes.BOOL);
+                DiscreteType arrType = new DiscreteType(tokenStack.top(),Scalars.BOOL);
 
                 int dims = 0;
                 while(nextLA(TokenType.LBRACK)) {
@@ -660,13 +658,13 @@ public class Parser {
                 return new ArrayType(nodeToken(),arrType,dims);
             }
 
-            return new DiscreteType(nodeToken(),Discretes.BOOL);
+            return new DiscreteType(nodeToken(),Scalars.BOOL);
         }
         else if(nextLA(TokenType.INT)) {
             match(TokenType.INT);
 
             if(nextLA(TokenType.LBRACK)) {
-                DiscreteType arrType = new DiscreteType(tokenStack.top(),Discretes.INT);
+                DiscreteType arrType = new DiscreteType(tokenStack.top(),Scalars.INT);
 
                 int dims = 0;
                 while(nextLA(TokenType.LBRACK)) {
@@ -679,13 +677,13 @@ public class Parser {
                 return new ArrayType(nodeToken(),arrType,dims);
             }
 
-            return new DiscreteType(nodeToken(),Discretes.INT);
+            return new DiscreteType(nodeToken(),Scalars.INT);
         }
         else {
             match(TokenType.CHAR);
 
             if(nextLA(TokenType.LBRACK)) {
-                DiscreteType arrType = new DiscreteType(tokenStack.top(),Discretes.CHAR);
+                DiscreteType arrType = new DiscreteType(tokenStack.top(),Scalars.CHAR);
 
                 int dims = 0;
                 while(nextLA(TokenType.LBRACK)) {
@@ -698,7 +696,7 @@ public class Parser {
                 return new ArrayType(nodeToken(),arrType,dims);
             }
 
-            return new DiscreteType(nodeToken(),Discretes.CHAR);
+            return new DiscreteType(nodeToken(),Scalars.CHAR);
         }
     }
 
