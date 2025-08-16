@@ -65,7 +65,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return globalVariable.getInitialValue() != null; }
+    public boolean hasInitialValue() { return globalVariable.hasInitialValue(); }
 
     /**
      * {@inheritDoc}

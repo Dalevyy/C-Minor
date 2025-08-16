@@ -31,6 +31,11 @@ public class Var extends SubNode {
     private Type declaredType;
 
     /**
+     * Flag denoting whether the variable was initialized with a value or the keyword {@code uninit}.
+     */
+    private boolean wasInitialized;
+
+    /**
      * Default constructor for {@link Var}.
      */
     public Var() { this(new Token(),null,null,null); }
@@ -42,7 +47,10 @@ public class Var extends SubNode {
      */
     public Var(Token metaData, Name variableName) { this(metaData, variableName, null, null); }
 
-    public Var(Token metaData, Name variableName, Type t) { this(metaData, variableName, null, t); }
+    public Var(Token metaData, Name variableName, Type declaredType) {
+        this(metaData, variableName, null, declaredType);
+        this.wasInitialized = false;
+    }
 
     /**
      * Constructor for instantiating a {@link Var} with an initial value (for field and enum constants).
@@ -67,10 +75,17 @@ public class Var extends SubNode {
         this.variableName = variableName;
         this.initialValue = initialValue;
         this.declaredType = declaredType;
+        this.wasInitialized = true;
 
         addChildNode(this.variableName);
         addChildNode(this.initialValue);
     }
+
+    /**
+     * Checks if the current variable was initialized.
+     * @return {@code True} if {@link #wasInitialized} was set, {@code False} otherwise.
+     */
+    public boolean hasInitialValue() { return wasInitialized; }
 
     /**
      * Getter method to retrieve {@link #variableName}.

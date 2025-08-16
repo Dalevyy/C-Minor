@@ -51,7 +51,7 @@ public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return fieldVariable.getInitialValue() != null; }
+    public boolean hasInitialValue() { return fieldVariable.hasInitialValue(); }
 
     /**
      * {@inheritDoc}

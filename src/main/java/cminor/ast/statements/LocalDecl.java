@@ -42,7 +42,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return localVariable.getInitialValue() != null; };
+    public boolean hasInitialValue() { return localVariable.hasInitialValue(); };
 
     /**
      * {@inheritDoc}
