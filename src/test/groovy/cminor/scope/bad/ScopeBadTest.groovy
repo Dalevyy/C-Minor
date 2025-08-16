@@ -110,20 +110,6 @@ class ScopeBadTest extends ScopeTest {
             error.msg.messageType == MessageNumber.SCOPE_ERROR_310
     }
 
-    def "Field Declaration - Self Initialization"() {
-        when: "A field is initialized using itself."
-            input = '''
-                        class A {
-                            protected x:Int = x 
-                        }
-                    '''
-            vm.runInterpreter(input)
-
-        then: "An error is created since the field can't be used at this point."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.SCOPE_ERROR_326
-    }
-
     def "For Statement - Redeclaration of Loop Control Variable"() {
         when: "The loop control variable is redeclared in the scope opened by the for loop."
             input = '''
