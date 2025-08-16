@@ -300,11 +300,6 @@ public class NameChecker extends Visitor {
                    .generateError();
         }
         currentScope.addName(fd);
-
-        if(fd.hasInitialValue()) {
-            fd.getInitialValue().visit(this);
-            helper.checkVariableSelfInitialization(fd);
-        }
     }
 
     /**
