@@ -4,18 +4,19 @@ import cminor.messages.CompilationMessage
 import cminor.messages.MessageNumber
 import cminor.semantic.SemanticTest
 
+//TODO: Add an error when a constant is set as uninit by the user!
 class SemanticBadTest extends SemanticTest {
 
     def "Assignment Statement - Invalid LHS"() {
         when: "An assignment statement tries to assign to a binary expression."
-        input = '''
+            input = '''
                         set a+3 = 5
                     '''
-        vm.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since it is not possible to assign to a binary value."
-        error = thrown CompilationMessage
-        error.msg.messageType == MessageNumber.SEMANTIC_ERROR_707
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_707
     }
 
     def "Assignment Statement - Invalid LHS 2"() {
@@ -45,8 +46,8 @@ class SemanticBadTest extends SemanticTest {
     def "Binary Expression - Invalid LHS for \"!instanceof\""() {
         when: "A !instanceof operation is written with an invalid LHS."
             input = '''
-                            ~f() !instanceof A
-                        '''
+                        ~f() !instanceof A
+                    '''
             vm.runInterpreter(input)
 
         then: "An error should be thrown since the LHS has to be only a name that can be evaluated."
@@ -81,6 +82,46 @@ class SemanticBadTest extends SemanticTest {
         then: "An error is thrown since there is no loop to continue with."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.SEMANTIC_ERROR_713
+    }
+
+    def "Field Declaration - Initialized"() {
+        when: "A field is initialized inside of a class."
+            input = '''
+                        class A {
+                            protected x:Int = 5
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since the user can not preassign values to fields."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_715
+    }
+
+    def "Field Declaration - Initialized 2"() {
+        when: "A field is initialized using the uninit keyword in a class."
+            input = '''
+                        class A {
+                            protected x:Array[Int] = uninit
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since the user can not preassign values to fields."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_715
+    }
+
+    def "Global Declaration - Constant Not Initialized"() {
+        when: "A constant is declared using the uninit keyword."
+            input = '''
+                        def const a:Int = uninit
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since the user must initialize all constants to some value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_716
     }
 
     def "Global Declaration - Not Initialized"() {
@@ -146,8 +187,8 @@ class SemanticBadTest extends SemanticTest {
     def "Local Declaration - Not Initialized"() {
         when: "A local variable is declared without any initial value."
             input = '''
-                            def local a:Int 
-                        '''
+                        def local a:Int 
+                    '''
             vm.runInterpreter(input)
 
         then: "An error is generated since every local variable must be initialized."
@@ -210,13 +251,13 @@ class SemanticBadTest extends SemanticTest {
 
     def "Retype Statement - Invalid LHS"() {
         when: "The LHS of a retype statement contains a binary expression."
-        input = '''
+            input = '''
                         retype a+3 = new A(x=5)
                     '''
-        vm.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "An error is thrown since a binary expression can't be retyped."
-        error = thrown CompilationMessage
-        error.msg.messageType == MessageNumber.SEMANTIC_ERROR_709
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_709
     }
 }

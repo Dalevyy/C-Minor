@@ -7,15 +7,15 @@ class SemanticGoodTest extends SemanticTest {
 
     def "Assignment Statement - Valid LHS"() {
         when: "An assignment statement is written."
-        input = '''
+            input = '''
                         set a = 5
                         set a.f.b = 'c'
                         set a[3][5] = 3.14
                     '''
-        vm.runInterpreter(input)
+            vm.runInterpreter(input)
 
         then: "No error should occur if the LHS represents a variable."
-        notThrown CompilationMessage
+            notThrown CompilationMessage
 
     }
 
@@ -129,25 +129,53 @@ class SemanticGoodTest extends SemanticTest {
     def "Continue Statement - Nested in a Loop"() {
         when: "A continue statement is nested within different loops."
             input = '''
-                            do {
-                                choice(3) {
-                                    on 1 {
-                                        continue
-                                    }
-                                    on 3 {
-                                        for(def a:Int in 1..5) {
-                                            break
-                                        } 
-                                    }
-                                    other {
-                                        while(True) { continue }
-                                    }
+                        do {
+                            choice(3) {
+                                on 1 {
+                                    continue
                                 }
-                            } while(True)
-                        '''
+                                on 3 {
+                                    for(def a:Int in 1..5) {
+                                        break
+                                    } 
+                                }
+                                other {
+                                    while(True) { continue }
+                                }
+                            }
+                        } while(True)
+                    '''
             vm.runInterpreter(input)
 
         then: "No error occurs since each continue keyword can be traced back to a loop."
+            notThrown CompilationMessage
+    }
+
+    def "Field Declaration - Not Initialized"() {
+        when: "A field declaration is written inside of a class."
+            input = '''
+                        class A {
+                            protected x:Int
+                            public y:Array[Char]
+                            public z:String
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error will occur if none of the fields are initialized in the class."
+            notThrown CompilationMessage
+    }
+
+    def "Global Declaration - Valid Constant Declarations"() {
+        when: "Global constants are declared."
+            input = '''
+                        def const a:Int = 5
+                        def const PI:Real = 3.1415
+                        def const name:String = 'John Doe'
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors are thrown if all constants are initialized to a known value."
             notThrown CompilationMessage
     }
 

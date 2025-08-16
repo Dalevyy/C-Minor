@@ -130,6 +130,11 @@ public enum MessageNumber {
     TYPE_ERROR_464,
     TYPE_ERROR_465,
     TYPE_ERROR_466,
+    TYPE_ERROR_467,
+    TYPE_ERROR_468,
+    TYPE_ERROR_469,
+    TYPE_ERROR_470,
+    TYPE_ERROR_471,
 
 
     /* ######################################## MODIFIER ERRORS ######################################## */
@@ -173,6 +178,12 @@ public enum MessageNumber {
     SEMANTIC_ERROR_713,
     SEMANTIC_ERROR_714,
     SEMANTIC_ERROR_715,
+    SEMANTIC_ERROR_716,
+    SEMANTIC_ERROR_717,
+    SEMANTIC_ERROR_718,
+    SEMANTIC_ERROR_719,
+    SEMANTIC_ERROR_720,
+
 
     /* ######################################## SCOPE SUGGESTIONS ######################################## */
     SCOPE_SUGGEST_1300,
