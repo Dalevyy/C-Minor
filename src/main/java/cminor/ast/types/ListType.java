@@ -27,6 +27,15 @@ public class ListType extends ArrayType {
 
     /**
      * {@inheritDoc}
+     * <p>
+     *     Overriding the parent method since a list is different from an array in C Minor.
+     * </p>
+     */
+    @Override
+    public boolean isArray() { return false; }
+
+    /**
+     * {@inheritDoc}
      */
     public boolean isList() { return true; }
 
@@ -100,4 +109,52 @@ public class ListType extends ArrayType {
      */
     @Override
     public void visit(Visitor v) { v.visitListType(this); }
+
+    /**
+     * Internal class that builds a {@link ListType} object.
+     */
+    public static class ListTypeBuilder extends NodeBuilder {
+
+        /**
+         * {@link ListType} object we are building.
+         */
+        private final ListType lt = new ListType();
+
+        /**
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link ListTypeBuilder}.
+         */
+        public ListTypeBuilder setMetaData(AST node) {
+            super.setMetaData(lt, node);
+            return this;
+        }
+
+        /**
+         * Sets the list type's {@link #baseType}.
+         * @param baseType {@link Type} that represents the values stored by the list.
+         * @return Current instance of {@link ListTypeBuilder}.
+         */
+        public ListTypeBuilder setBaseType(Type baseType) {
+            lt.baseType = baseType;
+            return this;
+        }
+
+        /**
+         * Sets the list type's {@link #dims}.
+         * @param dims {@code Int} representing how many dimensions the list type has.
+         * @return Current instance of {@link ListTypeBuilder}.
+         */
+        public ListTypeBuilder setNumOfDims(int dims) {
+            lt.dims = dims;
+            return this;
+        }
+
+        /**
+         * Creates a {@link ListType} object.
+         * @return {@link ListType}
+         */
+        public ListType create() {
+            return lt;
+        }
+    }
 }

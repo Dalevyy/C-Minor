@@ -19,7 +19,7 @@ public class ArrayType extends Type {
     /**
      * The number of dimensions represented by the current {@link ArrayType}.
      */
-    protected int dims;
+    public int dims;
 
     /**
      * The {@link Type} that the actual elements inside the array represents.
@@ -44,6 +44,31 @@ public class ArrayType extends Type {
     }
 
     /**
+     * Checks if two arrays are assignment compatible with each other.
+     * <p>
+     *     For two arrays to be assignment compatible, there are two criteria that needs to be met.
+     *     <ol>
+     *         <li>Both arrays must have the same number of dimensions.</li>
+     *         <li>Both arrays must have the same base type.</li>
+     *     </ol>
+     * </p>
+     * @param LHS The first {@link ArrayType} to compare.
+     * @param RHS The second {@link ArrayType} to compare.
+     * @return {@code True} if the arrays are assignment compatible with each other, {@code False} otherwise.
+     */
+    public static boolean isArrayAssignmentCompatible(ArrayType LHS, ArrayType RHS) {
+        if(LHS.getDims() != RHS.getDims())
+            return false;
+
+        if(!Type.assignmentCompatible(LHS.getBaseType(), RHS.getBaseType())) {
+            // REMEMBER!!!! A variable can be assigned an empty list.
+            return LHS.getBaseType().isVoid() || RHS.getBaseType().isVoid();
+        }
+
+        return true;
+    }
+
+    /**
      * Getter method for {@link #dims}.
      * @return The number of dimensions the {@link ArrayType} has.
      */
@@ -54,6 +79,12 @@ public class ArrayType extends Type {
      * @return The {@link Type} that the array's elements stores.
      */
     public Type getBaseType() { return baseType; }
+
+    /**
+     * Setter method for {@link #baseType}.
+     * @param baseType {@link Type} we wish to replace the array's {@link #baseType}.
+     */
+    public void setBaseType(Type baseType) { this.baseType = baseType; }
 
     /**
      * {@inheritDoc}
