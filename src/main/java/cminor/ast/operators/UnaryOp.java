@@ -20,7 +20,7 @@ public class UnaryOp extends Operator {
     /**
      * Enum representing all available unary operations.
      */
-    public enum UnaryType { NEGATE, NOT }
+    public enum UnaryType { BNOT, NOT }
 
     /**
      * Vector containing the string representation of {@link UnaryType}.
@@ -51,7 +51,7 @@ public class UnaryOp extends Operator {
      * Getter for {@link #unOp}.
      * @return {@link UnaryType}
      */
-    public UnaryType getUnaryOp() { return this.unOp; }
+    public UnaryType getUnaryType() { return this.unOp; }
 
     /**
      * Setter for {@link #unOp}.
