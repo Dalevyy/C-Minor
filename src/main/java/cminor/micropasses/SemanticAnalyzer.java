@@ -291,6 +291,26 @@ public class SemanticAnalyzer extends Visitor {
     }
 
     /**
+     * Checks if a return statement was written inside a function or method.
+     * <p>
+     *     Note: This is an interpretation exclusive check! Since the user is able
+     *     to write anything into the {@link cminor.interpreter.VM}, we need to ensure
+     *     that a return statement that is written outside a function or method creates
+     *     a semantic error.
+     * </p>
+     * @param rs {@link ReturnStmt}
+     */
+    public void visitReturnStmt(ReturnStmt rs) {
+        // ERROR CHECK #1: This makes sure a return statement is written inside of a function or a method.
+        if(rs.getFunctionLocation() == null) {
+            handler.createErrorBuilder(SemanticError.class)
+                   .addLocation(rs)
+                   .addErrorNumber(MessageNumber.SEMANTIC_ERROR_717)
+                   .generateError();
+        }
+    }
+
+    /**
      * Checks if a retype statement is written correctly.
      * <p>
      *     Since a retype statement is an {@link AssignStmt}, we will call {@link #visitAssignStmt(AssignStmt)}

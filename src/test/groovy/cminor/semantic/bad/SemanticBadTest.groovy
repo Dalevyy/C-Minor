@@ -4,7 +4,7 @@ import cminor.messages.CompilationMessage
 import cminor.messages.MessageNumber
 import cminor.semantic.SemanticTest
 
-//TODO: Add an error when a constant is set as uninit by the user!
+//TODO: Fields that use array must specify the array's dimensions!
 class SemanticBadTest extends SemanticTest {
 
     def "Assignment Statement - Invalid LHS"() {
@@ -247,6 +247,18 @@ class SemanticBadTest extends SemanticTest {
         then:
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.SEMANTIC_ERROR_714
+    }
+
+    def "Return Statement - Outside a Function"() {
+        when: "A return statement is written outside a function or method."
+            input = '''
+                        return 3
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since the value can't be returned to anything."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_717
     }
 
     def "Retype Statement - Invalid LHS"() {

@@ -41,6 +41,31 @@ public class ReturnStmt extends Statement {
     public Expression getReturnValue() { return value; }
 
     /**
+     * Finds the location in which the current {@link ReturnStmt} is written in.
+     * <p>
+     *     We will either return a {@link cminor.ast.topleveldecls.FuncDecl}, {@link cminor.ast.classbody.MethodDecl},
+     *     or a {@link cminor.ast.topleveldecls.MainDecl} depending on where the return statement was written.
+     * </p>
+     * @return An {@link AST} node representing one of the three constructs above or {@code null} if the construct is
+     * not found in any of the three {@link AST nodes}.
+     */
+    public AST getFunctionLocation() {
+        AST node = this;
+
+        while(node != null) {
+            if(node.isTopLevelDecl())
+                if(node.asTopLevelDecl().isFuncDecl() || node.asTopLevelDecl().isMainDecl())
+                    return node;
+            if(node.isClassNode() && node.asClassNode().isMethodDecl())
+                return node;
+
+            node = node.getParent();
+        }
+
+        return null;
+    }
+
+    /**
      * {@inheritDoc}
      */
     public boolean isReturnStmt() { return true; }
@@ -87,7 +112,7 @@ public class ReturnStmt extends Statement {
         private final ReturnStmt rs = new ReturnStmt();
 
         /**
-         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
          * @return Current instance of {@link ReturnStmtBuilder}.
          */
         public ReturnStmtBuilder setMetaData(AST node) {

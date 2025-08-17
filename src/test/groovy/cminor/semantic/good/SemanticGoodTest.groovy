@@ -185,7 +185,6 @@ class SemanticGoodTest extends SemanticTest {
                         def global a:Int = 5
                         def global b:Real = uninit
                         def const c:Int = 9
-                        def const d:String = uninit
                     '''
             vm.runInterpreter(input)
 
@@ -252,6 +251,34 @@ class SemanticGoodTest extends SemanticTest {
             vm.runInterpreter(input)
 
         then: "No errors occur since each output expression is valid."
+            notThrown CompilationMessage
+    }
+
+    def "Return Statement - Written in Function"() {
+        when: "A return statement is written inside a function."
+            input = '''
+                        def func() => Int {
+                            return 3
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This is the expected place to write a return statement, so no errors occur."
+            notThrown CompilationMessage
+    }
+
+    def "Return Statement - Written in Method"() {
+        when: "A return statement is written inside a method."
+            input = '''
+                        class A {
+                            public method test() => Int {
+                                return 3
+                            }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This is the expected place to write a return statement, so no errors occur."
             notThrown CompilationMessage
     }
 
