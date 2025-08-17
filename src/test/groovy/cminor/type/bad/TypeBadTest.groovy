@@ -4,7 +4,74 @@ import cminor.messages.CompilationMessage
 import cminor.messages.MessageNumber
 import cminor.type.TypeTest
 
+//TODO : Check instanceof operations :D
+
 class TypeBadTest extends TypeTest {
+
+    def "Assignment Statement - Invalid += Operation"() {
+        when: "The += operation is used on two Bool variables."
+            input = '''
+                        def a:Bool = True, b:Bool = False
+                        set a += b
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since Bool is not a supported type for the += operation."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_403
+    }
+
+    def "Assignment Statement - Invalid -= Operation"() {
+        when: "The -= operation is used on two Char variables."
+            input = '''
+                        def a:Char = 'c', b:Char = 'd'
+                        set a -= b
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since Char is not a supported type for the -= operation."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_404
+    }
+
+    def "Assignment Statement Invalid Assignment"() {
+        when: "An Int variable is assigned a Real value."
+            input = '''
+                        def a:Int = 5
+                        set a = 3.14
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since an Int variable can't store a Real value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_403
+    }
+
+    def "Assignment Statement Invalid Assignment 2"() {
+        when: "A Real variable is assigned a Bool value."
+            input = '''
+                        def a:Real = 9.374
+                        set a = True
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since a Real variable can't store a Bool value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_403
+    }
+
+    def "Assignment Statement Invalid Assignment 3"() {
+        when: "A Bool variable is assigned a String value."
+            input = '''
+                        def a:Bool = True
+                        set a = 'hello there'
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since a Bool variable can't store a String value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_403
+    }
 
     def "Binary Expression - LHS and RHS Have Different Types"() {
         when: "An Int literal is added to a Real literal."
@@ -271,6 +338,168 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_406
     }
 
+    def "Cast Expression - Invalid Int Cast"() {
+        when: "A Bool literal is typecasted into an Int."
+            input = '''
+                        Int(True)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since it's not possible to cast a Bool into an Int."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_409
+    }
+
+    def "Cast Expression - Invalid Real Cast"() {
+        when: "A Char literal is typecasted into a Real."
+            input = '''
+                        Real('c')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since it's not possible to cast a Char into a Real."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_409
+    }
+
+    def "Cast Expression - Invalid String Cast"() {
+        when: "A Real literal is typecasted into a String."
+            input = '''
+                        String(3.14)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since it's not possible to cast a Real into a String."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_409
+    }
+
+    def "Cast Expression - Invalid String Cast 2"() {
+        when: "An Int literal is typecasted into a String."
+            input = '''
+                        String(29)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since it's not possible to cast an Int into a String."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_409
+    }
+
+    def "Choice Statement - Invalid Choice Value"() {
+        when: "A Real literal is used as a choice value."
+            input = '''
+                        choice(3.14) {
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This creates an error since Real values are not supported with choice statements."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_416
+    }
+
+    def "Choice Statement - Label Does Not Match Choice Value Type"() {
+        when: "A case statement has a Char label, but the choice value is an Int."
+            input = '''
+                        choice(3) {
+                            on 'c' {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The case label and the choice value have different types, so an error needs to be generated."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_417
+    }
+
+    def "Choice Statement - Range Label Does Not Match Choice Value Type"() {
+        when: "A case statement has a range label containing a Char, but the choice value is an Int."
+            input = '''
+                        choice(3) {
+                            on 1..'c' {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The case label and the choice value have different types, so an error needs to be generated."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_417
+    }
+
+    def "Choice Statement - String in Range Label"() {
+        when: "A case statement has a range label representing a String."
+            input = '''
+                        def a:String = 'hello'
+                        choice(a) {
+                            on 'hello'..'hi' {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since we can't determine what the range of two String values are."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_418
+    }
+
+    def "Choice Statement - Invalid Char Range"() {
+        when: "A case statement has a Char range label."
+            input = '''
+                        choice('c') {
+                            on 'x'..'d' {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The range is invalid since the left Char label is larger than the right Char label."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_419
+    }
+
+    def "Choice Statement - Invalid Int Range"() {
+        when: "A case statement has an Int range label."
+            input = '''
+                        choice(3) {
+                            on 5..1 {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The range is invalid since the left Int label is larger than the right Int label."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_419
+    }
+
+    def "Do Statement - Invalid Conditional Expression"() {
+        when: "A do while loop is written with a non-Bool expression as a condition."
+            input = '''
+                        do { }
+                        while(3+3)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since the conditional expression has to evaluate to be a Bool."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_412
+    }
+
+    def "Do Statement - Invalid Conditional Expression 2"() {
+        when: "The conditional expression of a do while loop is an output statement"
+            input = '''
+                        do { } while(cout << 'hi there!')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since the output statement has no type associated with it."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_412
+    }
 
 //    def "Field Declaration - Same Type as Class"() {
 //        when: "A field is declared with a type that matches the current class."
@@ -345,6 +574,42 @@ class TypeBadTest extends TypeTest {
 
         }
     */
+
+    def "For Statement - Invalid Loop Control Variable"() {
+        when: "A for loop is written with a String control variable."
+            input = '''
+                        for(def a:String in 1..3) {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "A string can not be iterated on, so an error needs to be generated."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_413
+    }
+
+    def "For Statement - Start and End Values Have Different Types"() {
+        when: "The starting and ending values of a for loop have different types."
+            input = '''
+                        for(def a:Int in 1..'c') {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be generated since the types have to match."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_414
+    }
+
+    def "For Statement - Type Mismatch for Control Variable and Iteration Values"() {
+        when: "The control variable and the iteration values of a for loop have different types."
+            input = '''
+                        for(def a:Char in 1..5) {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This generates an error since the types have to match in order to have the for loop execute."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_415
+    }
 
     def "Global Declaration - Invalid Constant Initialization"() {
         when: "A global variable declared with type Bool is initialized with a value of type Real."
@@ -596,5 +861,43 @@ class TypeBadTest extends TypeTest {
         then: "Types Int and Real are not assignment compatible, so an error is thrown."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_400
+    }
+
+    def "Unary Expression - Invalid ~ Operation"() {
+        when: "A bitwise not operation is performed on a Real variable."
+            input = '''
+                        def a:Real = 3.14
+                        ~a
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since a Real value can't be used for a bitwise negation."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_408
+    }
+
+    def "Unary Expression - Invalid NOT Operation"() {
+        when: "A not operation is performed on a String variable."
+            input = '''
+                        def a:String = 'hello'
+                        not a
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since a String value can't be used for a negation."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_408
+    }
+
+    def "While Statement - Invalid Conditional Expression"() {
+        when: "A while loop is written with a non-Bool expression as a condition."
+            input = '''
+                        while(8) {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since the conditional expression has to evaluate to be a Bool."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_411
     }
 }

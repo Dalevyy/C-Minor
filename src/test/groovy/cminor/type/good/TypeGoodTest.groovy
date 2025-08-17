@@ -5,6 +5,73 @@ import cminor.type.TypeTest
 
 class TypeGoodTest extends TypeTest {
 
+    def "Assignment Statement - String Concatenation"() {
+        when: "The += assignment operation is used on Strings."
+            input = '''
+                        def a:String = 'hello'
+                        set a += ' world'
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This is a form of string concatenation, so no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Assignment Statement - Valid Assignments"() {
+        when: "Multiple declared variables are reassigned values."
+            input = '''
+                        def global a:Int = 5
+                        def b:Char = 'c'
+                        def c:String = 'hello there'
+                        def global d:Real = 3.14
+                        def global e:Bool = False
+                        
+                        set a = 9
+                        set b = 'd'
+                        set c = 'hi there'
+                        set d = -2.35235
+                        set e = True 
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur if the new value is the same type as the variable."
+            notThrown CompilationMessage
+    }
+
+    def "Assignment Statement - Valid Assignment Operations (Int)"() {
+        when: "The assignment operators are used on an Int variable."
+            input = '''
+                        def a:Int = 5
+                        set a += 9
+                        set a -= 10
+                        set a *= 38
+                        set a /= 32
+                        set a %= 3
+                        set a **= 2
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors occur since the assignment operations are supported by the Int type."
+            notThrown CompilationMessage
+    }
+
+    def "Assignment Statement - Valid Assignment Operations (Real)"() {
+        when: "The assignment operators are used on a Real variable."
+            input = '''
+                        def a:Real = 3.14
+                        set a += 8.394
+                        set a -= -385.342
+                        set a *= 3525.2342
+                        set a /= 2.234
+                        set a %= 39.43
+                        set a **= -2.53
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors occur since the assignment operations are supported by the Real type."
+            notThrown CompilationMessage
+    }
+
     def "Binary Expression - Arithmetic Operations (Int)"() {
         when: "Two Int variables are used with arithmetic operators."
             input = ''' 
@@ -196,6 +263,143 @@ class TypeGoodTest extends TypeTest {
             notThrown CompilationMessage
     }
 
+    def "Cast Expression - Valid Char Casts"() {
+        when: "The following Char cast expressions are written."
+            input = '''
+                        Char(8)
+                        Char('d')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "All Char cast expressions are valid, so no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Cast Expression - Valid Int Casts"() {
+        when: "The following Int cast expressions are written."
+            input = '''
+                        Int('c')
+                        Int(3.14)
+                        Int(5)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "All Int cast expressions are valid, so no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Cast Expression - Valid Real Casts"() {
+        when: "The following Real cast expressions are written."
+            input = '''
+                        Real(9)
+                        Real(3.14)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "All Real cast expressions are valid, so no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Cast Expression - Valid String Casts"() {
+        when: "The following String cast expressions are written."
+            input = '''
+                        String('d')
+                        String('hello')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "All String cast expressions are valid, so no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Choice Statement - Valid Cases"() {
+        when: "A choice statement is written for an Int value."
+            input = '''
+                        def a:Int = 1
+                        choice(a) {
+                            on 1 {}
+                            on 2 {}
+                            on 3 {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur if all case labels represent Int literals."
+            notThrown CompilationMessage
+    }
+
+    def "Choice Statement - Valid Cases 2"() {
+        when: "A choice statement is written for a String value."
+            input = '''
+                        def a:String = 'hello'
+                        choice(a) {
+                            on 'hi' {}
+                            on 'hello' {}
+                            on 'sup' {}
+                            other {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur if all case labels represent String literals."
+            notThrown CompilationMessage
+    }
+
+    def "Choice Statement - Valid Range Cases"() {
+        when: "A choice statement is written for a Char value."
+            input = '''
+                        def c:Char = 'd'
+                        choice(c) {
+                            on 'a' {}
+                            on 'c'..'g' {}
+                            on 'f'..'u' {} 
+                            on 'b' {}
+                            other {} 
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur if all labels were written with Char values."
+            notThrown CompilationMessage
+    }
+
+    def "Do Statement - Valid Conditional Expression"() {
+        when: "The conditional expression of a do while loop is a relational operation."
+            input = '''
+                        def a:Int = 5
+                        do { 
+                            set a -= 1
+                        } while(a >= 0)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error is thrown since the relational operation evaluates to be a Bool."
+            notThrown CompilationMessage
+    }
+
+    def "For Statement - Valid Header"() {
+        when: "A for loop is written using an Int header."
+            input = '''
+                        for(def a:Int in 1..10) {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be thrown since the control variable and iteration values are all Ints."
+            notThrown CompilationMessage
+    }
+
+    def "For Statement - Valid Header 2"() {
+        when: "A for loop is written using a Char header."
+            input = '''
+                        for(def a:Char in 'a'..'e') {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be thrown since the control variable and iteration values are all Chars."
+            notThrown CompilationMessage
+    }
+
     def "Global Declaration - Valid Constant Declarations"() {
         when: "Multiple global constants are declared in the program."
             input = '''
@@ -349,6 +553,58 @@ class TypeGoodTest extends TypeTest {
             vm.runInterpreter(input)
 
         then: "A default value should be generated for each variable, and no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Unary Expression - Valid Bitwise Negation"() {
+        when: "A bitwise negation is performed on any Discrete value."
+            input = '''
+                        ~3
+                        ~True
+                        ~'c'
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be generated since all Discrete types can be used with the bitwise negation operation."
+            notThrown CompilationMessage
+    }
+
+    def "Unary Expression - Valid NOT Operation"() {
+        when: "A NOT operation is used on Bool values."
+            input = '''
+                        def a:Bool = True
+                        
+                        not a
+                        not False
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors are generated since only Bool values will work with a NOT operation."
+            notThrown CompilationMessage
+    }
+
+    def "While Statement - Valid Conditional Expression"() {
+        when: "The conditional expression of a while loop is a Bool literal."
+            input = '''
+                        while(True) {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error will occur since the conditional expression is a Bool."
+            notThrown CompilationMessage
+    }
+
+    def "While Statement - Valid Conditional Expression 2"() {
+        when: "The conditional expression of a while loop is a relational operation."
+            input = '''
+                        def a:Int = 0
+                        while(a < 5) {
+                            set a += 1
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error will occur since the conditional expression is a Bool."
             notThrown CompilationMessage
     }
 }
