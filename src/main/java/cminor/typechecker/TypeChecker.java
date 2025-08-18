@@ -1,463 +1,61 @@
 package cminor.typechecker;
 
+// TODO: Remember since you are doing List[Void] internally, you need to make sure the user doesn't write that as a valid type. ?
+
 import cminor.ast.AST;
-import cminor.ast.classbody.FieldDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.expressions.*;
 import cminor.ast.expressions.FieldExpr.FieldExprBuilder;
 import cminor.ast.expressions.Invocation.InvocationBuilder;
 import cminor.ast.expressions.Literal.ConstantType;
-import cminor.ast.misc.*;
-import cminor.ast.operators.AssignOp.AssignType;
+import cminor.ast.misc.Name;
+import cminor.ast.operators.BinaryOp.BinaryType;
 import cminor.ast.statements.*;
-import cminor.ast.topleveldecls.*;
+import cminor.ast.topleveldecls.ClassDecl;
+import cminor.ast.topleveldecls.FuncDecl;
+import cminor.ast.topleveldecls.GlobalDecl;
+import cminor.ast.topleveldecls.MainDecl;
 import cminor.ast.types.*;
-import cminor.ast.types.ArrayType.ArrayTypeBuilder;
-import cminor.ast.types.DiscreteType.Discretes;
-import cminor.ast.types.EnumType.EnumTypeBuilder;
 import cminor.ast.types.ListType.ListTypeBuilder;
-import cminor. ast.types.ScalarType.Scalars;
+import cminor.ast.types.ScalarType.Scalars;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.ErrorBuilder;
-import cminor.messages.errors.scope.ScopeError;
 import cminor.messages.errors.type.TypeError;
-import cminor.micropasses.TypeValidityPass;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
 public class TypeChecker extends Visitor {
-//
-//    private SymbolTable currentScope;
-//    private ClassDecl currentClass;
-//    private AST currentMethod;
-//    private Type currentTarget;
-//    private TypeValidityPass typeValidityPass;
-//    private boolean returnFound = false;
-//    private boolean parentFound = false;
-//    private boolean inControlStmt = false;
-//
-//    /**
-//     * Creates type checker in compilation mode
-//     */
-//    public TypeChecker(String fileName) {
-//        this.currentScope = null;
-//        this.currentMethod = null;
-//        this.currentClass = null;
-//        this.handler = new MessageHandler(fileName);
-//    }
-//
-//    /**
-//     * Creates type checker in interpretation mode
-//     * @param st Symbol Table
-//     */
-//    public TypeChecker(SymbolTable st) {
-//        this.currentScope = st;
-//        this.handler = new MessageHandler();
-//        this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable());
-//    }
-//
-//
-//    /* ######################################## HELPERS ######################################## */
-//
-//    /**
-//     * Creates a default value for a variable
-//     * <p>
-//     *     When we visit any variable declaration, we will check to see if
-//     *     the variable was initialized. If it wasn't, then we will call this
-//     *     method to assign a default value to be used during runtime.
-//     * </p>
-//     * @param varType Variable Type
-//     * @return Expression
-//     */
-//    private Expression setDefaultValue(Type varType) {
-//        Expression init;
-//        if(varType.isInt()) { init = new Literal(ConstantType.INT, "0"); }
-//        else if(varType.isChar()) { init = new Literal(ConstantType.CHAR, ""); }
-//        else if(varType.isBool()) { init = new Literal(ConstantType.BOOL, "False"); }
-//        else if(varType.isReal()) { init = new Literal(ConstantType.REAL, "0.0"); }
-//        else if(varType.isString()) { init = new Literal(ConstantType.STR, ""); }
-//        else if(varType.isEnumType()){
-//            EnumDecl ed = currentScope.findName(varType.toString()).getDecl().asTopLevelDecl().asEnumDecl();
-//            init = new NameExpr(ed.getConstants().get(0).toString());
-//        }
-//        else { return null; }
-//
-//        init.visit(this);
-//        return init;
-//    }
-//
-//    /**
-//     * Changes the type of a variable.<br><br>
-//     * <p>
-//     *     ThisStmt method will only be called from {@code visitRetypeStmt}
-//     *     when a user changes the type of an object.
-//     * </p>
-//     * @param varName Variable we are changing the type of
-//     * @param varType New type for the variable
-//     */
-//    private void setVarType(String varName, Type varType) {
-////        AST varDecl = currentScope.findName(varName).decl();
-////
-////        if(varDecl.isTopLevelDecl())
-////            varDecl.asTopLevelDecl().asGlobalDecl().setType(varType);
-////        else if(varDecl.asisParamDecl())
-////            varDecl.asParamDecl().setType(varType);
-////        else if(varDecl.isFieldDecl())
-////            varDecl.asFieldDecl().setType(varType);
-////        else
-////            varDecl.asStatement().asLocalDecl().setType(varType);
-//    }
-//
-//    /**
-//     * Checks if an array literal is assignment compatible with an array type.<br><br>
-//     * <p>
-//     *     ThisStmt is a recursive algorithm to verify whether an array literal can
-//     *     be assigned to an array type in C Minor. ThisStmt algorithm was based off
-//     *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
-//     * </p>
-//     * @param depth Current level of recursion (final depth is 1)
-//     * @param baseType Array type
-//     * @param dims Expressions representing the dimensions for the array
-//     * @param currArr Array Literal aka the current array literal we are checking
-//     * @return Boolean - True if assignment compatible and False otherwise
-//     */
-//    private boolean arrayAssignmentCompatibility(int depth, Type baseType, Vector<Expression> dims, ArrayLiteral currArr) {
-//        if(depth == 1) {
-//            // ERROR CHECK #1: This makes sure the user only specified one dimension for a 1D array.
-//            if(currArr.getArrayDims().size() > 1) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(currArr.getFullLocation())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_455)
-//                        .generateError();
-//                return false;
-//            }
-//
-//            if(currArr.getArrayDims().size() == 1)
-//                checkArrayDims(depth, dims, currArr.getArrayDims().get(0), currArr);
-////            else if(!dims.isEmpty()) {
-////                if(dims.get(dims.size()-depth).asLiteral().) != currArr.getArrayInits().size()) {
-////                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-////                            .addLocation(currArr)
-////                            .addErrorType(MessageType.TYPE_ERROR_444)
-////                            .error());
-////                    return false;
-////                }
-////            }
-//
-//            for(Expression init : currArr.getArrayInits()) {
-//                init.visit(this);
-//
-//                // ERROR CHECK #2: For every initial value in the array, we check to make sure the
-//                //                 value's type is assignment compatible with the array's base type.
-//                if(!Type.assignmentCompatible(baseType,init.type)) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(currArr)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_459)
-//                            .addErrorArgs(init.type,baseType)
-//                            .generateError();
-//                    return false;
-//                }
-//            }
-//
-//            currArr.type = new ArrayTypeBuilder()
-//                               .setMetaData(currArr)
-//                               .setBaseType(baseType)
-//                               .setNumOfDims(depth)
-//                               .create();
-//            return true;
-//        }
-//        else if(depth > 1) {
-//            ArrayLiteral al = currArr.asArrayLiteral();
-//
-//            // ERROR CHECK #3: For all n-dimensional array literals (where n>1), we need to make sure the user
-//            //                 explicitly writes down the size given for each possible dimension.
-//            if(al.getArrayDims().size() != depth) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(al.getFullLocation())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_460)
-//                        .generateError();
-//                return false;
-//            }
-//
-//            for(Expression dim : al.getArrayDims())
-//                checkArrayDims(depth,dims,dim,currArr);
-//
-//            for(Expression init : al.getArrayInits()) {
-//                // ERROR CHECK #4: For every initial value in the multidimensional array, we need to make
-//                //                 sure the initial value is an array itself.
-//                if(!init.isArrayLiteral()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(currArr)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_461)
-//                            .generateError();
-//                    return false;
-//                }
-//
-//                arrayAssignmentCompatibility(depth-1,baseType,dims,init.asArrayLiteral());
-//            }
-//
-//            currArr.type = new ArrayTypeBuilder()
-//                        .setMetaData(currArr)
-//                        .setBaseType(baseType)
-//                        .setNumOfDims(depth)
-//                        .create();
-//            return true;
-//        }
-//        else
-//            return false;
-//    }
-//
-//    private boolean checkArrayDims(int depth, Vector<Expression> dims, Expression dim,ArrayLiteral currArr) {
-//        dim.visit(this);
-//
-//        // ERROR CHECK #1: The given array dimension has to be an Int constant since the size of the array
-//        //                 must be known at compile-time. An Int constant in this context is either an Int
-//        //                 literal or a global Int constant.
-//        if(!dim.type.isInt() || (!dim.isLiteral() && !isGlobalConstant(dim))) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(dim.getFullLocation())
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_456)
-//                    .addErrorArgs(dim)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1448)
-//                    .generateError();
-//            return false;
-//        }
-//
-//        int dimValue;
-//        if(dim.isLiteral())
-//            dimValue = dim.asLiteral().asInt();
-//        else
-//            dimValue = currentScope.findName(dim).getDecl().asTopLevelDecl().asGlobalDecl().getInitialValue().asLiteral().asInt();
-//
-//        // yeah idk what this is
-//        // TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
-//
-//        // ERROR CHECK #9:
-//        //if(dims.get(dims.size()-currDepth).asListLiteral().toString().equals())
-////        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
-////            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-////                    .addLocation(currArr.getRootParent())
-////                    .addErrorType(MessageType.TYPE_ERROR_457)
-////                    .error());
-////            return false;
-////        }
-////
-////        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != currArr.getArrayInits().size()) {
-////            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-////                    .addLocation(currArr)
-////                    .addErrorType(MessageType.TYPE_ERROR_444)
-////                    .error());
-////            return false;
-////        }
-//
-//        // ERROR CHECK #2: This checks if the user correctly initialized the array based on its size.
-//        if(currArr.getArrayInits().size() > dimValue) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(currArr.getFullLocation())
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_458)
-//                    .addErrorArgs(dimValue, currArr.getArrayInits().size())
-//                    .generateError();
-//            return false;
-//        }
-//
-//        return true;
-//    }
-//
-//    /**
-//     * Checks if a given {@link Expression} represents a global constant.
-//     * <p><br>
-//     *     This is a helper method for to
-//     *     determine if a given array dimension actually represents a global constant declared
-//     *     by the user. Since constants will always have the same value, this means the compiler
-//     *     can definitively know the size of an array.
-//     * </p>
-//     * @param expr Expression
-//     * @return Boolean
-//     */
-//    private boolean isGlobalConstant(Expression expr) {
-//        if(!expr.isNameExpr())
-//            return false;
-//
-//        AST decl = currentScope.findName(expr.asNameExpr()).getDecl();
-//        if(!decl.isTopLevelDecl())
-//            return false;
-//        else if(!decl.asTopLevelDecl().isGlobalDecl())
-//            return false;
-//        else
-//            return decl.asTopLevelDecl().asGlobalDecl().isConstant();
-//    }
-//
-//    /**
-//     * Checks if a list literal is assignment compatible with a list type.
-//     * <p><br>
-//     *     This is a recursive algorithm to check if a list literal can be assigned
-//     *     to a list type in C Minor. This algorithm is based on the algorithm used
-//     *     for array assignment compatibility albeit it's simpler and has less error checks.
-//     * </p>
-//     * @param currDepth Current level of recursion (final depth is 1)
-//     * @param baseType Base type of the list
-//     * @param curr List literal aka the current list literal we are checking
-//     * @return Boolean - True if assignment compatible and False otherwise
-//     */
-//    private boolean listAssignmentCompatibility(int currDepth, Type baseType, ListLiteral curr) {
-//        if(currDepth == 1) {
-//            for(Expression init : curr.getInits()) {
-//                init.visit(this);
-//
-//                // ERROR CHECK #1: This checks to see if the current expression's type matches the list's base type.
-//                if(!Type.assignmentCompatible(baseType,init.type)) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(curr.getFullLocation())
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_447)
-//                            .addErrorArgs(baseType,init.type)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1444)
-//                            .addSuggestionArgs(baseType)
-//                            .generateError();
-//                    return false;
-//                }
-//            }
-//
-//            curr.type = new ListTypeBuilder()
-//                            .setMetaData(curr)
-//                            .setBaseType(baseType)
-//                            .setNumOfDims(currDepth)
-//                            .create();
-//            return true;
-//        }
-//        else if(currDepth > 1) {
-//            for(Expression e : curr.getInits()) {
-//                if(!e.isListLiteral()) {
-//                    // ERROR CHECK #2: This checks to make sure we have nested lists if the current list is multidimensional.
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(curr.getFullLocation())
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_448)
-//                            .addErrorArgs(curr)
-//                            .generateError();
-//                    return false;
-//                }
-//                listAssignmentCompatibility(currDepth-1,baseType,e.asListLiteral());
-//            }
-//
-//            curr.type = new ListTypeBuilder()
-//                            .setMetaData(curr)
-//                            .setBaseType(baseType)
-//                            .setNumOfDims(currDepth)
-//                            .create();
-//
-//            return true;
-//        }
-//        else
-//            return false;
-//    }
-//
-//    private FuncDecl findSpecificFunction(FuncDecl candidate, FuncDecl currentTemplate, Invocation in) {
-//        // If we do not have a possible template function, then the candidate will default to be the candidate
-//        if(currentTemplate == null)
-//            return candidate;
-//
-//        // We will now do a type analysis of the candidate's parameters with the invocation's arguments.
-//        for(int i = 0; i < candidate.getParams().size(); i++) {
-//            ParamDecl candidateParam = candidate.getParams().get(i);
-//            ParamDecl templateParam = currentTemplate.getParams().get(i);
-//            Expression currArg = in.getArgs().get(i);
-//
-//
-//            // If the candidate's current parameter is assignment compatible with the current argument, this means we
-//            // might have a more specific template to use. If we can confirm
-//            if(Type.assignmentCompatible(candidateParam.getType(), currArg.type)) {
-//                if(templateParam.isParameterTemplated(currentTemplate.getTypeParams()))
-//                    return candidate;
-//            }
-//        }
-//
-//        return currentTemplate;
-//    }
-//
-//    private FuncDecl findValidFuncTemplate(String funcName, Invocation in) {
-//        final SymbolTable rootTable = currentScope.getRootTable();
-//        FuncDecl template = null;
-//
-//        for(FuncDecl candidate: currentScope.getAllFuncNames()) {
-//            // First, we need to make sure the current candidate represents a template function
-//            // and the candidate matches the name of the function that is called.
-//            if(!candidate.isTemplate() || !candidate.toString().equals(funcName))
-//                continue;
-//
-//            // Next, we need to make sure the candidate parameter count matches the argument count
-//            // If it doesn't, then we know this candidate can be eliminated.
-//            if(candidate.getParams().size() != in.getArgs().size())
-//                continue;
-//
-//            template = findSpecificFunction(candidate,template,in);
-//        }
-//
-//        return template;
-//    }
-//
-//    /**
-//     * Verifies the validity of a template function call.
-//     * <p><br>
-//     *     If a user writes a template function call, then this method will perform the
-//     *     necessary error checks to ensure the template function call was written correctly.
-//     *     This will allow us to instantiate the function and then have the {@link TypeChecker}
-//     *     check if all types can be resolved correctly. This method is identical to the one
-//     *     found in {@link micropasses.TypeValidityPass} for validating template types, but
-//     *     this method produces different error messages.
-//     * </p>
-//     * @param fd Current template function
-//     * @param in The template {@link Invocation} we want to check if it's been written correctly
-//     */
-//    public void checkIfFuncTemplateCallIsValid(FuncDecl fd, Invocation in) {
-//        // ERROR CHECK #1: When a template type is written, we want to make sure the correct number of
-//        //                 type arguments were passed. This will be based on the number of type parameters
-//        //                 the template function was declared with. There are 2 possible errors here.
-//        if(fd.getTypeParams().size() != in.getTypeArgs().size()) {
-//            // Case 1: This error is generated when a user writes type arguments for a non-template function.
-//            if(fd.getTypeParams().isEmpty()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(in.getFullLocation())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_462)
-//                        .addErrorArgs(fd)
-//                        .generateError();
-//            }
-//            // Case 2: This error is generated when the wrong number of type arguments were used for a template function.
-//            else {
-//                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
-//                                      .addLocation(in.getFullLocation())
-//                                      .addErrorNumber(MessageNumber.TYPE_ERROR_463)
-//                                      .addErrorArgs(in.getSignature())
-//                                      .addSuggestionArgs(fd,fd.getTypeParams().size());
-//
-//                if(fd.getTypeParams().size() == 1)
-//                    eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1449).generateError();
-//                else
-//                    eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1450).generateError();
-//            }
-//        }
-//
-//        // We now look through each type parameter of the template function.
-//        for (int i = 0; i < fd.getTypeParams().size(); i++) {
-//            TypeParam typeParam = fd.getTypeParams().get(i);
-//
-//            // ERROR CHECK #2: If a user prefixed the type parameter with a type annotation, then we will check if
-//            //                 the passed type argument can be used in the current type argument. If no type annotation
-//            //                 was given, this check is not needed, and we will let the type checker handle the rest.
-//            if(!typeParam.isValidTypeArg(in.getTypeArgs().get(i))) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(in.getFullLocation())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_446)
-//                        .addErrorArgs(in.getTypeArgs().get(i), fd)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1451)
-//                        .addSuggestionArgs(fd, typeParam.getPossibleType(), i + 1)
-//                        .generateError();
-//            }
-//        }
-//    }
-//
-//    /* ######################################## VISITS ######################################## */
-//
+
+    private SymbolTable currentScope;
+    private TypeCheckerHelper helper;
+    private ClassDecl currentClass;
+    private Type currentTarget;
+ //   private TypeValidityPass typeValidityPass;
+    private boolean parentFound = false;
+    private boolean inControlStmt = false;
+
+    /**
+     * Creates type checker in compilation mode
+     */
+    public TypeChecker(String fileName) {
+        this.currentScope = null;
+        this.currentClass = null;
+        this.handler = new MessageHandler();
+    }
+
+    /**
+     * Creates type checker in interpretation mode
+     * @param st Symbol Table
+     */
+    public TypeChecker(SymbolTable st) {
+        this.currentScope = st;
+        this.handler = new MessageHandler();
+        this.helper = new TypeCheckerHelper();
+       //  this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable());
+    }
+
 //    /**
 //     * <p>
 //     *     Array expressions are how users can access memory from array.
@@ -564,472 +162,460 @@ public class TypeChecker extends Visitor {
 //        }
 //
 //    }
-//
-//    /**
-//     *     If we want to assign a new value to a variable, we need to make sure the
-//     *     value's type matches the type of the variable.
-//     *     <br><br>
-//     *     C Minor also supports compound assignment operations such as +=, -=, *=,
-//     *     etc. which means we have to do an additional check to make sure the two
-//     *     values can perform a legal binary operation.
-//     * @param as Assignment Statement
-//     */
-//    public void visitAssignStmt(AssignStmt as) {
-//        as.getLHS().visit(this);
-//        Type lType = as.getLHS().type;
-//
-//        // ERROR CHECK #1: An array literal can only be assigned to
-//        //                 a variable storing an array
-//        if(!lType.isArrayType() && as.getRHS().isArrayLiteral()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(as)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_450)
-//                    .generateError();
-//        }
-//
-//        if(as.getRHS().isArrayLiteral() || as.getRHS().isListLiteral()) {
-//            Type oldTarget = currentTarget;
-//            currentTarget = lType;
-//
-//            as.getRHS().visit(this);
-//            currentTarget = oldTarget;
-//        }
-//        else
-//            as.getRHS().visit(this);
-//
-//        Type rType = as.getRHS().type;
-//
-//        // ERROR CHECK #1: Make sure both the variable and value type are the same
-//        if(!Type.assignmentCompatible(lType,rType)) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(as)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_403)
-//                    .addErrorArgs(as.getLHS().toString(),lType,rType)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1401)
-//                    .addSuggestionArgs(lType)
-//                    .generateError();
-//        }
-//
-//        if(as.getOperator().getAssignOp() != AssignType.EQ) {
-//            if(as.getOperator().getAssignOp() == AssignType.PLUSEQ) {
-//                // ERROR CHECK #2: For a '+=' operation, the only allowed types
-//                //                 are Int, Real, and String
-//                if (lType.isBool() || lType.isChar() || lType.isClassOrMultiType())
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(as)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_403)
-//                            .addErrorArgs(as.getLHS().toString(),lType,rType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1402)
-//                            .generateError();
-//            }
-//            else {
-//                // ERROR CHECK #3: For all other assignment operators, the
-//                //                 only supported types are Int and Real
-//                if(lType.isBool() || lType.isChar() || lType.isString() || lType.isClassOrMultiType())
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(as)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_404)
-//                            .addErrorArgs(as.getOperator(),lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1403)
-//                            .addSuggestionArgs(as.getOperator())
-//                            .generateError();
-//            }
-//        }
-//    }
-//
-//    /**
-//     * Evaluates the type of a binary expression.
-//     * <p><br>
-//     *     Since C Minor does not support type coercion, we are going to be
-//     *     strict about which types are allowed for every binary operator.
-//     *     <br><br>
-//     *     There are currently 24 binary operators in C Minor. The following
-//     *     is a list of type checks we will do for each operator:
-//     *     <ol>
-//     *         <li>
-//     *             '==', '!='
-//     *             <ul>
-//     *                 <li>Operand Type: Both operands are SAME type</li>
-//     *                 <li>Binary Expression Type: Bool</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             '>', '>=', '<', '<=', '<>', '<=>'
-//     *             <ul>
-//     *                 <li>Operand Type: Int, Real, Char</li>
-//     *                 <li>Binary Expression Type: Bool</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             '+', '-', '*', '/', '%', '**'
-//     *             <ul>
-//     *                 <li>Operand Type: Int, Real, Char, or String (for '+')</li>
-//     *                 <li>Binary Expression Type: Operand Type</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             '<<', '>>'
-//     *             <ul>
-//     *                 <li>Operand Type: Int</li>
-//     *                 <li>Binary Expression Type: Int</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             '&', '|', '^'
-//     *             <ul>
-//     *                 <li>Operand Type: Discrete</li>
-//     *                 <li>Binary Expression Type: Bool or Int (for '^')</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             'and', 'or'
-//     *             <ul>
-//     *                 <li>Operand Type: Bool</li>
-//     *                 <li>Binary Expression Type: Bool</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             'instanceof', '!instanceof', 'as?'
-//     *             <ul>
-//     *                 <li>Operand Type: Class</li>
-//     *                 <li>Binary Expression Type: Bool</li>
-//     *             </ul>
-//     *         </li>
-//     *     </ol>
-//     *     Additionally, most of the binary operators can be overloaded by classes,
-//     *     so we will check if the overloaded method was defined here as well.
-//     * </p>
-//     * @param be Binary Expression
-//     */
-//    public void visitBinaryExpr(BinaryExpr be) {
-//        be.getLHS().visit(this);
-//        Type lType = be.getLHS().type;
-//
-//        be.getRHS().visit(this);
-//        Type rType = be.getRHS().type;
-//
-//        String binOp = be.getBinaryOp().toString();
-//
-//        if(lType.isClassOrMultiType()) {
-//            switch(binOp) {
-//                case "&":
-//                case "^":
-//                case "|":
-//                case "and":
-//                case "or", "instanceof", "!instanceof", "as?":
-//                    break;
-//                default:
-//                    FieldExpr fe = new FieldExprBuilder()
-//                                       .setTarget(be.getLHS())
-//                                       .setAccessExpr(
-//                                            new InvocationBuilder()
-//                                                .setName(new Name("operator"+binOp))
-//                                                .setArgs(new Vector<>(be.getRHS()))
-//                                                .create()
-//                                        )
-//                                        .create();
-//                    be.replaceWith(fe);
-//                    fe.visit(this);
-//                    return;
-//            }
-//        }
-//
-//        // ERROR CHECK #1: Both LHS/RHS have to be the same type.
-//        if(!binOp.equals("instanceof") && !binOp.equals("!instanceof") && !binOp.equals("as?")) {
-//            if(!Type.assignmentCompatible(lType,rType)) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(be)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_405)
-//                        .addErrorArgs(binOp,lType,rType)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1404)
-//                        .addSuggestionArgs(binOp)
-//                        .generateError();
-//            }
-//        }
-//
-//        switch(binOp) {
-//            case "==":
-//            case "!=": {
-//                be.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            }
-//            case ">":
-//            case ">=":
-//            case "<":
-//            case "<=":
-//            case "<>":
-//            case "<=>": {
-//                // ERROR CHECK #2: Make sure the operands are numeric types
-//                if(!lType.isNumeric()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(be)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
-//                            .addErrorArgs(binOp,lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1405)
-//                            .addSuggestionArgs(binOp)
-//                            .generateError();
-//                }
-//                be.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            }
-//            case "+": {
-//                if(lType.isString() && rType.isString()) {
-//                    be.type = lType;
-//                    break;
-//                }
-//            }
-//            case "-":
-//            case "*":
-//            case "/":
-//            case "%":
-//            case "**": {
-//                // ERROR CHECK #3: Make sure the operands are numeric types
-//                if(!lType.isNumeric()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(be)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
-//                            .addErrorArgs(binOp,lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1405)
-//                            .addSuggestionArgs(binOp)
-//                            .generateError();
-//                }
-//                be.type = lType;
-//                break;
-//            }
-//            case "<<":
-//            case ">>": {
-//                // ERROR CHECK #4: Both LHS and RHS have to be an INT for shift operations
-//                if(!lType.isInt()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(be)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
-//                            .addErrorArgs(binOp,lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1406)
-//                            .addSuggestionArgs(binOp)
-//                            .generateError();
-//                }
-//                be.type = new DiscreteType(Discretes.INT);
-//                break;
-//            }
-//            case "&":
-//            case "|":
-//            case "^": {
-//                // ERROR CHECK #5: Make sure both types are discrete
-//                if(!lType.isDiscreteType() || !rType.isDiscreteType()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(be)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
-//                            .addErrorArgs(binOp,lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1407)
-//                            .addSuggestionArgs(binOp)
-//                            .generateError();
-//                }
-//                if(binOp.equals("^"))
-//                    be.type = new DiscreteType(Discretes.INT);
-//                else
-//                    be.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            }
-//            case "and":
-//            case "or": {
-//                // ERROR CHECK #6: Make sure both types are Bool
-//                if(!lType.isBool() || !rType.isBool()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(be)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_406)
-//                            .addErrorArgs(binOp,lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1408)
-//                            .addSuggestionArgs(binOp)
-//                            .generateError();
-//                }
-//                be.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            }
-//            case "instanceof":
-//            case "!instanceof":
-//            case "as?": {
-//                // ERROR CHECK #7: Make sure the LHS represents a class type
-//                if(!lType.isClassOrMultiType()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(be)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_407)
-//                            .addErrorArgs(binOp,lType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1409)
-//                            .addSuggestionArgs(binOp)
-//                            .generateError();
-//                }
-//                be.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            }
-//        }
-//    }
-//
-//    /**
-//     * <p>
-//     *     In C Minor, there are three valid cast expressions.
-//     *     <ol>
-//     *         <li> Char <=> Int</li>
-//     *         <li> Int <=> Real</li>
-//     *         <li> Char => String</li>
-//     *     </ol>
-//     *     For mixed type expressions, this means the programmer must perform
-//     *     explicit type casts or else the compiler will generate a typing error.
-//     * </p>
-//     * @param ce Cast Expression
-//     */
-//    public void visitCastExpr(CastExpr ce) {
-//        ce.getCastExpr().visit(this);
-//
-//        if(ce.getCastExpr().type.isInt()) {
-//            // ERROR CHECK #1: An Int can only be typecasted into a Char and a Real
-//            if(!ce.getCastType().isChar() && !ce.getCastType().isReal() && !ce.getCastType().isInt()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ce)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_409)
-//                        .addErrorArgs(ce.getCastType())
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1412)
-//                        .addSuggestionArgs(ce.getCastExpr())
-//                        .generateError();
-//            }
-//        }
-//        else if(ce.getCastExpr().type.isChar()) {
-//            // ERROR CHECK #2: A Char can only be type casted into an Int and a String
-//            if(!ce.getCastType().isInt() && !ce.getCastType().isString() && !ce.getCastType().isChar()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ce)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_409)
-//                        .addErrorArgs(ce.getCastType())
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1413)
-//                        .addSuggestionArgs(ce.getCastExpr())
-//                        .generateError();
-//            }
-//        }
-//        else if(ce.getCastExpr().type.isReal()) {
-//            // ERROR CHECK #3: A Real can only be type casted into an Int
-//            if(!ce.getCastType().isInt() && !ce.getCastType().isReal()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ce)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_409)
-//                        .addErrorArgs(ce.getCastType())
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1414)
-//                        .addSuggestionArgs(ce.getCastExpr())
-//                        .generateError();
-//            }
-//        }
-//        else {
-//            // By default, all other cast expressions will be considered invalid
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ce)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_409)
-//                    .addErrorArgs(ce.getCastType())
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1415)
-//                    .generateError();
-//        }
-//
-//        ce.type = ce.getCastType();
-//    }
-//
-//    /**
-//     * <p>
-//     *     When we are visiting a choice statement, there are two main type checks
-//     *     we have to perform.<br><br>
-//     *     First, we make sure the choice expression is either an Int, Char, or
-//     *     a String. Then, we make sure each case's label corresponds to the
-//     *     correct type of the choice expression. If this is all valid, then we
-//     *     can continue with the compilation process.
-//     * </p>
-//     * @param cs Choice Statement
-//     */
-//    public void visitChoiceStmt(ChoiceStmt cs) {
-//        boolean prev = inControlStmt;
-//        cs.getChoiceValue().visit(this);
-//        Type choiceType = cs.getChoiceValue().type;
-//
-//        // ERROR CHECK #1: Choice statements only support Int, Char, and String
-//        if(!(choiceType.isInt() || choiceType.isChar() || choiceType.isString())) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(cs.getChoiceValue())
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_416)
-//                    .addErrorArgs(choiceType)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1422)
-//                    .generateError();
-//        }
-//
-//        for(CaseStmt curr : cs.getCases()) {
-//            curr.getLabel().visit(this);
-//            Type labelType = curr.getLabel().getLeftConstant().type;
-//
-//            // ERROR CHECK #2: Make sure the case label's type corresponds
-//            //                 to the type of the choice statement expression
-//            if(!Type.assignmentCompatible(labelType,choiceType)) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(curr.getLabel())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_417)
-//                        .addErrorArgs(labelType, choiceType)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
-//                        .generateError();
-//            }
-//
-//            if(curr.getLabel().getRightConstant() != null) {
-//                labelType = curr.getLabel().getRightConstant().type;
-//                // ERROR CHECK #3: Same as ERROR CHECK #2, but now for the right label
-//                if(!Type.assignmentCompatible(labelType,choiceType)) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(curr.getLabel())
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_417)
-//                            .addErrorArgs(labelType,choiceType)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
-//                            .generateError();
-//                }
-//
-//                // ERROR CHECK #4: If we allow to choose from String values, then
-//                //                 there is only one label allowed per case statement
-//                if(choiceType.isString()) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(curr.getLabel())
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_418)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1424)
-//                            .generateError();
-//                }
-//
-//                // ERROR CHECK #5: Make sure label's right constant is greater than left constant
-//                if(choiceType.isInt()) {
-//                    int lLabel = curr.getLabel().getLeftConstant().asInt();
-//                    int rLabel = curr.getLabel().getLeftConstant().asInt();
-//                    if(rLabel <= lLabel) {
-//                        handler.createErrorBuilder(TypeError.class)
-//                                .addLocation(curr.getLabel())
-//                                .addErrorNumber(MessageNumber.TYPE_ERROR_419)
-//                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
-//                                .generateError();
-//                    }
-//                }
-//                else if(choiceType.isChar()) {
-//                    char lLabel = curr.getLabel().getLeftConstant().asChar();
-//                    char rLabel = curr.getLabel().getLeftConstant().asChar();
-//                    if(rLabel <= lLabel) {
-//                        handler.createErrorBuilder(TypeError.class)
-//                                .addLocation(curr.getLabel())
-//                                .addErrorNumber(MessageNumber.TYPE_ERROR_419)
-//                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
-//                                .generateError();
-//                    }
-//                }
-//            }
-//            currentScope = curr.scope;
-//            inControlStmt = true;
-//            curr.getBody().visit(this);
-//            inControlStmt = prev;
-//            currentScope = currentScope.closeScope();
-//        }
-//
-//        currentScope = cs.scope;
-//        inControlStmt = true;
-//        cs.getDefaultBody().visit(this);
-//        inControlStmt = prev;
-//        currentScope = currentScope.closeScope();
-//    }
-//
+
+        public void visitArrayLiteral(ArrayLiteral al) {     }
+
+
+    /**
+     * Evaluates the types of the LHS and RHS of an assignment statement.
+     * <p>
+     *     Since there is no type coercion, the LHS and RHS of an assignment must have
+     *     the exact same type to prevent a compilation error from occurring. Additionally,
+     *     C Minor supports the compound assignment operations, so we will do the same checks
+     *     we do for arithmetic binary expressions in this visit.
+     * </p>
+     * @param as {@link AssignStmt}
+     */
+    public void visitAssignStmt(AssignStmt as) {
+        as.getLHS().visit(this);
+        Type LHS = as.getLHS().type;
+
+        as.getRHS().visit(this);
+        Type RHS = as.getRHS().type;
+
+        // ERROR CHECK #1: Both the LHS and RHS of an assignment statement have to evaluate to the same types.
+        if(!Type.assignmentCompatible(LHS,RHS)) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(as)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_403)
+                   .addErrorArgs(as.getLHS(), LHS, RHS)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1401)
+                   .addSuggestionArgs(LHS)
+                   .generateError();
+        }
+
+        switch(as.getOperator().getAssignOp()) {
+            case EQ:
+                break;
+            case PLUSEQ:
+                // ERROR CHECK #2: The += operation is only supported for Int, Real, and String variables.
+                if(!LHS.isInt() && !LHS.isReal() && !LHS.isString()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(as)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_403)
+                           .addErrorArgs(as.getLHS(), LHS, RHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1402)
+                           .generateError();
+                }
+                break;
+            default:
+                // ERROR CHECK #3: All other assignment operations are only supported for Int and Real variables.
+                if(!LHS.isInt() && !LHS.isReal()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(as)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_404)
+                           .addErrorArgs(as.getOperator(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1403)
+                           .addSuggestionArgs(as.getOperator())
+                           .generateError();
+                }
+        }
+    }
+
+    /**
+     * Evaluates the binary expression's type.
+     * <p>
+     *     For binary operations, the operands have to be the same type since C Minor
+     *     does not support type coercion. There are currently 24 binary operators.
+     *     The following is a list of the operators with the types they are allowed to operate on:
+     *     <ol>
+     *         <li>
+     *             '==', '!='
+     *             <ul>
+     *                 <li>Operand Type: Both operands are SAME type</li>
+     *                 <li>Binary Expression Type: Bool</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             '>', '>=', '<', '<=', '<>', '<=>'
+     *             <ul>
+     *                 <li>Operand Type: Int, Real, Char</li>
+     *                 <li>Binary Expression Type: Bool</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             '+', '-', '*', '/', '%', '**'
+     *             <ul>
+     *                 <li>Operand Type: Int, Real, or String (for '+' only)</li>
+     *                 <li>Binary Expression Type: Operand Type</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             '<<', '>>'
+     *             <ul>
+     *                 <li>Operand Type: Int</li>
+     *                 <li>Binary Expression Type: Int</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             '&', '|', '^'
+     *             <ul>
+     *                 <li>Operand Type: Discrete</li>
+     *                 <li>Binary Expression Type: Bool or Int (for '^')</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             'and', 'or'
+     *             <ul>
+     *                 <li>Operand Type: Bool</li>
+     *                 <li>Binary Expression Type: Bool</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             'instanceof', '!instanceof', 'as?'
+     *             <ul>
+     *                 <li>Operand Type: Class</li>
+     *                 <li>Binary Expression Type: Bool</li>
+     *             </ul>
+     *         </li>
+     *     </ol>
+     *     We will also check if any binary operators are overloaded since operator
+     *     overloading is supported in the language.
+     * </p>
+     * @param be {@link BinaryExpr}
+     */
+    public void visitBinaryExpr(BinaryExpr be) {
+        be.getLHS().visit(this);
+        Type LHS = be.getLHS().type;
+
+        be.getRHS().visit(this);
+        Type RHS = be.getRHS().type;
+
+        BinaryType binType = be.getBinaryOp().getBinaryType();
+
+        /*
+            If the LHS represents an object, then we will treat the binary expression as an operator
+            overload if the operator used is found in the list of operators that can be overloaded.
+         */
+        if(LHS.isClassOrMulti()) {
+            switch(binType) {
+                case EQEQ:
+                case NEQ:
+                case GT:
+                case GTEQ:
+                case LT:
+                case LTEQ:
+                case LTGT:
+                case UFO:
+                case PLUS:
+                case MINUS:
+                case MULT:
+                case DIV:
+                case MOD:
+                case EXP:
+                    FieldExpr fe =
+                        new FieldExprBuilder()
+                            .setTarget(be.getLHS())
+                            .setAccessExpr(
+                                new InvocationBuilder()
+                                .setName(new Name("operator" + be.getBinaryOp()))
+                                .setArgs(new Vector<>(be.getRHS()))
+                                .create()
+                            )
+                            .create();
+                    be.replaceWith(fe);
+                    fe.visit(this);
+                    return;
+            }
+        }
+
+        // It is okay for 'instanceof', '!instanceof', and 'as?' to have different types for the LHS and RHS.
+        if(!binType.equals(BinaryType.INSTOF) && !binType.equals(BinaryType.NINSTOF) && !binType.equals(BinaryType.AS)){
+            // ERROR CHECK #1: The LHS and RHS types have to be the same in order to perform the binary operation.
+            if(!Type.assignmentCompatible(LHS,RHS)) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(be)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_405)
+                       .addErrorArgs(be.getBinaryOp(), LHS, RHS)
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1404)
+                       .addSuggestionArgs(be.getBinaryOp())
+                       .generateError();
+            }
+        }
+
+        switch(be.getBinaryOp().getBinaryType()) {
+            case EQEQ:
+            case NEQ:
+                be.type = new DiscreteType(Scalars.BOOL);
+                break;
+            case GT:
+            case GTEQ:
+            case LT:
+            case LTEQ:
+            case LTGT:
+            case UFO:
+                // ERROR CHECK #2: The operands need to be numeric, so we can perform a proper comparison.
+                if(!LHS.isNumeric()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(be)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                           .addErrorArgs(be.getBinaryOp(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1405)
+                           .addSuggestionArgs(be.getBinaryOp())
+                           .generateError();
+                }
+                be.type = new DiscreteType(Scalars.BOOL);
+                break;
+            case PLUS:
+                // Special Case: String concatenation is supported with '+'.
+                if(LHS.isString()) {
+                    be.type = LHS;
+                    break;
+                }
+            case MINUS:
+            case MULT:
+            case DIV:
+            case MOD:
+            case EXP:
+                // ERROR CHECK #3: To perform arithmetic operations, the operands must either be Ints or Reals.
+                if(!LHS.isInt() && !LHS.isReal()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(be)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                           .addErrorArgs(be.getBinaryOp(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1405)
+                           .addSuggestionArgs(be.getBinaryOp())
+                           .generateError();
+                }
+                be.type = LHS;
+                break;
+            case SLEFT:
+            case SRIGHT:
+                // ERROR CHECK #4: A bitwise left and right shift can only be performed on Ints.
+                if(!LHS.isInt()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(be)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                           .addErrorArgs(be.getBinaryOp(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1406)
+                           .addSuggestionArgs(be.getBinaryOp())
+                           .generateError();
+                }
+                be.type = new DiscreteType(Scalars.INT);
+                break;
+            case BAND:
+            case BOR:
+            case XOR:
+                // ERROR CHECK #5: The bitwise operations are supported for any Discrete type.
+                if(!LHS.isDiscrete()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(be)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                           .addErrorArgs(be.getBinaryOp(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1407)
+                           .addSuggestionArgs(be.getBinaryOp())
+                           .generateError();
+                }
+                if(binType.equals(BinaryType.XOR))
+                    be.type = new DiscreteType(Scalars.INT);
+                else
+                    be.type = new DiscreteType(Scalars.BOOL);
+                break;
+            case AND:
+            case OR:
+                // ERROR CHECK #6: The logical operators are only supported for Bools.
+                if(!LHS.isBool()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(be)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_406)
+                           .addErrorArgs(be.getBinaryOp(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1408)
+                           .addSuggestionArgs(be.getBinaryOp())
+                           .generateError();
+                }
+                be.type = new DiscreteType(Scalars.BOOL);
+                break;
+            case INSTOF:
+            case NINSTOF:
+            case AS:
+                // ERROR CHECK #7: The LHS has to represent an object.
+                if(!LHS.isClassOrMulti()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(be)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_407)
+                           .addErrorArgs(be.getBinaryOp(), LHS)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1409)
+                           .addSuggestionArgs(be.getBinaryOp())
+                           .generateError();
+                }
+                be.type = new DiscreteType(Scalars.BOOL);
+                break;
+        }
+    }
+
+    /**
+     * Evaluates the cast expression's type.
+     * <p>
+     *     In C Minor, there are three valid cast expressions:
+     *     <ol>
+     *         <li> Char <=> Int</li>
+     *         <li> Int <=> Real</li>
+     *         <li> Char => String</li>
+     *     </ol>
+     *     Users may also cast values of the same type (i.e. Bool(True) is allowed).
+     *     When working with mixed type expressions, users will be expected to type
+     *     cast values since there is no type coercion.
+     * </p>
+     * @param ce {@link CastExpr}
+     */
+    public void visitCastExpr(CastExpr ce) {
+        ce.getCastExpr().visit(this);
+
+        if(ce.getCastExpr().type.isInt()) {
+            // ERROR CHECK #1: An Int can only typecast into a Char and a Real.
+            if(!ce.getCastType().isChar() && !ce.getCastType().isReal() && !ce.getCastType().isInt()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ce)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                       .addErrorArgs(ce.getCastType())
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1412)
+                       .addSuggestionArgs(ce.getCastExpr())
+                       .generateError();
+            }
+        }
+        else if(ce.getCastExpr().type.isChar()) {
+            // ERROR CHECK #2: A Char can only typecast into an Int and a String.
+            if(!ce.getCastType().isInt() && !ce.getCastType().isString() && !ce.getCastType().isChar()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ce)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                       .addErrorArgs(ce.getCastType())
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1413)
+                       .addSuggestionArgs(ce.getCastExpr())
+                       .generateError();
+            }
+        }
+        else if(ce.getCastExpr().type.isReal()) {
+            // ERROR CHECK #3: A Real can only typecast into an Int.
+            if(!ce.getCastType().isInt() && !ce.getCastType().isReal()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ce)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                       .addErrorArgs(ce.getCastType())
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1414)
+                       .addSuggestionArgs(ce.getCastExpr())
+                       .generateError();
+            }
+        }
+        else {
+            // ERROR CHECK #4: By default, all other typecasts will be considered invalid if both types are different.
+            if(!Type.assignmentCompatible(ce.getCastType(),ce.getCastExpr().type)) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ce)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_409)
+                       .addErrorArgs(ce.getCastType())
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1415)
+                       .generateError();
+            }
+        }
+        ce.type = ce.getCastType();
+    }
+
+    /**
+     * Evaluates the types of the case statement labels.
+     * <p>
+     *     During this visit, we are concerned with making sure the choice value used
+     *     can properly choose which case statement to execute. Currently, we are only
+     *     supporting a choice on Int, Char, and String values. Here we will ensure that
+     *     all labels were correctly written and evaluate to the type of the choice value.
+     * </p>
+     * @param cs {@link ChoiceStmt}
+     */
+    public void visitChoiceStmt(ChoiceStmt cs) {
+        cs.getChoiceValue().visit(this);
+        Type choice = cs.getChoiceValue().type;
+
+        // ERROR CHECK #1: A choice statement can only choose from an Int, Char, or String value.
+        if(!choice.isInt() && !choice.isChar() && !choice.isString()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(cs.getChoiceValue())
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_416)
+                   .addErrorArgs(choice)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1422)
+                   .generateError();
+        }
+
+        for(CaseStmt currentCase : cs.getCases()) {
+            currentCase.getLabel().visit(this);
+            Type label = currentCase.getLabel().getLeftConstant().type;
+
+            // ERROR CHECK #2: The label has to have the same type as the choice value.
+            if(!Type.assignmentCompatible(label,choice)) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(currentCase.getLabel())
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_417)
+                       .addErrorArgs(label, choice)
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
+                       .generateError();
+            }
+
+            if(currentCase.getLabel().getRightConstant() != null) {
+                label = currentCase.getLabel().getRightConstant().type;
+                // ERROR CHECK #3: Same as ERROR CHECK #2, but now we check if the right label is typed correctly.
+                if(!Type.assignmentCompatible(label, choice)) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(currentCase.getLabel())
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_417)
+                           .addErrorArgs(label, choice)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1423)
+                           .generateError();
+                }
+
+                // ERROR CHECK #4: A label may not have a range when working with String choice values.
+                if(choice.isString()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(currentCase.getLabel())
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_418)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1424)
+                           .generateError();
+                }
+                else if(choice.isInt()) {
+                    int lLabel = currentCase.getLabel().getLeftConstant().asInt();
+                    int rLabel = currentCase.getLabel().getRightConstant().asInt();
+                    // ERROR CHECK #5: The right Int label has to be greater than the left Int label.
+                    if(rLabel <= lLabel) {
+                        handler.createErrorBuilder(TypeError.class)
+                               .addLocation(currentCase.getLabel())
+                               .addErrorNumber(MessageNumber.TYPE_ERROR_419)
+                               .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
+                               .generateError();
+                    }
+                }
+                else {
+                    char lLabel = currentCase.getLabel().getLeftConstant().asChar();
+                    char rLabel = currentCase.getLabel().getRightConstant().asChar();
+                    // ERROR CHECK #6: The right Char label has to be greater than the left Char label.
+                    if(rLabel <= lLabel) {
+                        handler.createErrorBuilder(TypeError.class)
+                               .addLocation(currentCase.getLabel())
+                               .addErrorNumber(MessageNumber.TYPE_ERROR_419)
+                               .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1425)
+                               .generateError();
+                    }
+                }
+            }
+
+            currentScope = currentCase.getScope();
+            currentCase.getBody().visit(this);
+            currentScope = currentScope.closeScope();
+        }
+
+        // Visit the other branch.
+        currentScope = cs.getScope();
+        cs.getDefaultBody().visit(this);
+        currentScope = currentScope.closeScope();
+    }
+
 //    /**
 //     * Creates the class hierarchy for the current class.<br><br>
 //     * <p>
@@ -1066,40 +652,38 @@ public class TypeChecker extends Visitor {
 //        currentScope = oldScope;
 //    }
 //
-//    public void visitCompilationUnit(CompilationUnit c) {
-//        currentScope = c.getScope();
-//        this.typeValidityPass = new TypeValidityPass(c.getScope());
-//        super.visitCompilationUnit(c);
+//    public void visitCompilationUnit(CompilationUnit cu) {
+//        for(ImportDecl id : cu.getImports())
+//            id.getCompilationUnit().visit(this);
+//        currentScope = cu.getScope();
+//        this.typeValidityPass = new TypeValidityPass(cu.getScope());
+//        super.visitCompilationUnit(cu);
 //    }
-//
-//    /**
-//     * Evaluates the do statement's conditional expression
-//     * <p>
-//     *     We will only check to make sure the do while loop's condition
-//     *     evaluates to be a boolean value. All other type checks will be
-//     *     handled by other visits.
-//     * </p>
-//     * @param ds Do Statement
-//     */
-//    public void visitDoStmt(DoStmt ds) {
-//        boolean prev = inControlStmt;
-//        currentScope = ds.scope;
-//        inControlStmt = true;
-//        ds.getBody().visit(this);
-//        inControlStmt = prev;
-//        currentScope = currentScope.closeScope();
-//
-//        ds.getCondition().visit(this);
-//        // ERROR CHECK #1: The do while loop's condition must be a boolean
-//        if(!ds.getCondition().type.isBool()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ds.getCondition())
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_412)
-//                    .addErrorArgs(ds.getCondition().type)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1418)
-//                    .generateError();
-//        }
-//    }
+
+    /**
+     * Verifies the type of the do while loop's condition.
+     * <p>
+     *     The conditional expression for a do while loop must evaluate to be a
+     *     boolean. This is the only type-related check performed with this visit.
+     * </p>
+     * @param ds {@link DoStmt}
+     */
+    public void visitDoStmt(DoStmt ds) {
+        currentScope = ds.scope;
+        ds.getBody().visit(this);
+        currentScope = currentScope.closeScope();
+
+        ds.getCondition().visit(this);
+        // ERROR CHECK #1: The do while loop's condition must evaluate to be a boolean.
+        if(!ds.getCondition().type.isBool()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(ds.getCondition())
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_412)
+                   .addErrorArgs(ds.getCondition().type)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1418)
+                   .generateError();
+        }
+    }
 //
 //    /**
 //     * Evaluates if an enumeration was written correctly<br>
@@ -1112,12 +696,11 @@ public class TypeChecker extends Visitor {
 //     * @param ed Enumeration
 //     */
 //    public void visitEnumDecl(EnumDecl ed) {
-//        // First, we will figure out how many constants were initialized and the first
-//        // initial value of the constant will be used to determine the type of the Enum
-//        int constantInitCount = 0;
+//        // Step 1: Count how many constants were initialized.
+//        int initCount = 0;
 //        for(Var constant : ed.getConstants()) {
-//            if(constant.getInitialValue() != null) {
-//                constantInitCount++;
+//            if(constant.hasInitialValue()) {
+//                initCount++;
 //                if(ed.getConstantType() == null) {
 //                    constant.getInitialValue().visit(this);
 //
@@ -1196,53 +779,6 @@ public class TypeChecker extends Visitor {
 //    }
 //
 //    /**
-//     * Evaluates the type of a field
-//     * <p>
-//     *     If a user initialized a field to a initial value, we will check
-//     *     to make sure the value and the variable are assignment compatible.
-//     *     C Minor does NOT support type coercion, so this means the value must
-//     *     be the same type as the declaration.
-//     *     <br><br>
-//     *     For any uninitialized values, we will call {@link #setDefaultValue}
-//     *     to generate a default value for this field.
-//     * </p>
-//     * @param fd Field Declaration
-//     */
-//    public void visitFieldDecl(FieldDecl fd) {
-//        // An uninitialized field will be given a default value
-////        if(fd.var().init() == null) {
-////            Expression defaultValue = setDefaultValue(fd.type());
-////            if(defaultValue != null)
-////                fd.var().setInit(defaultValue);
-////            return;
-////        }
-//
-////        if(fd.type().isArrayType() && fd.var().init().isArrayLiteral()) {
-////            Type oldTarget = currentTarget;
-////            currentTarget = fd.type();
-////
-////            fd.var().init().visit(this);
-////            currentTarget = oldTarget;
-////        }
-////        else {
-////            fd.var().init().visit(this);
-////
-////            // ERROR CHECK #1: Check if the field's declared type
-////            //                 matches the type of the initial value
-////            if(!Type.assignmentCompatible(fd.type(),fd.var().init().type)) {
-////                handler.createErrorBuilder(TypeError.class)
-////                        .addLocation(fd)
-////                        .addErrorNumber(MessageNumber.TYPE_ERROR_420)
-////                        .addErrorArgs(fd.toString(),fd.type(),fd.var().init().type)
-////                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
-////                        .addSuggestionArgs(fd.var().type())
-////                        .generateError();
-////            }
-////     //   }
-////        fd.var().setType(fd.type());
-//    }
-//
-//    /**
 //     * Evaluates the type of a field expression<br>
 //     * <p>
 //     * For a field expression, we will first evaluate the target and make sure the
@@ -1274,260 +810,205 @@ public class TypeChecker extends Visitor {
 //        currentTarget = oldTarget;
 //        parentFound = false;
 //    }
-//
-//    /**
-//     * Evaluates a for statement.
-//     * <p>
-//     *     Unlike the other two loop statements, we have a few error checks that
-//     *     need to be done with for statements. We mainly need to make sure the
-//     *     for loop has a loop control variable that represents an Int, and its
-//     *     condition contains Int literals. Once done, then there's nothing else
-//     *     FOR us to type check here. ;)
-//     * </p>
-//     * @param fs For Statement
-//     */
-//    public void visitForStmt(ForStmt fs) {
-//        boolean prev = inControlStmt;
-//        currentScope = fs.scope;
-//
-//        fs.getControlVariable().visit(this);
-//        //Type varType = fs.loopVar().type();
-//
-//        // ERROR CHECK #1: Make sure loop control variable is an Int, Char, or Enum
-////        if(!varType.isInt() && !varType.isChar() && !varType.isEnumType()) {
-////            handler.createErrorBuilder(TypeError.class)
-////                    .addLocation(fs.loopVar())
-////                    .addErrorNumber(MessageNumber.TYPE_ERROR_413)
-////                    .addErrorArgs(fs.loopVar(),varType)
-////                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1419)
-////                    .generateError();
-////        }
-//
-//        fs.getStartValue().visit(this);
-//        fs.getEndValue().visit(this);
-//
-//        // ERROR CHECK #2: Make sure the LHS and RHS conditions have the same type
-//        if(!Type.assignmentCompatible(fs.getStartValue().type,fs.getEndValue().type)) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(fs)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_414)
-//                    .addErrorArgs(fs.getStartValue().type,fs.getEndValue().type)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1420)
-//                    .generateError();
-//        }
-//
-//        // ERROR CHECK #3: Make sure the loop condition literals match the type of the control variable
-////        if(!Type.assignmentCompatible(varType,fs.condLHS().type)) {
-////            handler.createErrorBuilder(TypeError.class)
-////                    .addLocation(fs)
-////                    .addErrorNumber(MessageNumber.TYPE_ERROR_415)
-////                    .addErrorArgs(fs.loopVar(),fs.loopVar().type(),fs.condLHS().type)
-////                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1421)
-////                    .generateError();
-////        }
-//
-//        if(fs.getBody() != null) {
-//            inControlStmt = true;
-//            fs.getBody().visit(this);
-//            inControlStmt = prev;
-//        }
-//        currentScope = currentScope.closeScope();
-//    }
-//
-//    /**
-//     * Evaluates function declaration
-//     * <p>
-//     *     For functions, we are going to check if the return types are valid,
-//     *     and if the correct value is returned from the function.
-//     * </p>
-//     * @param fd Function Declaration
-//     */
-//    public void visitFuncDecl(FuncDecl fd) {
-//        if(fd.getTypeParams().isEmpty()) {
-//            SymbolTable oldScope = currentScope;
-//            currentScope = fd.getScope();
-//            currentMethod = fd;
-//
-//            // ERROR CHECK #1: Make sure the function return type is valid
-//            if(fd.getReturnType().isClassType()) {
-//                if(!currentScope.hasNameSomewhere(fd.getReturnType().toString())) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(fd)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_421)
-//                            .addErrorArgs(fd.getReturnType(),fd)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1426)
-//                            .addSuggestionArgs(fd.getReturnType())
-//                            .generateError();
-//                }
-//            }
-//
-//            super.visitFuncDecl(fd);
-//
-//            // ERROR CHECK #2: If the function has a non-void return type, make
-//            //                 sure a return statement is found in the function
-//            if(!fd.getReturnType().isVoidType() && !returnFound) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(fd)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_422)
-//                        .addErrorArgs(fd,fd.getReturnType())
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
-//                        .generateError();
-//            }
-//
-//            currentScope = oldScope;
-//            currentMethod = null;
-//            returnFound = false;
-//        }
-//    }
-//
-//    /**
-//     * Evaluates the type of a global variable
-//     * <p>
-//     *     If a user initialized a global to a initial value, we will check
-//     *     to make sure the value and the variable are assignment compatible.
-//     *     C Minor does NOT support type coercion, so this means the value must
-//     *     be the same type as the declaration.
-//     *     <br><br>
-//     *     For any uninitialized values, we will call {@link #setDefaultValue}
-//     *     to generate a default value for this global variable.
-//     * </p>
-//     * @param gd Global Declaration
-//     */
-//    public void visitGlobalDecl(GlobalDecl gd) {
-//        // An uninitialized global variable will be given a default value
-////        if(gd.var().init() == null) {
-////            Expression defaultValue = setDefaultValue(gd.type());
-////            if(defaultValue != null)
-////                gd.var().setInit(defaultValue);
-////            return;
-////        }
-////
-////        if(gd.type().isArrayType() && gd.var().init().isArrayLiteral()) {
-////            Type oldTarget = currentTarget;
-////            currentTarget = gd.type();
-////
-////            gd.var().init().visit(this);
-////            currentTarget = oldTarget;
-////        }
-//       // else {
-//            gd.getInitialValue().visit(this);
-//
-//            // ERROR CHECK #1: Check if the global variable's declared type
-//            //                 matches the type of the initial value
-//            if(!Type.assignmentCompatible(gd.getDeclaredType(),gd.getInitialValue().type)) {
-//                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
-//                                      .addLocation(gd)
-//                                      .addErrorArgs(gd.toString(),gd.getDeclaredType(),gd.getInitialValue().type)
-//                                      .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
-//                                      .addSuggestionArgs(gd.getDeclaredType());
-//                if(gd.isConstant())
-//                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_402).generateError();
-//                else
-//                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_401).generateError();
-//            }
-//
-//        //}
-//
-////        gd.var().setType(gd.type());
-////        gd.setType(gd.var().init().type);
-//    }
-//
-//    /**
-//     * Evaluates the if statement's conditional expression
-//     * <p>
-//     *     We will check if the if statement's condition evaluates to be
-//     *     a boolean value. ALl other type checks will be handled by other
-//     *     visits.
-//     * </p>
-//     * @param is If Statement
-//     */
-//    public void visitIfStmt(IfStmt is) {
-//        boolean prev = inControlStmt;
-//        is.getCondition().visit(this);
-//
-//        // ERROR CHECK #1: The if statement's conditional expression must be a boolean
-//        if(!is.getCondition().type.isBool()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(is.getCondition())
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_410)
-//                    .addErrorArgs(is.getCondition().type)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1416)
-//                    .generateError();
-//        }
-//
-//        currentScope = is.ifScope;
-//        inControlStmt = true;
-//        is.getIfBody().visit(this);
-//        currentScope = currentScope.closeScope();
-//
-//        for(IfStmt e : is.getElifs()) { e.visit(this); }
-//
-//        if(is.getElseBody() != null) {
-//            currentScope = is.elseScope;
-//            is.getElseBody().visit(this);
-//            currentScope = currentScope.closeScope();
-//        }
-//        inControlStmt = prev;
-//    }
-//
-//    public void visitImportDecl(ImportDecl im) {
-//        SymbolTable oldScope = currentScope;
-//
-//        im.getCompilationUnit().visit(this);
-//
-//        currentScope = oldScope;
-//    }
-//
-//    /**
-//     * Evaluates the type of each input expression.
-//     * <p><br>
-//     *     For input statements, we want to make sure a user can only
-//     *     input values into a variable that represents a primitive type
-//     *     (not counting an enum). Once type checking is complete, we will
-//     *     set the input statement's type to be {@code Void} since it does
-//     *     not represent anything.
-//     * </p>
-//     * @param is Input Statement
-//     */
-//    public void visitInStmt(InStmt is) {
-//        for(Expression e : is.getInExprs()) {
-//            e.visit(this);
-//            // ERROR CHECK #1: Make sure expression is discrete (not enum) or scalar
-//            if(!(e.type.isDiscreteType() || e.type.isScalarType()) || e.type.isEnumType()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(is)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_440)
-//                        .addErrorArgs(e,e.type)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1437)
-//                        .generateError();
-//            }
-//        }
-//        is.type = new VoidType();
-//    }
-//
-//    /**
-//     * Evaluates the type of an invocation.
-//     * <p>
-//     *     There are two types of invocations in C Minor. A function
-//     *     invocation will be checked to see if a valid overload for the
-//     *     function exists somewhere in the program. Meanwhile, a method
-//     *     invocation will be searched through the class hierarchy based
-//     *     on the current target type.
-//     * </p>
-//     * @param in Invocation
-//     */
-//    public void visitInvocation(Invocation in) {
-//        // First, we will create the invocation's type signature.
-//        StringBuilder signature = new StringBuilder(in + "(");
-//
-//        for(Expression e : in.getArgs()) {
-//            e.visit(this);
-//            signature.append(e.type.typeSignature());
-//        }
-//
-//        signature.append(")");
-//        in.setSignature(signature.toString());
-//
+
+    /**
+     * Evaluates the types found in the for loop's header.
+     * <p>
+     *     This visit will handle the type checking related to the for loop's control
+     *     variable. Only {@code Int}, {@code Char}, and {@link EnumType} are allowed
+     *     to be iterated.
+     * </p>
+     * @param fs {@link ForStmt}
+     */
+    public void visitForStmt(ForStmt fs) {
+        currentScope = fs.getScope();
+        fs.getControlVariable().visit(this);
+
+        Type variable = fs.getControlVariable().getType();
+
+        // ERROR CHECK #1: The control variable can only iterate over Int, Char, or Enum values.
+        if(!variable.isInt() && !variable.isChar() && !variable.isEnum()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(fs.getControlVariable())
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_413)
+                   .addErrorArgs(fs.getControlVariable(), variable)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1419)
+                   .generateError();
+        }
+
+        fs.getStartValue().visit(this);
+        fs.getEndValue().visit(this);
+
+        // ERROR CHECK #2: The starting and ending values need to represent the same type!
+        if(!Type.assignmentCompatible(fs.getStartValue().type,fs.getEndValue().type)) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(fs)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_414)
+                   .addErrorArgs(fs.getStartValue().type,fs.getEndValue().type)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1420)
+                   .generateError();
+        }
+
+        // ERROR CHECK #3: The control variable must match the types of the starting and ending values.
+        if(!Type.assignmentCompatible(variable, fs.getStartValue().type)) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(fs)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_415)
+                   .addErrorArgs(fs.getControlVariable(), variable, fs.getStartValue().type)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1421)
+                   .generateError();
+        }
+
+        fs.getBody().visit(this);
+    }
+
+    /**
+     * Evaluates the function's return type.
+     * <p>
+     *     There is no specific type checks that are needed during this visit. We are
+     *     only concerned with making sure non-Void functions will be guaranteed to
+     *     return a value. Additionally, we want to make sure we do not type check template
+     *     functions, so we will wait until they're instantiated to do so.
+     * </p>
+     * @param fd {@link FuncDecl}
+     */
+    public void visitFuncDecl(FuncDecl fd) {
+        // Do not type check a template function until it is instantiated!
+        if(fd.isTemplate())
+            return;
+
+        currentScope = fd.getScope();
+        super.visitFuncDecl(fd);
+        currentScope = currentScope.closeScope();
+
+        // ERROR CHECK #1: A non-Void function must be guaranteed to return a value!
+        if(!fd.getReturnType().isVoid() && !fd.containsReturnStmt()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(fd)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_422)
+                   .addErrorArgs(fd, fd.getReturnType())
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
+                   .generateError();
+        }
+    }
+
+    /**
+     * Evaluates the global variable's type.
+     * <p>
+     *     When a global variable is initialized, the type of its initial
+     *     value must explicitly match its declared type. We will also try
+     *     to generate an initial value for the global variable if applicable.
+     * </p>
+     * @param gd {@link GlobalDecl}
+     */
+    public void visitGlobalDecl(GlobalDecl gd) {
+        if(gd.getInitialValue() == null)
+            gd.setInitialValue(helper.generateDefaultValue(gd.getType()));
+
+        // We should not check for assignment compatibility if uninit is used for structured types.
+        if(gd.getInitialValue() != null) {
+            gd.getInitialValue().visit(this);
+
+            // ERROR CHECK #1: The global variable's declared type must match the type of its initial value.
+            if(!Type.assignmentCompatible(gd.getType(), gd.getInitialValue().type)) {
+                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
+                                         .addLocation(gd)
+                                         .addErrorArgs(gd, gd.getType(), gd.getInitialValue().type)
+                                         .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                                         .addSuggestionArgs(gd.getType());
+                if(!gd.isConstant())
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_401);
+                else
+                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_402);
+                eb.generateError();
+            }
+        }
+    }
+
+    /**
+     * Verifies the type of the if statement's conditional expression.
+     * <p>
+     *     For each if and elif branch, we need to make sure the conditional
+     *     expression evaluates to be a boolean. This is the only type-related
+     *     check performed with this visit.
+     * @param is {@link IfStmt}
+     */
+    public void visitIfStmt(IfStmt is) {
+        is.getCondition().visit(this);
+
+        // ERROR CHECK #1: The if statement's conditional expression must be a boolean.
+        if(!is.getCondition().type.isBool()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(is.getCondition())
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_410)
+                   .addErrorArgs(is.getCondition().type)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1416)
+                   .generateError();
+        }
+
+        currentScope = is.getIfScope();
+        is.getIfBody().visit(this);
+        currentScope = currentScope.closeScope();
+
+        for(IfStmt elif : is.getElifs())
+            elif.visit(this);
+
+        if(is.containsElse()) {
+            currentScope = is.getElseScope();
+            is.getElseBody().visit(this);
+            currentScope = currentScope.closeScope();
+        }
+    }
+
+    /**
+     * Evaluates each input expression's type.
+     * <p>
+     *     This visit will ensure each input expression represents a scalar type
+     *     since these are the only types that we can accept terminal input for.
+     *     By default, an input statement will be given a {@link VoidType} since
+     *     it will not be used for anything.
+     * </p>
+     * @param in {@link InStmt}
+     */
+    public void visitInStmt(InStmt in) {
+        for(Expression expr : in.getInExprs()) {
+            expr.visit(this);
+            // ERROR CHECK #1: The input expression needs to evaluate to be a scalar type.
+            if(!expr.type.isScalar() || expr.type.isEnum()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(in)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_440)
+                       .addErrorArgs(expr, expr.type)
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1437)
+                       .generateError();
+            }
+        }
+        in.type = new VoidType();
+    }
+
+    /**
+     * Evaluates the type of an invocation.
+     * <p>
+     *     There are two types of invocations in C Minor. A function
+     *     invocation will be checked to see if a valid overload for the
+     *     function exists somewhere in the program. Meanwhile, a method
+     *     invocation will be searched through the class hierarchy based
+     *     on the current target type.
+     * </p>
+     * @param in Invocation
+     */
+    public void visitInvocation(Invocation in) {
+        StringBuilder argSignature = new StringBuilder();
+
+        for(Expression arg :in.getArgs()) {
+            arg.visit(this);
+            argSignature.append(arg.type.typeSignature());
+        }
+
+        in.targetType = new VoidType();
+
+        //if(currentScope.hasMethodOverload())
+
 //        // Function Invocation
 //        if(currentTarget == null && currentClass == null) {
 //            in.targetType = new VoidType();
@@ -1664,79 +1145,56 @@ public class TypeChecker extends Visitor {
 //            in.type = md.getReturnType();
 //            currentTarget = md.getReturnType();
 //        }
-//    }
-//
-//    /**
-//     * Evaluates the type of a literal
-//     * <p>
-//     *     We will create a type for the literal based on its assigned
-//     *     constant kind value. ThisStmt visit only handles primitive type
-//     *     literals and not structured type literals.
-//     * </p>
-//     * @param li Literals
-//     */
-//    public void visitLiteral(Literal li) {
-//        switch(li.getConstantKind()) {
-//            case INT:
-//                li.type = new DiscreteType(Discretes.INT);
-//                break;
-//            case CHAR:
-//                li.type = new DiscreteType(Discretes.CHAR);
-//                break;
-//            case BOOL:
-//                li.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            case REAL:
-//                li.type = new ScalarType(Scalars.REAL);
-//                break;
-//            case STR:
-//                li.type = new ScalarType(Scalars.STR);
-//                break;
-//            case ENUM:
-//                li.type = new DiscreteType(Discretes.ENUM);
-//                break;
-//        }
-//    }
-//
-//    /**
-//     * Evaluates the type of a list literal.
-//     * <p>
-//     *     We will call {@link #listAssignmentCompatibility} to check
-//     *     if the current list literal can indeed be stored into the
-//     *     variable we are trying to store the list into.
-//     * </p>
-//     * @param ll List Literal
-//     */
-//    public void visitListLiteral(ListLiteral ll) {
-//        // Special case where we have a list literal by itself
-//        if(currentTarget == null || !currentTarget.isListType()) {
-//            // Since a list is dynamic, we need to manually figure out the size of the literal
-//            // This figures out how many dimensions are in the list
-//            int numOfDims = 0;
-//            Expression curr = ll;
-//            while(curr.isListLiteral()) {
-//                numOfDims += 1;
-//                if(!curr.asListLiteral().getInits().isEmpty())
-//                    curr = curr.asListLiteral().getInits().get(0);
-//                else
-//                    break;
-//            }
-//
-//            if(curr.isListLiteral())
-//                listAssignmentCompatibility(numOfDims, null, ll);
-//            else {
-//                curr.visit(this);
-//                listAssignmentCompatibility(numOfDims, curr.type, ll);
-//            }
-//            ll.type = new ListType(curr.type,numOfDims);
-//        }
-//        else {
-//            listAssignmentCompatibility(currentTarget.asListType().numOfDims,
-//                                        currentTarget.asListType().baseType(), ll);
-//            ll.type = currentTarget.asListType();
-//        }
-//    }
-//
+    }
+
+    /**
+     * Creates a type for a {@link Literal} value.
+     * <p>
+     *     The type of the parsed constant will determine the type of
+     *     the literal. This visit is only concerned with {@link ScalarType},
+     *     and other visits will handle the structured types.
+     * </p>
+     * @param li {@link Literal}
+     */
+    public void visitLiteral(Literal li) {
+        switch(li.getConstantKind()) {
+            case INT:
+                li.type = new DiscreteType(Scalars.INT);
+                break;
+            case CHAR:
+                li.type = new DiscreteType(Scalars.CHAR);
+                break;
+            case BOOL:
+                li.type = new DiscreteType(Scalars.BOOL);
+                break;
+            case REAL:
+                li.type = new ScalarType(Scalars.REAL);
+                break;
+            case STR:
+                li.type = new ScalarType(Scalars.STR);
+                break;
+            case TEXT:
+                li.type = new ScalarType(Scalars.TEXT);
+        }
+    }
+
+    /**
+     * Creates a type for a {@link ListLiteral}.
+     * <p>
+     *     When a list is created by the user, we need to first visit the initial values of
+     *     the list. From there, we will call {@link TypeCheckerHelper#generateListType(ListLiteral)}
+     *     to make sure all the initial values are assignment compatible before we generate
+     *     the {@link ListType} that the current list will represent.
+     * </p>
+     * @param ll {@link ListLiteral}
+     */
+    public void visitListLiteral(ListLiteral ll) {
+        for(Expression init : ll.getInits())
+            init.visit(this);
+
+        ll.type = helper.generateListType(ll);
+    }
+
 //    /**
 //     * Checks the type of a list statement.
 //     * <p><br>
@@ -1832,135 +1290,102 @@ public class TypeChecker extends Visitor {
 //            }
 //        }
 //    }
-//
-//    /**
-//     * Evaluates the type of a local variable
-//     * <p>
-//     *     If a user initialized a local to a initial value, we will check
-//     *     to make sure the value and the variable are assignment compatible.
-//     *     C Minor does NOT support type coercion, so this means the value must
-//     *     be the same type as the declaration.
-//     *     <br><br>
-//     *     For any uninitialized values, we will call {@link #setDefaultValue}
-//     *     to generate a default value for this local variable.
-//     * </p>
-//     * @param ld Local Declaration
-//     */
-//    public void visitLocalDecl(LocalDecl ld) {
-//        // An uninitialized local variable will be given a default value
-////        if(ld.var().init() == null) {
-////            Expression defaultValue = setDefaultValue(ld.type());
-////            if(defaultValue != null)
-////                ld.var().setInit(defaultValue);
-////            return;
-////        }
-////
-////        if((ld.type().isArrayType() && ld.var().init().isArrayLiteral())
-////                || (ld.type().isListType() && ld.var().init().isListLiteral())) {
-////            Type oldTarget = currentTarget;
-////            currentTarget = ld.type();
-////
-////            ld.var().init().visit(this);
-////            currentTarget = oldTarget;
-////        }
-//      //  else {
-//            ld.getInitialValue().visit(this);
-//
-//            // ERROR CHECK #1: Check if the local variable's declared type
-//            //                 matches the type of the initial value
-//            if(!Type.assignmentCompatible(ld.getDeclaredType(),ld.getInitialValue().type)) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ld)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_400)
-//                        .addErrorArgs(ld,ld.getDeclaredType(),ld.getInitialValue().type)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
-//                        .addSuggestionArgs(ld.getDeclaredType())
-//                        .generateError();
-//            }
-//       // }
-//
-////        ld.var().setType(ld.var().init().type);
-////        ld.setType(ld.var().init().type);
-//    }
-//
-//    /**
-//     * Evaluates the main function for the program.
-//     * <p>
-//     *     We will make sure the main function does not return anything
-//     *     since its termination will mark the end of a C Minor program's
-//     *     execution.
-//     * </p>
-//     * @param md Main Declaration
-//     */
-//    public void visitMainDecl(MainDecl md) {
-//        currentScope = md.getScope();
-//        currentMethod = md;
-//
-//        // ERROR CHECK #1: Make sure main does not return any value
-//        if(!md.getReturnType().isVoidType()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(md)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_417)
-//                    .addErrorArgs(md.getReturnType())
-//                    .generateError();
-//        }
-//        super.visitMainDecl(md);
-//        currentScope = currentScope.closeScope();
-//        currentMethod = null;
-//    }
-//
-//    /**
-//     * Evaluates method declaration
-//     * <p>
-//     *     For methods, we are going to check if the return types are valid,
-//     *     and if the correct value is returned from the method.
-//     * </p>
-//     * @param md Method Declaration
-//     */
-//    public void visitMethodDecl(MethodDecl md) {
-//        currentScope = md.getScope();
-//        currentMethod = md;
-//
-//        // ERROR CHECK #1: Make sure the method's return type is valid
-//        if(md.getReturnType().isClassType()) {
-//            if(!currentScope.hasNameSomewhere(md.getReturnType().toString())) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(md)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_423)
-//                        .addErrorArgs(md.getReturnType(),md,currentClass)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1426)
-//                        .addSuggestionArgs(md.getReturnType())
-//                        .generateError();
-//            }
-//        }
-//
-//        super.visitMethodDecl(md);
-//
-//        // ERROR CHECK #2: If the method has a non-void return type, make
-//        //                 sure a return statement is found in the method
-//        if(!md.getReturnType().isVoidType() && !returnFound) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(md)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_424)
-//                    .addErrorArgs(md,currentClass,md.getReturnType())
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
-//                    .generateError();
-//        }
-//        currentScope = currentScope.closeScope();
-//        currentMethod = null;
-//        returnFound = false;
-//    }
-//
-//    /**
-//     * Evaluates the type of the name expression.<br>
-//     * <p>
-//     *     For a name expression, the type will be based on the declaration
-//     *     type. Here, we will also perform name checking when it comes to
-//     *     evaluating complex field expressions.
-//     * </p>
-//     * @param ne Name Expression
-//     */
-//    public void visitNameExpr(NameExpr ne) {
+
+    /**
+     * Evaluates the local variable's type.
+     * <p>
+     *     When a local variable is initialized, the type of its initial
+     *     value must explicitly match its declared type. We will also try
+     *     to generate an initial value for the local variable if applicable.
+     * </p>
+     * @param ld {@link LocalDecl}
+     */
+    public void visitLocalDecl(LocalDecl ld) {
+        if(ld.getInitialValue() == null)
+            ld.setInitialValue(helper.generateDefaultValue(ld.getType()));
+
+        // We should not check for assignment compatibility if uninit is used for structured types.
+        if(ld.getInitialValue() != null) {
+            ld.getInitialValue().visit(this);
+
+            // ERROR CHECK #1: The local variable's declared type must match the type of its initial value.
+            if(!Type.assignmentCompatible(ld.getType(), ld.getInitialValue().type)) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ld)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_400)
+                       .addErrorArgs(ld, ld.getType(), ld.getInitialValue().type)
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                       .addSuggestionArgs(ld.getType())
+                       .generateError();
+            }
+        }
+    }
+
+    /**
+     * Verifies the main function's return type.
+     * <p>
+     *     The main function should be declared as a {@code Void} type since it should
+     *     not return any value. This is the only type check we will perform in this visit.
+     * </p>
+     * @param md {@link MainDecl}
+     */
+    public void visitMainDecl(MainDecl md) {
+        // ERROR CHECK #1: The main function should not return any value since it will terminate the program.
+        if(!md.getReturnType().isVoid()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(md)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_417)
+                   .addErrorArgs(md.getReturnType())
+                   .generateError();
+        }
+
+        currentScope = md.getScope();
+        super.visitMainDecl(md);
+    }
+
+    /**
+     * Evaluates the method's return type.
+     * <p>
+     *     There is no specific type checks that are needed during this visit. We are only
+     *     concerned with making sure non-Void methods will be guaranteed to return a value.
+     * </p>
+     * @param md {@link MethodDecl}
+     */
+    public void visitMethodDecl(MethodDecl md) {
+        currentScope = md.getScope();
+        super.visitMethodDecl(md);
+        currentScope = currentScope.closeScope();
+
+        // ERROR CHECK #1: A non-Void function must be guaranteed to return a value!
+        if(!md.getReturnType().isVoid() && !md.containsReturnStmt()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(md)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_424)
+                   .addErrorArgs(md, md.getClassDecl(), md.getReturnType())
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
+                   .generateError();
+        }
+    }
+
+    /**
+     * Evaluates the type of the name expression.<br>
+     * <p>
+     *     For a name expression, the type will be based on the declaration
+     *     type. Here, we will also perform name checking when it comes to
+     *     evaluating complex field expressions.
+     * </p>
+     * @param ne Name Expression
+     */
+    public void visitNameExpr(NameExpr ne) {
+        AST declaration = currentScope.findName(ne);
+
+        if(declaration.isClassNode())
+            ne.type = declaration.asClassNode().asFieldDecl().getType();
+        else if(declaration.isTopLevelDecl())
+            ne.type = declaration.asTopLevelDecl().asGlobalDecl().getType();
+        else
+            ne.type = declaration.asStatement().asLocalDecl().getType();
+
 //        if(ne.isParentKeyword()) {
 //            if(parentFound) {
 //                parentFound = false;
@@ -2032,8 +1457,8 @@ public class TypeChecker extends Visitor {
 //                    ne.type = new ClassType(tDecl.asClassDecl().getName());
 //            }
 //        }
-//    }
-//
+    }
+
 //    /**
 //     * <p>
 //     *     In C Minor, a constructor is automatically generated for the user.
@@ -2080,80 +1505,82 @@ public class TypeChecker extends Visitor {
 //        if(ne.createsFromTemplate())
 //            ne.getInstantiatedClass().visit(this);
 //    }
-//
-//    /**
-//     * Evaluates the type of each output expression.
-//     * <p><br>
-//     *     For each output expression, we want to evaluate its type, so
-//     *     we can know how to display its value at runtime. We will also
-//     *     set the output statement's type to be a default {@code Void}
-//     *     type since it doesn't represent anything.
-//     * </p>
-//     * @param os Output Statement
-//     */
-//    public void visitOutStmt(OutStmt os) {
-//        for(Expression e : os.getOutExprs())
-//            e.visit(this);
-//        os.type = new VoidType();
-//    }
-//
-//    /**
-//     * Evaluates a return statement.
-//     * <p>
-//     *     A return statement will be found inside of a function or method. If
-//     *     the return statement has a value, then we will evaluate and type
-//     *     check the value during this visit.
-//     * </p>
-//     * @param rs Return Statement
-//     */
-//    public void visitReturnStmt(ReturnStmt rs) {
-//        if(rs.getReturnValue() != null) {
-//            rs.getReturnValue().visit(this);
-//
-//            Type rType;
-//            if(currentMethod.asClassNode().isMethodDecl())
-//                rType = currentMethod.asClassNode().asMethodDecl().getReturnType();
-//            else if(currentMethod.asTopLevelDecl().isFuncDecl())
-//                rType = currentMethod.asTopLevelDecl().asFuncDecl().getReturnType();
-//            else
-//                rType = currentMethod.asTopLevelDecl().asMainDecl().getReturnType();
-//
-//            // ERROR CHECK #1: A Void function can not return anything
-//            if(rType.isVoidType()) {
-//                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
-//                if(currentMethod.asClassNode().isMethodDecl()) {
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_426)
-//                          .addErrorArgs(currentMethod,currentClass,rs.getReturnValue().type)
-//                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1430)
-//                          .generateError();
-//                }
-//                else {
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_425)
-//                          .addErrorArgs(currentMethod,rs.getReturnValue().type)
-//                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1429)
-//                          .generateError();
-//                }
-//            }
-//            // ERROR CHECK #2: Check if the return value's type matches the return type
-//            if(!Type.assignmentCompatible(rType,rs.getReturnValue().type)) {
-//                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
-//                if(currentMethod.asClassNode().isMethodDecl()) {
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_428)
-//                          .addErrorArgs(currentMethod,currentClass,rs.getReturnValue().type,rType)
-//                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
-//                          .generateError();
-//                }
-//                else {
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_427)
-//                          .addErrorArgs(currentMethod,rs.getReturnValue().type,rType)
-//                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
-//                          .generateError();
-//                }
-//            }
-//        }
-//        returnFound = true;
-//    }
-//
+
+    /**
+     * Evaluates each output expression's type.
+     * <p>
+     *     This visit will simply visit each output expression to ensure they
+     *     are correctly typed. By default, an output statement will be given
+     *     a {@link VoidType} since it will not be used for anything.
+     * </p>
+     * @param os {@link OutStmt}
+     */
+    public void visitOutStmt(OutStmt os) {
+        super.visitOutStmt(os);
+        os.type = new VoidType();
+    }
+
+    /**
+     * Evaluates the return value's type (if applicable)
+     * <p>
+     *     A return statement is only found in a function or method, so we need to ensure
+     *     that the return value correctly matches the expected return type.
+     * </p>
+     * @param rs {@link ReturnStmt}
+     */
+    public void visitReturnStmt(ReturnStmt rs) {
+        Type returnType;
+        AST method = rs.getFunctionLocation();
+
+        if(method.isTopLevelDecl()) {
+            if(method.asTopLevelDecl().isFuncDecl())
+                returnType = method.asTopLevelDecl().asFuncDecl().getReturnType();
+            else
+                returnType = method.asTopLevelDecl().asMainDecl().getReturnType();
+        } else
+            returnType = method.asClassNode().asMethodDecl().getReturnType();
+
+        helper.isReturnStmtValid(rs, method);
+
+        // If the user wrote 'return' without a value, then no type checking is done here! :)
+        if(rs.getReturnValue() == null)
+            return;
+
+        rs.getReturnValue().visit(this);
+        // ERROR CHECK #1: A return statement can not return a value if it's written inside a Void method.
+        if(returnType.isVoid()) {
+            ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
+            if(method.isTopLevelDecl()) {
+                eb.addErrorNumber(MessageNumber.TYPE_ERROR_425)
+                  .addErrorArgs(method, rs.getReturnValue().type)
+                  .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1429)
+                  .generateError();
+            } else {
+                eb.addErrorNumber(MessageNumber.TYPE_ERROR_426)
+                  .addErrorArgs(method, method.asClassNode().asMethodDecl().getClassDecl(), rs.getReturnValue().type)
+                  .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1430)
+                  .generateError();
+            }
+        }
+
+        // ERROR CHECK #2: The return value should match the return type of the method!
+        if(!Type.assignmentCompatible(returnType, rs.getReturnValue().type)) {
+            ErrorBuilder eb = handler.createErrorBuilder(TypeError.class).addLocation(rs);
+            if(method.isTopLevelDecl()) {
+                eb.addErrorNumber(MessageNumber.TYPE_ERROR_427)
+                  .addErrorArgs(method, rs.getReturnValue().type, returnType)
+                  .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1427)
+                  .generateError();
+            } else {
+                eb.addErrorNumber(MessageNumber.TYPE_ERROR_428)
+                  .addErrorArgs(method,
+                          method.asClassNode().asMethodDecl().getClassDecl(), rs.getReturnValue().type, returnType)
+                  .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1428)
+                  .generateError();
+            }
+        }
+    }
+
 //    /**
 //     * Evaluates the type of a retype statement.
 //     * @param rt Retype Statement
@@ -2200,126 +1627,516 @@ public class TypeChecker extends Visitor {
 //        else
 //            setVarType(rt.getName().toString(),newObjType);
 //    }
+
+    /**
+     * TODO: hmmm?
+     * Evaluates the type of a reference to ThisStmt
+     * <p>
+     *     If we have a <code>this</code> written in the code, then the
+     *     type will be evaluated to be whatever the current class is.
+     * </p>
+     * @param ts {@link ThisStmt}
+     */
+    public void visitThis(ThisStmt ts) { ts.type = new ClassType(currentClass.toString()); }
+
+    /**
+     * Evaluates the unary expression's type.
+     * <p>
+     *     In C Minor, there are only two unary operators. The following is
+     *     how we will perform the type checking.
+     *     <ol>
+     *         <li>
+     *             '~'
+     *             <ul>
+     *                 <li>Operand Type: Discrete</li>
+     *                 <li>Unary Expression Type: Bool</li>
+     *             </ul>
+     *         </li>
+     *         <li>
+     *             'not'
+     *             <ul>
+     *                 <li>Operand Type: Bool</li>
+     *                 <li>Unary Expression Type: Bool</li>
+     *             </ul>
+     *         </li>
+     *     </ol>
+     *     Both unary operators may also be overloaded. If the unary expression
+     *     contains a class type, then we will let {@link #visitFieldExpr(FieldExpr)} handle
+     *     the type checking for us.
+     * </p>
+     * @param ue {@link UnaryExpr}
+     */
+    public void visitUnaryExpr(UnaryExpr ue) {
+        ue.getExpr().visit(this);
+
+        /*
+            If the unary expression evaluates to be an object, then we might have a
+            unary operator overload. Thus, we are going to create a field expression
+            to replace the current unary expression and let other visitors handle the
+            type checking for us.
+        */
+        if(ue.getExpr().type.isClassOrMulti()) {
+            FieldExpr unaryOverload =
+                new FieldExprBuilder()
+                    .setTarget(ue.getExpr())
+                    .setAccessExpr(
+                        new InvocationBuilder()
+                            .setName(new Name("operator" + ue.getUnaryOp()))
+                            .create()
+                    )
+                    .create();
+            ue.replaceWith(unaryOverload);
+            unaryOverload.visit(this);
+            return;
+        }
+
+        switch(ue.getUnaryOp().getUnaryType()) {
+            case BNOT:
+                // ERROR CHECK #1: A bitwise negation can only occur with a discrete type.
+                if(!ue.getExpr().type.isDiscrete()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(ue)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_408)
+                           .addErrorArgs(ue.getUnaryOp(), ue.getExpr().type)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1410)
+                           .addSuggestionArgs(ue.getUnaryOp())
+                           .generateError();
+                }
+
+                ue.type = new DiscreteType(Scalars.BOOL);
+                break;
+            case NOT:
+                // ERROR CHECK #2: A 'not' operation can only occur on a boolean expression.
+                if(!ue.getExpr().type.isBool()) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(ue)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_408)
+                           .addErrorArgs(ue.getUnaryOp(),ue.getExpr().type)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1411)
+                           .addSuggestionArgs(ue.getUnaryOp())
+                           .generateError();
+                }
+
+                ue.type = new DiscreteType(Scalars.BOOL);
+        }
+    }
+
+    /**
+     * Verifies the type of the while loop's condition.
+     * <p>
+     *     The conditional expression for a while loop must evaluate to be a
+     *     boolean. This is the only type-related check performed with this visit.
+     * </p>
+     * @param ws {@link WhileStmt}
+     */
+    public void visitWhileStmt(WhileStmt ws) {
+        ws.getCondition().visit(this);
+
+        // ERROR CHECK #1: The while loop's condition must evaluate to be a boolean.
+        if(!ws.getCondition().type.isBool()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(ws.getCondition())
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_411)
+                   .addErrorArgs(ws.getCondition().type)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1417)
+                   .generateError();
+        }
+
+        currentScope = ws.scope;
+        ws.getBody().visit(this);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * An internal helper class for {@link TypeChecker}.
+     */
+    private class TypeCheckerHelper {
+
+        /**
+         * Creates a default value for a variable.
+         * <p>
+         *     When we visit any variable declaration, we will check if the variable was
+         *     marked as {@code uninit}. This is determined by seeing if the variable contains
+         *     a default value. If there is no default value, then we need to call this method,
+         *     so we can generate a default value for the user. For all scalars (outside Enum),
+         *     a default value will be generated. All other types will not have a default value.
+         * </p>
+         * @param type The {@link Type} we want to generate a default value for
+         * @return {@link Literal} representing the default value or {@code null} if not applicable.
+         */
+        private Literal generateDefaultValue(Type type) {
+            if(type.isInt())
+                return new Literal(ConstantType.INT, "0");
+            else if(type.isChar())
+                return new Literal(ConstantType.CHAR, "");
+            else if(type.isBool())
+                return new Literal(ConstantType.BOOL, "False");
+            else if(type.isReal())
+                return new Literal(ConstantType.REAL, "0.0");
+            else if(type.isString())
+                return new Literal(ConstantType.STR, "");
+            else if(type.isText())
+                return new Literal(ConstantType.TEXT, "");
+            else
+                return null;
+        }
 //
-//    /**
-//     * Evaluates the type of a reference to ThisStmt
-//     * <p>
-//     *     If we have a <code>this</code> written in the code, then the
-//     *     type will be evaluated to be whatever the current class is.
-//     * </p>
-//     * @param t ThisStmt
-//     */
-//    public void visitThis(ThisStmt t) { t.type = new ClassType(currentClass.toString()); }
+//        /**
+//         * Checks if an array literal is assignment compatible with an array type.<br><br>
+//         * <p>
+//         *     ThisStmt is a recursive algorithm to verify whether an array literal can
+//         *     be assigned to an array type in C Minor. ThisStmt algorithm was based off
+//         *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
+//         * </p>
+//         * @param depth Current level of recursion (final depth is 1)
+//         * @param baseType Array type
+//         * @param dims Expressions representing the dimensions for the array
+//         * @param currArr Array Literal aka the current array literal we are checking
+//         * @return Boolean - True if assignment compatible and False otherwise
+//         */
+//        private boolean arrayAssignmentCompatibility(int depth, Type baseType, Vector<Expression> dims, ArrayLiteral currArr) {
+//            if(depth == 1) {
+//                // ERROR CHECK #1: This makes sure the user only specified one dimension for a 1D array.
+//                if(currArr.getArrayDims().size() > 1) {
+//                    handler.createErrorBuilder(TypeError.class)
+//                            .addLocation(currArr.getFullLocation())
+//                            .addErrorNumber(MessageNumber.TYPE_ERROR_455)
+//                            .generateError();
+//                    return false;
+//                }
 //
-//    /**
-//     * Evaluates the type of a unary expression
-//     * <p>
-//     *     In C Minor, there are only two unary operators. The following is
-//     *     how we will perform the type checking.
-//     *     <ol>
-//     *         <li>
-//     *             '~'
-//     *             <ul>
-//     *                 <li>Operand Type: Discrete</li>
-//     *                 <li>Unary Expression Type: Bool</li>
-//     *             </ul>
-//     *         </li>
-//     *         <li>
-//     *             'not'
-//     *             <ul>
-//     *                 <li>Operand Type: Bool</li>
-//     *                 <li>Unary Expression Type: Bool</li>
-//     *             </ul>
-//     *         </li>
-//     *     </ol>
-//     *     Both unary operators may also be overloaded. If the unary expression
-//     *     contains a class type, then we will let {@code visitFieldExpr} handle
-//     *     the type checking for us.
-//     * </p>
-//     * @param ue Unary Expression
-//     */
-//    public void visitUnaryExpr(UnaryExpr ue) {
-//        ue.getExpr().visit(this);
+//                if(currArr.getArrayDims().size() == 1)
+//                    checkArrayDims(depth, dims, currArr.getArrayDims().get(0), currArr);
+////            else if(!dims.isEmpty()) {
+////                if(dims.get(dims.size()-depth).asLiteral().) != currArr.getArrayInits().size()) {
+////                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+////                            .addLocation(currArr)
+////                            .addErrorType(MessageType.TYPE_ERROR_444)
+////                            .error());
+////                    return false;
+////                }
+////            }
 //
-//        /*
-//            If the unary expression evaluates to be an object, then we might have a
-//            unary operator overload. Thus, we are going to create a field expression
-//            to replace the current unary expression and let other visitors handle the
-//            type checking for us.
-//        */
-//        if(ue.getExpr().type.isClassOrMultiType()) {
-//            FieldExpr unaryOverload = new FieldExprBuilder()
-//                                          .setTarget(ue.getExpr())
-//                                          .setAccessExpr(
-//                                              new InvocationBuilder()
-//                                              .setName(new Name("operator"+ue.getUnaryOp()))
-//                                              .setArgs(new Vector<>())
-//                                              .create()
-//                                          )
-//                                          .create();
-//            ue.replaceWith(unaryOverload);
-//            unaryOverload.visit(this);
-//            return;
+//                for(Expression init : currArr.getArrayInits()) {
+//                    init.visit(this);
+//
+//                    // ERROR CHECK #2: For every initial value in the array, we check to make sure the
+//                    //                 value's type is assignment compatible with the array's base type.
+//                    if(!Type.assignmentCompatible(baseType,init.type)) {
+//                        handler.createErrorBuilder(TypeError.class)
+//                                .addLocation(currArr)
+//                                .addErrorNumber(MessageNumber.TYPE_ERROR_459)
+//                                .addErrorArgs(init.type,baseType)
+//                                .generateError();
+//                        return false;
+//                    }
+//                }
+//
+//                currArr.type = new ArrayTypeBuilder()
+//                        .setMetaData(currArr)
+//                        .setBaseType(baseType)
+//                        .setNumOfDims(depth)
+//                        .create();
+//                return true;
+//            }
+//            else if(depth > 1) {
+//                ArrayLiteral al = currArr.asArrayLiteral();
+//
+//                // ERROR CHECK #3: For all n-dimensional array literals (where n>1), we need to make sure the user
+//                //                 explicitly writes down the size given for each possible dimension.
+//                if(al.getArrayDims().size() != depth) {
+//                    handler.createErrorBuilder(TypeError.class)
+//                            .addLocation(al.getFullLocation())
+//                            .addErrorNumber(MessageNumber.TYPE_ERROR_460)
+//                            .generateError();
+//                    return false;
+//                }
+//
+//                for(Expression dim : al.getArrayDims())
+//                    checkArrayDims(depth,dims,dim,currArr);
+//
+//                for(Expression init : al.getArrayInits()) {
+//                    // ERROR CHECK #4: For every initial value in the multidimensional array, we need to make
+//                    //                 sure the initial value is an array itself.
+//                    if(!init.isArrayLiteral()) {
+//                        handler.createErrorBuilder(TypeError.class)
+//                                .addLocation(currArr)
+//                                .addErrorNumber(MessageNumber.TYPE_ERROR_461)
+//                                .generateError();
+//                        return false;
+//                    }
+//
+//                    arrayAssignmentCompatibility(depth-1,baseType,dims,init.asArrayLiteral());
+//                }
+//
+//                currArr.type = new ArrayTypeBuilder()
+//                        .setMetaData(currArr)
+//                        .setBaseType(baseType)
+//                        .setNumOfDims(depth)
+//                        .create();
+//                return true;
+//            }
+//            else
+//                return false;
 //        }
 //
-//        switch(ue.getUnaryOp().toString()) {
-//            case "~":
-//                // ERROR CHECK #1: A bitwise negation can only occur with a discrete type
-//                if(!ue.getExpr().type.isDiscreteType()) {
+//        private boolean checkArrayDims(int depth, Vector<Expression> dims, Expression dim,ArrayLiteral currArr) {
+//            dim.visit(this);
+//
+//            // ERROR CHECK #1: The given array dimension has to be an Int constant since the size of the array
+//            //                 must be known at compile-time. An Int constant in this context is either an Int
+//            //                 literal or a global Int constant.
+//            if(!dim.type.isInt() || (!dim.isLiteral() && !isGlobalConstant(dim))) {
+//                handler.createErrorBuilder(TypeError.class)
+//                        .addLocation(dim.getFullLocation())
+//                        .addErrorNumber(MessageNumber.TYPE_ERROR_456)
+//                        .addErrorArgs(dim)
+//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1448)
+//                        .generateError();
+//                return false;
+//            }
+//
+//            int dimValue;
+//            if(dim.isLiteral())
+//                dimValue = dim.asLiteral().asInt();
+//            else
+//                dimValue = currentScope.findName(dim).getDecl().asTopLevelDecl().asGlobalDecl().getInitialValue().asLiteral().asInt();
+//
+//            // yeah idk what this is
+//            // TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
+//
+//            // ERROR CHECK #9:
+//            //if(dims.get(dims.size()-currDepth).asListLiteral().toString().equals())
+////        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
+////            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+////                    .addLocation(currArr.getRootParent())
+////                    .addErrorType(MessageType.TYPE_ERROR_457)
+////                    .error());
+////            return false;
+////        }
+////
+////        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != currArr.getArrayInits().size()) {
+////            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
+////                    .addLocation(currArr)
+////                    .addErrorType(MessageType.TYPE_ERROR_444)
+////                    .error());
+////            return false;
+////        }
+//
+//            // ERROR CHECK #2: This checks if the user correctly initialized the array based on its size.
+//            if(currArr.getArrayInits().size() > dimValue) {
+//                handler.createErrorBuilder(TypeError.class)
+//                        .addLocation(currArr.getFullLocation())
+//                        .addErrorNumber(MessageNumber.TYPE_ERROR_458)
+//                        .addErrorArgs(dimValue, currArr.getArrayInits().size())
+//                        .generateError();
+//                return false;
+//            }
+//
+//            return true;
+//        }
+//
+//        /**
+//         * Checks if a given {@link Expression} represents a global constant.
+//         * <p><br>
+//         *     This is a helper method for to
+//         *     determine if a given array dimension actually represents a global constant declared
+//         *     by the user. Since constants will always have the same value, this means the compiler
+//         *     can definitively know the size of an array.
+//         * </p>
+//         * @param expr Expression
+//         * @return Boolean
+//         */
+//        private boolean isGlobalConstant(Expression expr) {
+//            if(!expr.isNameExpr())
+//                return false;
+//
+//            AST decl = currentScope.findName(expr.asNameExpr()).getDecl();
+//            if(!decl.isTopLevelDecl())
+//                return false;
+//            else if(!decl.asTopLevelDecl().isGlobalDecl())
+//                return false;
+//            else
+//                return decl.asTopLevelDecl().asGlobalDecl().isConstant();
+//        }
+//
+
+        /**
+         * Checks if a return statement is guaranteed to be executed.
+         * <p>
+         *     Without control flow graphs, we need to manually determine
+         *     if a return statement will be executed.
+         * </p>
+         * @param rs The {@link ReturnStmt} we wish to validate.
+         * @param method The {@link AST} representing the function or method the return statement is found in.
+         */
+        private void isReturnStmtValid(ReturnStmt rs, AST method) {
+            if(!rs.isInsideControlFlow()) {
+                if(method.isTopLevelDecl()) {
+                    if(method.asTopLevelDecl().isFuncDecl())
+                        method.asTopLevelDecl().asFuncDecl().setIfReturnStmtFound();
+                    else
+                        method.asTopLevelDecl().asMainDecl().setIfReturnStmtFound();
+                }
+                else
+                    method.asClassNode().asMethodDecl().setIfReturnStmtFound();
+            }
+        }
+
+        /**
+         * Generates a {@link ListType} based on a passed {@link ListLiteral}
+         * <p>
+         *     This is a helper method for {@link #visitListLiteral(ListLiteral)}. The goal is
+         *     to generate a {@link ListType} that is solely determined by the {@link ListLiteral}
+         *     we are currently type checking. We are not going to reference any variables in order
+         *     to avoid unnecessary dependencies! This will dynamically create a {@link ListType} for
+         *     all possible {@link ListLiteral} no matter the dimensions.
+         * </p>
+         * @param lst The current {@link ListLiteral} we wish to generate a {@link ListType} for.
+         * @return {@link ListType}
+         */
+        private ListType generateListType(ListLiteral lst) {
+            ListTypeBuilder builder = new ListTypeBuilder();
+
+            // By default, an empty list will be Void and have a single dimension
+            if(lst.getInits().isEmpty()) {
+                return builder.setBaseType(new VoidType())
+                              .setNumOfDims(1)
+                              .create();
+            }
+
+            /*
+                ERROR CHECK #1: We need to make sure each initial value is assignment compatible with each other.
+                                We will use the type of the first initial value in the list literal to do this check.
+            */
+            Type baseType = lst.getInits().getFirst().type;
+
+            for(Expression init : lst.getInits()) {
+                if(!Type.assignmentCompatible(baseType,init.type)) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(lst)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_447)
+                           .addErrorArgs(baseType, init.type)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1444)
+                           .addSuggestionArgs(baseType)
+                           .generateError();
+                }
+            }
+
+            if(baseType.isList()) {
+                builder.setBaseType(baseType.asList().getBaseType())
+                       .setNumOfDims(baseType.asList().getDims() + 1);
+            } else {
+                builder.setBaseType(baseType)
+                       .setNumOfDims(1);
+            }
+
+            return builder.create();
+        }
+
+//        private FuncDecl findSpecificFunction(FuncDecl candidate, FuncDecl currentTemplate, Invocation in) {
+//            // If we do not have a possible template function, then the candidate will default to be the candidate
+//            if(currentTemplate == null)
+//                return candidate;
+//
+//            // We will now do a type analysis of the candidate's parameters with the invocation's arguments.
+//            for(int i = 0; i < candidate.getParams().size(); i++) {
+//                ParamDecl candidateParam = candidate.getParams().get(i);
+//                ParamDecl templateParam = currentTemplate.getParams().get(i);
+//                Expression currArg = in.getArgs().get(i);
+//
+//
+//                // If the candidate's current parameter is assignment compatible with the current argument, this means we
+//                // might have a more specific template to use. If we can confirm
+//                if(Type.assignmentCompatible(candidateParam.getType(), currArg.type)) {
+//                    if(templateParam.isParameterTemplated(currentTemplate.getTypeParams()))
+//                        return candidate;
+//                }
+//            }
+//
+//            return currentTemplate;
+//        }
+//
+//        private FuncDecl findValidFuncTemplate(String funcName, Invocation in) {
+//            final SymbolTable rootTable = currentScope.getRootTable();
+//            FuncDecl template = null;
+//
+//            for(FuncDecl candidate: currentScope.getAllFuncNames()) {
+//                // First, we need to make sure the current candidate represents a template function
+//                // and the candidate matches the name of the function that is called.
+//                if(!candidate.isTemplate() || !candidate.toString().equals(funcName))
+//                    continue;
+//
+//                // Next, we need to make sure the candidate parameter count matches the argument count
+//                // If it doesn't, then we know this candidate can be eliminated.
+//                if(candidate.getParams().size() != in.getArgs().size())
+//                    continue;
+//
+//                template = findSpecificFunction(candidate,template,in);
+//            }
+//
+//            return template;
+//        }
+//
+//        /**
+//         * Verifies the validity of a template function call.
+//         * <p><br>
+//         *     If a user writes a template function call, then this method will perform the
+//         *     necessary error checks to ensure the template function call was written correctly.
+//         *     This will allow us to instantiate the function and then have the {@link TypeChecker}
+//         *     check if all types can be resolved correctly. This method is identical to the one
+//         *     found in {@link micropasses.TypeValidityPass} for validating template types, but
+//         *     this method produces different error messages.
+//         * </p>
+//         * @param fd Current template function
+//         * @param in The template {@link Invocation} we want to check if it's been written correctly
+//         */
+//        public void checkIfFuncTemplateCallIsValid(FuncDecl fd, Invocation in) {
+//            // ERROR CHECK #1: When a template type is written, we want to make sure the correct number of
+//            //                 type arguments were passed. This will be based on the number of type parameters
+//            //                 the template function was declared with. There are 2 possible errors here.
+//            if(fd.getTypeParams().size() != in.getTypeArgs().size()) {
+//                // Case 1: This error is generated when a user writes type arguments for a non-template function.
+//                if(fd.getTypeParams().isEmpty()) {
 //                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(ue)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_408)
-//                            .addErrorArgs(ue.getUnaryOp(),ue.getExpr().type)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1410)
-//                            .addSuggestionArgs(ue.getUnaryOp())
+//                            .addLocation(in.getFullLocation())
+//                            .addErrorNumber(MessageNumber.TYPE_ERROR_462)
+//                            .addErrorArgs(fd)
 //                            .generateError();
 //                }
-//                ue.type = new DiscreteType(Discretes.BOOL);
-//                break;
-//            case "not":
-//                // ERROR CHECK #2: A 'not' operation can only occur on a boolean expression
-//                if(!ue.getExpr().type.isBool()) {
+//                // Case 2: This error is generated when the wrong number of type arguments were used for a template function.
+//                else {
+//                    ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
+//                            .addLocation(in.getFullLocation())
+//                            .addErrorNumber(MessageNumber.TYPE_ERROR_463)
+//                            .addErrorArgs(in.getSignature())
+//                            .addSuggestionArgs(fd,fd.getTypeParams().size());
+//
+//                    if(fd.getTypeParams().size() == 1)
+//                        eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1449).generateError();
+//                    else
+//                        eb.addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1450).generateError();
+//                }
+//            }
+//
+//            // We now look through each type parameter of the template function.
+//            for (int i = 0; i < fd.getTypeParams().size(); i++) {
+//                TypeParam typeParam = fd.getTypeParams().get(i);
+//
+//                // ERROR CHECK #2: If a user prefixed the type parameter with a type annotation, then we will check if
+//                //                 the passed type argument can be used in the current type argument. If no type annotation
+//                //                 was given, this check is not needed, and we will let the type checker handle the rest.
+//                if(!typeParam.isValidTypeArg(in.getTypeArgs().get(i))) {
 //                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(ue)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_408)
-//                            .addErrorArgs(ue.getUnaryOp(),ue.getExpr().type)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1411)
-//                            .addSuggestionArgs(ue.getUnaryOp())
+//                            .addLocation(in.getFullLocation())
+//                            .addErrorNumber(MessageNumber.TYPE_ERROR_446)
+//                            .addErrorArgs(in.getTypeArgs().get(i), fd)
+//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1451)
+//                            .addSuggestionArgs(fd, typeParam.getPossibleType(), i + 1)
 //                            .generateError();
 //                }
-//                ue.type = new DiscreteType(Discretes.BOOL);
-//                break;
+//            }
 //        }
-//    }
-//
-//    /**
-//     * Evaluates the type of the while statement's conditional expression
-//     * <p>
-//     *     When we visit a while statement, the only explicit check we do here
-//     *     is to make sure the conditional expression of the while loop can be
-//     *     evaluated into a boolean. All other type checks will be handled in
-//     *     other visits.
-//     * </p>
-//     * @param ws While Statement
-//     */
-//    public void visitWhileStmt(WhileStmt ws) {
-//        boolean prev = inControlStmt;
-//        ws.getCondition().visit(this);
-//
-//        // ERROR CHECK #1: The while loop's condition must be a boolean
-//        if(!ws.getCondition().type.isBool()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ws.getCondition())
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_411)
-//                    .addErrorArgs(ws.getCondition().type)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1417)
-//                    .generateError();
-//        }
-//
-//        currentScope = ws.scope;
-//        inControlStmt = true;
-//        ws.getBody().visit(this);
-//        inControlStmt = prev;
-//        currentScope = currentScope.closeScope();
-//    }
+
+    }
 }
