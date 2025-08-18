@@ -1,17 +1,17 @@
 package cminor.ast.expressions;
 
 import cminor.ast.AST;
+import cminor.ast.topleveldecls.ClassDecl;
 import cminor.token.Token;
 import cminor.utilities.Visitor;
 
 /**
- * An {@link AST} node class representing the {@code this} keyword.
- * <p><br>
- *     This is an internal node class that keeps track of whether or
- *     not a name is actually referring to a field inside of a class.
- *     When this is the case, we have to append the {@code this} keyword
- *     to the name and turn it into a field expression which is done in
- *     {@link micropasses.FieldRewrite}.
+ * An {@link Expression} representing the {@code this} keyword.
+ * <p><
+ *     This is an internal node class that keeps track of whether a name
+ *     is actually referring to a field inside a class. When this is the case,
+ *     we have to append the {@code this} keyword to the name and turn it into
+ *     a field expression which is done in {@link cminor.micropasses.FieldRewriter}.
  * </p>
  * @author Daniel Levy
  */
@@ -23,35 +23,43 @@ public class ThisStmt extends Expression {
     public ThisStmt() { super(new Token()); }
 
     /**
-     * Checks if the current AST node is a {@link ThisStmt}.
-     * @return Boolean
+     * Retrieves the current class the {@link ThisStmt} is found in.
+     * @return {@link ClassDecl}
+     */
+    public ClassDecl getClassDecl() {
+        AST node = this;
+
+        while(!node.isTopLevelDecl() && !node.asTopLevelDecl().isClassDecl())
+            node = node.getParent();
+
+
+        return node.asTopLevelDecl().asClassDecl();
+    }
+
+    /**
+     * {@inheritDoc}
      */
     public boolean isThisStmt() { return true; }
 
     /**
-     * Type cast method for {@link ThisStmt}
-     * @return ThisStmt
+     * {@inheritDoc}
      */
     public ThisStmt asThisStmt() { return this; }
 
     /**
-     * {@code toString} method.
-     * @return String that represents "this"
+     * {@inheritDoc}
      */
     @Override
     public String toString() { return "this"; }
 
     /**
-     * {@code update} method.
-     * @param pos Position we want to update.
-     * @param node Node we want to add to the specified position.
+     * {@inheritDoc}
      */
     @Override
     public void update(int pos, AST node) { throw new RuntimeException("A this statement can not be updated."); }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link ThisStmt}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
@@ -61,8 +69,7 @@ public class ThisStmt extends Expression {
     }
 
     /**
-     * {@code visit} method.
-     * @param v Current visitor we are executing.
+     * {@inheritDoc}
      */
     @Override
     public void visit(Visitor v) { v.visitThis(this); }
