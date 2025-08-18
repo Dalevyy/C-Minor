@@ -1,11 +1,7 @@
 package cminor.ast.classbody;
 
 import cminor.ast.AST;
-import cminor.ast.misc.Modifier;
-import cminor.ast.misc.Name;
-import cminor.ast.misc.NameDecl;
-import cminor.ast.misc.ParamDecl;
-import cminor.ast.misc.ScopeDecl;
+import cminor.ast.misc.*;
 import cminor.ast.operators.Operator;
 import cminor.ast.statements.BlockStmt;
 import cminor.ast.topleveldecls.ClassDecl;
@@ -19,7 +15,7 @@ import cminor.utilities.Visitor;
  * A {@link ClassNode} that represents a method declared in a {@link ClassDecl}.
  * @author Daniel Levy
  */
-public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
+public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, ReturnDecl {
 
     /**
      * The scope that the method opens.
@@ -67,6 +63,11 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
     private boolean isOverridden;
 
     /**
+     * Flag used by {@link cminor.typechecker.TypeChecker} to determine if the method is guaranteed to return a value.
+     */
+    private boolean containsReturnStmt;
+
+    /**
      * Default constructor for {@link MethodDecl}.
      */
     public MethodDecl() { this(new Token(),null,null,null,new Vector<>(),null,null,false); }
@@ -93,6 +94,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
        this.returnType = returnType;
        this.body = body;
        this.isOverridden = isOverridden;
+       this.containsReturnStmt = false;
        
        if(this.name != null) 
            addChildNode(this.name);
@@ -202,6 +204,16 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl {
      * {@inheritDoc}
      */
     public void setScope(SymbolTable st) { scope = (scope == null) ? st : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setIfReturnStmtFound() { containsReturnStmt = true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean containsReturnStmt() { return containsReturnStmt; }
 
     /**
      * {@inheritDoc}

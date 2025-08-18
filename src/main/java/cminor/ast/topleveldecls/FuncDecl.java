@@ -1,12 +1,7 @@
 package cminor.ast.topleveldecls;
 
 import cminor.ast.AST;
-import cminor.ast.misc.Modifier;
-import cminor.ast.misc.Name;
-import cminor.ast.misc.NameDecl;
-import cminor.ast.misc.ParamDecl;
-import cminor.ast.misc.ScopeDecl;
-import cminor.ast.misc.TypeParam;
+import cminor.ast.misc.*;
 import cminor.ast.statements.BlockStmt;
 import cminor.ast.types.Type;
 import cminor.token.Token;
@@ -18,7 +13,7 @@ import cminor.utilities.Visitor;
  * A {@link TopLevelDecl} node that represents a function.
  * @author Daniel Levy
  */
-public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
+public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl, ReturnDecl {
 
     /**
      * The scope of the function.
@@ -66,6 +61,11 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     private String paramSignature;
 
     /**
+     * Flag used by {@link cminor.typechecker.TypeChecker} to determine if the function is guaranteed to return a value.
+     */
+    private boolean containsReturnStmt;
+
+    /**
      * Default constructor for {@link FuncDecl}.
      */
     public FuncDecl() { this(new Token(),null,null,new Vector<>(),new Vector<>(),null,null); }
@@ -90,6 +90,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
         this.params = params;
         this.returnType = returnType;
         this.body = body;
+        this.containsReturnStmt = false;
 
         addChildNode(this.typeParams);
         addChildNode(this.params);
@@ -175,7 +176,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     /**
      * Updates the {@link #signature} of the current function.
      * <p>
-     *     This method will be used by {@link micropasses.TypeValidityPass} in order to
+     *     This method will be used by {@link cminor.micropasses.TypeValidator} in order to
      *     change the function's signature when a template function is instantiated.
      * </p>
      */
@@ -246,6 +247,16 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     /**
      * {@inheritDoc}
      */
+    public void setIfReturnStmtFound() { containsReturnStmt = true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean containsReturnStmt() { return containsReturnStmt; }
+
+    /**
+     * {@inheritDoc}
+     */
     public boolean isFuncDecl() { return true; }
 
     /**
@@ -311,7 +322,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
         private final FuncDecl fd = new FuncDecl();
 
         /**
-         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
          * @return Current instance of {@link FuncDeclBuilder}.
          */
         public FuncDeclBuilder setMetaData(AST node) {
