@@ -8,8 +8,8 @@ package cminor.ast.misc;
  *     compilation. One such piece of info is determining whether a function or method has a return
  *     statement. In this context, we are referring to a valid return statement i.e. a return statement
  *     not found in a control flow structure. We have to find a workaround to ensure a non-Void function
- *     or method guarantees a return value. This is the point of this class as the
- *     {@link cminor.micropasses.SemanticAnalyzer} will determine if a function or method has a valid return value.
+ *     or method guarantees a return value. This is the point of this class as the {@link cminor.typechecker.TypeChecker}
+ *     will determine if a function or method has a valid return value.
  * </p>
  * @author Daniel Levy
  */
