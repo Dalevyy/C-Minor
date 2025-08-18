@@ -400,6 +400,25 @@ class TypeGoodTest extends TypeTest {
             notThrown CompilationMessage
     }
 
+    def "Function Declaration - Function Will Return Value"() {
+        when: "A function is written and a return statement is guaranteed to execute."
+            input = '''
+                        def func() => Int {
+                            if(3 < 5) { 
+                                if(3 == 5) { return 3 }
+                                else if(3 > 5) { return 5 }
+                                else { return 4 }
+                            }
+                            
+                            return 1
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors should be thrown since a value will always be returned."
+            notThrown CompilationMessage
+    }
+
     def "Global Declaration - Valid Constant Declarations"() {
         when: "Multiple global constants are declared in the program."
             input = '''
@@ -553,6 +572,60 @@ class TypeGoodTest extends TypeTest {
             vm.runInterpreter(input)
 
         then: "A default value should be generated for each variable, and no errors will occur."
+            notThrown CompilationMessage
+    }
+
+    def "Method Declaration - Method Will Return Value"() {
+        when: "A method is written and a return statement is guaranteed to execute."
+            input = '''
+                        class A {
+                            public method test() => String {
+                                while(True) {
+                                    if(3.14 > 5.34) { return 'hi' }
+                                    break
+                                }
+                                return 'hello there'
+                            }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors should be thrown since a value will always be returned."
+            notThrown CompilationMessage
+    }
+
+    def "Return Statement - Valid Return"() {
+        when: "An empty return statement is written inside a Void function."
+            input = '''
+                        def func() => Void { return }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error should be thrown since the return is empty."
+            notThrown CompilationMessage
+    }
+
+    def "Return Statement - Valid Return 2"() {
+        when: "A return statement that returns an Int value is written inside an Int function."
+            input = '''
+                        def func() => Int { return 5 }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error should be thrown since the return value matches the return type."
+            notThrown CompilationMessage
+    }
+
+    def "Return Statement - Valid Return 3"() {
+        when: "A return statement that returns a Char value is written inside a Char method."
+            input = '''
+                        class A {
+                            public method test() => Char { return 'a' }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error should be thrown since the return value matches the return type."
             notThrown CompilationMessage
     }
 

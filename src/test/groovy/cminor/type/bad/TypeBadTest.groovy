@@ -611,6 +611,21 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_415
     }
 
+    def "Function Declaration - No Guaranteed Return Statement"() {
+        when: "A non-Void function does not explicitly return a value outside a control flow statement."
+            input = '''
+                        def func() => Int {
+                            if(3 < 5) { return 3 }
+                            else { return 5 }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be generated since we can't determine if the function will actually return a value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_422
+    }
+
     def "Global Declaration - Invalid Constant Initialization"() {
         when: "A global variable declared with type Bool is initialized with a value of type Real."
             input = '''
@@ -861,6 +876,85 @@ class TypeBadTest extends TypeTest {
         then: "Types Int and Real are not assignment compatible, so an error is thrown."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_400
+    }
+
+    def "Method Declaration - No Guaranteed Return Statement"() {
+        when: "A non-Void method does not explicitly return a value outside a control flow statement."
+            input = '''
+                        class A {
+                            public method test() => Char {
+                                choice(3) {
+                                    on 2..5 { return 'y' }
+                                    other { return 'n' }
+                                }
+                            }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be generated since we can't determine if the method will actually return a value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_424
+    }
+
+    def "Return Statement - Incorrect Return Value"() {
+        when: "A function that should return an Int actually returns a String."
+            input = '''
+                        def func() => Int {
+                            return 'hello'
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error will be generated since the return value's type does not match the return type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_427
+    }
+
+    def "Return Statement - Incorrect Return Value 2"() {
+        when: "A method that should return a Char actually returns a Real."
+            input = '''
+                        class A {
+                            public method test() => Char {
+                                return 3.15
+                            }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error will be generated since the return value's type does not match the return type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_428
+    }
+
+    def "Return Statement - No Value Should Be Returned"() {
+        when: "A Void function has a return statement that returns a value."
+            input = '''
+                        def func() => Void {
+                            return 3
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since Void functions should not return anything."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_425
+    }
+
+    def "Return Statement - No Value Should Be Returned 2"() {
+        when: "A Void method has a return statement that returns a value."
+            input = '''
+                        class A {
+                            public method func() => Void {
+                                return 'c'
+                            }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since Void methods should not return anything."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_426
     }
 
     def "Unary Expression - Invalid ~ Operation"() {
