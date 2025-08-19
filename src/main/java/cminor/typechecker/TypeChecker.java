@@ -9,6 +9,7 @@ import cminor.ast.expressions.FieldExpr.FieldExprBuilder;
 import cminor.ast.expressions.Invocation.InvocationBuilder;
 import cminor.ast.expressions.Literal.ConstantType;
 import cminor.ast.misc.Name;
+import cminor.ast.misc.Var;
 import cminor.ast.operators.BinaryOp.BinaryType;
 import cminor.ast.statements.*;
 import cminor.ast.topleveldecls.ClassDecl;
@@ -21,6 +22,7 @@ import cminor.ast.types.ScalarType.Scalars;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.ErrorBuilder;
+import cminor.messages.errors.scope.ScopeError;
 import cminor.messages.errors.type.TypeError;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
@@ -163,7 +165,7 @@ public class TypeChecker extends Visitor {
 //
 //    }
 
-        public void visitArrayLiteral(ArrayLiteral al) {     }
+ //   public void visitArrayLiteral(ArrayLiteral al) {     }
 
 
     /**
@@ -616,42 +618,26 @@ public class TypeChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
-//    /**
-//     * Creates the class hierarchy for the current class.<br><br>
-//     * <p>
-//     *     We do not need to do any explicit type checking with the class
-//     *     declaration itself. All we need to do here is to internally keep
-//     *     track of all inherited classes, so we can use this information
-//     *     elsewhere in the type checker.
-//     * </p>
-//     * @param cd Class Declaration
-//     */
-//    public void visitClassDecl(ClassDecl cd) {
-//        // Only create the class hierarchy if the class inherits from another class
-//        if(cd.getSuperClass() != null) {
-//            // Add each inherited class to an internal class hierarchy list
-//            ClassDecl base = currentScope.findName(cd.getSuperClass().toString()).getDecl().asTopLevelDecl().asClassDecl();
-//            while(base.getSuperClass() != null) {
-//                cd.addBaseClass(base.getName());
-//                if(base.getSuperClass() != null)
-//                    base = currentScope.findName(base.getSuperClass().toString()).getDecl().asTopLevelDecl().asClassDecl();
-//            }
-//            cd.addBaseClass(base.getName());
-//        }
-//
-//        SymbolTable oldScope = currentScope;
-//        ClassDecl oldClass = currentClass;
-//        currentScope = cd.getScope();
-//        currentClass = cd;
-//
-//        // Do not type check the class if it's a template class.
-//        if(cd.getTypeParams().isEmpty())
-//            super.visitClassDecl(cd);
-//
-//        currentClass = oldClass;
-//        currentScope = oldScope;
-//    }
-//
+    /**
+     * Visits a class.
+     * <p>
+     *     There are no specific type checks done during this visit. We will
+     *     let other visits handle type checking for us. All we do here is make
+     *     sure a template class is not type checked since we will wait until a
+     *     user instantiates the class.
+     * </p>
+     * @param cd {@link ClassDecl}
+     */
+    public void visitClassDecl(ClassDecl cd) {
+        // Do not type check a template class until it is instantiated!
+        if(cd.isTemplate())
+            return;
+
+        currentScope = cd.getScope();
+        super.visitClassDecl(cd);
+        currentScope = currentScope.closeScope();
+    }
+
 //    public void visitCompilationUnit(CompilationUnit cu) {
 //        for(ImportDecl id : cu.getImports())
 //            id.getCompilationUnit().visit(this);
@@ -777,39 +763,32 @@ public class TypeChecker extends Visitor {
 //            }
 //        }
 //    }
-//
-//    /**
-//     * Evaluates the type of a field expression<br>
-//     * <p>
-//     * For a field expression, we will first evaluate the target and make sure the
-//     * type corresponds to some previously declared class. Then, we will type check
-//     * the expression the target is trying to access. We will use {@code currentTarget}
-//     * to keep track of the target's type if we're trying to perform method invocations.
-//     * </p>
-//     * @param fe Field Expression
-//     */
-//    public void visitFieldExpr(FieldExpr fe) {
-//        fe.getTarget().visit(this);
-//
-//        // ERROR CHECK #1: We want to make sure the target is indeed an object,
-//        //                 so make sure it's assigned a class type
-//        if(!fe.getTarget().type.isClassOrMultiType()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(fe)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_435)
-//                    .addErrorArgs(fe.getTarget(),fe.getTarget().type)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1433)
-//                    .generateError();
-//        }
-//
-//        Type oldTarget = currentTarget;
-//        currentTarget = fe.getTarget().type;
-//        fe.getAccessExpr().visit(this);
-//
-//        fe.type = fe.getAccessExpr().type;
-//        currentTarget = oldTarget;
-//        parentFound = false;
-//    }
+
+    /**
+     * Evaluates the field expression's type.
+     * <p>
+     *     During this visit, we are concerned with making sure that each target located in
+     *     a field expression represents an object. We can then use this information to perform
+     *     other type checks related to the field expression.
+     * </p>
+     * @param fe {@link FieldExpr}
+     */
+    public void visitFieldExpr(FieldExpr fe) {
+        fe.getTarget().visit(this);
+
+        // ERROR CHECK #1: The target has to always evaluate to be an object!
+        if(!fe.getTarget().type.isClassOrMulti()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(fe)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_435)
+                   .addErrorArgs(fe.getTarget(),fe.getTarget().type)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1433)
+                   .generateError();
+        }
+
+        fe.getAccessExpr().visit(this);
+        fe.type = fe.getAccessExpr().type;
+    }
 
     /**
      * Evaluates the types found in the for loop's header.
@@ -998,153 +977,66 @@ public class TypeChecker extends Visitor {
      * @param in Invocation
      */
     public void visitInvocation(Invocation in) {
-        StringBuilder argSignature = new StringBuilder();
-
+        // Create the type argument signature for the current invocation.
         for(Expression arg :in.getArgs()) {
             arg.visit(this);
-            argSignature.append(arg.type.typeSignature());
+            in.addTypeSignature(arg.type.typeSignature());
         }
 
-        in.targetType = new VoidType();
+        // Find the correct scope to check for the method name.
+        SymbolTable lookup;
 
-        //if(currentScope.hasMethodOverload())
+        // I think it's cleaner to separate the invocations like this...
+        // Function Case
+        if(!in.isMethodInvocation()) {
+            lookup = currentScope.getGlobalScope();
 
-//        // Function Invocation
-//        if(currentTarget == null && currentClass == null) {
-//            in.targetType = new VoidType();
-//
-//            if(in.isLengthInvocation()) {
-//                // ERROR CHECK #1: Make sure 'length' call only has one argument
-//                if(in.getArgs().size() != 1) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(in)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_451)
-//                            .generateError();
-//                }
-//                // ERROR CHECK #2: Make sure argument evaluates to an array or list
-//                if(!(in.getArgs().get(0).type.isArrayType() || in.getArgs().get(0).type.isListType())) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(in)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_452)
-//                            .generateError();
-//                }
-//                in.targetType = new VoidType();
-//                in.type = new DiscreteType(Discretes.INT);
-//                in.setLengthInvocation();
-//                return;
-//            }
-//
-//            else if(in.isTemplate()) {
-//                FuncDecl template = findValidFuncTemplate(in.toString(), in);
-//                checkIfFuncTemplateCallIsValid(template, in);
-//                in.templatedFunction = typeValidityPass.instantiatesFuncTemplate(template, in);
-//
-//                for(int i = 0; i < in.getArgs().size(); i++) {
-//                    Type paramType = in.templatedFunction.getParams().get(i).getType();
-//                    Type argType = in.getArgs().get(i).type;
-//
-//                    if(!Type.assignmentCompatible(paramType, argType)) {
-//                        String argumentTypes = Type.createTypeString(in.getArgs());
-//                        ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
-//                                .addLocation(in)
-//                                .addErrorArgs(in,argumentTypes)
-//                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1431)
-//                                .addSuggestionArgs(in,in+"("+argumentTypes+")");
-//
-//                        if(in.getArgs().isEmpty())
-//                            eb.addErrorNumber(MessageNumber.TYPE_ERROR_429).generateError();
-//                        else if(in.getArgs().size() == 1)
-//                            eb.addErrorNumber(MessageNumber.TYPE_ERROR_430).generateError();
-//                        else
-//                            eb.addErrorNumber(MessageNumber.TYPE_ERROR_431).generateError();
-//                    }
-//                }
-//
-//                in.type = in.templatedFunction.getReturnType();
-//                in.templatedFunction.visit(this);
-//                return;
-//            }
-//
-//            // ERROR CHECK #3: Check if function overload exists
-//            if(!currentScope.hasNameSomewhere(signature.toString())) {
-//                String argumentTypes = Type.createTypeString(in.getArgs());
-//                ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
-//                                      .addLocation(in)
-//                                      .addErrorArgs(in,argumentTypes)
-//                                      .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1431)
-//                                      .addSuggestionArgs(in,in+"("+argumentTypes+")");
-//
-//                if(in.getArgs().isEmpty())
-//                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_429).generateError();
-//                else if(in.getArgs().size() == 1)
-//                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_430).generateError();
-//                else
-//                    eb.addErrorNumber(MessageNumber.TYPE_ERROR_431).generateError();
-//            }
-//
-//            FuncDecl fd = currentScope.findName(signature.toString()).getDecl().asTopLevelDecl().asFuncDecl();
-//            in.type = fd.getReturnType();
-//        }
-//        // Method Invocation
-//        else {
-//            ClassDecl cd = null;
-//            if(currentTarget != null && currentTarget.isMultiType()) {
-//                for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
-//                    cd = currentScope.findName(ct.toString()).getDecl().asTopLevelDecl().asClassDecl();
-//                    if(cd.getScope().hasMethod(in.toString()))
-//                        break;
-//                }
-//            }
-//            else if(parentFound)
-//                cd = currentScope.findName(currentClass.getSuperClass().toString()).getDecl().asTopLevelDecl().asClassDecl();
-//            else if(currentClass != null)
-//                cd = currentClass;
-//            else
-//                cd = currentScope.findName(currentTarget.asClassType().toString()).getDecl().asTopLevelDecl().asClassDecl();
-//
-//            String className = cd.toString();
-//            // ERROR CHECK #4: Check if the method was defined in the class hierarchy
-//            if(!cd.getScope().hasMethod(in.toString())) {
-////                if(interpretMode)
-////                    currentTarget = null;
-//                handler.createErrorBuilder(ScopeError.class)
-//                        .addLocation(in)
-//                        .addErrorNumber(MessageNumber.SCOPE_ERROR_327)
-//                        .addErrorArgs(in)
-//                        .generateError();
-//            }
-//
-//            // ERROR CHECK #5: Check if a valid method overload exists
-//            while(!cd.getScope().hasName(signature.toString())) {
-//                if(cd.getSuperClass() == null) {
-////                    if(interpretMode)
-////                        currentTarget = null;
-//
-//                    String argumentTypes = Type.createTypeString(in.getArgs());
-//                    ErrorBuilder eb = handler.createErrorBuilder(TypeError.class)
-//                                          .addLocation(in)
-//                                          .addErrorArgs(in,className,argumentTypes)
-//                                          .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1432)
-//                                          .addSuggestionArgs(in,className,in+"("+argumentTypes+")");
-//
-//                    if(in.getArgs().isEmpty())
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_432).generateError();
-//                    else if(in.getArgs().size() == 1)
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_433).generateError();
-//                    else
-//                        eb.addErrorNumber(MessageNumber.TYPE_ERROR_434).generateError();
-//                }
-//                cd = currentScope.findName(cd.getSuperClass().toString()).getDecl().asTopLevelDecl().asClassDecl();
-//            }
-//
-//            MethodDecl md = cd.getScope().findName(signature.toString()).getDecl().asClassNode().asMethodDecl();
-//            if(currentTarget.isClassType() && currentTarget.asClassType().isTemplatedType())
-//                in.targetType = currentTarget;
-//            else
-//                in.targetType = new ClassType(cd.toString());
-//            in.type = md.getReturnType();
-//            currentTarget = md.getReturnType();
-//        }
+            // ERROR CHECK #1: This checks if the function was defined somewhere in the global scope.
+            if(!lookup.hasMethodName(in.getName())) {
+                handler.createErrorBuilder(ScopeError.class)
+                       .addLocation(in)
+                       .addErrorNumber(MessageNumber.SCOPE_ERROR_325)
+                       .addErrorArgs(in.getName())
+                       .generateError();
+            }
+
+            // ERROR CHECK #2: This checks if a valid function overload exists for the given argument signature.
+            if(!lookup.hasMethodOverload(in.getName(), in.getSignature())) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(in)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_429)
+                       .addErrorArgs(in.getName())
+                       .generateError();
+            }
+
+            FuncDecl fd = lookup.findMethod(in.getName().toString(), in.getSignature()).asTopLevelDecl().asFuncDecl();
+            in.type = fd.getReturnType();
+        }
+        // Method Case
+        else {
+            lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
+
+            // ERROR CHECK #1: This checks if the function was defined somewhere in the global scope.
+            if(!lookup.hasMethodName(in.getName())) {
+                handler.createErrorBuilder(ScopeError.class)
+                        .addLocation(in)
+                        .addErrorNumber(MessageNumber.SCOPE_ERROR_327)
+                        .addErrorArgs(in.getName(),in.getTargetType())
+                        .generateError();
+            }
+
+            // ERROR CHECK #2: This checks if a valid function overload exists for the given argument signature.
+            if(!lookup.hasMethodOverload(in.getName(), in.getSignature())) {
+                handler.createErrorBuilder(TypeError.class)
+                        .addLocation(in)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_430)
+                        .addErrorArgs(in.getName())
+                        .generateError();
+            }
+
+            MethodDecl md = lookup.findMethod(in.getName().toString(), in.getSignature()).asClassNode().asMethodDecl();
+            in.type = md.getReturnType();
+        }
     }
 
     /**
@@ -1386,17 +1278,7 @@ public class TypeChecker extends Visitor {
         else
             ne.type = declaration.asStatement().asLocalDecl().getType();
 
-//        if(ne.isParentKeyword()) {
-//            if(parentFound) {
-//                parentFound = false;
-//                handler.createErrorBuilder(ScopeError.class)
-//                        .addLocation(ne)
-//                        .addErrorNumber(MessageNumber.SCOPE_ERROR_337)
-//                        .generateError();
-//            }
-//            parentFound = true;
-//            ne.type = currentClass.getSuperClass();
-//        }
+
 //        else if(currentTarget != null && currentTarget.isClassOrMultiType()) {
 //            String targetName = currentTarget.toString();
 //            ClassDecl cd = null;
@@ -1459,52 +1341,37 @@ public class TypeChecker extends Visitor {
 //        }
     }
 
-//    /**
-//     * <p>
-//     *     In C Minor, a constructor is automatically generated for the user.
-//     *     Thus, we do not need to check if a new expression can be called for
-//     *     the class we are trying to instantiate. Instead, we only need to check
-//     *     if for each argument, the type of the value corresponds to the type of
-//     *     the field declaration we're saving the argument into.
-//     * </p>
-//     * @param ne New Expression
-//     */
-//    public void visitNewExpr(NewExpr ne) {
-//        ClassDecl cd = currentScope.findName(ne.getClassType()).getDecl().asTopLevelDecl().asClassDecl();
-//
-//        for(Var v : ne.getInitialFields()) {
-//            Type fType = cd.getScope().findName(v.toString()).getDecl().asClassNode().asFieldDecl().getDeclaredType();
-//
-//            if((fType.isArrayType() && v.getInitialValue().isArrayLiteral()) || (fType.isListType() && v.getInitialValue().isListLiteral())) {
-//                Type oldTarget = currentTarget;
-//                currentTarget = fType;
-//                v.getInitialValue().visit(this);
-//                currentTarget = oldTarget;
-//            }
-//            else {
-//                v.getInitialValue().visit(this);
-//
-//                // ERROR CHECK #1: Make sure the type of the argument matches
-//                //                 the type of the field declaration
-//                if(!Type.assignmentCompatible(v.getInitialValue().type,fType)) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(ne)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_420)
-//                            .addErrorArgs(v.toString(),fType,v.getInitialValue().type)
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
-//                            .addSuggestionArgs(fType)
-//                            .generateError();
-//                }
-//            }
-//        }
-//        ne.type = ne.getClassType();
-//        ne.type.asClassType().setInheritedTypes(cd.getInheritedClasses());
-//
-//        // If the new expression is bounded to an instantiated class, we now want to visit
-//        // said class and perform type checking based on the provided arguments.
-//        if(ne.createsFromTemplate())
-//            ne.getInstantiatedClass().visit(this);
-//    }
+    /**
+     * Evaluates the new expression's type.
+     * <p>
+     *     In C Minor, a constructor is automatically generated for the user.
+     *     Thus, we do not need to check if a new expression can be called for
+     *     the class we are trying to instantiate. Instead, we only need to check
+     *     if for each argument, the type of the value corresponds to the type of
+     *     the field declaration we're saving the argument into.
+     * </p>
+     * @param ne {@link NewExpr}
+     */
+    public void visitNewExpr(NewExpr ne) {
+        ClassDecl cd = currentScope.findName(ne.getClassType()).asTopLevelDecl().asClassDecl();
+
+        for(Var arg : ne.getInitialFields()) {
+            Type fieldType = cd.getScope().findName(arg).asClassNode().asFieldDecl().getType();
+            arg.getInitialValue().visit(this);
+
+            // ERROR CHECK #1: The type of a field's initial value should match the type of the field variable.
+            if(!Type.assignmentCompatible(arg.getInitialValue().type,fieldType)) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ne)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_420)
+                       .addErrorArgs(arg, fieldType, arg.getInitialValue().type)
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1400)
+                       .addSuggestionArgs(fieldType)
+                       .generateError();
+            }
+        }
+        ne.type = ne.getClassType();
+    }
 
     /**
      * Evaluates each output expression's type.
@@ -1518,6 +1385,25 @@ public class TypeChecker extends Visitor {
     public void visitOutStmt(OutStmt os) {
         super.visitOutStmt(os);
         os.type = new VoidType();
+    }
+
+    /**
+     * Evaluates the parent keyword's type.
+     * <p>
+     *     The type of the parent keyword will always be the super
+     *     class type that the class inherits from.
+     * </p>
+     * @param ps {@link ParentStmt}
+     */
+    public void visitParentStmt(ParentStmt ps) {
+        // ERROR CHECK #1?: This checks if the 'parent' keyword was used at the start of a field expression.
+        if(!ps.insideFieldExpr() || !ps.wasParentKeywordWrittenCorrectly()) {
+            handler.createErrorBuilder(ScopeError.class)
+                    .addLocation(ps.getFullLocation())
+                    .addErrorNumber(MessageNumber.SCOPE_ERROR_330)
+                    .generateError();
+        }
+        ps.type = ps.getClassDecl().getSuperClass();
     }
 
     /**
@@ -1629,15 +1515,13 @@ public class TypeChecker extends Visitor {
 //    }
 
     /**
-     * TODO: hmmm?
-     * Evaluates the type of a reference to ThisStmt
+     * Evaluates the current type of the {@code This} keyword.
      * <p>
-     *     If we have a <code>this</code> written in the code, then the
-     *     type will be evaluated to be whatever the current class is.
+     *     The type of {@code This} will always correspond to the class it is located in.
      * </p>
      * @param ts {@link ThisStmt}
      */
-    public void visitThis(ThisStmt ts) { ts.type = new ClassType(currentClass.toString()); }
+    public void visitThis(ThisStmt ts) { ts.type = new ClassType(ts.getClassDecl().toString()); }
 
     /**
      * Evaluates the unary expression's type.

@@ -251,6 +251,10 @@ public class SymbolTable {
      */
     private boolean hasMethodOverload(String name, String argSignature) {
         SymbolTable overloads = methods.get(name);
+
+        if(overloads == null)
+            return parent.hasMethodOverload(name,argSignature);
+
         return overloads.hasName(argSignature);
     }
 
@@ -280,10 +284,14 @@ public class SymbolTable {
     public AST findMethod(String methodName, String signature) {
         SymbolTable methodTable = methods.get(methodName);
 
-        if(methodTable == null)
+        if(methodTable == null) {
+            if(parent != null)
+                return parent.findMethod(methodName,signature);
             return null;
+        }
 
-        return methodTable.names.get(signature).getDecl();
+        NameDecl d = methodTable.names.get(signature);
+        return d == null ? null : d.getDecl();
     }
 
     /**

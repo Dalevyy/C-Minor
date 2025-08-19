@@ -501,63 +501,63 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_412
     }
 
-//    def "Field Declaration - Same Type as Class"() {
-//        when: "A field is declared with a type that matches the current class."
-//            input = '''
-//                        class A {
-//                            protected x:A
-//                        }
-//                    '''
-//            vm.runInterpreter(input)
-//
-//        then: "An error is thrown since a field can't reference a class that it was declared in."
-//            error = thrown CompilationMessage
-//            error.msg.messageType == MessageNumber.TYPE_ERROR_466
-//    }
-//
-//    def "Field Declaration - Same Type as Class 2"() {
-//        when: "A field is declared with an array type that has a base type reference to the current class."
-//            input = '''
-//                        class A {
-//                            protected x:Array[Array[A]]
-//                        }
-//                    '''
-//            vm.runInterpreter(input)
-//
-//        then: "An error is thrown since a field can't reference a class that it was declared in."
-//            error = thrown CompilationMessage
-//            error.msg.messageType == MessageNumber.TYPE_ERROR_466
-//    }
-//
-//    def "Field Declaration - Same Type as Inherited Class"() {
-//        when: "A subtype declares a field that matches an inherited supertype."
-//            input = '''
-//                        class A { }
-//                        class B inherits A { protected x:A }
-//                    '''
-//            vm.runInterpreter(input)
-//
-//        then: "A class will contain an instance of a supertype which shouldn't be allowed."
-//            error = thrown CompilationMessage
-//            error.msg.messageType == MessageNumber.TYPE_ERROR_467
-//
-//    }
-//
-//    def "Field Declaration - Same Type as Inherited Class 2"() {
-//        when: "A subtype declares a field that matches an inherited supertype."
-//            input = '''
-//                            class A {}
-//                            class B inherits A {}
-//                            class C inherits B {}
-//                            Class D inherits C { protected x:B }
-//                        '''
-//            vm.runInterpreter(input)
-//
-//        then: "A class will contain an instance of a supertype which shouldn't be allowed."
-//            error = thrown CompilationMessage
-//            error.msg.messageType == MessageNumber.TYPE_ERROR_467
-//
-//    }
+    def "Field Declaration - Same Type as Class"() {
+        when: "A field is declared with a type that matches the current class."
+            input = '''
+                        class A {
+                            protected x:A
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since a field can't reference a class that it was declared in."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_466
+    }
+
+    def "Field Declaration - Same Type as Class 2"() {
+        when: "A field is declared with an array type that has a base type reference to the current class."
+            input = '''
+                        class A {
+                            protected x:Array[Array[A]]
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since a field can't reference a class that it was declared in."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_466
+    }
+
+    def "Field Declaration - Same Type as Inherited Class"() {
+        when: "A subtype declares a field that matches an inherited supertype."
+            input = '''
+                        class A { }
+                        class B inherits A { protected x:A }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "A class will contain an instance of a supertype which shouldn't be allowed."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_467
+
+    }
+
+    def "Field Declaration - Same Type as Inherited Class 2"() {
+        when: "A subtype declares a field that matches an inherited supertype."
+            input = '''
+                            class A {}
+                            class B inherits A {}
+                            class C inherits B {}
+                            class D inherits C { protected x:B }
+                        '''
+            vm.runInterpreter(input)
+
+        then: "A class will contain an instance of a supertype which shouldn't be allowed."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_467
+
+    }
 
     // Note: This error can occur because the name checker does not check any types!
     /*
@@ -574,6 +574,20 @@ class TypeBadTest extends TypeTest {
 
         }
     */
+
+    def "Field Expression - Invalid Target Type"(){
+        when: "A non-object variable is used to accessed a field."
+            input = '''
+                        class A { public x:Real  }   
+                        def a:Int = 3
+                        a.x
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This makes no sense, so an error should be outputted."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_435
+    }
 
     def "For Statement - Invalid Loop Control Variable"() {
         when: "A for loop is written with a String control variable."
@@ -609,6 +623,18 @@ class TypeBadTest extends TypeTest {
         then: "This generates an error since the types have to match in order to have the for loop execute."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_415
+    }
+
+    def "Function Declaration - Invalid Return Type"() {
+        when: "A function is given a return type that isn't declared in the program."
+            input = '''
+                        def func() => invalidType {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error needs to be thrown since this is not a valid return type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_443
     }
 
     def "Function Declaration - No Guaranteed Return Statement"() {
@@ -685,6 +711,63 @@ class TypeBadTest extends TypeTest {
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_401
     }
+
+    def "Inheritance - Invalid Method Call"() {
+        when: "A child object tries to call a method that doesn't exist in the class hierarchy."
+            input = '''
+                        class A {}
+                        class B inherits A {}
+                        
+                        def b:B = new B()
+                        b.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error has to be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_327
+    }
+
+    def "Invocation - Function Not Declared"() {
+        when: "An invocation is written for a function that does not exist."
+            input = '''
+                        func(3,5,6)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "A scope-related error should be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_325
+    }
+
+    def "Invocation - No Overload Exists"() {
+        when: "A function is invoked, but the wrong arguments were passed to the function."
+            input = '''
+                        def func(in a:Int) => Void {}
+                        
+                        func(5,3.14)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An invalid invocation error should be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_429
+    }
+
+    def "Invocation - No Overload Exists 2"() {
+        when: "A function is invoked, but the wrong arguments were passed to the function."
+            input = '''
+                        def func(in a:Int) => Void {}
+                        
+                        func(3.14)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An invalid invocation error should be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_429
+    }
+
 
     def "List - 1D List is Not Homogeneous"() {
         when: "A list is declared with non-homogeneous values."
@@ -895,6 +978,66 @@ class TypeBadTest extends TypeTest {
         then: "An error should be generated since we can't determine if the method will actually return a value."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_424
+    }
+//
+//    def "Parent Statement - Parent Keyword Not Used Correctly"() {
+//        when: "The parent keyword is not used at the start of a field expression."
+//        input = '''
+//                        class A {}
+//                        class B inherits A {
+//                            protected x:Int
+//                            public method test() => Void {
+//                                x.parent
+//                            }
+//                        }
+//                    '''
+//        vm.runInterpreter(input)
+//
+//        then:
+//        error = thrown CompilationMessage
+//        error.msg.messageType == MessageNumber.SCOPE_ERROR_330
+//    }
+
+    def "Method Invocation - Method Overload Not Found"() {
+        when: "An object calls a method declared in its class."
+            input = '''
+                        class A { public method test(in a:Int) => Void {} }
+                        def a:A = new A()
+                        a.test()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is created if the method invoked does not match the appropriate method type signature."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_430
+    }
+
+    def "Method Invocation - Method Overload Not Found 2"() {
+        when: "An object calls a method declared in the class hierarchy."
+            input = '''
+                        class A { public method test(in a:Int) => Void {} }
+                        class B inherits A { public method test(in a:Real) => Void {} }
+                        def b:B = new B()
+                        b.test()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is created if the method invoked does not match any method type signature."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_430
+    }
+
+    def "New Expression - Invalid Argument Type"() {
+        when: "An object is instantiated with an invalid field value type."
+            input = '''
+                        class A { protected x:Int }
+                        def a:A = new A(x=3.14)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since each field's initial value must match its type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_420
     }
 
     def "Return Statement - Incorrect Return Value"() {

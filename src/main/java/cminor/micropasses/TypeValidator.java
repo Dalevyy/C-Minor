@@ -82,7 +82,6 @@ public class TypeValidator extends Visitor {
         }
 
         currentScope = cd.getScope();
-
         super.visitClassDecl(cd);
         currentScope = currentScope.closeScope();
     }
@@ -118,15 +117,15 @@ public class TypeValidator extends Visitor {
         fd.setType(helper.verifyType(fd.getType()));
 
         Type fieldType = fd.getType();
-        if(fieldType.isArray())
+        while(fieldType.isArray() || fieldType.isList())
             fieldType = fieldType.asArray().getBaseType();
+        System.out.println(fieldType);
 
         if(fieldType.isClass()) {
-            System.out.println("HM");
             ClassDecl cd = fd.getClassDecl();
-            System.out.println(cd);
+
             // ERROR CHECK #1: A class is not allowed to contain a field that references itself.
-            if(fd.getType().asClass().getClassName().equals(cd.getName())) {
+            if(fieldType.asClass().getClassName().equals(cd.getName())) {
                 handler.createErrorBuilder(TypeError.class)
                        .addLocation(fd)
                        .addErrorNumber(MessageNumber.TYPE_ERROR_466)
@@ -149,42 +148,23 @@ public class TypeValidator extends Visitor {
         }
     }
 
-//    /**
-//     * Validates the type of a function.
-//     * <p><br>
-//     *     During this visit, we will make sure every single type declared
-//     *     in a function is correct. This mainly includes making sure that
-//     *     no names will shadow over any type parameters.
-//     * </p>
-//     * @param fd {@link FuncDecl}
-//     */
-//    public void visitFuncDecl(FuncDecl fd) {
-//        SymbolTable oldScope = currentScope;
-//        String prevSignature = fd.getSignature();
-//        currentScope = fd.getScope();
-//
-//        if(!fd.getTypeParams().isEmpty())
-//            currentTypeParams = fd.getTypeParams();
-//
-//        for(ParamDecl pd : fd.getParams())
-//            pd.visit(this);
-//
-//
-//        fd.setReturnType(helper.verifyType(fd.getReturnType()));
-//        fd.getBody().visit(this);
-//
-//        // If we are visiting an instantiated function, we need to consider that the name checker would have
-//        // stored the function signature into the class scope using generic type parameters. Thus, we should
-//        // manually remove the previous method signature and update the key to be the new signature.
-//        if(currentTypeArgs != null) {
-//            currentScope.removeName(prevSignature);
-//            fd.resetSignature();
-//            currentScope.addName(fd.getSignature(), fd);
-//        }
-//
-//        currentScope = oldScope;
-//        currentTypeParams = null;
-//    }
+    /**
+     * Validates a function's return type.
+     * <p><br>
+     *     During this visit, we will make sure every single type declared
+     *     in a function is correct. This mainly includes making sure that
+     *     no names will shadow over any type parameters.
+     * </p>
+     * @param fd {@link FuncDecl}
+     */
+    public void visitFuncDecl(FuncDecl fd) {
+        for(ParamDecl pd : fd.getParams())
+            pd.visit(this);
+
+        fd.setReturnType(helper.verifyType(fd.getReturnType()));
+
+        fd.getBody().visit(this);
+    }
 
     /**
      * Validates a global variable's type.
@@ -268,13 +248,9 @@ public class TypeValidator extends Visitor {
          */
         private Vector<TypeParam> typeParams;
 
-        private void set(Vector<TypeParam> typeParams) {
-            this.typeParams = typeParams;
-        }
+        private void set(Vector<TypeParam> typeParams) { this.typeParams = typeParams; }
 
-        private void reset() {
-            typeParams = null;
-        }
+        private void reset() { typeParams = null; }
 
         /**
          * Performs a potential rewrite on a given structured type.

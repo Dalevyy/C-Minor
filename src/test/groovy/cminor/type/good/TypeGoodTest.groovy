@@ -447,6 +447,22 @@ class TypeGoodTest extends TypeTest {
             notThrown CompilationMessage
     }
 
+    def "Inheritance - Valid Method Calls"() {
+        when: "A subtype object tries to call a method from the parent class."
+            input = '''
+                        class A { public method test() => Void {} }
+                        class B inherits A { public method print() => Void {} }
+                        
+                        def b:B = new B()
+                        b.test()
+                        b.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur as long as the parent method exists."
+            notThrown CompilationMessage
+    }
+
     def "List - Valid 1D List Initialization"() {
         when: "A user writes a 1D list literal by itself."
             input = '''
@@ -591,6 +607,60 @@ class TypeGoodTest extends TypeTest {
             vm.runInterpreter(input)
 
         then: "No errors should be thrown since a value will always be returned."
+            notThrown CompilationMessage
+    }
+
+    def "Method Invocation - Valid Invocations"() {
+        when: "An object tries to call multiple methods defined in a class."
+            input = '''
+                        class A {
+                            public method test() => Void {}
+                            public method test(in a:Int) => Void {}
+                            public method test(in a:Real, in b:Char) => Void {}
+                            public method print() => Void {}
+                        }
+                        
+                        def a:A = new A()
+                        a.test()
+                        a.test(5)
+                        a.test(3.14,'c')
+                        a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur as long as each method was passed the correct argument types."
+            notThrown CompilationMessage
+    }
+
+    def "New Expression - Valid Object Instantiation"() {
+        when: "An object is instantiated."
+            input = '''
+                        class A {
+                            protected x:Int
+                            protected y:Real
+                            protected z:Char
+                        }
+                        def a:A = new A(x=5,y=3.14,z='c')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be thrown as long as each field is given the correct initial value type."
+            notThrown CompilationMessage
+    }
+
+    def "New Expression - Valid Object Instantiation 2"() {
+        when: "An object is instantiated."
+            input = '''
+                        class A {
+                            protected x:Int
+                            protected y:Real
+                            protected z:Char
+                        }
+                        def a:A = new A(x=5,z='c')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be thrown as long as the fields that were initialized have the correct value type."
             notThrown CompilationMessage
     }
 
