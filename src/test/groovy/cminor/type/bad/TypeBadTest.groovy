@@ -1100,6 +1100,55 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_426
     }
 
+    def "Retype Statement - Invalid LHS"() {
+        when: "A variable not representing an object is used in a retype statement."
+            input = '''
+                        class A {}
+                        def a:Int = 5
+                        retype a = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error needs to be thrown since only objects can be retyped."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_441
+    }
+
+    def "Retype Statement - Retype Can Not Occur"() {
+        when: "A variable is retyped to a type not found in the original class hierarchy."
+            input = '''
+                        class A {}
+                        class B {} 
+                        
+                        def a:A = new A()
+                        retype a = new B()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since only types in the class hierarchy are allowed to be used based on the LHS type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_442
+    }
+
+    def "Retype Statement - Retype Can Not Occur 2"() {
+        when: "A variable is retyped to a type not found in the original class hierarchy."
+            input = '''
+                        class A {}
+                        class B inherits A {}
+                        class C inherits A {}
+                        class D {}
+                        
+                        def a:A = new A()
+                        retype a = new D() 
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since only types in the class hierarchy are allowed to be used based on the LHS type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_442
+    }
+
+
     def "Unary Expression - Invalid ~ Operation"() {
         when: "A bitwise not operation is performed on a Real variable."
             input = '''

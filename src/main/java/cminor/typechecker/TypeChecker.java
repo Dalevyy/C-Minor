@@ -1467,52 +1467,48 @@ public class TypeChecker extends Visitor {
         }
     }
 
-//    /**
-//     * Evaluates the type of a retype statement.
-//     * @param rt Retype Statement
-//     */
-//    public void visitRetypeStmt(RetypeStmt rt) {
-//        rt.getName().visit(this);
-//        Type objType = rt.getName().type;
-//
-//        // ERROR CHECK #1: Make sure the LHS does represent an object
-//        if(!objType.isClassOrMultiType()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(rt)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_441)
-//                    .addErrorArgs(rt.getName(),objType)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1438)
-//                    .generateError();
-//        }
-//
-//        rt.getNewObject().visit(this);
-//        ClassType newObjType = rt.getNewObject().type.asClassType();
-//        Type objBaseType = objType.isMultiType() ? objType.asMultiType().getInitialType() : objType;
-//
-//        // ERROR CHECK #2: Make sure the types are class assignment compatible
-//        if(!ClassType.classAssignmentCompatibility(objBaseType,newObjType)) {
-//            ClassDecl cd = currentScope.findName(objBaseType.toString()).getDecl().asTopLevelDecl().asClassDecl();
-//
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(rt)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_442)
-//                    .addErrorArgs(rt.getName(),newObjType)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1439)
-//                    .addSuggestionArgs(rt.getName())
-//                    .generateError();
-//        }
-//
-//        if(inControlStmt) {
-//            if(objType.isMultiType())
-//                objType.asMultiType().addType(newObjType);
-//            else {
-//                MultiType mt = MultiType.create(objType.asClassType(),newObjType);
-//                setVarType(rt.getName().toString(),mt);
-//            }
-//        }
-//        else
-//            setVarType(rt.getName().toString(),newObjType);
-//    }
+    /**
+     * Evaluates the types of the LHS and RHS of a retype statement.
+     * @param rt {@link RetypeStmt}
+     */
+    public void visitRetypeStmt(RetypeStmt rt) {
+        rt.getName().visit(this);
+        Type objType = rt.getName().type;
+
+        // ERROR CHECK #1: The LHS has to represent an object.
+        if(!objType.isClassOrMulti()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(rt)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_441)
+                   .addErrorArgs(rt.getName(), objType)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1438)
+                   .generateError();
+        }
+
+        rt.getNewObject().visit(this);
+        ClassType newType = rt.getNewObject().type.asClass();
+        ClassType baseType = objType.isMulti() ? objType.asMulti().getInitialType() : objType.asClass();
+
+        // ERROR CHECK #2: The LHS and RHS have to be assignment compatible for the retype to occur!
+        if(!ClassType.classAssignmentCompatibility(baseType, newType)) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(rt)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_442)
+                   .addErrorArgs(rt.getName(), newType)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1439)
+                   .addSuggestionArgs(rt.getName())
+                   .generateError();
+        }
+
+        if(rt.isInsideControlFlow()) {
+            if(objType.isMulti())
+                objType.asMulti().addType(newType);
+            else
+                helper.resetVariableType(rt.getName().toString(), MultiType.create(baseType, newType));
+        }
+        else
+            helper.resetVariableType(rt.getName().toString(), newType);
+    }
 
     /**
      * Evaluates the current type of the {@code This} keyword.
@@ -1664,7 +1660,21 @@ public class TypeChecker extends Visitor {
             else
                 return null;
         }
-//
+
+        private void resetVariableType(String name, Type type) {
+            AST node = currentScope.findName(name);
+
+            if(node.isTopLevelDecl())
+                node.asTopLevelDecl().asGlobalDecl().setType(type);
+            else if(node.isClassNode())
+                node.asClassNode().asFieldDecl().setType(type);
+            else if(node.isSubNode())
+                node.asSubNode().asParamDecl().setType(type);
+            else
+                node.asStatement().asLocalDecl().setType(type);
+        }
+
+
 //        /**
 //         * Checks if an array literal is assignment compatible with an array type.<br><br>
 //         * <p>
