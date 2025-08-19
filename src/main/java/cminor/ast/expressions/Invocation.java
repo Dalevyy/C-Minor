@@ -12,10 +12,10 @@ import cminor.utilities.Visitor;
  * An {@link AST} node class representing an invocation.
  * <p><br>
  *     ThisStmt class will represent either a function or method invocation.
- *     Method invocations will always be contained inside of a {@link FieldExpr},
+ *     Method invocations will always be contained inside a {@link FieldExpr},
  *     so we'll have to keep track of which class the method needs to be called
  *     from. Function invocations are simpler; however, functions can be templated
- *     so we have to keep track of all type parameters if a user tries to instantiates
+ *     so we have to keep track of all type parameters if a user tries to instantiate
  *     a templated function.
  *     <br><br>
  *     Additionally, C Minor currently supports a built-in {@code length} method that
@@ -45,7 +45,11 @@ public class Invocation extends Expression {
     public Type targetType;
 
     /**
-     * Internal string representing the invocation's signature to help with overloading.
+     * String representation of the invocation signature.
+     * <p>
+     *     This will be built by the {@link cminor.typechecker.TypeChecker}, so we can determine
+     *     which method overload needs to be called for the current invocation (if applicable).
+     * </p>
      */
     private String signature;
 
@@ -73,6 +77,7 @@ public class Invocation extends Expression {
         this.name = name;
         this.typeArgs = typeParams;
         this.args = args;
+        this.signature = "";
         if(name != null)
             this.isLengthInvocation = toString().equals("length");
 
@@ -119,6 +124,27 @@ public class Invocation extends Expression {
     public String getSignature() { return this.signature; }
 
     /**
+     * Checks if the current {@link Invocation} is found inside a field expression.
+     * <p>
+     *     This implies that the current invocation represents a method invocation!
+     * </p>
+     * @return {@code True} if this is a method invocation, {@code False} otherwise.
+     */
+    public boolean isMethodInvocation() {
+        // The parent for a method invocation will always be a field expression!
+        return parent != null && parent.isExpression() && parent.asExpression().isFieldExpr();
+    }
+
+    /**
+     * Returns the target type of a method {@link Invocation}.
+     * <p>
+     *     This will be used to retrieve the correct class that contains the method needing to be invoked.
+     * </p>
+     * @return The {@link Type} representing the target that calls the current {@link Invocation}
+     */
+    public Type getTargetType() { return parent.asExpression().asFieldExpr().getTarget().type; }
+
+    /**
      * Setter for {@link #name}.
      * @param name Name
      */
@@ -137,10 +163,13 @@ public class Invocation extends Expression {
     private void setArgs(Vector<Expression> args) { this.args = args; }
 
     /**
-     * Setter for {@link #signature}, set by the {@link typechecker.TypeChecker}.
-     * @param signature String
+     * Setter for {@link #signature}.
+     * <p>
+     *     This will be called by the {@link cminor.typechecker.TypeChecker} after each argument
+     *     type is evaluated.
+     * @param signature String representing the type signature for an invocation argument.
      */
-    public void setSignature(String signature) { this.signature = signature; }
+    public void addTypeSignature(String signature) { this.signature += signature; }
 
     /**
      * Setter for {@link #isLengthInvocation}
