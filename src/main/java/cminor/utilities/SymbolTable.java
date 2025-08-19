@@ -84,8 +84,18 @@ public class SymbolTable {
 
     public boolean hasImportedName(String name) { return importParent != null && importParent.hasName(name); }
 
+    /**
+     * Checks if a name exists somewhere in a user's program.
+     * @param node The {@link AST} node we wish to see if a declaration exists for.
+     * @return {@code True} if the name was found, {@code False} otherwise.
+     */
     public boolean hasNameInProgram(AST node) { return hasNameInProgram(node.toString()); }
 
+    /**
+     * Checks if a name exists somewhere in a user's program.
+     * @param name The name we wish to see if it was declared in the program.
+     * @return {@code True} if the name was found, {@code False} otherwise.
+     */
     private boolean hasNameInProgram(String name) {
         if(names.containsKey(name))
             return true;
@@ -115,6 +125,11 @@ public class SymbolTable {
             return null;
     }
 
+    /**
+     * Finds and return a {@link NameDecl} in the scope hierarchy.
+     * @param node The {@link AST} node we wish to find a {@link NameDecl} of.
+     * @return A {@link NameDecl} if we find the closest declaration for the name, {@code null} otherwise.
+     */
     public AST findName(AST node) { return findName(node.toString()); }
 
     /**
@@ -145,7 +160,15 @@ public class SymbolTable {
         }
         else {
             MethodDecl md = method.getDecl().asClassNode().asMethodDecl();
-            methodTable.addName(md.getParamSignature(), method);
+            if(!methodTable.hasName(md.getParamSignature()))
+                methodTable.addName(md.getParamSignature(), method);
+        }
+    }
+
+    public void addMethods(SymbolTable classTable) {
+        for(String methodName : classTable.methods.keySet()) {
+            for(NameDecl method : classTable.methods.get(methodName).names.values())
+                addMethod(method);
         }
     }
 
@@ -155,7 +178,9 @@ public class SymbolTable {
      * @return {@code True} if the method was declared in the program, {@code False} otherwise.
      */
     public boolean hasMethodName(String name) {
-        if(methods.containsKey(name))
+        if(methods.isEmpty())
+            return false;
+        else if(methods.containsKey(name))
             return true;
         else if(parent != null)
             return parent.hasMethodName(name);
@@ -197,6 +222,7 @@ public class SymbolTable {
             paramSignature = node.getDecl().asTopLevelDecl().asFuncDecl().getParamSignature();
         else
             paramSignature = node.getDecl().asClassNode().asMethodDecl().getParamSignature();
+
 
         return overloads.hasName(paramSignature);
     }
@@ -245,13 +271,19 @@ public class SymbolTable {
             throw new RuntimeException("The passed name declaration does not represent a function or method.");
     }
 
+    /**
+     * Retrieves a method overload from the {@link #methods} table.
+     * @param methodName The method we wish to find the declaration of.
+     * @param signature The string representation of the method's signature.
+     * @return An {@link AST} node representing a {@link FuncDecl} or {@link MethodDecl}
+     */
     public AST findMethod(String methodName, String signature) {
         SymbolTable methodTable = methods.get(methodName);
 
-        if(methodTable.hasName(signature))
-            return methodTable.names.get(signature).getDecl();
-        else
+        if(methodTable == null)
             return null;
+
+        return methodTable.names.get(signature).getDecl();
     }
 
     /**
@@ -272,6 +304,16 @@ public class SymbolTable {
      * @return A {@link SymbolTable} representing the newly opened scope.
      */
     public SymbolTable openScope() { return new SymbolTable(this); }
+
+    /**
+     * Creates a new scope based on an already existing scope.
+     * <p>
+     *     This will be used by classes in order to access any inherited fields and methods.
+     * </p>
+     * @param st The {@link SymbolTable} we wish to make the parent of the new scope we are opening.
+     * @return The {@link SymbolTable} we have created.
+     */
+    public SymbolTable openScope(SymbolTable st) { return new SymbolTable(st); }
 
     /**
      * Closes the current scope.

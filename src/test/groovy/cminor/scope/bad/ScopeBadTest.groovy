@@ -6,6 +6,31 @@ import cminor.scope.ScopeTest
 
 class ScopeBadTest extends ScopeTest {
 
+    def "Class Declaration - Inherited Class Not Declared"() {
+        when: "A class tries to inherit from a class that is not declared."
+            input = '''
+                        class A inherits B {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is printed out."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_309
+    }
+
+    def "Class Declaration - Not Inheriting From a Class"() {
+        when: "A class inherits from a non-class construct defined in the program."
+            input = '''
+                        def B:Int = 5
+                        class A inherits B {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since classes can only inherit from other classes"
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_309
+    }
+
     def "Class Declaration - Redeclaration of a Class"() {
         when: "Two classes are declared with the same name."
             input = '''
@@ -42,31 +67,6 @@ class ScopeBadTest extends ScopeTest {
         then: "An error is generated since it makes no sense."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.SCOPE_ERROR_308
-    }
-
-    def "Class Declaration - Inherited Class Not Declared"() {
-        when: "A class tries to inherit from a class that is not declared."
-            input = '''
-                        class A inherits B {}
-                    '''
-            vm.runInterpreter(input)
-
-        then: "An error is printed out."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.SCOPE_ERROR_309
-    }
-
-    def "Class Declaration - Not Inheriting From a Class"() {
-        when: "A class inherits from a non-class construct defined in the program."
-            input = '''
-                        def B:Int = 5
-                        class A inherits B {}
-                    '''
-            vm.runInterpreter(input)
-
-        then: "An error is thrown since classes can only inherit from other classes"
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.SCOPE_ERROR_309
     }
 
     def "Enum Declaration - Redeclaration in the Same Scope"() {
@@ -201,6 +201,74 @@ class ScopeBadTest extends ScopeTest {
         then: "An error will occur since we are redeclaring the first variable."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.SCOPE_ERROR_300
+    }
+
+    def "Inheritance - Misuse of Override Keyword"() {
+        when: "A method is marked as overridden in the base class."
+            input = '''
+                        class A { public override method test() => Void {} }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be thrown since there are no methods that can be overridden from."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_312
+    }
+
+    def "Inheritance - Override Keyword Missing"() {
+        when: "A method is redefined in a subclass without the 'override' keyword."
+            input = '''
+                        class A { public method test() => Void {} }
+                        class B inherits A { public method test() => Void {} }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error needs to be printed since the user must always include this keyword when redefining methods."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_311
+    }
+
+    def "Inheritance - Override Keyword Missing 2"() {
+        when:
+            input = '''
+                        class A { public method test() => Void {} }
+                        class B inherits A { }
+                        class C inherits B { }
+                        class D inherits C { public method test() => Void {} }
+                    '''
+            vm.runInterpreter(input)
+
+        then:
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_311
+    }
+
+    def "Inheritance - Redeclaring Field Declaration"() {
+        when: "A subclass redeclares a base class field."
+            input = '''
+                        class A { protected x:Int } 
+                        class B inherits A { protected x:Int }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This is a redeclaration error, so an error needs to be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_324
+    }
+
+    def "Inheritance = Redeclaring Field Declaration 2"() {
+        when: "A subclass in a class hierarchy redeclares a field initially declared higher up in the hierarchy."
+            input = '''     
+                        class A {}
+                        class B inherits A { protected x:Int }
+                        class C inherits B {}
+                        class D inherits C { protected x:Int } 
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This is a redeclaration error since the class will already have access to the field."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_324
     }
 
     def "Local Declaration - Redeclaration in the Same Scope"() {

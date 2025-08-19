@@ -1,6 +1,7 @@
 package cminor.scope.good
 
 import cminor.messages.CompilationMessage
+import cminor.messages.MessageNumber
 import cminor.scope.ScopeTest
 
 class ScopeGoodTest extends ScopeTest {
@@ -274,6 +275,46 @@ class ScopeGoodTest extends ScopeTest {
             vm.runInterpreter(input)
 
         then: "All names will be able to be resolved correctly."
+            notThrown CompilationMessage
+    }
+
+    def "Inheritance - Method Overriding"() {
+        when: "A method is redefined in a subclass."
+             input = '''
+                        class A { public method test() => Void {} }
+                        class B inherits A { public override method test() => Void {} }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error will be thrown as long as the user remembers to use the 'overrides' keyword."
+            notThrown CompilationMessage
+    }
+
+    def "Inheritance - Method Overriding 2"() {
+        when: "A method is redefined in multiple subclass."
+            input = '''
+                        class A { public method test() => Void {} }
+                        class B inherits A { public override method test() => Void {} }
+                        class C inherits B { public override method test() => Void {} }
+                        class D inherits C { public override method test() => Void {} }
+
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error will be thrown as long as the user remembers to use the 'overrides' keyword for each method."
+            notThrown CompilationMessage
+    }
+
+    def "Inheritance - Proper Field Declarations"() {
+        when: "A class hierarchy is declared in a program."
+            input = '''
+                        class A { protected x:Int }
+                        class B inherits A { protected y:Real }
+                        class C inherits B { protected z:Char }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be thrown if all fields declared in each subclass are unique to the parent class fields."
             notThrown CompilationMessage
     }
 
