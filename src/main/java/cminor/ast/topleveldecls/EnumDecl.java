@@ -90,16 +90,6 @@ public class EnumDecl extends TopLevelDecl implements NameDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
     public boolean isEnumDecl() { return true; }
 
     /**

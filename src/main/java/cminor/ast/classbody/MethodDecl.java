@@ -188,16 +188,6 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return true; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
     public SymbolTable getScope() { return (scope != null) ? scope : null; }
 
     /**

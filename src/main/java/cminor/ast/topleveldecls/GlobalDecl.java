@@ -116,16 +116,6 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
     public boolean isGlobalDecl() { return true; }
 
     /**

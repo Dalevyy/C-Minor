@@ -161,16 +161,6 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
     public SymbolTable getScope() { return (scope != null) ? scope : null; }
 
     /**
@@ -227,7 +217,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
             typeParams.add(tp.deepCopy().asSubNode().asTypeParam());
 
         if(superClass != null)
-            cb.setSuperClass(superClass.deepCopy().asType().asClassType());
+            cb.setSuperClass(superClass.deepCopy().asType().asClass());
 
         return cb.setMetaData(this)
                   .setMods(mod)

@@ -92,16 +92,6 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
 
     /**
      * {@inheritDoc}
-     */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
      * @return
      */
     public boolean isLocalDecl() { return true; }

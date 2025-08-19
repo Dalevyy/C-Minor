@@ -227,16 +227,6 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl, Retur
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return true; }
-
-    /**
-     * {@inheritDoc}
-     */
     public SymbolTable getScope() { return (scope != null) ? scope : null; }
 
     /**

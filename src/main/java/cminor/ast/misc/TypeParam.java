@@ -77,9 +77,9 @@ public class TypeParam extends SubNode implements NameDecl {
             return true;
 
         return switch (typeAnnotate) {
-            case DISCR -> typeArg.isDiscreteType();
-            case SCALAR -> typeArg.isScalarType();
-            case CLASS -> typeArg.isClassOrMultiType();
+            case DISCR -> typeArg.isDiscrete();
+            case SCALAR -> typeArg.isScalar();
+            case CLASS -> typeArg.isClassOrMulti();
         };
     }
 
@@ -120,16 +120,6 @@ public class TypeParam extends SubNode implements NameDecl {
      * {@inheritDoc}
      */
     public String getDeclName() { return name.toString(); }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
 
     /**
      * Returns the name of the type parameter.

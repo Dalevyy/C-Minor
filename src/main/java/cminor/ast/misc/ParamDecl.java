@@ -101,16 +101,6 @@ public class ParamDecl extends SubNode implements NameDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
     public boolean isParamDecl() { return true; }
 
     /**
