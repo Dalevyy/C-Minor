@@ -55,27 +55,25 @@ public class SymbolTable {
         this.parent = prevScope;
     }
 
-    public SymbolTable getMethods() {
-        SymbolTable currentScope = this;
-
-        while(currentScope.parent != null) {
-            // Outside of the global scope, a class scope will be the only scope that uses both the names
-            // and method tables which is why this condition needs to exist.
-            if(!currentScope.names.isEmpty() && !currentScope.methods.isEmpty())
-                break;
-            currentScope = currentScope.parent;
-        }
-
-        return currentScope;
-    }
-
     /**
      * Adds a declared name into the scope's {@link #names}
      * @param node A {@link NameDecl} we wish to add into the current scope.
      */
     public void addName(NameDecl node) { names.put(node.getDeclName(),node); }
 
+    /**
+     * Adds a declared name into the scope's {@link #names}
+     * @param name The name we wish to add to the table as a string
+     * @param node A {@link NameDecl} we wish to add into the current scope.
+     */
     public void addName(String name, NameDecl node) { names.put(name,node); }
+
+    /**
+     * Checks if a passed {@link NameDecl} is contained in the current scope.
+     * @param name The name we wish to check if it exists in the current scope.
+     * @return {@code True} if the {@link NameDecl} is contained in the current scope, {@code False} otherwise.
+     */
+    public boolean hasName(String name) { return names.containsKey(name) || hasImportedName(name); }
 
     /**
      * Checks if a passed {@link NameDecl} is contained in the current scope.
@@ -83,8 +81,6 @@ public class SymbolTable {
      * @return {@code True} if the {@link NameDecl} is contained in the current scope, {@code False} otherwise.
      */
     public boolean hasName(AST node) { return hasName(node.toString()); }
-
-    public boolean hasName(String name) { return names.containsKey(name) || hasImportedName(name); }
 
     public boolean hasImportedName(String name) { return importParent != null && importParent.hasName(name); }
 
@@ -124,7 +120,7 @@ public class SymbolTable {
     /**
      * Removes a name from the scope hierarchy.
      * <p>
-     *     This method should only be called when a {@link messages.CompilationMessage} is thrown
+     *     This method should only be called when a {@link cminor.messages.CompilationMessage} is thrown
      *     when interpretation mode is executing.
      * </p>
      * @param node The {@link AST} node we wish to remove from the current scope.
@@ -139,11 +135,11 @@ public class SymbolTable {
      * @param method The {@link NameDecl} representing a function/method that will be added.
      */
     public void addMethod(NameDecl method) {
-        if(!hasMethod(method))
+        if(!hasMethodName(method.getDeclName()))
             methods.put(method.getDeclName(), new SymbolTable());
 
         SymbolTable methodTable = methods.get(method.getDeclName());
-        if(method.isFunction()) {
+        if(method.getDecl().isTopLevelDecl() && method.getDecl().asTopLevelDecl().isFuncDecl()) {
             FuncDecl fd = method.getDecl().asTopLevelDecl().asFuncDecl();
             methodTable.addName(fd.getParamSignature(), method);
         }
@@ -153,8 +149,28 @@ public class SymbolTable {
         }
     }
 
-    public boolean hasMethod(NameDecl node) { return methods.containsKey(node.toString()); }
-    public boolean hasMethod(String name) { return methods.containsKey(name) || importParent.hasMethod(name); }
+    /**
+     * Checks if the method name currently exists in the method table.
+     * @param name String representing the method name we wish to search for.
+     * @return {@code True} if the method was declared in the program, {@code False} otherwise.
+     */
+    public boolean hasMethodName(String name) {
+        if(methods.containsKey(name))
+            return true;
+        else if(parent != null)
+            return parent.hasMethodName(name);
+        else if(importParent != null)
+            return importParent.hasMethodName(name);
+        else
+            return false;
+    }
+
+    /**
+     * Checks if the method name currently exists in the method table.
+     * @param node The {@link AST} node we wish to check for the existence of a method.
+     * @return {@code True} if the method was declared in the program, {@code False} otherwise.
+     */
+    public boolean hasMethodName(AST node) { return hasMethodName(node.toString()); }
 
     /**
      * Checks if a function/method overload exists within the {@link #methods} table.
@@ -162,30 +178,68 @@ public class SymbolTable {
      *     We will use the parameter signature of the function/method to store each valid
      *     overload in the {@link #methods} table. If we know that a parameter signature already
      *     exists for a given function/method, that implies that the overload already exists
-     *     which means we have a redeclaration.
+     *     which means we have a redeclaration. This helper is used by the {@link cminor.namechecker.NameChecker}
+     *     in order to determine if any function overloads are redeclared.
      * </p>
-     * @param method The {@link NameDecl} we wish to check for an overload.
+     * @param node The {@link NameDecl} we wish to check for an overload.
      * @return {@code True} if the overload exists, {@code False} otherwise.
      */
-    public boolean hasMethodOverload(NameDecl method) {
-        if(!(method.isMethod() || method.isFunction()) || !hasMethod(method))
+    public boolean hasMethodOverload(NameDecl node) {
+        // No overload exists if the method name wasn't previously declared!
+        if(!hasMethodName(node.getDeclName()))
             return false;
 
-        SymbolTable methodTable = methods.get(method.getDeclName());
+        // Remember, this method is always called by a FuncDecl or MethodDecl visit!
+        SymbolTable overloads = methods.get(node.getDeclName());
         String paramSignature;
 
-        if(method.isFunction())
-            paramSignature = method.getDecl().asTopLevelDecl().asFuncDecl().getParamSignature();
+        if(node.getDecl().isTopLevelDecl())
+            paramSignature = node.getDecl().asTopLevelDecl().asFuncDecl().getParamSignature();
         else
-            paramSignature = method.getDecl().asClassNode().asMethodDecl().getParamSignature();
+            paramSignature = node.getDecl().asClassNode().asMethodDecl().getParamSignature();
 
-        return methodTable.hasName(paramSignature);
+        return overloads.hasName(paramSignature);
     }
 
+    /**
+     * Checks if a valid overload exists for a method.
+     * <p>
+     *     Note: This helper is used by the {@link cminor.typechecker.TypeChecker}!
+     * </p>
+     * @param node An {@link AST} node we wish to check for a method overload of.
+     * @param argSignature The string representation of an argument signature.
+     * @return {@code True} if the overload exists, {@code False} otherwise.
+     */
+    public boolean hasMethodOverload(AST node, String argSignature) {
+        return hasMethodOverload(node.toString(),argSignature);
+    }
+
+    /**
+     * Checks if a valid overload exists for a method.
+     * <p>
+     *     Note: This helper is used by the {@link cminor.typechecker.TypeChecker}!
+     * </p>
+     * @param name The method we wish to check for an overload (as a string).
+     * @param argSignature The string representation of an argument signature.
+     * @return {@code True} if the overload exists, {@code False} otherwise.
+     */
+    private boolean hasMethodOverload(String name, String argSignature) {
+        SymbolTable overloads = methods.get(name);
+        return overloads.hasName(argSignature);
+    }
+
+    /**
+     * Finds a method in the {@link #methods} table.
+     * <p>
+     *     This is used by the {@link cminor.namechecker.NameChecker} to deal with redeclaration errors!
+     * </p>
+     * @param method The {@link NameDecl} we want to retrieve a previous declaration of.
+     * @return The {@link AST} representing the method declaration or an Exception if no method was found.
+     */
     public AST findMethod(NameDecl method) {
-        if(method.isFunction())
+        if(method.getDecl().isTopLevelDecl())
             return findMethod(method.getDeclName(),method.getDecl().asTopLevelDecl().asFuncDecl().getParamSignature());
-        else if(method.isMethod())
+        else if(method.getDecl().isClassNode())
             return findMethod(method.getDeclName(),method.getDecl().asClassNode().asMethodDecl().getParamSignature());
         else
             throw new RuntimeException("The passed name declaration does not represent a function or method.");
@@ -198,6 +252,19 @@ public class SymbolTable {
             return methodTable.names.get(signature).getDecl();
         else
             return null;
+    }
+
+    /**
+     * Retrieves the global scope of the program.
+     * @return {@link SymbolTable} representing the global scope.
+     */
+    public SymbolTable getGlobalScope() {
+        SymbolTable root = this;
+
+        while(root.parent != null)
+            root = root.parent;
+
+        return root;
     }
 
     /**
