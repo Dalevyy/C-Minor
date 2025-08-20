@@ -8,15 +8,15 @@ import cminor.ast.expressions.*;
 import cminor.ast.expressions.FieldExpr.FieldExprBuilder;
 import cminor.ast.expressions.Invocation.InvocationBuilder;
 import cminor.ast.expressions.Literal.ConstantType;
+import cminor.ast.expressions.Literal.LiteralBuilder;
+import cminor.ast.misc.CompilationUnit;
 import cminor.ast.misc.Name;
 import cminor.ast.misc.Var;
 import cminor.ast.operators.BinaryOp.BinaryType;
 import cminor.ast.statements.*;
-import cminor.ast.topleveldecls.ClassDecl;
-import cminor.ast.topleveldecls.FuncDecl;
-import cminor.ast.topleveldecls.GlobalDecl;
-import cminor.ast.topleveldecls.MainDecl;
+import cminor.ast.topleveldecls.*;
 import cminor.ast.types.*;
+import cminor.ast.types.ArrayType.ArrayTypeBuilder;
 import cminor.ast.types.ListType.ListTypeBuilder;
 import cminor.ast.types.ScalarType.Scalars;
 import cminor.messages.MessageHandler;
@@ -31,20 +31,15 @@ import cminor.utilities.Visitor;
 public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
-    private TypeCheckerHelper helper;
-    private ClassDecl currentClass;
-    private Type currentTarget;
+    private final TypeCheckerHelper helper;
  //   private TypeValidityPass typeValidityPass;
-    private boolean parentFound = false;
-    private boolean inControlStmt = false;
 
     /**
-     * Creates type checker in compilation mode
+     * Creates the {@link TypeChecker} in compilation mode
      */
-    public TypeChecker(String fileName) {
-        this.currentScope = null;
-        this.currentClass = null;
+    public TypeChecker() {
         this.handler = new MessageHandler();
+        this.helper = new TypeCheckerHelper();
     }
 
     /**
@@ -52,9 +47,8 @@ public class TypeChecker extends Visitor {
      * @param st Symbol Table
      */
     public TypeChecker(SymbolTable st) {
+        this();
         this.currentScope = st;
-        this.handler = new MessageHandler();
-        this.helper = new TypeCheckerHelper();
        //  this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable());
     }
 
@@ -138,35 +132,35 @@ public class TypeChecker extends Visitor {
 //                ae.type = arrType.asListType().baseType();
 //        }
 //    }
-//
-//    /**
-//     *     For array literals, we will call the helper method
-//     *     arrayAssignmentCompatible to handle all type checking
-//     *     for us.
-//     * @param al Array Literal
-//     */
-//    public void visitArrayLiteral(ArrayLiteral al) {
-//        // If current target doesn't represent an array type, then we'll set the
-//        // array literal to be some arbitrary array type to prevent type assignment
-//        // compatibility from leading to an exception
-//        if(currentTarget == null || !currentTarget.isArrayType()) {
-//            super.visitArrayLiteral(al);
-//            if(al.getArrayInits().isEmpty())
-//                al.type = new ArrayType(new VoidType(),al.getNumOfDims());
-//            else
-//                al.type = new ArrayType(al.getArrayInits().get(0).type,al.getNumOfDims());
-//        }
-//        else {
-//            arrayAssignmentCompatibility(currentTarget.asArrayType().numOfDims,
-//                                         currentTarget.asArrayType().baseType(),
-//                                         al.getArrayDims(), al);
-//            al.type = currentTarget.asArrayType();
-//        }
-//
-//    }
 
- //   public void visitArrayLiteral(ArrayLiteral al) {     }
+    /**
+     * Creates a type for an {@link ArrayLiteral}.
+     * <p>
+     *     When an array is created by the user, we will perform a visit on its dimensions alongside its
+     *     initial values. From there, we will call {@link TypeCheckerHelper#generateArrayType(ArrayLiteral)}
+     *     to make sure all the initial values are assignment compatible before we generate
+     *     the {@link ArrayType} that the current array will represent.
+     * </p>
+     * @param al {@link ArrayLiteral}
+     */
+    public void visitArrayLiteral(ArrayLiteral al) {
+        for(Expression dim : al.getArrayDims()) {
+            dim.visit(this);
+            // ERROR CHECK #1: The expression has to represent an Int literal or global constant.
+            if (!helper.isValidDimension(dim)) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(al)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_456)
+                       .addErrorArgs(dim)
+                       .generateError();
+            }
+        }
 
+        for(Expression init : al.getArrayInits())
+            init.visit(this);
+
+        al.type = helper.generateArrayType(al);
+    }
 
     /**
      * Evaluates the types of the LHS and RHS of an assignment statement.
@@ -638,13 +632,17 @@ public class TypeChecker extends Visitor {
         currentScope = currentScope.closeScope();
     }
 
-//    public void visitCompilationUnit(CompilationUnit cu) {
-//        for(ImportDecl id : cu.getImports())
-//            id.getCompilationUnit().visit(this);
-//        currentScope = cu.getScope();
-//        this.typeValidityPass = new TypeValidityPass(cu.getScope());
-//        super.visitCompilationUnit(cu);
-//    }
+    /**
+     * Begins the type checking phase in compilation mode.
+     * @param cu {@link CompilationUnit}
+     */
+    public void visitCompilationUnit(CompilationUnit cu) {
+        for(ImportDecl id : cu.getImports())
+            cu.getCompilationUnit().visit(this);
+
+        currentScope = cu.getScope();
+        super.visitCompilationUnit(cu);
+    }
 
     /**
      * Verifies the type of the do while loop's condition.
@@ -670,99 +668,76 @@ public class TypeChecker extends Visitor {
                    .generateError();
         }
     }
-//
-//    /**
-//     * Evaluates if an enumeration was written correctly<br>
-//     * <p>
-//     *     In C Minor, an enumeration can only store values of type Int
-//     *     and Char for each constant. Additionally, we are going to be
-//     *     strict and require the user to initialize all values of the
-//     *     enumeration if at least one constant was initialized to a default value.
-//     * </p>
-//     * @param ed Enumeration
-//     */
-//    public void visitEnumDecl(EnumDecl ed) {
-//        // Step 1: Count how many constants were initialized.
-//        int initCount = 0;
-//        for(Var constant : ed.getConstants()) {
-//            if(constant.hasInitialValue()) {
-//                initCount++;
-//                if(ed.getConstantType() == null) {
-//                    constant.getInitialValue().visit(this);
-//
-//                    // ERROR CHECK #1: A constant in an Enum can only be assigned Int or Char values
-//                    if(!constant.getInitialValue().type.isInt() && !constant.getInitialValue().type.isChar()) {
-//                        handler.createErrorBuilder(TypeError.class)
-//                                .addLocation(ed)
-//                                .addErrorNumber(MessageNumber.TYPE_ERROR_436)
-//                                .addErrorArgs(ed,constant.getInitialValue().type)
-//                                .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1434)
-//                                .generateError();
-//                    }
-//
-//                    EnumTypeBuilder typeBuilder = new EnumTypeBuilder().setName(ed.getName());
-//
-//                    if(constant.getInitialValue().type.isInt())
-//                        typeBuilder.setConstantType(Discretes.INT);
-//                    else
-//                        typeBuilder.setConstantType(Discretes.CHAR);
-//
-//                    //ed.setType(typeBuilder.create());
-//                }
-//            }
-//        }
-//
-//        if(constantInitCount == 0) {
-//            // By default, an Enum will have Int constants starting at [1,inf)
-//            // if the user did not initialize any of the constant values.
-////            ed.setType(
-////                new EnumTypeBuilder()
-////                    .setName(ed.name())
-////                    .setConstantType(Discretes.INT)
-////                    .create()
-////            );
-//
-//            int currValue = 1;
-//            for(Var constant : ed.getConstants()) {
-////                constant.setInit(
-////                    new LiteralBuilder()
-////                        .setConstantKind(ConstantType.INT)
-////                        .setValue(String.valueOf(currValue))
-////                        .create()
-////                );
-////                currValue++;
-////                constant.init().type = ed.type();
-////                constant.setType(ed.type());
-//            }
-//        }
-//        // ERROR CHECK #2: Make sure each constant in the Enum was initialized
-//        else if(constantInitCount != ed.getConstants().size()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ed)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_437)
-//                    .addErrorArgs(ed)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1435)
-//                    .generateError();
-//        }
-//        else {
-//            for(Var constant : ed.getConstants()) {
-//                constant.getInitialValue().visit(this);
-//
-//                // ERROR CHECK #3: Make sure the initial value given to a
-//                //                 constant matches the enum's constant type
-//                if(!Type.assignmentCompatible(ed.getConstantType().constantType(),constant.getInitialValue().type)) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(constant)
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_438)
-//                            .addErrorArgs(constant,ed,constant.getInitialValue().type,ed.getConstantType().constantType())
-//                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1436)
-//                            .generateError();
-//                }
-////                constant.init().type = ed.type();
-////                constant.setType(ed.type());
-//            }
-//        }
-//    }
+
+    /**
+     * Checks if the user properly wrote an enumeration.
+     * <p>
+     *     This visit verifies how a user initialized an enumeration and ensures there are
+     *     no problems with the types used. Currently, only Int and Char literals are allowed
+     *     to be used for enumerations.
+     * </p>
+     * @param ed {@link EnumDecl}
+     */
+    public void visitEnumDecl(EnumDecl ed) {
+        int initCount = 0;
+        for(Var constant : ed.getConstants()) {
+            // If the constant was not initialized, move on to the next constant.
+            if(!constant.hasInitialValue())
+                continue;
+
+            initCount++;
+            constant.getInitialValue().visit(this);
+
+            // ERROR CHECK #1: A constant in an Enum can only be assigned Int or Char values.
+            if(!constant.getInitialValue().type.isInt() && !constant.getInitialValue().type.isChar()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ed)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_436)
+                       .addErrorArgs(ed, constant.getInitialValue().type)
+                       .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1434)
+                       .generateError();
+            }
+        }
+
+        // If no constants were initialized, then we will use default Int values for each constant.
+        if(initCount == 0) {
+            int currValue = 1;
+            for(Var constant : ed.getConstants()) {
+                constant.setInitialValue(
+                    new LiteralBuilder()
+                        .setConstantKind(ConstantType.INT)
+                        .setValue(String.valueOf(currValue))
+                        .create()
+                );
+
+                currValue++;
+                constant.getInitialValue().visit(this);
+            }
+        }
+        // ERROR CHECK #2: The user has to initialize each constant in the Enum if one constant was initialized.
+        else if(initCount != ed.getConstants().size()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(ed)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_437)
+                   .addErrorArgs(ed)
+                   .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1435)
+                   .generateError();
+        }
+        else {
+            Type mainType = ed.getConstants().getFirst().getInitialValue().type;
+            for(Var constant : ed.getConstants()) {
+                // ERROR CHECK #3: We will make sure each constant type is the same!
+                if(!Type.assignmentCompatible(mainType, constant.getInitialValue().type)) {
+                    handler.createErrorBuilder(TypeError.class)
+                           .addLocation(constant)
+                           .addErrorNumber(MessageNumber.TYPE_ERROR_438)
+                           .addErrorArgs(constant,ed,constant.getInitialValue().type, mainType)
+                           .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1436)
+                           .generateError();
+                }
+            }
+        }
+    }
 
     /**
      * Evaluates the field expression's type.
@@ -1489,8 +1464,8 @@ public class TypeChecker extends Visitor {
         ClassType newType = rt.getNewObject().type.asClass();
         ClassType baseType = objType.isMulti() ? objType.asMulti().getInitialType() : objType.asClass();
 
-        // ERROR CHECK #2: The LHS and RHS have to be assignment compatible for the retype to occur!
-        if(!ClassType.classAssignmentCompatibility(baseType, newType)) {
+        // ERROR CHECK #2: The LHS and RHS have to be class assignment compatible for the retype to occur!
+        if(!helper.classAssignmentCompatibility(baseType, newType)) {
             handler.createErrorBuilder(TypeError.class)
                    .addLocation(rt)
                    .addErrorNumber(MessageNumber.TYPE_ERROR_442)
@@ -1500,6 +1475,8 @@ public class TypeChecker extends Visitor {
                    .generateError();
         }
 
+        // If the retype statement is found in some form of control flow, then we have to make the object a multitype
+        // since we will not know the object's definitive type until the program is executed...
         if(rt.isInsideControlFlow()) {
             if(objType.isMulti())
                 objType.asMulti().addType(newType);
@@ -1661,220 +1638,63 @@ public class TypeChecker extends Visitor {
                 return null;
         }
 
-        private void resetVariableType(String name, Type type) {
-            AST node = currentScope.findName(name);
+        /**
+         * Checks if a given expression represents a valid array dimension.
+         * <p>
+         *     The size of an array must be known as compile-time, so only global
+         *     constants and Int literals are allowed to be written inside an array
+         *     expression.
+         * </p>
+         * @param dim {@link Expression} representing the dimension we wish to validate.
+         * @return {@code True} if the expression represents a valid dimension, {@code False} otherwise.
+         */
+        private boolean isValidDimension(Expression dim) {
+            if(dim.isNameExpr()) {
+                AST decl = currentScope.findName(dim);
+                if(!decl.isTopLevelDecl() && !decl.asTopLevelDecl().isGlobalDecl())
+                    return false;
 
-            if(node.isTopLevelDecl())
-                node.asTopLevelDecl().asGlobalDecl().setType(type);
-            else if(node.isClassNode())
-                node.asClassNode().asFieldDecl().setType(type);
-            else if(node.isSubNode())
-                node.asSubNode().asParamDecl().setType(type);
-            else
-                node.asStatement().asLocalDecl().setType(type);
+                return decl.asTopLevelDecl().asGlobalDecl().isConstant();
+            }
+
+            return dim.isLiteral() && dim.type.isInt();
         }
 
+        private ArrayType generateArrayType(ArrayLiteral al) {
+            ArrayTypeBuilder builder = new ArrayTypeBuilder();
 
-//        /**
-//         * Checks if an array literal is assignment compatible with an array type.<br><br>
-//         * <p>
-//         *     ThisStmt is a recursive algorithm to verify whether an array literal can
-//         *     be assigned to an array type in C Minor. ThisStmt algorithm was based off
-//         *     a similar algorithm found in Dr. Pedersen's textbook for compilers.
-//         * </p>
-//         * @param depth Current level of recursion (final depth is 1)
-//         * @param baseType Array type
-//         * @param dims Expressions representing the dimensions for the array
-//         * @param currArr Array Literal aka the current array literal we are checking
-//         * @return Boolean - True if assignment compatible and False otherwise
-//         */
-//        private boolean arrayAssignmentCompatibility(int depth, Type baseType, Vector<Expression> dims, ArrayLiteral currArr) {
-//            if(depth == 1) {
-//                // ERROR CHECK #1: This makes sure the user only specified one dimension for a 1D array.
-//                if(currArr.getArrayDims().size() > 1) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(currArr.getFullLocation())
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_455)
-//                            .generateError();
-//                    return false;
-//                }
-//
-//                if(currArr.getArrayDims().size() == 1)
-//                    checkArrayDims(depth, dims, currArr.getArrayDims().get(0), currArr);
-////            else if(!dims.isEmpty()) {
-////                if(dims.get(dims.size()-depth).asLiteral().) != currArr.getArrayInits().size()) {
-////                    errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-////                            .addLocation(currArr)
-////                            .addErrorType(MessageType.TYPE_ERROR_444)
-////                            .error());
-////                    return false;
-////                }
-////            }
-//
-//                for(Expression init : currArr.getArrayInits()) {
-//                    init.visit(this);
-//
-//                    // ERROR CHECK #2: For every initial value in the array, we check to make sure the
-//                    //                 value's type is assignment compatible with the array's base type.
-//                    if(!Type.assignmentCompatible(baseType,init.type)) {
-//                        handler.createErrorBuilder(TypeError.class)
-//                                .addLocation(currArr)
-//                                .addErrorNumber(MessageNumber.TYPE_ERROR_459)
-//                                .addErrorArgs(init.type,baseType)
-//                                .generateError();
-//                        return false;
-//                    }
-//                }
-//
-//                currArr.type = new ArrayTypeBuilder()
-//                        .setMetaData(currArr)
-//                        .setBaseType(baseType)
-//                        .setNumOfDims(depth)
-//                        .create();
-//                return true;
-//            }
-//            else if(depth > 1) {
-//                ArrayLiteral al = currArr.asArrayLiteral();
-//
-//                // ERROR CHECK #3: For all n-dimensional array literals (where n>1), we need to make sure the user
-//                //                 explicitly writes down the size given for each possible dimension.
-//                if(al.getArrayDims().size() != depth) {
-//                    handler.createErrorBuilder(TypeError.class)
-//                            .addLocation(al.getFullLocation())
-//                            .addErrorNumber(MessageNumber.TYPE_ERROR_460)
-//                            .generateError();
-//                    return false;
-//                }
-//
-//                for(Expression dim : al.getArrayDims())
-//                    checkArrayDims(depth,dims,dim,currArr);
-//
-//                for(Expression init : al.getArrayInits()) {
-//                    // ERROR CHECK #4: For every initial value in the multidimensional array, we need to make
-//                    //                 sure the initial value is an array itself.
-//                    if(!init.isArrayLiteral()) {
-//                        handler.createErrorBuilder(TypeError.class)
-//                                .addLocation(currArr)
-//                                .addErrorNumber(MessageNumber.TYPE_ERROR_461)
-//                                .generateError();
-//                        return false;
-//                    }
-//
-//                    arrayAssignmentCompatibility(depth-1,baseType,dims,init.asArrayLiteral());
-//                }
-//
-//                currArr.type = new ArrayTypeBuilder()
-//                        .setMetaData(currArr)
-//                        .setBaseType(baseType)
-//                        .setNumOfDims(depth)
-//                        .create();
-//                return true;
-//            }
-//            else
-//                return false;
-//        }
-//
-//        private boolean checkArrayDims(int depth, Vector<Expression> dims, Expression dim,ArrayLiteral currArr) {
-//            dim.visit(this);
-//
-//            // ERROR CHECK #1: The given array dimension has to be an Int constant since the size of the array
-//            //                 must be known at compile-time. An Int constant in this context is either an Int
-//            //                 literal or a global Int constant.
-//            if(!dim.type.isInt() || (!dim.isLiteral() && !isGlobalConstant(dim))) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(dim.getFullLocation())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_456)
-//                        .addErrorArgs(dim)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1448)
-//                        .generateError();
-//                return false;
-//            }
-//
-//            int dimValue;
-//            if(dim.isLiteral())
-//                dimValue = dim.asLiteral().asInt();
-//            else
-//                dimValue = currentScope.findName(dim).getDecl().asTopLevelDecl().asGlobalDecl().getInitialValue().asLiteral().asInt();
-//
-//            // yeah idk what this is
-//            // TYPE_ERROR_446 = Innermost array literal dimension must match the outermost array literal dimension.
-//
-//            // ERROR CHECK #9:
-//            //if(dims.get(dims.size()-currDepth).asListLiteral().toString().equals())
-////        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != Integer.parseInt(al.getArrayDims().get(0).toString())) {
-////            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-////                    .addLocation(currArr.getRootParent())
-////                    .addErrorType(MessageType.TYPE_ERROR_457)
-////                    .error());
-////            return false;
-////        }
-////
-////        if(Integer.parseInt(dims.get(dims.size()-depth).asLiteral().toString()) != currArr.getArrayInits().size()) {
-////            errors.add(new ErrorBuilder(generateTypeError,interpretMode)
-////                    .addLocation(currArr)
-////                    .addErrorType(MessageType.TYPE_ERROR_444)
-////                    .error());
-////            return false;
-////        }
-//
-//            // ERROR CHECK #2: This checks if the user correctly initialized the array based on its size.
-//            if(currArr.getArrayInits().size() > dimValue) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(currArr.getFullLocation())
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_458)
-//                        .addErrorArgs(dimValue, currArr.getArrayInits().size())
-//                        .generateError();
-//                return false;
-//            }
-//
-//            return true;
-//        }
-//
-//        /**
-//         * Checks if a given {@link Expression} represents a global constant.
-//         * <p><br>
-//         *     This is a helper method for to
-//         *     determine if a given array dimension actually represents a global constant declared
-//         *     by the user. Since constants will always have the same value, this means the compiler
-//         *     can definitively know the size of an array.
-//         * </p>
-//         * @param expr Expression
-//         * @return Boolean
-//         */
-//        private boolean isGlobalConstant(Expression expr) {
-//            if(!expr.isNameExpr())
-//                return false;
-//
-//            AST decl = currentScope.findName(expr.asNameExpr()).getDecl();
-//            if(!decl.isTopLevelDecl())
-//                return false;
-//            else if(!decl.asTopLevelDecl().isGlobalDecl())
-//                return false;
-//            else
-//                return decl.asTopLevelDecl().asGlobalDecl().isConstant();
-//        }
-//
-
-        /**
-         * Checks if a return statement is guaranteed to be executed.
-         * <p>
-         *     Without control flow graphs, we need to manually determine
-         *     if a return statement will be executed.
-         * </p>
-         * @param rs The {@link ReturnStmt} we wish to validate.
-         * @param method The {@link AST} representing the function or method the return statement is found in.
-         */
-        private void isReturnStmtValid(ReturnStmt rs, AST method) {
-            if(!rs.isInsideControlFlow()) {
-                if(method.isTopLevelDecl()) {
-                    if(method.asTopLevelDecl().isFuncDecl())
-                        method.asTopLevelDecl().asFuncDecl().setIfReturnStmtFound();
-                    else
-                        method.asTopLevelDecl().asMainDecl().setIfReturnStmtFound();
-                }
-                else
-                    method.asClassNode().asMethodDecl().setIfReturnStmtFound();
+            if(al.getArrayInits().isEmpty()) {
+                return builder.setNumOfDims(al.getNumOfDims())
+                        .setBaseType(new VoidType())
+                        .create();
             }
+
+            /*
+                ERROR CHECK #1: We need to make sure each initial value is assignment compatible with each other.
+                                We will use the type of the first initial value in the list literal to do this check.
+            */
+            Type baseType = al.getArrayInits().getFirst().type;
+            for (Expression init : al.getArrayInits()) {
+                if (!Type.assignmentCompatible(baseType, init.type)) {
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(al)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_461)
+                            .addErrorArgs(baseType, init.type)
+                            .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1444)
+                            .addSuggestionArgs(baseType)
+                            .generateError();
+                }
+            }
+
+            if (baseType.isArray()) {
+                builder.setBaseType(baseType.asArray().getBaseType())
+                       .setNumOfDims(baseType.asArray().getDims() + 1);
+            } else {
+                builder.setBaseType(baseType)
+                       .setNumOfDims(1);
+            }
+
+            return builder.create();
         }
 
         /**
@@ -1904,7 +1724,6 @@ public class TypeChecker extends Visitor {
                                 We will use the type of the first initial value in the list literal to do this check.
             */
             Type baseType = lst.getInits().getFirst().type;
-
             for(Expression init : lst.getInits()) {
                 if(!Type.assignmentCompatible(baseType,init.type)) {
                     handler.createErrorBuilder(TypeError.class)
@@ -1926,6 +1745,66 @@ public class TypeChecker extends Visitor {
             }
 
             return builder.create();
+        }
+
+        private void resetVariableType(String name, Type type) {
+            AST node = currentScope.findName(name);
+
+            if(node.isTopLevelDecl())
+                node.asTopLevelDecl().asGlobalDecl().setType(type);
+            else if(node.isClassNode())
+                node.asClassNode().asFieldDecl().setType(type);
+            else if(node.isSubNode())
+                node.asSubNode().asParamDecl().setType(type);
+            else
+                node.asStatement().asLocalDecl().setType(type);
+        }
+
+        /**
+         * Checks if a return statement is guaranteed to be executed.
+         * <p>
+         *     Without control flow graphs, we need to manually determine
+         *     if a return statement will be executed.
+         * </p>
+         * @param rs The {@link ReturnStmt} we wish to validate.
+         * @param method The {@link AST} representing the function or method the return statement is found in.
+         */
+        private void isReturnStmtValid(ReturnStmt rs, AST method) {
+            if(!rs.isInsideControlFlow()) {
+                if(method.isTopLevelDecl()) {
+                    if(method.asTopLevelDecl().isFuncDecl())
+                        method.asTopLevelDecl().asFuncDecl().setIfReturnStmtFound();
+                    else
+                        method.asTopLevelDecl().asMainDecl().setIfReturnStmtFound();
+                }
+                else
+                    method.asClassNode().asMethodDecl().setIfReturnStmtFound();
+            }
+        }
+
+        /**
+         * Checks if a RHS class type can be assigned into a LHS class type.
+         * <p>
+         *     This is a helper method for {@link #visitRetypeStmt(RetypeStmt)}. This could
+         *     be written directly in {@link ClassType}, but the test bank did not like it...
+         *     so it's written here instead :(
+         * </p>
+         * @param LHS The initial {@link ClassType}
+         * @param RHS The new {@link ClassType} we wish to replace the LHS with.
+         * @return {@code True} if the RHS is assignment compatible with the LHS, {@code False} otherwise.
+         */
+        private boolean classAssignmentCompatibility(ClassType LHS, ClassType RHS) {
+            SymbolTable classTable = currentScope.getGlobalScope();
+            ClassDecl subClass = classTable.findName(RHS.getClassName()).asTopLevelDecl().asClassDecl();
+
+            // We will look through the class hierarchy until the class matches the LHS class.
+            while(subClass.getSuperClass() != null) {
+                if(subClass.getName().equals(LHS.getClassName()))
+                    return true;
+                subClass = classTable.findName(subClass.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
+            }
+
+            return subClass.getName().equals(LHS.getClassName());
         }
 
 //        private FuncDecl findSpecificFunction(FuncDecl candidate, FuncDecl currentTemplate, Invocation in) {
