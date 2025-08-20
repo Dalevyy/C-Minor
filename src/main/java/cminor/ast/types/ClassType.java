@@ -2,53 +2,83 @@ package cminor.ast.types;
 
 import cminor.ast.AST;
 import cminor.ast.misc.Name;
-import cminor.token.*;
+import cminor.token.Token;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
-/*
-___________________________ ClassType ___________________________
-The first structured type is a ClassType. These types represent
-any custom types that a C Minor uses defines when they create a
-class. Any name that is used as a type will be parsed as a
-ClassType as well.
-_________________________________________________________________
-*/
+/**
+ * A structured {@link Type} representing a user-defined type.
+ * <p>
+ *     This type corresponds directly to any types the user defines using
+ *     the {@code class} keyword. The parser will automatically create a
+ *     {@link ClassType} any time a name is used as a type!
+ * </p>
+ * @author Daniel Levy
+ */
 public class ClassType extends Type {
-    private Name className;                        // Only for single type
-    private Vector<Name> inheritedTypes = new Vector<>();
+
+    /**
+     * The {@link Name} referencing the class this type represents.
+     */
+    private Name className;
+
+    /**
+     * A list of type arguments. Only set when working with template classes!
+     */
     private Vector<Type> typeArgs;
 
-    public ClassType() { this(new Token(),null,new Vector<>(),new Vector<>()); }
-    public ClassType(String s) { this(new Token(),new Name(s),new Vector<>()); }
-    public ClassType(Name n) { this(new Token(),n,new Vector<>()); }
-    public ClassType(Token t, Name n) { this(t,n,new Vector<>(),new Vector<>()); }
-    public ClassType(Name n, Vector<Type> ct) { this(new Token(),n,new Vector<>(),ct); }
-    public ClassType(Token t, Name n, Vector<Type> tt) { this(t,n,new Vector<>(),tt); }
-    public ClassType(Token t, Name n, Vector<Name> it, Vector<Type> tt) {
-        super(t);
-        this.className = n;
-        this.typeArgs = tt;
+    /**
+     * Default constructor for {@link ClassType}.
+     */
+    public ClassType() { this(new Token(),null,new Vector<>()); }
 
-        addChildNode(this.className);
-    }
+    /**
+     * Creates a {@link ClassType} based on a passed string name.
+     * @param className String to store into {@link #className}.
+     */
+    public ClassType(String className) { this(new Token(),new Name(className),new Vector<>()); }
 
-    public Name getClassName() { return className; }
-    public Vector<Type> typeArgs() { return typeArgs; }
+    /**
+     * Creates a {@link ClassType} based on a passed {@link Name}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param className {@link Name} to store into {@link #className}.
+     */
+    public ClassType(Token metaData, Name className) { this(metaData,className,new Vector<>()); }
 
-    public void setInheritedTypes(Vector<Name> it) { this.inheritedTypes = it; }
-    public Vector<Name> getInheritedTypes() { return this.inheritedTypes; }
+    /**
+     * Main constructor for {@link ClassType}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param className {@link Name} to store into {@link #className}.
+     * @param typeArgs {@link Vector} of {@link Type} to store into {@link #typeArgs}.
+     */
+    public ClassType(Token metaData, Name className, Vector<Type> typeArgs) {
+        super(metaData);
 
-    public void setClassName(Name className) {
         this.className = className;
-    }
-
-    public void setTypeArgs(Vector<Type> typeArgs) {
         this.typeArgs = typeArgs;
     }
 
-    public boolean isClassType() { return true; }
-    public ClassType asClassType() { return this; }
+    /**
+     * Getter method for {@link #className}.
+     * @return {@link Name}
+     */
+    public Name getClassName() { return className; }
+
+    /**
+     * Getter method for {@link #typeArgs}.
+     * @return {@link Vector} of types
+     */
+    public Vector<Type> getTypeArgs() { return typeArgs; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isClass() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public ClassType asClass() { return this; }
 
     /**
      * Checks if the current {@code ClassType} represents a templated class.
@@ -56,6 +86,11 @@ public class ClassType extends Type {
      */
     public boolean isTemplatedType() { return !typeArgs.isEmpty(); }
 
+    /**
+     * Checks if a {@link ClassType} is equal to another {@link ClassType}
+     * @param ct The RHS {@link ClassType}
+     * @return {@code True} if they are equal, {@code False} otherwise.
+     */
     public boolean equals(ClassType ct) {
         if(this.isTemplatedType() && ct.isTemplatedType()) {
             if(!this.className.equals(ct.className) || this.typeArgs.size() != ct.typeArgs.size())
@@ -64,7 +99,7 @@ public class ClassType extends Type {
             for(int i = 0; i < this.typeArgs.size(); i++) {
                 Type LHS = this.typeArgs.get(i);
                 Type RHS = ct.typeArgs.get(i);
-                if(!typeEqual(LHS,RHS))
+                if(!LHS.equals(RHS))
                     return false;
             }
             return true;
@@ -75,34 +110,11 @@ public class ClassType extends Type {
             return this.className.equals(ct.className);
     }
 
-    public static boolean classAssignmentCompatibility(Type ct1, ClassType ct2) {
-        if(ct1.isMultiType())
-            return ClassType.isSuperClass(ct2,ct1.asMultiType().getInitialType());
-        else if(ct1.asClassType().isTemplatedType() && ct1.asClassType().getClassNameAsString().equals(ct2.getClassNameAsString()))
-            return true;
-        else if(ct1.asClassType().getInheritedTypes().size() > ct2.getInheritedTypes().size())
-            return ClassType.isSuperClass(ct1.asClassType(),ct2);
-        else
-            return ClassType.isSuperClass(ct2,ct1.asClassType());
-    }
-
-    public static boolean isSuperClass(ClassType subClass, ClassType superClass) {
-        if(subClass.toString().equals(superClass.toString()))
-            return true;
-
-        for(Name n : subClass.getInheritedTypes()) {
-            if(n.toString().equals(superClass.toString()))
-                return true;
-        }
-        return false;
-    }
-
-    public String getClassNameAsString() {
-        return this.className.toString();
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public String typeName() {
+    public String getTypeName() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.className);
 
@@ -117,12 +129,8 @@ public class ClassType extends Type {
         return sb.toString();
     }
 
-    @Override
-    public String toString() { return typeName(); }
-
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link ClassType}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
@@ -137,6 +145,9 @@ public class ClassType extends Type {
                 .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitClassType(this); }
 
@@ -151,32 +162,31 @@ public class ClassType extends Type {
         private final ClassType ct = new ClassType();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return ClassTypeBuilder
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link ClassTypeBuilder}.
          */
         public ClassTypeBuilder setMetaData(AST node) {
-            super.setMetaData(ct,node);
+            super.setMetaData(ct, node);
             return this;
         }
 
         /**
          * Sets the class type's {@link #className}.
-         * @param className Name representing the class the type refers to
-         * @return ClassTypeBuilder
+         * @param className {@link Name} representing the class the type refers to
+         * @return Current instance of {@link ClassTypeBuilder}.
          */
         public ClassTypeBuilder setClassName(Name className) {
-            ct.setClassName(className);
+            ct.className = className;
             return this;
         }
 
         /**
          * Sets the class type's {@link #typeArgs}.
          * @param typeArgs Vector of types containing any passed type arguments
-         * @return ClassTypeBuilder
+         * @return Current instance of {@link ClassTypeBuilder}.
          */
         public ClassTypeBuilder setTypeArgs(Vector<Type> typeArgs) {
-            ct.setTypeArgs(typeArgs);
+            ct.typeArgs = typeArgs;
             return this;
         }
 
@@ -184,9 +194,6 @@ public class ClassType extends Type {
          * Creates a {@link ClassType} object.
          * @return {@link ClassType}
          */
-        public ClassType create() {
-            ct.addChildNode(ct.className);
-            return ct;
-        }
+        public ClassType create() { return ct; }
     }
 }
