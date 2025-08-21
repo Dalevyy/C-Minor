@@ -4,9 +4,43 @@ import cminor.messages.CompilationMessage
 import cminor.messages.MessageNumber
 import cminor.type.TypeTest
 
-//TODO : Check instanceof operations :D
+// TODO : Check instanceof operations :D
+// TODO : NO NEGATIVE ARRAY DIMENSIONS!!!!
 
 class TypeBadTest extends TypeTest {
+
+    def "Array Literal - Invalid Array Dimensions (1D Array)"() {
+        when: "A 1D array is declared using two dimensions."
+            input = '''
+                        Array[5][2](1,2,3)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The array is not initialized correctly since the dimensions do not match the initial values given."
+            thrown CompilationMessage
+    }
+
+    def "Array Literal - Invalid Array Dimensions (2D Array)"() {
+        when: "A 2D array is declared using three dimensions."
+            input = '''
+                        Array[2][3][5](Array(1,2,3),Array(Array(4,5,6)))
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The array is not initialized correctly since the dimensions do not match the initial values given."
+            thrown CompilationMessage
+    }
+
+    def "Array Literal - Invalid Initialization Value (1D Array)"() {
+        when: "A 1D array is initialized incorrectly. "
+            input = '''
+                        Array[5](1,2,3,4,Array(1,2,3))
+                    '''
+            vm.runInterpreter(input)
+
+        then:
+            thrown CompilationMessage
+    }
 
     def "Assignment Statement - Invalid += Operation"() {
         when: "The += operation is used on two Bool variables."
@@ -501,6 +535,42 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_412
     }
 
+    def "Enum Declaration - Invalid Constant Type"() {
+        when: "An enum constant is not initialized to the same type as the other initial constants."
+            input = '''
+                        def WEEKS type = { MON = 1, TUES = 2, WEDS = 'c', THURS = 4 }
+                    '''
+        vm.runInterpreter(input)
+
+        then: "An error should be generated since enum constants have to be initialized to the same value type."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_438
+    }
+
+    def "Enum Declaration - Incorrect Initialization Count"() {
+        when: "Not every constant in an enum is initialized to a value."
+            input = '''
+                        def WEEKS type = { MON = 1, TUES, WEDS = 3, THURS }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The compiler is not able to guess the remaining values, so an error needs to be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_437
+    }
+
+    def "Enum Declaration - Invalid Initial Value"() {
+        when: "An enum constant is initialized to a type that isn't an Int or Char."
+            input = '''
+                        def WEEKS type = { MON = 1, TUES = 2, WEDS = 'three', THURS = 4 }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be generated since enum constants can only be initialized to an Int or Char"
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_436
+    }
+
     def "Field Declaration - Same Type as Class"() {
         when: "A field is declared with a type that matches the current class."
             input = '''
@@ -767,7 +837,6 @@ class TypeBadTest extends TypeTest {
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_429
     }
-
 
     def "List - 1D List is Not Homogeneous"() {
         when: "A list is declared with non-homogeneous values."
@@ -1119,7 +1188,7 @@ class TypeBadTest extends TypeTest {
             input = '''
                         class A {}
                         class B {} 
-                        
+
                         def a:A = new A()
                         retype a = new B()
                     '''
@@ -1137,9 +1206,9 @@ class TypeBadTest extends TypeTest {
                         class B inherits A {}
                         class C inherits A {}
                         class D {}
-                        
+
                         def a:A = new A()
-                        retype a = new D() 
+                        retype a = new D()
                     '''
             vm.runInterpreter(input)
 
@@ -1147,7 +1216,6 @@ class TypeBadTest extends TypeTest {
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_442
     }
-
 
     def "Unary Expression - Invalid ~ Operation"() {
         when: "A bitwise not operation is performed on a Real variable."

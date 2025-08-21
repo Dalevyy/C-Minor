@@ -5,6 +5,39 @@ import cminor.type.TypeTest
 
 class TypeGoodTest extends TypeTest {
 
+    def "Array Literal - Declaring an Empty 1D Array"() {
+        when: "An empty 1D array is initialized to a variable."
+            input = '''
+                        def a:Array[Int] = Array()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will occur?"
+            notThrown CompilationMessage
+    }
+
+    def "Array Literal - Declaring a 1D Array"() {
+        when: "A 1D array of Ints is declared and initialized into a variable."
+            input = '''
+                        def a:Array[Int] = Array(1,2,3,4,5)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The compiler will know each initial value's type matches, so no type errors will be generated."
+            notThrown CompilationMessage
+    }
+
+    def "Array Literal - Declaring a 1D Array"() {
+        when: "A 1D array of Ints is declared with a specific dimension and initialized into a variable."
+            input = '''
+                        def a:Array[Int] = Array[5](1,2,3,4,5)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The compiler will know each initial value's type matches, so no type errors will be generated."
+            notThrown CompilationMessage
+    }
+
     def "Assignment Statement - String Concatenation"() {
         when: "The += assignment operation is used on Strings."
             input = '''
@@ -378,6 +411,28 @@ class TypeGoodTest extends TypeTest {
             notThrown CompilationMessage
     }
 
+    def "Enum Declaration - Valid Enum Declaration"() {
+        when: "An enum is declared and all constants are initialized to a value."
+            input = '''
+                        def WEEKS type = { MON = 1, TUES = 2, WEDS = 3, THURS = 4, FRI = 5 }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors are thrown as long as the values are correctly typed."
+            notThrown CompilationMessage
+    }
+
+    def "Enum Declaration - Valid Enum Declaration"() {
+        when: "An enum is declared, but no constants are initialized."
+            input = '''
+                        def WEEKS type = { MON, TUES, WEDS, THURS, FRI }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The compiler will assign default values to each constant and no errors are generated."
+            notThrown CompilationMessage
+    }
+
     def "For Statement - Valid Header"() {
         when: "A for loop is written using an Int header."
             input = '''
@@ -696,6 +751,44 @@ class TypeGoodTest extends TypeTest {
             vm.runInterpreter(input)
 
         then: "No error should be thrown since the return value matches the return type."
+            notThrown CompilationMessage
+    }
+
+    def "Retype Statement - Valid Retype"() {
+        when: "A user tries to retype a parent object into a child type."
+            input = '''
+                        class A {}
+                        class B inherits A {}
+                        
+                        def a:A = new A()
+                        retype a = new B()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "As long as the child inherits from the parent type, there are no errors."
+            notThrown CompilationMessage
+    }
+
+    def "Retype Statement - Valid Retype 2"() {
+        when: "A user tries to retype a parent object into a child type."
+            input = '''
+                        class A {}
+                        class B inherits A {}
+                        class C inherits B {}
+                        class D inherits C {}
+                        
+                        def a:A = new A()
+                        while(True) {
+                            retype a = new B()
+                            if(3 < 5) { retype a = new D() }
+                            else {
+                                do { retype a = new C() } while(1 == 0)
+                            }
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "As long as the child inherits from the parent type, there are no errors."
             notThrown CompilationMessage
     }
 

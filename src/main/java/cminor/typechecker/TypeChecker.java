@@ -23,6 +23,7 @@ import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.ErrorBuilder;
 import cminor.messages.errors.scope.ScopeError;
+import cminor.messages.errors.semantic.SemanticError;
 import cminor.messages.errors.type.TypeError;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
@@ -137,7 +138,7 @@ public class TypeChecker extends Visitor {
      * Creates a type for an {@link ArrayLiteral}.
      * <p>
      *     When an array is created by the user, we will perform a visit on its dimensions alongside its
-     *     initial values. From there, we will call {@link TypeCheckerHelper#generateArrayType(ArrayLiteral)}
+     *     initial values. From there, we will call {@link TypeCheckerHelper#generateType(ArrayLiteral)}
      *     to make sure all the initial values are assignment compatible before we generate
      *     the {@link ArrayType} that the current array will represent.
      * </p>
@@ -159,7 +160,7 @@ public class TypeChecker extends Visitor {
         for(Expression init : al.getArrayInits())
             init.visit(this);
 
-        al.type = helper.generateArrayType(al);
+        al.type = helper.generateType(al);
     }
 
     /**
@@ -989,6 +990,10 @@ public class TypeChecker extends Visitor {
         }
         // Method Case
         else {
+            if(in.getTargetType().isMulti()) {
+
+            }
+
             lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
 
             // ERROR CHECK #1: This checks if the function was defined somewhere in the global scope.
@@ -1049,7 +1054,7 @@ public class TypeChecker extends Visitor {
      * Creates a type for a {@link ListLiteral}.
      * <p>
      *     When a list is created by the user, we need to first visit the initial values of
-     *     the list. From there, we will call {@link TypeCheckerHelper#generateListType(ListLiteral)}
+     *     the list. From there, we will call {@link TypeCheckerHelper#generateType(ListLiteral)}
      *     to make sure all the initial values are assignment compatible before we generate
      *     the {@link ListType} that the current list will represent.
      * </p>
@@ -1059,7 +1064,7 @@ public class TypeChecker extends Visitor {
         for(Expression init : ll.getInits())
             init.visit(this);
 
-        ll.type = helper.generateListType(ll);
+        ll.type = helper.generateType(ll);
     }
 
 //    /**
@@ -1660,25 +1665,34 @@ public class TypeChecker extends Visitor {
             return dim.isLiteral() && dim.type.isInt();
         }
 
-        private ArrayType generateArrayType(ArrayLiteral al) {
+        public ArrayType generateType(ArrayLiteral al) {
             ArrayTypeBuilder builder = new ArrayTypeBuilder();
 
-            if(al.getArrayInits().isEmpty()) {
-                return builder.setNumOfDims(al.getNumOfDims())
-                        .setBaseType(new VoidType())
-                        .create();
-            }
-
-            /*
-                ERROR CHECK #1: We need to make sure each initial value is assignment compatible with each other.
-                                We will use the type of the first initial value in the list literal to do this check.
-            */
-            Type baseType = al.getArrayInits().getFirst().type;
-            for (Expression init : al.getArrayInits()) {
-                if (!Type.assignmentCompatible(baseType, init.type)) {
+            if(!al.getArrayDims().isEmpty()) {
+                if(!isArrayInitializedCorrectly(0,al.getArrayDims(),al)) {
                     handler.createErrorBuilder(TypeError.class)
                             .addLocation(al)
-                            .addErrorNumber(MessageNumber.TYPE_ERROR_461)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_469)
+                            .generateError();
+                }
+            }
+            else {
+                for(Expression init : al.getArrayInits()) {
+                    if(init.isArrayLiteral() && !al.insideArrayLiteral()) {
+                        handler.createErrorBuilder(TypeError.class)
+                                .addLocation(al)
+                                .addErrorNumber(MessageNumber.TYPE_ERROR_468)
+                                .generateError();
+                    }
+                }
+            }
+
+            Type baseType = al.getArrayInits().getFirst().type;
+            for(Expression init : al.getArrayInits()) {
+                if(!Type.assignmentCompatible(baseType,init.type)) {
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(al)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_447)
                             .addErrorArgs(baseType, init.type)
                             .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1444)
                             .addSuggestionArgs(baseType)
@@ -1686,16 +1700,43 @@ public class TypeChecker extends Visitor {
                 }
             }
 
-            if (baseType.isArray()) {
+            if(baseType.isArray()) {
                 builder.setBaseType(baseType.asArray().getBaseType())
-                       .setNumOfDims(baseType.asArray().getDims() + 1);
+                        .setNumOfDims(baseType.asArray().getDims() + 1);
             } else {
                 builder.setBaseType(baseType)
-                       .setNumOfDims(1);
+                        .setNumOfDims(1);
             }
 
             return builder.create();
         }
+
+        private boolean isArrayInitializedCorrectly(int depth, Vector<Expression> dims, ArrayLiteral curr){
+            // Base Case!
+            if(depth == dims.size())
+                return true;
+
+            Expression expr = dims.get(depth);
+            if(expr.isNameExpr())
+                expr = currentScope.findName(expr).asTopLevelDecl().asGlobalDecl().getInitialValue();
+
+            int dim = expr.asLiteral().asInt();
+
+            if(curr.getArrayInits().size() > dim)
+                return false;
+
+            for(Expression init : curr.getArrayInits()) {
+                if(!init.isArrayLiteral()) {
+                    if(depth+1 != dims.size())
+                        return false;
+                }
+                else if(!isArrayInitializedCorrectly(depth+1,dims,init.asArrayLiteral()))
+                    return false;
+            }
+
+            return true;
+        }
+
 
         /**
          * Generates a {@link ListType} based on a passed {@link ListLiteral}
@@ -1709,7 +1750,7 @@ public class TypeChecker extends Visitor {
          * @param lst The current {@link ListLiteral} we wish to generate a {@link ListType} for.
          * @return {@link ListType}
          */
-        private ListType generateListType(ListLiteral lst) {
+        private ListType generateType(ListLiteral lst) {
             ListTypeBuilder builder = new ListTypeBuilder();
 
             // By default, an empty list will be Void and have a single dimension
