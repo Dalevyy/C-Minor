@@ -7,10 +7,8 @@ import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
-import cminor.micropasses.FieldRewriter;
-import cminor.micropasses.PropertyGenerator;
-import cminor.micropasses.SemanticAnalyzer;
-import cminor.micropasses.TypeValidator;
+import cminor.micropasses.*;
+import cminor.modifierchecker.ModifierChecker;
 import cminor.namechecker.NameChecker;
 import cminor.typechecker.TypeChecker;
 
@@ -181,5 +179,7 @@ public class PhaseHandler {
         phases.add(new FieldRewriter());
         phases.add(new TypeValidator(globalScope));
         phases.add(new TypeChecker(globalScope));
+        phases.add(new ConstructorGenerator());
+        phases.add(new ModifierChecker(globalScope));
     }
 }
