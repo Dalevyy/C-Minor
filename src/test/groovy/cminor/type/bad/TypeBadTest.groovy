@@ -9,6 +9,58 @@ import cminor.type.TypeTest
 
 class TypeBadTest extends TypeTest {
 
+    def "Array Expression - Invalid Array Target"() {
+        when: "An array expression is written without using a declared array."
+            input = '''
+                        def a:Int = 5
+                        a[4]
+                    '''
+            vm.runInterpreter(input)
+
+        then: "It's not possible to access any element since this will result in a segfault at runtime."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_453
+    }
+
+    def "Array Expression - Invalid Array Index"() {
+        when: "An array is accessed without using the correct number of indices."
+            input = '''
+                        def a:Array[Int] = Array(1,2,3)
+                        a[1][2]
+                    '''
+            vm.runInterpreter(input)
+
+        then: "It's not possible to access memory not owned by the array since it will result in a runtime segfault."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_448
+    }
+
+    def "Array Expression - Invalid Array Index 2"() {
+        when: "A list is accessed without using the correct number of indices."
+            input = '''
+                        def a:List[Int] = List(1,2,3)
+                        a[1][2]
+                    '''
+            vm.runInterpreter(input)
+
+        then: "It's not possible to access memory not owned by the list since it will result in a runtime segfault."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_448
+    }
+
+    def "Array Expression - Invalid Array Index 3"() {
+        when: "A list is accessed using a non-Int index."
+            input = '''
+                        def a:List[List[List[Int]]] = List(List(List()))
+                        a[1][2]['c']
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The index can't correctly be evaluated and could result in a segfault depending on the value used."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_454
+    }
+
     def "Array Literal - Invalid Array Dimensions (1D Array)"() {
         when: "A 1D array is declared using two dimensions."
             input = '''

@@ -118,7 +118,7 @@ public class NewExpr extends Expression {
     public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                this.objectType = node.asType().asClassType();
+                this.objectType = node.asType().asClass();
                 break;
             default:
                 this.initialFields.remove(pos-1);
@@ -138,7 +138,7 @@ public class NewExpr extends Expression {
 
         return new NewExprBuilder()
                    .setMetaData(this)
-                   .setClassType(this.objectType.deepCopy().asType().asClassType())
+                   .setClassType(this.objectType.deepCopy().asType().asClass())
                    .setInitialFields(initialFields)
                    .create();
     }

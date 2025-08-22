@@ -156,6 +156,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl, Retur
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < params.size(); i++)
             sb.append(params.get(i).getType().typeSignature());
+
         paramSignature = sb.toString();
         return paramSignature;
     }

@@ -66,34 +66,6 @@ public class ReturnStmt extends Statement {
     }
 
     /**
-     * Checks if the current {@link ReturnStmt} is inside a control flow statement.
-     * <p>
-     *     This is used by the {@link cminor.typechecker.TypeChecker} to determine if the return statement
-     *     we are visiting is guaranteed to be executed, so we can know whether the user correctly wrote
-     *     a function or method.
-     * </p>
-     * @return {@code True} if the return statement is in a control flow statement, {@code False} otherwise.
-     */
-    public boolean isInsideControlFlow() {
-        AST node = this;
-
-        while(node != null) {
-            if(node.isStatement()) {
-                if(node.asStatement().isChoiceStmt()
-                || node.asStatement().isDoStmt()
-                || node.asStatement().isForStmt()
-                || node.asStatement().isIfStmt()
-                || node.asStatement().isWhileStmt())
-                    return true;
-            }
-
-            node = node.getParent();
-        }
-
-        return false;
-    }
-
-    /**
      * {@inheritDoc}
      */
     public boolean isReturnStmt() { return true; }

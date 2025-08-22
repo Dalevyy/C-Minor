@@ -4,7 +4,6 @@ import cminor.ast.AST;
 import cminor.ast.misc.Name;
 import cminor.ast.misc.NameDecl;
 import cminor.ast.misc.Var;
-import cminor.ast.types.EnumType;
 import cminor.token.Token;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
@@ -24,11 +23,6 @@ public class EnumDecl extends TopLevelDecl implements NameDecl {
      * The list of constants associated with this enumeration.
      */
     private Vector<Var> constants;
-
-    /**
-     * The type of the enumeration.
-     */
-    private EnumType constantType;
 
     /**
      * Default constructor for {@link EnumDecl}.
@@ -57,25 +51,10 @@ public class EnumDecl extends TopLevelDecl implements NameDecl {
     public Name getName() { return name; }
 
     /**
-     * Getter method for {@link #constantType}
-     * @return {@link EnumType}
-     */
-    public EnumType getConstantType() { return constantType; }
-
-    /**
      * Getter method for {@link #constants}.
      * @return {@link Vector} of variables.
      */
     public Vector<Var> getConstants() { return constants;}
-
-    /**
-     * Setter that sets the value of {@link #constantType}.
-     * <p>
-     *     The {@link #constantType} will be set by the {@link typechecker.TypeChecker}.
-     * </p>
-     * @param constantType The {@link EnumType} we will set for this enumeration.
-     */
-    public void setConstantType(EnumType constantType) { this.constantType = constantType; }
 
     /**
      * {@inheritDoc}
@@ -85,7 +64,7 @@ public class EnumDecl extends TopLevelDecl implements NameDecl {
     /**
      * {@inheritDoc}
      */
-    public String getDeclName() { return name.toString(); };
+    public String getDeclName() { return name.toString(); }
 
     /**
      * {@inheritDoc}
@@ -147,7 +126,7 @@ public class EnumDecl extends TopLevelDecl implements NameDecl {
         private final EnumDecl ed = new EnumDecl();
 
         /**
-         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
          * @return Current instance of {@link EnumDeclBuilder}.
          */
         public EnumDeclBuilder setMetaData(AST node) {

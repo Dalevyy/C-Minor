@@ -29,12 +29,12 @@ public class VoidType extends Type {
     /**
      * {@inheritDoc}
      */
-    public boolean isVoidType() { return true; }
+    public boolean isVoid() { return true; }
 
     /**
      * {@inheritDoc}
      */
-    public VoidType asVoidType() { return this; }
+    public VoidType asVoid() { return this; }
 
     /**
      * {@inheritDoc}

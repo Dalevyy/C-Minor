@@ -7,6 +7,7 @@ import cminor.ast.classbody.InitDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.misc.*;
 import cminor.ast.types.ClassType;
+import cminor.micropasses.ConstructorGenerator;
 import cminor.token.Token;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
@@ -44,7 +45,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     private ClassBody body;
 
     /**
-     * The constructor of the current class. This will be set by the {@link cminor.micropasses.ConstructorGeneration} pass.
+     * The constructor of the current class. This will be set by the {@link ConstructorGenerator} pass.
      */
     private InitDecl constructor;
 

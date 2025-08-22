@@ -1,6 +1,7 @@
 package cminor.ast.expressions;
 
 import cminor.ast.AST;
+import cminor.ast.types.Type;
 import cminor.token.Token;
 import cminor.utilities.Visitor;
 
@@ -71,6 +72,8 @@ public class FieldExpr extends Expression {
      * @return Boolean
      */
     public boolean isMethodInvocation() { return isInvocation; }
+
+    public Type getTargetType() { return target.type; }
 
     /**
      * Getter for {@link #target}.

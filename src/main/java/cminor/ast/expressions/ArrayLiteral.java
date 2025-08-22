@@ -58,6 +58,12 @@ public class ArrayLiteral extends Literal {
     }
 
     /**
+     * Checks if the current {@link ArrayLiteral} is found inside another {@link ArrayLiteral}.
+     * @return {@code True} if the array literal is in another literal, {@code False} otherwise.
+     */
+    public boolean insideArrayLiteral() { return parent.isExpression() && parent.asExpression().isArrayLiteral(); }
+
+    /**
      * Getter for {@link #dims}.
      * @return Vector of Expressions
      */

@@ -10,6 +10,8 @@ import cminor.token.TokenType;
 import cminor.utilities.PrettyPrint;
 import cminor.utilities.Vector;
 
+//TODO: There seems to be an error with '<>' and '<=>' at least in the parser! \(O-o)/
+
 /**
  * This is the {@code Lexer} which is responsible for tokenizing a C
  * Minor program. An instance of the lexer will be contained in the parser,

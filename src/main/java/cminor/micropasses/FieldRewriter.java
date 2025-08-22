@@ -40,6 +40,11 @@ public class FieldRewriter extends Visitor {
     private SymbolTable currentScope;
 
     /**
+     * Flag that keeps track if we're inside a class or not. TEMPORARY HACK!!!!
+     */
+    private boolean insideClass = false;
+
+    /**
      * Sets the {@link #currentScope} to be inside a case statement.
      * @param cs {@link CaseStmt}
      */
@@ -70,7 +75,9 @@ public class FieldRewriter extends Visitor {
      */
     public void visitClassDecl(ClassDecl cd) {
         currentScope = cd.getScope();
+        insideClass = true;
         super.visitClassDecl(cd);
+        insideClass = false;
     }
 
     /**
@@ -165,7 +172,7 @@ public class FieldRewriter extends Visitor {
      * @param ne {@link NameExpr}
      */
     public void visitNameExpr(NameExpr ne) {
-        if(currentScope.hasNameInProgram(ne)) {
+        if(insideClass && currentScope.hasNameInProgram(ne)) {
             AST decl = currentScope.findName(ne);
             if(decl.isClassNode() && decl.asClassNode().isFieldDecl()) {
                 FieldExpr fe = new FieldExprBuilder()

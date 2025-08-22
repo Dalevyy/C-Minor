@@ -38,14 +38,20 @@ public class Var extends SubNode {
     /**
      * Default constructor for {@link Var}.
      */
-    public Var() { this(new Token(),null,null,null); }
+    public Var() {
+        this(new Token(),null,null,null);
+        this.wasInitialized = false;
+    }
 
     /**
      * Constructor for instantiating a {@link Var} without an initial value (for enum constants).
      * @param metaData {@link Token} containing all the metadata we will save into this node.
      * @param variableName {@link Name} to store into {@link #variableName}.
      */
-    public Var(Token metaData, Name variableName) { this(metaData, variableName, null, null); }
+    public Var(Token metaData, Name variableName) {
+        this(metaData, variableName, null, null);
+        this.wasInitialized = false;
+    }
 
     public Var(Token metaData, Name variableName, Type declaredType) {
         this(metaData, variableName, null, declaredType);

@@ -39,7 +39,7 @@ public class RetypeStmt extends AssignStmt {
      * Getter method for {@link #RHS}.
      * <p>
      *     This will cast the {@link #RHS} into a {@link NewExpr}. We don't need to use this
-     *     portion of the retype statement until the {@link typechecker.TypeChecker}, so it's
+     *     portion of the retype statement until the {@link cminor.typechecker.TypeChecker}, so it's
      *     fine if we do this.
      * </p>
      * @return {@link NewExpr}

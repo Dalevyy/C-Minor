@@ -11,8 +11,10 @@ package cminor.utilities;
  */
 public enum PhaseNumber {
 
-    PRINTER,
     SEMANTIC_ANALYZER,
     PROPERTY_GENERATOR,
-    NAME_CHECKER;
+    NAME_CHECKER,
+    FIELD_REWRITER,
+    TYPE_VALIDATOR,
+    TYPE_CHECKER;
 }

@@ -18,12 +18,18 @@ Primitive types.
 __________________________________________________________
 */
 public abstract class Type extends AST {
-    public Type(Token t) { super(t); }
 
-    public abstract String typeName();
+    /**
+     * Default constructor for {@link Type}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     */
+    public Type(Token metaData) { super(metaData); }
 
-    public boolean isType() { return true; }
-    public Type asType() { return this; }
+    /**
+     * Returns the String representation of the current {@link Type} node.
+     * @return String representation of the {@link Type}.
+     */
+    public abstract String getTypeName();
 
     public String typeSignature() {
         if(this.isBool()) return "B";
@@ -31,10 +37,10 @@ public abstract class Type extends AST {
         else if(this.isChar()) return "C";
         else if(this.isString()) return "S";
         else if(this.isReal()) return "R";
-        else if(this.isEnumType()) return this.toString();
-        else if(this.isListType()) return "L";
-        else if(this.isArrayType()) return "A";
-        else if(this.isClassType()) return this.toString();
+        else if(this.isEnum()) return this.toString();
+        else if(this.isList()) return "L";
+        else if(this.isArray()) return "A";
+        else if(this.isClass()) return this.toString();
         else return "V";
     }
 
@@ -43,112 +49,47 @@ public abstract class Type extends AST {
 
         for(int i = 1; i <= args.size(); i++) {
             if(i == args.size())
-                sb.append(args.get(i - 1).type.typeName());
+                sb.append(args.get(i - 1).type.getTypeName());
             else
-                sb.append(args.get(i-1).type.typeName()).append(", ");
+                sb.append(args.get(i-1).type.getTypeName()).append(", ");
         }
 
         return sb.toString();
     }
 
-    public static boolean sameTypeName(Type LHS, Type RHS) {
-        return LHS.typeName().equals(RHS.typeName());
-    }
 
-    public static boolean typeEqual(Type LHS, Type RHS) {
-        return LHS.typeSignature().equals(RHS.typeSignature()) && Type.sameTypeName(LHS,RHS);
+    public boolean equals(Type RHS) {
+        return this.typeSignature().equals(RHS.typeSignature()) && this.getTypeName().equals(RHS.getTypeName());
     }
 
     public static boolean assignmentCompatible(Type LHS, Type RHS) {
-        if(LHS.isClassType() && RHS.isClassType())
-            return LHS.asClassType().equals(RHS.asClassType());
-        else if(LHS.isEnumType() && RHS.isEnumType())
-            return LHS.asEnumType().toString().equals(RHS.asEnumType().toString());
-        else if(LHS.isListType() && RHS.isListType()) {
-            ListType lType = LHS.asListType();
-            ListType rType = RHS.asListType();
-            return lType.numOfDims == rType.numOfDims && Type.assignmentCompatible(lType.baseType(),rType.baseType());
+        if(LHS.isStructured() && RHS.isStructured()) {
+            if(LHS.isArray() && RHS.isArray())
+                return ArrayType.isArrayAssignmentCompatible(LHS.asArray(), RHS.asArray());
+            else if(LHS.isList() && RHS.isList())
+                return ListType.isArrayAssignmentCompatible(LHS.asList(), RHS.asList());
+            else if(LHS.isClass() && RHS.isClass())
+                return LHS.asClass().equals(RHS.asClass());
         }
-        else if(LHS.isArrayType() && RHS.isArrayType()) {
-            ArrayType lType = LHS.asArrayType();
-            ArrayType rType = RHS.asArrayType();
-            return lType.numOfDims == rType.numOfDims && Type.assignmentCompatible(lType.baseType(),rType.baseType());
-        }
-        else if(LHS.isClassOrMultiType() && RHS.isClassOrMultiType()) {
-            Vector<ClassType> possibleTypes;
-            if(LHS.isMultiType()) {
-                possibleTypes = LHS.asMultiType().getAllTypes();
-                for(ClassType ct : possibleTypes) {
-                    if(ct.toString().equals(RHS.asClassType().toString()))
-                        return true;
-                }
-            }
-            else {
-                possibleTypes = RHS.asMultiType().getAllTypes();
-                for(ClassType ct : possibleTypes) {
-                    if(ct.toString().equals(LHS.asClassType().toString()))
-                        return true;
-                }
-            }
-            return false;
-        }
-        else
-            return Type.typeEqual(LHS,RHS);
+        return LHS.equals(RHS);
+//        else if(LHS.isClassOrMultiType() && RHS.isClassOrMultiType()) {
+//            Vector<ClassType> possibleTypes;
+//            if(LHS.isMultiType()) {
+//                possibleTypes = LHS.asMultiType().getAllTypes();
+//                for(ClassType ct : possibleTypes) {
+//                    if(ct.toString().equals(RHS.asClassType().toString()))
+//                        return true;
+//                }
+//            }
+//            else {
+//                possibleTypes = RHS.asMultiType().getAllTypes();
+//                for(ClassType ct : possibleTypes) {
+//                    if(ct.toString().equals(LHS.asClassType().toString()))
+//                        return true;
+//                }
+//            }
+//            return false;
     }
-
-
-    /*
-        Discrete Type Predicates
-    */
-    public boolean isBool() {
-        return this.isDiscreteType()
-                && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.BOOL)
-                && !this.isEnumType();
-    }
-    public boolean isInt() {
-        return this.isDiscreteType()
-                && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.INT)
-                && !this.isEnumType();
-    }
-    public boolean isChar() {
-        return this.isDiscreteType()
-                && (this.asDiscreteType().getDiscreteType() == DiscreteType.Discretes.CHAR)
-                && !this.isEnumType();
-    }
-
-    /*
-        Scalar Type Predicates
-    */
-    public boolean isString() {
-        return this.isScalarType() && (this.asScalarType().getScalarType() == ScalarType.Scalars.STR);
-    }
-    public boolean isReal() {
-        return this.isScalarType() && (this.asScalarType().getScalarType() == ScalarType.Scalars.REAL);
-    }
-
-    public boolean isList() { return this.isListType(); }
-    public boolean isArray() { return this.isArrayType(); }
-    public boolean isNumeric() { return this.isInt() || this.isChar() || this.isReal(); }
-    public boolean isEnumType() { return false; }
-    public boolean isScalarType() { return false; }
-    public boolean isDiscreteType() { return false; }
-    public boolean isClassType() { return false; }
-    public boolean isMultiType() { return false; }
-    public boolean isClassOrMultiType() { return this.isClassType() || this.isMultiType(); }
-    public boolean isListType() { return false; }
-    public boolean isArrayType() { return false; }
-    public boolean isVoidType() { return false; }
-
-    public boolean isStructuredType() { return this.isArrayType() || this.isClassOrMultiType() || this.isListType(); }
-
-    public ScalarType asScalarType() { throw new RuntimeException("Expression can not be casted into a ScalarType.\n"); }
-    public DiscreteType asDiscreteType() { throw new RuntimeException("Expression can not be casted into a DiscreteType.\n"); }
-    public ClassType asClassType() { throw new RuntimeException("Expression can not be casted into a ClassType.\n"); }
-    public MultiType asMultiType() { throw new RuntimeException("Expression can not be casted into a MultiType.\n"); }
-    public ListType asListType() { throw new RuntimeException("Expression can not be casted into a ListType.\n"); }
-    public ArrayType asArrayType() { throw new RuntimeException("Expression can not be casted into an ArrayType.\n"); }
-    public VoidType asVoidType() { throw new RuntimeException("Expression can not be casted into a VoidType.\n"); }
-    public EnumType asEnumType() { throw new RuntimeException("Expression can not be casted into an EnumType.\n"); }
 
     /**
      * Generates a new type based on a provided type parameter.
@@ -174,13 +115,199 @@ public abstract class Type extends AST {
      * @param typeArg Type we want to now use in place of the type parameter
      * @return Newly created {@link Type} when we instantiate a template class or function
      */
-    public static Type instantiateType(ClassType templateType, Type typeArg) {
-        if(templateType.toString().contains("<"))
-            return new ClassType(new Name(templateType.getClassNameAsString()), new Vector<>(typeArg));
-        else
-            return typeArg;
+//    public static Type instantiateType(ClassType templateType, Type typeArg) {
+//        if(templateType.toString().contains("<"))
+//            return new ClassType(new Name(templateType.getClassNameAsString()), new Vector<>(typeArg));
+//        else
+//            return typeArg;
+//    }
+
+    /**
+     * Checks if the current AST node is an {@link ArrayType}.
+     * @return {@code True} if the node is an {@link ArrayType}, {@code False} otherwise.
+     */
+    public boolean isArray() { return false; }
+
+    /**
+     * Checks if the current AST node is a {@code Bool} type.
+     * @return {@code True} if the node is a {@code Bool} type, {@code False} otherwise.
+     */
+    public boolean isBool() { return isDiscrete() && asDiscrete().isBool(); }
+
+    /**
+     * Checks if the current AST node is a {@code Char} type.
+     * @return {@code True} if the node is a {@code Char} type, {@code False} otherwise.
+     */
+    public boolean isChar() { return isDiscrete() && asDiscrete().isChar(); }
+
+    /**
+     * Checks if the current AST node is a {@link ClassType}.
+     * @return {@code True} if the node is a {@link ClassType}, {@code False} otherwise.
+     */
+    public boolean isClass() { return false; }
+
+    /**
+     * Checks if the current AST node is either a {@link ClassType} or a {@link MultiType}.
+     * @return {@code True} if the node is a {@link ClassType} or a {@link MultiType}, {@code False} otherwise.
+     */
+    public boolean isClassOrMulti() { return isClass() || isMulti(); }
+
+    /**
+     * Checks if the current AST node is a {@link DiscreteType}.
+     * @return {@code True} if the node is a {@link DiscreteType}, {@code False} otherwise.
+     */
+    public boolean isDiscrete() { return false; }
+
+    /**
+     * Checks if the current AST node is an {@link EnumType}.
+     * @return {@code True} if the node is an {@link EnumType}, {@code False} otherwise.
+     */
+    public boolean isEnum() { return false; }
+
+    /**
+     * Checks if the current AST node is an {@code Int} type.
+     * @return {@code True} if the node is an {@code Int} type, {@code False} otherwise.
+     */
+    public boolean isInt() { return isDiscrete() && asDiscrete().isInt(); }
+
+    /**
+     * Checks if the current AST node is a {@link ListType}.
+     * @return {@code True} if the node is a {@link ListType}, {@code False} otherwise.
+     */
+    public boolean isList() { return false; }
+
+    /**
+     * Checks if the current AST node is a {@link MultiType}.
+     * @return {@code True} if the node is a {@link MultiType}, {@code False} otherwise.
+     */
+    public boolean isMulti() { return false; }
+
+    /**
+     * Checks if the current AST node is a numeric type.
+     * @return {@code True} if the node is a numeric type, {@code False} otherwise.
+     */
+    public boolean isNumeric() { return isInt() || isReal() || isChar(); }
+
+    /**
+     * Checks if the current AST node is a {@code Real} type.
+     * @return {@code True} if the node is a {@code Real} type, {@code False} otherwise.
+     */
+    public boolean isReal() { return isScalar() && asScalar().isReal(); }
+
+    /**
+     * Checks if the current AST node is a {@link ScalarType}.
+     * @return {@code True} if the node is a {@link ScalarType}, {@code False} otherwise.
+     */
+    public boolean isScalar() { return false; }
+
+    /**
+     * Checks if the current AST node is a {@code String} type.
+     * @return {@code True} if the node is a {@code String} type, {@code False} otherwise.
+     */
+    public boolean isString() { return isScalar() && asScalar().isString(); }
+
+    /**
+     * Checks if the current AST node is a structured type.
+     * @return {@code True} if the node is a structured type, {@code False} otherwise.
+     */
+    public boolean isStructured() { return isArray() || isClassOrMulti() || isList(); }
+
+    /**
+     * Checks if the current AST node is a {@code Text} type.
+     * @return {@code True} if the node is a {@code Text} type, {@code False} otherwise.
+     */
+    public boolean isText() { return isScalar() && asScalar().isText(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isType() { return true; }
+
+    /**
+     * Checks if the current AST node is a {@link VoidType}.
+     * @return {@code True} if the node is a {@link VoidType}, {@code False} otherwise.
+     */
+    public boolean isVoid() { return false; }
+
+    /**
+     * Explicitly casts the current node into an {@link ArrayType}.
+     * @return The current node as an {@link ArrayType}.
+     */
+    public ArrayType asArray() {
+        throw new RuntimeException("The current node does not represent an array type.\n");
     }
 
+    /**
+     * Explicitly casts the current node into a {@link ClassType}.
+     * @return The current node as a {@link ClassType}.
+     */
+    public ClassType asClass() {
+        throw new RuntimeException("The current node does not represent a class type.\n");
+    }
+
+    /**
+     * Explicitly casts the current node into a {@link DiscreteType}.
+     * @return The current node as a {@link DiscreteType}.
+     */
+    public DiscreteType asDiscrete() {
+        throw new RuntimeException("The current node does not represent a discrete type.\n");
+    }
+
+    /**
+     * Explicitly casts the current node into an {@link EnumType}.
+     * @return The current node as an {@link EnumType}.
+     */
+    public EnumType asEnum() {
+        throw new RuntimeException("The current node does not represent an Enum type.\n");
+    }
+
+    /**
+     * Explicitly casts the current node into a {@link ListType}.
+     * @return The current node as a {@link ListType}.
+     */
+    public ListType asList() {
+        throw new RuntimeException("The current node does not represent a list type.\n");
+    }
+
+    /**
+     * Explicitly casts the current node into a {@link MultiType}.
+     * @return The current node as a {@link MultiType}.
+     */
+    public MultiType asMulti() {
+        throw new RuntimeException("Expression can not be casted into a multi-type.\n");
+    }
+
+    /**
+     * Explicitly casts the current node into a {@link ScalarType}.
+     * @return The current node as a {@link ScalarType}.
+     */
+    public ScalarType asScalar() {
+        throw new RuntimeException("The current node does not represent a scalar type.\n");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public Type asType() { return this; }
+
+    /**
+     * Explicitly casts the current node into a {@link VoidType}.
+     * @return The current node as a {@link VoidType}.
+     */
+    public VoidType asVoidType() {
+        throw new RuntimeException("The current node does not represent a Void type.\n");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void update(int pos, AST n) { throw new RuntimeException("A type can not be updated."); }
+    public void update(int pos, AST node) { throw new RuntimeException("A type can not be updated."); }
+
+    /**
+     * Returns the type name of the current {@link Type}.
+     * @return String representing the name of the {@link Type}.
+     */
+    @Override
+    public String toString() { return getTypeName(); }
 }

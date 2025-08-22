@@ -84,9 +84,9 @@ public class Compiler {
      * @param root Compilation unit representing the program we want to compile
      */
     private void semanticAnalysis(CompilationUnit root) {
-        handler.addPhase(new PropertyGenerator());
-        handler.addPhase(new NameChecker());
-        handler.execute(root);
+//        handler.addPhase(new PropertyGenerator());
+//        handler.addPhase(new NameChecker());
+//        handler.execute(root);
 //        root.visit(new VariableInitialization(fileName));
 //        root.visit(new FieldRewrite());
 //        root.visit(new OperatorOverloadCheck());

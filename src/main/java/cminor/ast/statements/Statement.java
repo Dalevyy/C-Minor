@@ -16,6 +16,34 @@ public abstract class Statement extends AST {
     public Statement (Token metaData) { super(metaData); }
 
     /**
+     * Checks if the current {@link Statement} is contained inside a control flow statement.
+     * <p>
+     *     This is used by the {@link cminor.typechecker.TypeChecker} to determine if the statement
+     *     we are visiting is inside a control flow statement. This is used by the {@link ReturnStmt}
+     *     and the {@link RetypeStmt} to help with type checking.
+     * </p>
+     * @return {@code True} if the statement is in a control flow statement, {@code False} otherwise.
+     */
+    public boolean isInsideControlFlow() {
+        AST node = this;
+
+        while(node != null) {
+            if(node.isStatement()) {
+                if(node.asStatement().isChoiceStmt()
+                        || node.asStatement().isDoStmt()
+                        || node.asStatement().isForStmt()
+                        || node.asStatement().isIfStmt()
+                        || node.asStatement().isWhileStmt())
+                    return true;
+            }
+
+            node = node.getParent();
+        }
+
+        return false;
+    }
+
+    /**
      * Checks if the current AST node is an {@link AssignStmt}.
      * @return {@code True} if the node is an {@link AssignStmt}, {@code False} otherwise.
      */

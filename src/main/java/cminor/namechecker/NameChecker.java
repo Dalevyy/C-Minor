@@ -267,7 +267,9 @@ public class NameChecker extends Visitor {
                        .generateError();
             }
 
-            constant.getInitialValue().visit(this);
+            if(constant.hasInitialValue())
+                constant.getInitialValue().visit(this);
+
             // Add the constant and have it point back to the enum.
             currentScope.addName(constant.toString(), ed);
         }
@@ -791,6 +793,7 @@ public class NameChecker extends Visitor {
 
             for(MethodDecl subMethod : subClass.getClassBody().getMethods()) {
                 MethodDecl methodFound = null;
+                System.out.println(baseClass);
                 if(baseClass != null)
                     methodFound = isMethodInClassHierarchy(subMethod.getDeclName(),subMethod.getParamSignature(),baseClass);
 

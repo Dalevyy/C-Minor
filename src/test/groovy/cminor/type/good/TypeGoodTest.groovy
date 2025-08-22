@@ -5,10 +5,34 @@ import cminor.type.TypeTest
 
 class TypeGoodTest extends TypeTest {
 
+    def "Array Expression - Valid Expression"() {
+        when: "An array is declared and an element is accessed."
+            input = '''
+                        def a:Array[Int] = Array(1,2,3,4,5)
+                        a[3]
+                    '''
+            vm.runInterpreter(input)
+
+        then: "There will be no issues as long as the index expression is correct."
+            notThrown CompilationMessage
+    }
+
+    def "Array Expression - Valid Expression 2"() {
+        when: "An array is declared and an element is accessed."
+            input = '''
+                        def a:Array[Array[Int]] = Array[2][3](Array(1,2),Array(3,4,5))
+                        a[2]
+                    '''
+            vm.runInterpreter(input)
+
+        then: "There will be no issues as long as the index expression is correct."
+            notThrown CompilationMessage
+    }
+
     def "Array Literal - Declaring an Empty 1D Array"() {
         when: "An empty 1D array is initialized to a variable."
             input = '''
-                        def a:Array[Int] = Array()
+                        def a:Array[Int] = Array(1) 
                     '''
             vm.runInterpreter(input)
 

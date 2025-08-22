@@ -529,7 +529,7 @@ public class Parser {
             match(TokenType.EQ);
             if(nextLA(TokenType.UNINIT)) {
                 match(TokenType.UNINIT);
-                return new Var(nodeToken(),n,new Literal(),t); // give it some random value
+                return new Var(nodeToken(),n,null,t); // give it some random value
             }
             else {
                 Expression e = expression();
@@ -1157,7 +1157,7 @@ public class Parser {
 
         if(nextLA(TokenType.BNOT)) {
             match(TokenType.BNOT);
-            return new UnaryOp(nodeToken(),UnaryType.NEGATE);
+            return new UnaryOp(nodeToken(),UnaryType.BNOT);
         }
         else {
             match(TokenType.NOT);

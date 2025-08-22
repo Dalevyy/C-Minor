@@ -109,7 +109,7 @@ public class ListStmt extends Statement {
      * Getter to return the type of list.
      * @return {@link ListType}
      */
-    public ListType getListType() { return args.get(0).type.asListType(); }
+    public ListType getListType() { return args.get(0).type.asList(); }
 
     /**
      * Getter to return the second argument in the list statement.

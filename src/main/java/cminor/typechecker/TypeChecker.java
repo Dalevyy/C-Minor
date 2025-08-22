@@ -3,6 +3,7 @@ package cminor.typechecker;
 // TODO: Remember since you are doing List[Void] internally, you need to make sure the user doesn't write that as a valid type. ?
 
 import cminor.ast.AST;
+import cminor.ast.classbody.FieldDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.expressions.*;
 import cminor.ast.expressions.FieldExpr.FieldExprBuilder;
@@ -33,7 +34,6 @@ public class TypeChecker extends Visitor {
 
     private SymbolTable currentScope;
     private final TypeCheckerHelper helper;
- //   private TypeValidityPass typeValidityPass;
 
     /**
      * Creates the {@link TypeChecker} in compilation mode
@@ -44,95 +44,98 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Creates type checker in interpretation mode
-     * @param st Symbol Table
+     * Creates the {@link TypeChecker} in interpretation mode
+     * @param globalScope {@link SymbolTable} representing the VM's global scope.
      */
-    public TypeChecker(SymbolTable st) {
+    public TypeChecker(SymbolTable globalScope) {
         this();
-        this.currentScope = st;
-       //  this.typeValidityPass = new TypeValidityPass(this.currentScope.getRootTable());
+        this.currentScope = globalScope;
     }
 
-//    /**
-//     * <p>
-//     *     Array expressions are how users can access memory from array.
-//     *     First, we make sure the target is an array (or a list) since it
-//     *     does not make sense to dereference a non-array type. Then, we
-//     *     will make sure the index evaluates to an integer. We will not
-//     *     check if the integer is a valid index or not since this needs
-//     *     to be done at runtime.
-//     * </p>
-//     * @param ae Array Expression
-//     */
-//    public void visitArrayExpr(ArrayExpr ae) {
-//        ae.getArrayTarget().visit(this);
-//
-//        // ERROR CHECK #1: This checks if the target represents a valid Array or List type.
-//        if(!ae.getArrayTarget().type.isArrayType() && !ae.getArrayTarget().type.isListType()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ae)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_453)
-//                    .addErrorArgs(ae.getArrayTarget())
-//                    .generateError();
-//        }
-//
-//        Type arrType;
-//        if(currentTarget == null)
-//            arrType = currentScope.findName(ae.getArrayTarget()).getDecl().asType();
-//        else {
-//            ClassDecl cd = currentScope.findName(currentTarget).getDecl().asTopLevelDecl().asClassDecl();
-//            arrType = cd.getScope().findName(ae.getArrayTarget()).getDecl().asClassNode().asFieldDecl().getDeclaredType().asArrayType();
-//        }
-//
-//        if(arrType.isArrayType()) {
-//            // ERROR CHECK #2: This checks if the number of indices exceeds the number of dimensions for the array.
-//            if(ae.getArrayIndex().size() > arrType.asArrayType().numOfDims) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ae)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_448)
-//                        .addErrorArgs("array", ae.getArrayTarget(), arrType.asArrayType().numOfDims, ae.getArrayIndex().size())
-//                        .generateError();
-//            }
-//        }
-//        else {
-//            // ERROR CHECK #3: Same as the previous error check, but for lists instead.
-//            if(ae.getArrayIndex().size() > arrType.asListType().numOfDims) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ae)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_448)
-//                        .addErrorArgs("list", ae.getArrayTarget(), arrType.asListType().numOfDims, ae.getArrayIndex().size())
-//                        .generateError();
-//            }
-//        }
-//
-//
-//
-//        for(Expression e : ae.getArrayIndex()) {
-//            e.visit(this);
-//
-//            // ERROR CHECK #3: For each index, make sure the
-//            //                 value evaluates to be an Int
-//            if(!e.type.isInt()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ae)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_454)
-//                        .addErrorArgs(e.type)
-//                        .generateError();
-//            }
-//        }
-//        if(arrType.isArrayType()) {
-//            if(arrType.asArrayType().numOfDims != ae.getArrayIndex().size())
-//                ae.type = new ArrayType(arrType.asArrayType().baseType(),ae.getArrayIndex().size());
-//            else
-//                ae.type = arrType.asArrayType().baseType();
-//        }
-//        else {
-//            if(arrType.asListType().numOfDims != ae.getArrayIndex().size())
-//                ae.type = new ListType(arrType.asListType().baseType(),ae.getArrayIndex().size());
-//            else
-//                ae.type = arrType.asListType().baseType();
-//        }
-//    }
+    /**
+     * Evaluates the array expression's type.
+     * <p>
+     *     Array expressions are how users access elements within an array or list.
+     *     This check ensures that we are able to properly evaluate an array expression
+     *     in order to correctly access the element we need at runtime. Note: At this
+     *     moment, we won't care about whether any indices will result in a segfault.
+     *     We will do this check in the {@link cminor.interpreter.Interpreter}.
+     * </p>
+     * @param ae {@link ArrayExpr}
+     */
+    public void visitArrayExpr(ArrayExpr ae) {
+        ae.getArrayTarget().visit(this);
+
+        // ERROR CHECK #1: This checks if the target represents a valid Array or List type.
+        if(!ae.getArrayTarget().type.isArray() && !ae.getArrayTarget().type.isList()) {
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(ae)
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_453)
+                   .addErrorArgs(ae.getArrayTarget())
+                   .generateError();
+        }
+
+        Type lst = helper.getTargetType(ae.getArrayTarget());
+        if(lst == null) {
+            ClassDecl cd = currentScope.findName(ae.getArrayTarget().getTargetType()).asTopLevelDecl().asClassDecl();
+            lst = cd.getScope().findName(ae.getArrayTarget()).asClassNode().asFieldDecl().getType();
+        }
+
+        if(lst.isArray()) {
+            // ERROR CHECK #2: This checks if the number of indices exceeds the number of dimensions for the array.
+            if(ae.getArrayIndex().size() > lst.asArray().getDims()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ae)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_448)
+                       .addErrorArgs("array", ae.getArrayTarget(), lst.asArray().getDims(), ae.getArrayIndex().size())
+                       .generateError();
+            }
+        }
+        else {
+            // ERROR CHECK #3: Same as the previous error check, but for lists instead.
+            if(ae.getArrayIndex().size() > lst.asList().getDims()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ae)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_448)
+                       .addErrorArgs("list", ae.getArrayTarget(), lst.asList().getDims(), ae.getArrayIndex().size())
+                       .generateError();
+            }
+        }
+
+        for(Expression index : ae.getArrayIndex()) {
+            index.visit(this);
+
+            // ERROR CHECK #3: Each index value must represent an Int.
+            if(!index.type.isInt()) {
+                handler.createErrorBuilder(TypeError.class)
+                       .addLocation(ae)
+                       .addErrorNumber(MessageNumber.TYPE_ERROR_454)
+                       .addErrorArgs(index.type)
+                       .generateError();
+            }
+        }
+
+        // We will allow users to access subarrays and sublists, so we want to make sure the type
+        // we use for the array expression matches the expected type of the element that is accessed.
+        if(lst.isList()) {
+            if(lst.asList().getDims() != ae.getArrayIndex().size()) {
+                ae.type = new ListTypeBuilder()
+                              .setBaseType(lst.asList().getBaseType())
+                              .setNumOfDims(ae.getArrayIndex().size())
+                              .create();
+            } else
+                ae.type = lst.asList().getBaseType();
+        }
+        else {
+            if (lst.asArray().getDims() != ae.getArrayIndex().size()) {
+                ae.type = new ArrayTypeBuilder()
+                        .setBaseType(lst.asArray().getBaseType())
+                        .setNumOfDims(ae.getArrayIndex().size())
+                        .create();
+            } else
+                ae.type = lst.asArray().getBaseType();
+        }
+    }
 
     /**
      * Creates a type for an {@link ArrayLiteral}.
@@ -741,6 +744,17 @@ public class TypeChecker extends Visitor {
     }
 
     /**
+     * Generates a default value for a {@link FieldDecl}.
+     * <p>
+     *     We will create a default value for each {@link FieldDecl} declared in a class. This
+     *     will be used by the {@link cminor.micropasses.ConstructorGenerator} to correctly initialize
+     *     any fields that are not explicitly instantiated by a user when writing a {@link NewExpr}.
+     * </p>
+     * @param fd {@link FieldDecl}
+     */
+    public void visitFieldDecl(FieldDecl fd) { fd.setInitialValue(helper.generateDefaultValue(fd.getType())); }
+
+    /**
      * Evaluates the field expression's type.
      * <p>
      *     During this visit, we are concerned with making sure that each target located in
@@ -960,7 +974,7 @@ public class TypeChecker extends Visitor {
         }
 
         // Find the correct scope to check for the method name.
-        SymbolTable lookup;
+        SymbolTable lookup = null;
 
         // I think it's cleaner to separate the invocations like this...
         // Function Case
@@ -991,10 +1005,18 @@ public class TypeChecker extends Visitor {
         // Method Case
         else {
             if(in.getTargetType().isMulti()) {
-
+                for(ClassType ct : in.getTargetType().asMulti().getAllTypes()) {
+                    lookup = currentScope.findName(ct).asTopLevelDecl().asClassDecl().getScope();
+                    if(lookup.hasMethodName(in.getName()) && lookup.hasMethodOverload(in.getName(), in.getSignature())) {
+                        MethodDecl md = lookup.findMethod(in.getName().toString(), in.getSignature()).asClassNode().asMethodDecl();
+                        in.type = md.getReturnType();
+                        return;
+                    }
+                }
+                handler.createErrorBuilder(TypeError.class).addErrorNumber(MessageNumber.TYPE_ERROR_471).generateError();
             }
-
-            lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
+            else
+                lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
 
             // ERROR CHECK #1: This checks if the function was defined somewhere in the global scope.
             if(!lookup.hasMethodName(in.getName())) {
@@ -1614,6 +1636,22 @@ public class TypeChecker extends Visitor {
      */
     private class TypeCheckerHelper {
 
+        private Type getTargetType(Expression node) {
+            AST decl = currentScope.findName(node);
+
+            if(decl == null)
+                return null;
+
+            if(decl.isClassNode())
+                return decl.asClassNode().asFieldDecl().getType();
+            else if(decl.isTopLevelDecl())
+                return decl.asTopLevelDecl().asGlobalDecl().getType();
+            else if(decl.isSubNode())
+                return decl.asSubNode().asParamDecl().getType();
+            else
+                return decl.asStatement().asLocalDecl().getType();
+        }
+
         /**
          * Creates a default value for a variable.
          * <p>
@@ -1712,16 +1750,26 @@ public class TypeChecker extends Visitor {
         }
 
         private boolean isArrayInitializedCorrectly(int depth, Vector<Expression> dims, ArrayLiteral curr){
-            // Base Case!
+            // Base Case 1: If the depth reaches the same size as the dimensions vector, then we have
+            //              looked through all dimensions, and no issues were found.
             if(depth == dims.size())
                 return true;
 
+            // Retrieve the dimension as an Integer.
             Expression expr = dims.get(depth);
             if(expr.isNameExpr())
                 expr = currentScope.findName(expr).asTopLevelDecl().asGlobalDecl().getInitialValue();
-
             int dim = expr.asLiteral().asInt();
 
+            // ERROR CHECK #1: The dimensions of an array must be a positive Int.
+            if(dim < 0) {
+                handler.createErrorBuilder(ScopeError.class)
+                        .addLocation(curr)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_470)
+                        .generateError();
+            }
+
+            // Base Case 2:
             if(curr.getArrayInits().size() > dim)
                 return false;
 

@@ -70,7 +70,7 @@ public class Value {
                     val = li.text.substring(1,li.text.length()-1);
                 break;
             case ENUM:
-                if(li.type.asEnumType().constantType().isInt())
+                if(li.type.isInt())
                     val = Integer.parseInt(li.text);
                 else
                     val = li.text.charAt(1) == '\\' ? (char) ('\\' + li.text.charAt(2)) : li.text.charAt(1);
@@ -155,7 +155,7 @@ public class Value {
      * @return Boolean
      */
     public boolean equals(Value RHS) {
-        if(!Type.typeEqual(this.type,RHS.type))
+        if(this.type.equals(RHS.type))
             return false;
         else if(RHS.type.isInt())
             return this.asInt() == RHS.asInt();
