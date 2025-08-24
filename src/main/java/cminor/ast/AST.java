@@ -226,6 +226,17 @@ public abstract class AST {
     public String toString() { return text; }
 
     /**
+     * Checks if 2 AST nodes are equal to each other.
+     * <p>
+     *     In this case, we will check if both nodes represent the same location in the program
+     *     AND they both contain the same exact text.
+     * </p>
+     * @param node The {@link AST} node we wish to do a comparison with.
+     * @return {@code True} if both nodes are equal to each other, {@code False} otherwise.
+     */
+    public boolean equals(AST node) { return location.equals(node.location) && text.equals(node.text); }
+
+    /**
      * Internal class that will build the metadata for an {@link AST} node.
      */
     protected static class NodeBuilder {

@@ -35,4 +35,6 @@ public class Location {
     public String toString() {
         return start.toString() + " to " + end.toString();
     }
+
+    public boolean equals(Location RHS) { return start.equals(RHS.start) && end.equals(RHS.end); }
 }
