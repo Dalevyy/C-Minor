@@ -33,7 +33,7 @@ public abstract class Expression extends AST {
      */
     public Type getTargetType() {
         if(parent != null && parent.isExpression() && parent.asExpression().isFieldExpr())
-            return parent.asExpression().asFieldExpr().getTargetType().asClass();
+            return parent.asExpression().asFieldExpr().getTargetType();
 
         throw new RuntimeException("The current expression is not found inside a field expression!");
     }

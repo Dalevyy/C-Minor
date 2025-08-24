@@ -135,6 +135,15 @@ public enum MessageNumber {
     TYPE_ERROR_469,
     TYPE_ERROR_470,
     TYPE_ERROR_471,
+    TYPE_ERROR_472,
+    TYPE_ERROR_473,
+    TYPE_ERROR_474,
+    TYPE_ERROR_475,
+    TYPE_ERROR_476,
+    TYPE_ERROR_477,
+    TYPE_ERROR_478,
+    TYPE_ERROR_479,
+    TYPE_ERROR_480,
 
 
     /* ######################################## MODIFIER ERRORS ######################################## */

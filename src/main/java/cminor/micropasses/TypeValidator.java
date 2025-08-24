@@ -119,7 +119,6 @@ public class TypeValidator extends Visitor {
         Type fieldType = fd.getType();
         while(fieldType.isArray() || fieldType.isList())
             fieldType = fieldType.asArray().getBaseType();
-        System.out.println(fieldType);
 
         if(fieldType.isClass()) {
             ClassDecl cd = fd.getClassDecl();

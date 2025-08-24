@@ -793,7 +793,7 @@ public class NameChecker extends Visitor {
 
             for(MethodDecl subMethod : subClass.getClassBody().getMethods()) {
                 MethodDecl methodFound = null;
-                System.out.println(baseClass);
+
                 if(baseClass != null)
                     methodFound = isMethodInClassHierarchy(subMethod.getDeclName(),subMethod.getParamSignature(),baseClass);
 

@@ -1,5 +1,7 @@
 package cminor.modifierchecker;
 
+//TODO: A template class can only be inherited when it's instantiated!
+
 import cminor.ast.AST;
 import cminor.ast.classbody.FieldDecl;
 import cminor.ast.classbody.MethodDecl;
@@ -12,445 +14,413 @@ import cminor.ast.types.ClassType;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.mod.ModError;
+import cminor.namechecker.NameChecker;
+import cminor.typechecker.TypeChecker;
 import cminor.utilities.SymbolTable;
+import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
-import java.util.HashSet;
-
 public class ModifierChecker extends Visitor {
-/*
+
+    /**
+     * Current scope we are resolving modifiers in.
+     */
     private SymbolTable currentScope;
-    private AST currentContext;
-    private ClassDecl currentClass;
-    private boolean parentFound = false;
 
-    *//**
-     * Creates modifier checker in compilation mode
-     *//*
-    public ModifierChecker(String fileName) {
-        this.currentScope = null;
-        this.handler = new MessageHandler(fileName);
-    }
+    /**
+     * Instance of {@link ModifierCheckerHelper} that will be used for additional modifier checking tasks.
+     */
+    private final ModifierCheckerHelper helper;
 
-    *//**
-     * Creates modifier checker in interpretation mode
-     * @param st Symbol Table
-     *//*
-    public ModifierChecker(SymbolTable st) {
-        this.currentScope = st;
+    /**
+     * Creates the {@link ModifierChecker} in compilation mode.
+     */
+    public ModifierChecker() {
         this.handler = new MessageHandler();
+        this.helper = new ModifierCheckerHelper();
     }
 
-    *//**
-     * Determines if abstract methods were implemented in concrete classes.<br><br>
-     * <p>
-     *     ThisStmt algorithm comes from Dr. Pedersen's compilers textbook, and it will
-     *     determine whether or not a method is considered abstract or concrete based
-     *     on its implementation inside of a class. ThisStmt will only be called by
-     *     {@link #checkAbstrClassImplementation(ClassDecl, ClassDecl)} when we are
-     *     checking if a class correctly implements all methods from an abstract class.
-     * </p>
-     * @param abstr Current set of abstract methods
-     * @param concrete Current set of concrete methods
-     * @param cd Current class we are checking method implementation for
-     *//*
-    private void sortClassMethods(HashSet<String> abstr, HashSet<String> concrete, ClassDecl cd) {
-
-        // Start from the top of the inheritance hierarchy
-        if(cd.getSuperClass() != null) {
-            sortClassMethods(abstr,concrete,
-                    currentScope.findName(cd.getSuperClass().typeName()).getDecl().asTopLevelDecl().asClassDecl());
-        }
-
-        for(String conName : concrete)
-            abstr.remove(conName);
-
-        for(MethodDecl md : cd.getClassBody().getMethods()) {
-            if(cd.mod.isAbstract()) {
-                abstr.add(md.toString());
-                concrete.remove(md.toString());
-            }
-            else {
-                concrete.add(md.toString());
-                abstr.remove(md.toString());
-            }
-        }
+    /**
+     * Creates the {@link ModifierChecker} in interpretation mode.
+     * @param globalScope The {@link SymbolTable} representing the global scope.
+     */
+    public ModifierChecker(SymbolTable globalScope) {
+        this();
+        this.currentScope = globalScope;
     }
 
-    *//**
-     * Checks if the user correctly implements an inherited abstract class.<br><br>
+    /**
+     * Verifies if modifiers are used correctly when executing an assignment statement.
      * <p>
-     *     ThisStmt method will validate if a user correctly inherits from an abstract
-     *     class. A valid inheritance implies the user has implemented every single
-     *     method declared in the abstract class in their base class. To determine
-     *     which methods were implemented, we will call {@link #sortClassMethods(HashSet, HashSet, ClassDecl)}.
      * </p>
-     * @param subClass   Subclass representing concrete class inheriting abstract class
-     * @param superClass Superclass representing an abstract class
-     *//*
-    private void checkAbstrClassImplementation(ClassDecl subClass, ClassDecl superClass) {
-        HashSet<String> concretes = new HashSet<>();
-        HashSet<String> abstracts = new HashSet<>();
-        sortClassMethods(abstracts,concretes,subClass);
-
-        // ERROR CHECK #1: Make sure all abstract methods from the
-        //                 superclass were implemented in the subclass
-        if(!abstracts.isEmpty()) {
-            handler.createErrorBuilder(ModError.class)
-                    .addLocation(subClass)
-                    .addErrorNumber(MessageNumber.MOD_ERROR_501)
-                    .addErrorArgs(subClass.toString(),superClass.toString())
-                    .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1501)
-                    .generateError();
-        }
-    }
-
-    *//**
-     * Checks modifier usage for assignment statements.<br><br>
-     * <p>
-     *     Since constant variables are allowed in C Minor, we have to check
-     *     to make sure a user isn't redefining any constants within their
-     *     programs. In this case, we are checking for enum and global constants.
-     * </p>
-     * @param as Assignment Statement
-     *//*
+     * @param as {@link AssignStmt}
+     */
     public void visitAssignStmt(AssignStmt as) {
-        if(!as.getLHS().isFieldExpr()) {
-            AST LHS = currentScope.findName(as.getLHS().toString()).getDecl();
+        // If the LHS represents a field expression, we will let a separate visit error check it.
+        if(as.getLHS().isFieldExpr()) {
+            as.getLHS().visit(this);
+            return;
+        }
 
-            if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
-                // ERROR CHECK #1: A constant can not be updated after its declaration
-                if (LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
-                    handler.createErrorBuilder(ModError.class)
-                            .addLocation(as)
-                            .addErrorNumber(MessageNumber.MOD_ERROR_505)
-                            .addErrorArgs(as.getLHS().toString())
-                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1505)
-                            .generateError();
-                }
-            }
-            // ERROR CHECK #2: An enum constant can not be reassigned its value
-            else if (LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
+        AST LHS = currentScope.findName(as.getLHS());
+        if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
+            // ERROR CHECK #1: A global constant can not have its value changed.
+            if(LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
                 handler.createErrorBuilder(ModError.class)
-                        .addLocation(as)
-                        .addErrorNumber(MessageNumber.MOD_ERROR_508)
-                        .addErrorArgs(as.getLHS().toString())
-                        .generateError();
+                       .addLocation(as)
+                       .addErrorNumber(MessageNumber.MOD_ERROR_505)
+                       .addErrorArgs(as.getLHS())
+                       .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1505)
+                       .generateError();
             }
+        }
+        // ERROR CHECK #2: An enum constant can not be reassigned its value.
+        else if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
+            handler.createErrorBuilder(ModError.class)
+                   .addLocation(as)
+                   .addErrorNumber(MessageNumber.MOD_ERROR_508)
+                   .addErrorArgs(as.getLHS())
+                   .generateError();
         }
     }
 
-    *//**
-     * Sets current scope inside case block
-     * @param cs Case Statement
-     *//*
+    /**
+     * Sets the current scope to be in a {@link CaseStmt}
+     * @param cs {@link CaseStmt}
+     */
     public void visitCaseStmt(CaseStmt cs) {
-        SymbolTable oldScope = currentScope;
-        currentScope = cs.scope;
+        currentScope = cs.getScope();
         super.visitCaseStmt(cs);
-        currentScope = oldScope;
+        currentScope = currentScope.closeScope();
     }
 
-    *//**
-     * Sets current scope inside choice's other block
-     * @param cs Choice Statement
-     *//*
+    /**
+     * Sets the current scope to be in a {@link ChoiceStmt}
+     * @param cs {@link ChoiceStmt}
+     */
     public void visitChoiceStmt(ChoiceStmt cs) {
         for(CaseStmt c : cs.getCases())
             c.visit(this);
 
-        SymbolTable oldScope = currentScope;
-        currentScope = cs.scope;
+        currentScope = cs.getScope();
         cs.getDefaultBody().visit(this);
-        currentScope = oldScope;
-    }
-
-    *//** Checks class modifier usage.<br><br>
-     * <p>
-     *     All modifier checks in classes relate to inheritance, and there
-     *     are currently two checks we need to do.
-     *     <ol>
-     *         <li>
-     *             If a class inherits from a class marked as 'final', then
-     *             we need to produce an error since the user does not want
-     *             the superclass to be inherited by other classes.
-     *         </li>
-     *         <li>
-     *             If a class inherits from an abstract class, then we need to
-     *             ensure a user correctly implements every method declared in
-     *             the abstract class inside of the concrete class that inherits
-     *             from it.
-     *         </li>
-     *     </ol>
-     * </p>
-     * @param cd Class Declaration
-     *//*
-    public void visitClassDecl(ClassDecl cd) {
-        SymbolTable oldScope = currentScope;
-        currentScope = cd.getScope();
-
-        if(cd.getSuperClass() != null) {
-            ClassDecl superDecl = currentScope.findName(cd.getSuperClass().toString())
-                                                            .getDecl().asTopLevelDecl().asClassDecl();
-
-            // ERROR CHECK #1: Make sure the superclass was not declared as 'final'
-            if(superDecl.mod.isFinal()) {
-                handler.createErrorBuilder(ModError.class)
-                        .addLocation(cd)
-                        .addErrorNumber(MessageNumber.MOD_ERROR_500)
-                        .addErrorArgs(cd.toString(),superDecl.toString())
-                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1500)
-                        .generateError();
-            }
-
-            // If the current class is inheriting from an abstract class, then check
-            // if every superclass method was implemented in the current class
-            if(!cd.mod.isAbstract() && superDecl.mod.isAbstract())
-                checkAbstrClassImplementation(cd,superDecl);
-        }
-        this.currentClass = cd;
-        if(cd.getTypeParams().isEmpty())
-            super.visitClassDecl(cd);
-        this.currentClass = null;
-        currentScope = oldScope;
-    }
-
-    *//**
-     * Sets current scope inside do while loop's block.
-     * @param ds Do Statement
-     *//*
-    public void visitDoStmt(DoStmt ds) {
-        SymbolTable oldScope = currentScope;
-        currentScope = ds.scope;
-        ds.getBody().visit(this);
-        currentScope = oldScope;
-        ds.getCondition().visit(this);
-    }
-
-    *//**
-     * Checks field expression modifier usage.<br><br>
-     * <p>
-     *     We only have one modifier check to perform for field expressions
-     *     involving the access scope of a field. Fields can only be accessed
-     *     outside of a class if they were declared public.
-     * </p>
-     * @param fe Field Expressions
-     *//*
-    public void visitFieldExpr(FieldExpr fe) {
-        fe.getTarget().visit(this);
-        if(fe.getAccessExpr().isNameExpr() || fe.getAccessExpr().isArrayExpr()) {
-            ClassDecl cd;
-            FieldDecl fd = null;
-            if(fe.getTarget().type.isClassType()) {
-                cd = currentScope.findName(fe.getTarget().type.toString()).getDecl().asTopLevelDecl().asClassDecl();
-                fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
-            }
-            else {
-                for(ClassType ct : fe.getTarget().type.asMultiType().getAllTypes()) {
-                    cd = currentScope.findName(ct.toString()).getDecl().asTopLevelDecl().asClassDecl();
-                    if(cd.getScope().hasName(fe.getAccessExpr().toString())) {
-                        fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
-                        break;
-                    }
-                }
-            }
-
-            // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
-            if (!fe.getTarget().toString().equals("this") && !fd.mod.isPublic()) {
-                handler.createErrorBuilder(ModError.class)
-                        .addLocation(fe)
-                        .addErrorNumber(MessageNumber.MOD_ERROR_507)
-                        .addErrorArgs(fe.getTarget().toString(), fd.toString())
-                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1507)
-                        .generateError();
-            }
-        }
-        fe.getAccessExpr().visit(this);
-        parentFound = false;
-    }
-
-    *//**
-     * Sets current scope inside for block
-     * @param fs For Statement
-     *//*
-    public void visitForStmt(ForStmt fs) {
-        SymbolTable oldScope = currentScope;
-        currentScope = fs.scope;
-        super.visitForStmt(fs);
-        currentScope = oldScope;
-    }
-
-    *//**
-     * Sets current scope to be inside current function.
-     * @param fd Function Declaration
-     *//*
-    public void visitFuncDecl(FuncDecl fd) {
-
-        currentContext = fd;
-        currentScope = fd.getScope();
-        if(fd.getTypeParams().isEmpty())
-            super.visitFuncDecl(fd);
-        currentContext = null;
         currentScope = currentScope.closeScope();
     }
 
-    *//**
-     * Sets current scope inside of if statement's blocks
-     * @param is If Statement
-     *//*
+    /**
+     * Verifies if modifiers are used correctly for a class.
+     * <p>
+     *     This visit is mainly concerned with handling modifiers related to
+     *     inheritance. C Minor classes can be marked as either {@code final}
+     *     or {@code abstr}. All other modifier checks are handled by separate visits.
+     * </p>
+     * @param cd {@link ClassDecl}
+     */
+    public void visitClassDecl(ClassDecl cd) {
+        currentScope = cd.getScope();
+
+        if(cd.getSuperClass() != null) {
+            ClassDecl superClass = currentScope.findName(cd.getSuperClass()).asTopLevelDecl().asClassDecl();
+
+            // ERROR CHECK #1: A class may not inherit from a superclass that was labeled as 'final'.
+            if(superClass.mod.isFinal()) {
+                handler.createErrorBuilder(ModError.class)
+                       .addLocation(cd)
+                       .addErrorNumber(MessageNumber.MOD_ERROR_500)
+                       .addErrorArgs(cd, superClass)
+                       .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1500)
+                       .generateError();
+            }
+
+            // If the current class inherits from an abstract class, then we are not done checking this class!
+            if(!cd.mod.isAbstract() && superClass.mod.isAbstract())
+                helper.checkAbstrClassImplementation(cd, superClass);
+        }
+
+        super.visitClassDecl(cd);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be in a {@link DoStmt}
+     * @param ds {@link DoStmt}
+     */
+    public void visitDoStmt(DoStmt ds) {
+        currentScope = ds.getScope();
+        ds.getBody().visit(this);
+        currentScope = currentScope.closeScope();
+        ds.getCondition().visit(this);
+    }
+
+////    *
+////     * Checks field expression modifier usage.<br><br>
+////     * <p>
+////     *     We only have one modifier check to perform for field expressions
+////     *     involving the access scope of a field. Fields can only be accessed
+////     *     outside of a class if they were declared public.
+////     * </p>
+////     * @param fe Field Expressions
+//
+//    public void visitFieldExpr(FieldExpr fe) {
+//        fe.getTarget().visit(this);
+//        if(fe.getAccessExpr().isNameExpr() || fe.getAccessExpr().isArrayExpr()) {
+//            ClassDecl cd;
+//            FieldDecl fd = null;
+//            if(fe.getTarget().type.isClassType()) {
+//                cd = currentScope.findName(fe.getTarget().type.toString()).getDecl().asTopLevelDecl().asClassDecl();
+//                fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
+//            }
+//            else {
+//                for(ClassType ct : fe.getTarget().type.asMultiType().getAllTypes()) {
+//                    cd = currentScope.findName(ct.toString()).getDecl().asTopLevelDecl().asClassDecl();
+//                    if(cd.getScope().hasName(fe.getAccessExpr().toString())) {
+//                        fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
+//                        break;
+//                    }
+//                }
+//            }
+//
+//            // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
+//            if (!fe.getTarget().toString().equals("this") && !fd.mod.isPublic()) {
+//                handler.createErrorBuilder(ModError.class)
+//                        .addLocation(fe)
+//                        .addErrorNumber(MessageNumber.MOD_ERROR_507)
+//                        .addErrorArgs(fe.getTarget().toString(), fd.toString())
+//                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1507)
+//                        .generateError();
+//            }
+//        }
+//        fe.getAccessExpr().visit(this);
+//        parentFound = false;
+//    }
+
+    /**
+     * Sets the current scope to be in a {@link ForStmt}
+     * @param fs {@link ForStmt}
+     */
+    public void visitForStmt(ForStmt fs) {
+        currentScope = fs.getScope();
+        super.visitForStmt(fs);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be in a {@link FuncDecl}
+     * @param fd {@link FuncDecl}
+     */
+    public void visitFuncDecl(FuncDecl fd) {
+        currentScope = fd.getScope();
+        super.visitFuncDecl(fd);
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * Sets the current scope to be in an {@link IfStmt}
+     * @param is {@link IfStmt}
+     */
     public void visitIfStmt(IfStmt is) {
         is.getCondition().visit(this);
 
-        SymbolTable oldScope = currentScope;
-        currentScope = is.ifScope;
+        currentScope = is.getIfScope();
         is.getIfBody().visit(this);
-        currentScope = oldScope;
+        currentScope = currentScope.closeScope();
 
         for(IfStmt e : is.getElifs())
             e.visit(this);
 
-        if(is.getElseBody() != null) {
-            oldScope = currentScope;
-            currentScope = is.elseScope;
+        if(is.containsElse()) {
+            currentScope = is.getElseScope();
             is.getElseBody().visit(this);
-            currentScope = oldScope;
+            currentScope = currentScope.closeScope();
         }
     }
 
-    *//**
-     * Checks invocation modifier usage.<br><br>
-     * <p>
-     *     For both function and method invocations, we need to check if
-     *     the user explicitly allowed recursion with the `recurs` keyword
-     *     in order to allow recursive invocations. Additionally, for method
-     *     invocations, we want to make sure the method was declared public in
-     *     order to be able to call it outside of the class.
-     * </p>
-     * @param in Invocation
-     *//*
-    public void visitInvocation(Invocation in) {
-        String funcSignature = in.getSignature();
+////    *
+////     * Checks invocation modifier usage.<br><br>
+////     * <p>
+////     *     For both function and method invocations, we need to check if
+////     *     the user explicitly allowed recursion with the `recurs` keyword
+////     *     in order to allow recursive invocations. Additionally, for method
+////     *     invocations, we want to make sure the method was declared public in
+////     *     order to be able to call it outside of the class.
+////     * </p>
+////     * @param in Invocation
+//
+//    public void visitInvocation(Invocation in) {
+//        String funcSignature = in.getSignature();
+//
+//        // Temporary here to prevent exception, probably move in the future :)
+//        if(in.toString().equals("length")) {
+//            funcSignature = null;
+//        }
+//        // Function Invocation
+//        else if(!in.targetType.isClassOrMultiType()) {
+//            FuncDecl fd = in.templatedFunction != null ? in.templatedFunction :
+//                                              currentScope.findName(funcSignature).getDecl().asTopLevelDecl().asFuncDecl();
+//
+//            if(currentContext == fd && fd.getSignature().equals(funcSignature))  {
+//                // ERROR CHECK #1: A function can not call itself without `recurs` modifier
+//                if(!fd.mod.isRecursive()) {
+//                    handler.createErrorBuilder(ModError.class)
+//                            .addLocation(in)
+//                            .addErrorNumber(MessageNumber.MOD_ERROR_502)
+//                            .addErrorArgs(fd.toString())
+//                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1502)
+//                            .generateError();
+//                }
+//            }
+//            if(fd.isTemplate())
+//                in.templatedFunction.visit(this);
+//        }
+//        // Method Invocation
+//        else {
+//            ClassDecl cd = currentScope.findName(in.targetType.toString()).getDecl().asTopLevelDecl().asClassDecl();
+//            MethodDecl md = cd.getScope().findName(in.getSignature()).getDecl().asClassNode().asMethodDecl();
+//
+//            // ERROR CHECK #2: A method can not call itself without `recurs` modifier
+//            if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
+//                if(!md.mod.isRecursive()) {
+//                    handler.createErrorBuilder(ModError.class)
+//                            .addLocation(in)
+//                            .addErrorNumber(MessageNumber.MOD_ERROR_503)
+//                            .addErrorArgs(md.toString())
+//                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
+//                            .generateError();
+//                }
+//            }
+//            // ERROR CHECK #3: An object can only invoke public methods outside its class
+//            if(!md.mod.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
+//                handler.createErrorBuilder(ModError.class)
+//                        .addLocation(in)
+//                        .addErrorNumber(MessageNumber.MOD_ERROR_504)
+//                        .addErrorArgs("this",in.toString())
+//                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1504)
+//                        .generateError();
+//            }
+//        }
+//        super.visitInvocation(in);
+//    }
+//
+////    *
+////     * Sets current scope to be inside <verb>main</verb> function.
+////     * @param md Main Declaration
+//
+//    public void visitMainDecl(MainDecl md) {
+//        currentScope = md.getScope();
+//        currentContext = md;
+//        super.visitMainDecl(md);
+//    }
+//
+//    *
+//     * Sets current scope to be inside current method.
+//     * @param md Method Declaration
 
-        // Temporary here to prevent exception, probably move in the future :)
-        if(in.toString().equals("length")) {
-            funcSignature = null;
-        }
-        // Function Invocation
-        else if(!in.targetType.isClassOrMultiType()) {
-            FuncDecl fd = in.templatedFunction != null ? in.templatedFunction :
-                                              currentScope.findName(funcSignature).getDecl().asTopLevelDecl().asFuncDecl();
-
-            if(currentContext == fd && fd.getSignature().equals(funcSignature))  {
-                // ERROR CHECK #1: A function can not call itself without `recurs` modifier
-                if(!fd.mod.isRecursive()) {
-                    handler.createErrorBuilder(ModError.class)
-                            .addLocation(in)
-                            .addErrorNumber(MessageNumber.MOD_ERROR_502)
-                            .addErrorArgs(fd.toString())
-                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1502)
-                            .generateError();
-                }
-            }
-            if(fd.isTemplate())
-                in.templatedFunction.visit(this);
-        }
-        // Method Invocation
-        else {
-            ClassDecl cd = currentScope.findName(in.targetType.toString()).getDecl().asTopLevelDecl().asClassDecl();
-            MethodDecl md = cd.getScope().findName(in.getSignature()).getDecl().asClassNode().asMethodDecl();
-
-            // ERROR CHECK #2: A method can not call itself without `recurs` modifier
-            if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
-                if(!md.mod.isRecursive()) {
-                    handler.createErrorBuilder(ModError.class)
-                            .addLocation(in)
-                            .addErrorNumber(MessageNumber.MOD_ERROR_503)
-                            .addErrorArgs(md.toString())
-                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
-                            .generateError();
-                }
-            }
-            // ERROR CHECK #3: An object can only invoke public methods outside its class
-            if(!md.mod.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
-                handler.createErrorBuilder(ModError.class)
-                        .addLocation(in)
-                        .addErrorNumber(MessageNumber.MOD_ERROR_504)
-                        .addErrorArgs("this",in.toString())
-                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1504)
-                        .generateError();
-            }
-        }
-        super.visitInvocation(in);
-    }
-
-    *//**
-     * Sets current scope to be inside <verb>main</verb> function.
-     * @param md Main Declaration
-     *//*
-    public void visitMainDecl(MainDecl md) {
-        currentScope = md.getScope();
-        currentContext = md;
-        super.visitMainDecl(md);
-    }
-
-    *//**
-     * Sets current scope to be inside current method.
-     * @param md Method Declaration
-     *//*
     public void visitMethodDecl(MethodDecl md) {
-        currentContext = md;
         currentScope = md.getScope();
         super.visitMethodDecl(md);
-        currentContext = null;
         currentScope = currentScope.closeScope();
     }
 
-    public void visitNameExpr(NameExpr ne) {
-        if(ne.toString().equals("parent"))
-            parentFound = true;
-    }
-
-    *//**
-     * Checks new expression modifier usage.<br><br>
+    /**
+     * Checks if a {@link NewExpr} is valid.
      * <p>
      *     When we are instantiating an object, we want to make sure a user is
      *     not trying to instantiate from an abstract class since that defeats
-     *     the purpose of having an abstract class. ThisStmt is the only modifier
-     *     check we need to perform.
+     *     the purpose of having an abstract class.
      * </p>
-     * @param ne New Expression
-     *//*
+     * @param ne {@link NewExpr}
+     */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.asClassType().getClassNameAsString()).getDecl().asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.findName(ne.type.asClass().getClassName()).asTopLevelDecl().asClassDecl();
 
-        // ERROR CHECK #1: An abstract class can not be instantiated
+        // ERROR CHECK #1: A user can not instantiate an object from an abstract class.
         if(cd.mod.isAbstract()) {
             handler.createErrorBuilder(ModError.class)
-                    .addLocation(ne)
-                    .addErrorNumber(MessageNumber.MOD_ERROR_506)
-                    .addErrorArgs(ne.getParent().getParent().asStatement().asLocalDecl().getVariableName())
-                    .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1506)
-                    .generateError();
+                   .addLocation(ne)
+                   .addErrorNumber(MessageNumber.MOD_ERROR_506)
+                   .addErrorArgs(ne.getParent().getParent().asStatement().asLocalDecl().getVariableName())
+                   .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1506)
+                   .generateError();
         }
         super.visitNewExpr(ne);
-
-        if(ne.createsFromTemplate())
-            ne.getInstantiatedClass().visit(this);
     }
 
-    public void visitOutStmt(OutStmt os) {
-        for(Expression e : os.getOutExprs())
-            e.visit(this);
-    }
-
-    *//**
-     * Sets current scope inside while block.
-     * @param ws While Statement
-     *//*
+    /**
+     * Sets the current scope to be in a {@link WhileStmt}
+     * @param ws {@link WhileStmt}
+     */
     public void visitWhileStmt(WhileStmt ws) {
-        SymbolTable oldScope = currentScope;
-        currentScope = ws.scope;
+        currentScope = ws.getScope();
         super.visitWhileStmt(ws);
-        currentScope = oldScope;
-    }*/
+        currentScope = currentScope.closeScope();
+    }
+
+    /**
+     * An internal helper class for {@link ModifierChecker}.
+     */
+    private class ModifierCheckerHelper {
+
+        /**
+         * Determines if abstract methods were implemented in concrete classes.x
+         * <p>
+         *     This algorithm comes from Dr. Pedersen's compilers textbook, and it will
+         *     determine whether a method is considered abstract or concrete based on its
+         *     implementation inside a class. This will only be called by
+         *     {@link #checkAbstrClassImplementation(ClassDecl, ClassDecl)} when we are
+         *     checking if a class correctly implements all methods from an abstract class.
+         * </p>
+         * @param abstr {@link Vector} containing the current set of abstract methods.
+         * @param concrete {@link Vector} containing the current set of concrete methods.
+         * @param cd {@link ClassDecl} representing the current class we are checking the implementation of.
+         */
+        private void sortClassMethods(Vector<String> abstr, Vector<String> concrete, ClassDecl cd) {
+
+            // Start from the top of the inheritance hierarchy
+            if(cd.getSuperClass() != null)
+                sortClassMethods(abstr,concrete,
+                        currentScope.findName(cd.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl());
+
+            for(String conName : concrete)
+                abstr.remove(conName);
+
+            for(MethodDecl md : cd.getClassBody().getMethods()) {
+                if(cd.mod.isAbstract()) {
+                    abstr.add(md.toString());
+                    concrete.remove(md.toString());
+                }
+                else {
+                    concrete.add(md.toString());
+                    abstr.remove(md.toString());
+                }
+            }
+        }
+
+        /**
+         *
+         * Checks if the user correctly implements an inherited abstract class.
+         * <p>
+         *     This method will validate if a user correctly inherits from an abstract
+         *     class. A valid inheritance implies the user has implemented every single
+         *     method declared in the abstract class in their subclass. To determine
+         *     which methods were implemented, we will call
+         *     {@link ModifierCheckerHelper#sortClassMethods(Vector, Vector, ClassDecl)}.
+         * </p>
+         * @param subClass {@link ClassDecl} representing concrete class inheriting abstract class
+         * @param superClass {@link ClassDecl} representing an abstract class
+         */
+        private void checkAbstrClassImplementation(ClassDecl subClass, ClassDecl superClass) {
+            Vector<String> concretes = new Vector<>(), abstracts = new Vector<>();
+            sortClassMethods(abstracts,concretes,subClass);
+
+            // ERROR CHECK #1: This ensures every abstract method in the superclass was implemented by the subclass.
+            if(!abstracts.isEmpty()) {
+                handler.createErrorBuilder(ModError.class)
+                       .addLocation(subClass)
+                       .addErrorNumber(MessageNumber.MOD_ERROR_501)
+                       .addErrorArgs(subClass.toString(),superClass.toString())
+                       .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1501)
+                       .generateError();
+            }
+        }
+    }
 }
