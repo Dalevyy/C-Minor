@@ -24,7 +24,6 @@ import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.ErrorBuilder;
 import cminor.messages.errors.scope.ScopeError;
-import cminor.messages.errors.semantic.SemanticError;
 import cminor.messages.errors.type.TypeError;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
@@ -974,7 +973,7 @@ public class TypeChecker extends Visitor {
         }
 
         // Find the correct scope to check for the method name.
-        SymbolTable lookup = null;
+        SymbolTable lookup;
 
         // I think it's cleaner to separate the invocations like this...
         // Function Case
@@ -1004,21 +1003,25 @@ public class TypeChecker extends Visitor {
         }
         // Method Case
         else {
+            // If the target represents multiple types, then we need to search through each target
+            // to see if there is at least one class that contains a valid method for this call!
             if(in.getTargetType().isMulti()) {
                 for(ClassType ct : in.getTargetType().asMulti().getAllTypes()) {
                     lookup = currentScope.findName(ct).asTopLevelDecl().asClassDecl().getScope();
                     if(lookup.hasMethodName(in.getName()) && lookup.hasMethodOverload(in.getName(), in.getSignature())) {
-                        MethodDecl md = lookup.findMethod(in.getName().toString(), in.getSignature()).asClassNode().asMethodDecl();
+                        MethodDecl md = lookup.findMethod(in.getName().toString(), in.getSignature())
+                                              .asClassNode().asMethodDecl();
                         in.type = md.getReturnType();
                         return;
                     }
                 }
+                // ERROR CHECK #1: If no methods were found, then output an error!
                 handler.createErrorBuilder(TypeError.class).addErrorNumber(MessageNumber.TYPE_ERROR_471).generateError();
             }
-            else
-                lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
 
-            // ERROR CHECK #1: This checks if the function was defined somewhere in the global scope.
+            lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
+
+            // ERROR CHECK #1: This checks if the method was defined somewhere in the global scope.
             if(!lookup.hasMethodName(in.getName())) {
                 handler.createErrorBuilder(ScopeError.class)
                         .addLocation(in)
@@ -1027,7 +1030,7 @@ public class TypeChecker extends Visitor {
                         .generateError();
             }
 
-            // ERROR CHECK #2: This checks if a valid function overload exists for the given argument signature.
+            // ERROR CHECK #2: This checks if a valid method overload exists for the given argument signature.
             if(!lookup.hasMethodOverload(in.getName(), in.getSignature())) {
                 handler.createErrorBuilder(TypeError.class)
                         .addLocation(in)
@@ -1089,101 +1092,101 @@ public class TypeChecker extends Visitor {
         ll.type = helper.generateType(ll);
     }
 
-//    /**
-//     * Checks the type of a list statement.
-//     * <p><br>
-//     *     In C Minor, there are currently 3 list commands: {@code append}, {@code insert},
-//     *     and {@code remove}. This method will type check all arguments passed to the command
-//     *     to ensure the user correctly wrote the command. For {@code remove}, we will not type
-//     *     check the value that is removed since we will throw a runtime exception if the value
-//     *     can not be removed from the list.
-//     * </p>
-//     * @param ls List Statement
-//     */
-//    public void visitListStmt(ListStmt ls) {
-//        // SPECIAL CASE!!!
-//        // If a user writes their own function/method using the list command name, we want to rewrite
-//        // the current list statement as an invocation for better type checking.
-//        if(currentScope.hasMethodSomewhere(ls.toString())) {
-//            StringBuilder commandSignature = new StringBuilder(ls + "/");
-//
-//            for(Expression e : ls.getAllArgs()) {
-//                e.visit(this);
-//                commandSignature.append(e.type.typeSignature());
-//            }
-//
-//            if(currentScope.hasNameSomewhere(commandSignature.toString())) {
-//                Invocation in = new InvocationBuilder()
-//                                .setMetaData(ls)
-//                                .setName(new Name(ls.toString()))
-//                                .setArgs(ls.getAllArgs())
-//                                .create();
-//                ls.replaceWith(in);
-//                in.visit(this);
-//
-//                // This is needed because the list statement reference will still be stored by the VM
-//                // if the list statement was the only line of code the user wrote. We want to call the newly
-//                // created invocation and not the list statement, so this is the best solution I came up with...
-//                if(ls.getFullLocation() == null)
-//                    ls.setInvocation(in);
-//
-//                return;
-//            }
-//        }
-//
-//        // ERROR CHECK #1: This ensures the correct number of arguments were passed to the list command.
-//        //                 append/remove => 2 args, insert => 3 args
-//        if(ls.getAllArgs().size() != ls.getExpectedNumOfArgs()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ls)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_449)
-//                    .addErrorArgs(ls,ls.getExpectedNumOfArgs(),ls.getAllArgs().size())
-//                    .generateError();
-//        }
-//
-//        ls.getList().visit(this);
-//        // ERROR CHECK #2: The first argument in a list command must be the list the command acts on.
-//        if(!ls.getList().type.isListType()) {
-//            handler.createErrorBuilder(TypeError.class)
-//                    .addLocation(ls)
-//                    .addErrorNumber(MessageNumber.TYPE_ERROR_450)
-//                    .addErrorArgs(ls.getList(),ls)
-//                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1445)
-//                    .addSuggestionArgs(ls)
-//                    .generateError();
-//        }
-//
-//        ls.getSecondArg().visit(this);
-//        Type finalArgType = ls.getSecondArg().type;
-//        // ERROR CHECK #3: The second argument for the insert command must be an integer.
-//        if(ls.isInsert()) {
-//            if(!finalArgType.isInt()) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ls)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_451)
-//                        .addErrorArgs(ls.getAllArgs().get(1))
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1446)
-//                        .generateError();
-//            }
-//
-//            ls.getThirdArg().visit(this);
-//            finalArgType = ls.getThirdArg().type;
-//        }
-//
-//        // ERROR CHECK #4: The final argument for the append/insert command needs to be a value
-//        //                 that can either be stored or merged into the list.
-//        if(ls.isAppend() || ls.isInsert()) {
-//            if(!ls.getListType().isSubList(finalArgType)) {
-//                handler.createErrorBuilder(TypeError.class)
-//                        .addLocation(ls)
-//                        .addErrorNumber(MessageNumber.TYPE_ERROR_452)
-//                        .addErrorArgs(ls.getList(), ls.getListType(), ls, finalArgType)
-//                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1447)
-//                        .addSuggestionArgs(ls, ls.getList(), ls.getListType(), ls.getListType().validSublist())
-//                        .generateError();
-//            }
-//        }
-//    }
+    /**
+     * Evaluates the list statement's type.
+     * <p>
+     *     In C Minor, there are currently 3 list commands: {@code append}, {@code insert},
+     *     and {@code remove}. This method will type check all arguments passed to the command
+     *     to ensure the user correctly wrote the command. For {@code remove}, we will not type
+     *     check the value that is removed since we will throw a runtime exception if the value
+     *     can not be removed from the list.
+     * </p>
+     * @param ls {@link ListStmt}
+     */
+    public void visitListStmt(ListStmt ls) {
+        // SPECIAL CASE!!!
+        // If a user writes their own function/method using the list command name, we want to rewrite
+        // the current list statement as an invocation for better type checking.
+        if(currentScope.hasMethodName(ls)) {
+            StringBuilder commandSignature = new StringBuilder(ls + "/");
+
+            for(Expression e : ls.getAllArgs()) {
+                e.visit(this);
+                commandSignature.append(e.type.typeSignature());
+            }
+
+            if(currentScope.hasMethodOverload(ls,commandSignature.toString())) {
+                Invocation in = new InvocationBuilder()
+                                .setMetaData(ls)
+                                .setName(new Name(ls.toString()))
+                                .setArgs(ls.getAllArgs())
+                                .create();
+                ls.replaceWith(in);
+                in.visit(this);
+
+                // This is needed because the list statement reference will still be stored by the VM
+                // if the list statement was the only line of code the user wrote. We want to call the newly
+                // created invocation and not the list statement, so this is the best solution I came up with...
+                if(ls.getFullLocation() == null)
+                    ls.setInvocation(in);
+
+                return;
+            }
+        }
+
+        // ERROR CHECK #1: This ensures the correct number of arguments were passed to the list command.
+        //                 append/remove => 2 args, insert => 3 args
+        if(ls.getAllArgs().size() != ls.getExpectedNumOfArgs()) {
+            handler.createErrorBuilder(TypeError.class)
+                    .addLocation(ls)
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_449)
+                    .addErrorArgs(ls,ls.getExpectedNumOfArgs(),ls.getAllArgs().size())
+                    .generateError();
+        }
+
+        ls.getList().visit(this);
+        // ERROR CHECK #2: The first argument in a list command must be the list the command acts on.
+        if(!ls.getList().type.isList()) {
+            handler.createErrorBuilder(TypeError.class)
+                    .addLocation(ls)
+                    .addErrorNumber(MessageNumber.TYPE_ERROR_450)
+                    .addErrorArgs(ls.getList(),ls)
+                    .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1445)
+                    .addSuggestionArgs(ls)
+                    .generateError();
+        }
+
+        ls.getSecondArg().visit(this);
+        Type finalArgType = ls.getSecondArg().type;
+        // ERROR CHECK #3: The second argument for the insert command must be an integer.
+        if(ls.isInsert()) {
+            if(!finalArgType.isInt()) {
+                handler.createErrorBuilder(TypeError.class)
+                        .addLocation(ls)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_451)
+                        .addErrorArgs(ls.getAllArgs().get(1))
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1446)
+                        .generateError();
+            }
+
+            ls.getThirdArg().visit(this);
+            finalArgType = ls.getThirdArg().type;
+        }
+
+        // ERROR CHECK #4: The final argument for the append/insert command needs to be a value
+        //                 that can either be stored or merged into the list.
+        if(ls.isAppend() || ls.isInsert()) {
+            if(!ls.getListType().isSubList(finalArgType)) {
+                handler.createErrorBuilder(TypeError.class)
+                        .addLocation(ls)
+                        .addErrorNumber(MessageNumber.TYPE_ERROR_452)
+                        .addErrorArgs(ls.getList(), ls.getListType(), ls, finalArgType)
+                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1447)
+                        .addSuggestionArgs(ls, ls.getList(), ls.getListType(), ls.getListType().validSublist())
+                        .generateError();
+            }
+        }
+    }
 
     /**
      * Evaluates the local variable's type.
@@ -1262,85 +1265,39 @@ public class TypeChecker extends Visitor {
     }
 
     /**
-     * Evaluates the type of the name expression.<br>
+     * Evaluates the type represented by a name.
      * <p>
-     *     For a name expression, the type will be based on the declaration
-     *     type. Here, we will also perform name checking when it comes to
-     *     evaluating complex field expressions.
+     *     Additionally, we need to some more error checks when we are inside a
+     *     complex field expression. These checks will be handled by
+     *     {@link TypeCheckerHelper#checkIfTargetValid(NameExpr, Type)}.
      * </p>
-     * @param ne Name Expression
+     * @param ne {@link NameExpr}
      */
     public void visitNameExpr(NameExpr ne) {
-        AST declaration = currentScope.findName(ne);
+        // Special Case: If the name is in a complex field expression, we need to get the name from a class. This
+        //               means we still have to do name checking since we didn't have the target types earlier!
+        if(ne.inComplexFieldExpr()) {
+            // The target type we need to access is dependent on where the name is found in the name expression...
+            // Case 1: If the name is found at the end of the field expression, then target is current field expression.
+            if(ne.getParent().asExpression().asFieldExpr().getAccessExpr().equals(ne))
+                helper.checkIfTargetValid(ne, ne.getParent().asExpression().getTargetType());
+            // Case 2: If the name is found in the middle, then target is the PREVIOUS field expression's type.
+            else
+                helper.checkIfTargetValid(ne, ne.getParent().getParent().asExpression().getTargetType());
+            return;
+        }
 
-        if(declaration.isClassNode())
-            ne.type = declaration.asClassNode().asFieldDecl().getType();
-        else if(declaration.isTopLevelDecl())
-            ne.type = declaration.asTopLevelDecl().asGlobalDecl().getType();
+        // The name's type is based on the declared type.
+        AST decl = currentScope.findName(ne);
+
+        if(decl.isClassNode())
+            ne.type = decl.asClassNode().asFieldDecl().getType();
+        else if(decl.isTopLevelDecl())
+            ne.type = decl.asTopLevelDecl().asGlobalDecl().getType();
+        else if(decl.isSubNode())
+            ne.type = decl.asSubNode().asParamDecl().getType();
         else
-            ne.type = declaration.asStatement().asLocalDecl().getType();
-
-
-//        else if(currentTarget != null && currentTarget.isClassOrMultiType()) {
-//            String targetName = currentTarget.toString();
-//            ClassDecl cd = null;
-//            if(currentTarget.isClassType()) {
-//                cd = currentScope.findName(targetName).getDecl().asTopLevelDecl().asClassDecl();
-//
-//                // ERROR CHECK #1: Make sure the class name exists if we are
-//                //                 evaluating a complex field expression
-//                if(!cd.getScope().hasName(ne.toString())) {
-//                    // We need to reset currentTarget if there's an error during interpretation
-////                    if(interpretMode)
-////                        currentTarget = null;
-//                    handler.createErrorBuilder(ScopeError.class)
-//                            .addLocation(ne.getFullLocation())
-//                            .addErrorNumber(MessageNumber.SCOPE_ERROR_329)
-//                            .addErrorArgs(ne,targetName)
-//                            .generateError();
-//                }
-//            }
-//            else {
-//                boolean found = false;
-//                for(ClassType ct : currentTarget.asMultiType().getAllTypes()) {
-//                    cd = currentScope.findName(ct.toString()).getDecl().asTopLevelDecl().asClassDecl();
-//                    if(cd.getScope().hasName(ne.toString())) {
-//                        found = true;
-//                        break;
-//                    }
-//                }
-//                // ERROR CHECK #2: Make sure the class that declared the
-//                //                 field was found for a MultiTyped name
-//                if(!found) {
-////                    if (interpretMode)
-////                        currentTarget = null;
-//                    handler.createErrorBuilder(ScopeError.class)
-//                            .addLocation(ne)
-//                            .addErrorNumber(MessageNumber.SCOPE_ERROR_309)
-//                            .addErrorArgs(ne.toString(), targetName)
-//                            .generateError();
-//                }
-//            }
-//            ne.type = cd.getScope().findName(ne.toString()).getDecl().asClassNode().asFieldDecl().getDeclaredType();
-//        }
-//        else {
-//            AST decl = currentScope.findName(ne.toString()).getDecl();
-//            if(decl.isStatement())
-//                ne.type = decl.asStatement().asLocalDecl().getDeclaredType();
-////            else if(decl.isParamDecl())
-////                ne.type = decl.asParamDecl().type();
-////            else if(decl.isFieldDecl())
-////                ne.type = decl.asFieldDecl().type();
-//            else {
-//                TopLevelDecl tDecl = decl.asTopLevelDecl();
-//                if(tDecl.isEnumDecl())
-//                    ne.type = tDecl.asEnumDecl().getConstantType();
-//                else if(tDecl.isGlobalDecl())
-//                    ne.type = tDecl.asGlobalDecl().getDeclaredType();
-//                else
-//                    ne.type = new ClassType(tDecl.asClassDecl().getName());
-//            }
-//        }
+            ne.type = decl.asStatement().asLocalDecl().getType();
     }
 
     /**
@@ -1894,6 +1851,39 @@ public class TypeChecker extends Visitor {
             }
 
             return subClass.getName().equals(LHS.getClassName());
+        }
+
+        private void checkIfTargetValid(NameExpr ne, Type target) {
+            ClassDecl cd;
+            if(target.isClass()) {
+                cd = currentScope.findName(target.asClass().getClassName()).asTopLevelDecl().asClassDecl();
+                if(!cd.getScope().hasName(ne)) {
+                    handler.createErrorBuilder(ScopeError.class)
+                           .addLocation(ne.getFullLocation())
+                           .addErrorNumber(MessageNumber.SCOPE_ERROR_329)
+                           .addErrorArgs(ne,cd)
+                           .generateError();
+                }
+            } else
+                cd = validateMultiType(ne.getName(),target.asMulti());
+
+            ne.type = cd.getScope().findName(ne).asClassNode().asFieldDecl().getType();
+        }
+
+        private ClassDecl validateMultiType(Name name, MultiType target) {
+            for(ClassType ct : target.getAllTypes()) {
+                ClassDecl cd = currentScope.getGlobalScope().findName(ct.getClassName()).asTopLevelDecl().asClassDecl();
+
+                if(cd.getScope().hasName(name))
+                    return cd;
+            }
+
+            handler.createErrorBuilder(TypeError.class)
+                   .addLocation(name.getFullLocation())
+                   .addErrorNumber(MessageNumber.TYPE_ERROR_471)
+                   .generateError();
+
+            return null;
         }
 
 //        private FuncDecl findSpecificFunction(FuncDecl candidate, FuncDecl currentTemplate, Invocation in) {

@@ -697,6 +697,23 @@ class TypeBadTest extends TypeTest {
         }
     */
 
+    def "Field Expression - Field Name Not Found!"() {
+        when: "A complex field expression is written with a field not found in the target class."
+            input = '''
+                        class A { public x:Int }
+                        class B { public a:A }
+                        
+                        def b:B = new B()
+                        cout << b.a.y
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be printed since we can not access any value."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_329
+
+    }
+
     def "Field Expression - Invalid Target Type"(){
         when: "A non-object variable is used to accessed a field."
             input = '''

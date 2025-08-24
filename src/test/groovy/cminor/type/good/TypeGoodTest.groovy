@@ -1,6 +1,7 @@
 package cminor.type.good
 
 import cminor.messages.CompilationMessage
+import cminor.messages.MessageNumber
 import cminor.type.TypeTest
 
 class TypeGoodTest extends TypeTest {
@@ -454,6 +455,21 @@ class TypeGoodTest extends TypeTest {
             vm.runInterpreter(input)
 
         then: "The compiler will assign default values to each constant and no errors are generated."
+            notThrown CompilationMessage
+    }
+
+    def "Field Expression - Valid Complex Expression"() {
+        when: "A complex field expression is written."
+            input = '''
+                        class A { public x:Int }
+                        class B { public a:A }
+                        
+                        def b:B = new B()
+                        cout << b.a.x
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors will be thrown as long as each name is found in its appropriate target class."
             notThrown CompilationMessage
     }
 
