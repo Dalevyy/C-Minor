@@ -43,6 +43,34 @@ public class NameExpr extends Expression {
     }
 
     /**
+     * Checks if a {@link NameExpr} is found inside a complex field expression.
+     * @return {@code True} if the name is in a complex field expression, {@code False} otherwise.
+     */
+    public boolean inComplexFieldExpr() {
+        if(!inFieldExpr())
+            return false;
+
+        // Ugly! This makes sure a PREVIOUS target ALREADY exists since we need that target type to get the right class!
+        if(parent.getParent() == null
+                || !parent.getParent().isExpression() || !parent.getParent().asExpression().isFieldExpr())
+            return false;
+
+        // To return true, the name has to be found AFTER the first target!
+        AST target = parent.getParent().asExpression().asFieldExpr();
+
+        return !this.equals(target);
+    }
+
+    /**
+     * Checks if the current {@link NameExpr} is found inside a {@link FieldExpr}.
+     * <p>
+     *     This will be used to correctly resolve names.
+     * </p>
+     * @return {@code True} if the name is in a {@link FieldExpr}, {@code False} otherwise.
+     */
+    private boolean inFieldExpr() {return parent.isExpression() && parent.asExpression().isFieldExpr();}
+
+    /**
      * Getter for {@link #name}.
      * @return Name
      */

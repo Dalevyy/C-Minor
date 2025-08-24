@@ -1,6 +1,7 @@
 package cminor.micropasses;
 
 import cminor.ast.AST;
+import cminor.ast.classbody.FieldDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.expressions.*;
 import cminor.ast.misc.CompilationUnit;
@@ -141,6 +142,26 @@ public class SemanticAnalyzer extends Visitor {
     }
 
     /**
+     * Checks if a field was initialized to a value.
+     * <p>
+     *     A field in C Minor is not allowed to be preassigned a value. The user themselves
+     *     must either initialize the field or a default value will be assigned when an
+     *     object is created.
+     * </p>
+     * @param fd {@link FieldDecl}
+     */
+    public void visitFieldDecl(FieldDecl fd) {
+        // ERROR CHECK #1: A field can not be initialized to any value.
+        if(fd.hasInitialValue()) {
+            handler.createErrorBuilder(SemanticError.class)
+                   .addLocation(fd)
+                   .addErrorNumber(MessageNumber.SEMANTIC_ERROR_715)
+                   .addErrorArgs(fd, fd.getClassDecl())
+                   .generateError();
+        }
+    }
+
+    /**
      * Visits the for loop's components outside its control variable.
      * <p>
      *     No special steps are done here. We need to do a manual visit since
@@ -160,7 +181,7 @@ public class SemanticAnalyzer extends Visitor {
      * @param gd {@link GlobalDecl}
      */
     public void visitGlobalDecl(GlobalDecl gd) {
-        // ERROR CHECK #1: Make sure the global variable was initialized to some value.
+        // ERROR CHECK #1: The global variable has to be initialized.
         if(!gd.hasInitialValue()) {
             handler.createErrorBuilder(SemanticError.class)
                    .addLocation(gd)
@@ -169,6 +190,16 @@ public class SemanticAnalyzer extends Visitor {
                    .addSuggestionNumber(MessageNumber.SEMANTIC_SUGGEST_1700)
                    .generateError();
         }
+
+        // ERROR CHECK #2: If we have a global constant, then the keyword 'uninit' should not be used.
+        if(gd.isConstant() && gd.getInitialValue() == null) {
+            handler.createErrorBuilder(SemanticError.class)
+                   .addLocation(gd)
+                   .addErrorNumber(MessageNumber.SEMANTIC_ERROR_716)
+                   .addErrorArgs(gd)
+                   .generateError();
+        }
+
     }
 
     /**
@@ -256,6 +287,26 @@ public class SemanticAnalyzer extends Visitor {
                         .generateError();
             }
             e.visit(this);
+        }
+    }
+
+    /**
+     * Checks if a return statement was written inside a function or method.
+     * <p>
+     *     Note: This is an interpretation exclusive check! Since the user is able
+     *     to write anything into the {@link cminor.interpreter.VM}, we need to ensure
+     *     that a return statement that is written outside a function or method creates
+     *     a semantic error.
+     * </p>
+     * @param rs {@link ReturnStmt}
+     */
+    public void visitReturnStmt(ReturnStmt rs) {
+        // ERROR CHECK #1: This makes sure a return statement is written inside of a function or a method.
+        if(rs.getFunctionLocation() == null) {
+            handler.createErrorBuilder(SemanticError.class)
+                   .addLocation(rs)
+                   .addErrorNumber(MessageNumber.SEMANTIC_ERROR_717)
+                   .generateError();
         }
     }
 

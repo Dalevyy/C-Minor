@@ -15,50 +15,70 @@ import cminor.utilities.Visitor;
 public class MultiType extends Type {
 
     private ClassType initialType;
-    private Vector<ClassType> allTypes;
+    private Vector<ClassType> types;
 
     private ClassType runtimeType;      // Used by the interpreter
 
+    /**
+     * Default constructor for {@link MultiType}.
+     */
     public MultiType() { this(null,new Vector<>()); }
+
     public MultiType(ClassType it, Vector<ClassType> ct) {
         super(new Token());
         this.initialType = it;
-        this.allTypes = ct;
+        this.types = ct;
     }
 
+    /**
+     * Adds another {@link ClassType} to {@link #types}.
+     * @param ct A {@link ClassType} that is now represented by the current {@link MultiType}.
+     */
     public void addType(ClassType ct) {
-        if(!allTypes.contains(ct))
-            allTypes.add(ct);
+        if(!types.contains(ct))
+            types.add(ct);
     }
 
     public ClassType getInitialType() { return initialType; }
-    public Vector<ClassType> getAllTypes() { return allTypes; }
-
-    private void setInitialType(ClassType initialType) {
-        this.initialType = initialType;
-    }
-
-    private void setAllTypes(Vector<ClassType> allTypes) {
-        this.allTypes = allTypes;
-    }
+    public Vector<ClassType> getAllTypes() { return types; }
 
     public void setRuntimeType(ClassType ct) { this.runtimeType = ct; }
     public ClassType getRuntimeType() { return this.runtimeType; }
 
-    public boolean isMultiType() { return true; }
-    public MultiType asMultiType() { return this; }
-
+    /**
+     * Creates a new {@link MultiType} based on two separate class types.
+     * @param base The original {@link ClassType}.
+     * @param sub The possible new {@link ClassType} that could be represented.
+     * @return A new instance of {@link MultiType}.
+     */
     public static MultiType create(ClassType base, ClassType sub) {
-        return new MultiType(base,new Vector<>(new ClassType[]{base, sub}));
+        return new MultiTypeBuilder()
+                .setMetaData(base)
+                .setInitialType(base)
+                .setAllTypes(new Vector<>(new ClassType[]{base, sub}))
+                .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isMulti() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public MultiType asMulti() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public String typeName() {
+    public String getTypeName() {
         StringBuilder sb = new StringBuilder();
 
-        for(int i = 1; i <= allTypes.size(); i++) {
-            ClassType ct = allTypes.get(i-1);
-            if(i == allTypes.size())
+        for(int i = 1; i <= types.size(); i++) {
+            ClassType ct = types.get(i-1);
+            if(i == types.size())
                 sb.append(ct);
             else
                 sb.append(ct).append("/");
@@ -67,26 +87,25 @@ public class MultiType extends Type {
         return sb.toString();
     }
 
-    @Override
-    public String toString() { return typeName(); }
-
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link MultiType}
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
-        Vector<ClassType> allTypes = new Vector<>();
-        for(ClassType t : this.allTypes)
-            allTypes.add(t.deepCopy().asType().asClassType());
+        Vector<ClassType> types = new Vector<>();
+        for(ClassType t : this.types)
+            types.add(t.deepCopy().asType().asClass());
 
         return new MultiTypeBuilder()
                    .setMetaData(this)
-                   .setInitialType(this.initialType.deepCopy().asType().asClassType())
-                   .setAllTypes(allTypes)
+                   .setInitialType(initialType.deepCopy().asType().asClass())
+                   .setAllTypes(types)
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitMultiType(this); }
 
@@ -101,25 +120,38 @@ public class MultiType extends Type {
         private final MultiType mt = new MultiType();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return MultiTypeBuilder
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link MultiTypeBuilder}.
          */
         public MultiTypeBuilder setMetaData(AST node) {
             super.setMetaData(mt,node);
             return this;
         }
 
+        /**
+         * Sets the multitype's {@link #initialType}.
+         * @param initialType {@link ClassType} representing the original type bounded to some variable.
+         * @return Current instance of {@link MultiTypeBuilder}.
+         */
         public MultiTypeBuilder setInitialType(ClassType initialType) {
-            mt.setInitialType(initialType);
+            mt.initialType = initialType;
             return this;
         }
 
-        public MultiTypeBuilder setAllTypes(Vector<ClassType> allTypes) {
-            mt.setAllTypes(allTypes);
+        /**
+         * Sets the multitype's {@link #types}.
+         * @param types {@link Vector} of class types that the current multitype could represent.
+         * @return Current instance of {@link MultiTypeBuilder}.
+         */
+        public MultiTypeBuilder setAllTypes(Vector<ClassType> types) {
+            mt.types = types;
             return this;
         }
 
+        /**
+         * Creates a {@link MultiType} object.
+         * @return {@link MultiType}
+         */
         public MultiType create() {
             return mt;
         }

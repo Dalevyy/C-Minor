@@ -43,7 +43,6 @@ public class NameChecker extends Visitor {
      * Creates {@link NameChecker} in compilation mode
      */
     public NameChecker() {
-        this.currentScope = new SymbolTable();
         this.helper = new NameCheckerHelper();
         this.handler = new MessageHandler();
     }
@@ -187,28 +186,18 @@ public class NameChecker extends Visitor {
             }
 
             baseClass = currentScope.findName(cd.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
+            currentScope = currentScope.openScope(baseClass.getScope());
         }
+        else
+            currentScope = currentScope.openScope();
 
-        currentScope = currentScope.openScope();
-
-        // We are allowing type parameters to shadow previous top level declarations.
-        for(TypeParam tp : cd.getTypeParams())
-            tp.visit(this);
-
-        for(FieldDecl fd : cd.getClassBody().getFields())
-            fd.visit(this);
-
-        // Before visiting methods, update the current class scope to contain fields from the base class.
-        if(baseClass != null)
-            helper.updateSubClassSymbolTable(cd, baseClass);
-
-        for(MethodDecl md : cd.getClassBody().getMethods())
-            md.visit(this);
-
-        helper.checkOverriddenMethods(cd, baseClass);
-
+        super.visitClassDecl(cd);
         cd.setScope(currentScope);
-        currentScope = currentScope.closeScope();
+
+        helper.checkForRedeclaredFields(cd);
+        helper.checkOverriddenMethods(cd);
+
+        currentScope = currentScope.getGlobalScope();
     }
 
     /**
@@ -216,11 +205,16 @@ public class NameChecker extends Visitor {
      * <p>
      *     This will be the first visit when we are executing the {@link NameChecker} in compilation mode.
      * </p>
-     * @param c {@link CompilationUnit}
+     * @param cu {@link CompilationUnit}
      */
-    public void visitCompilationUnit(CompilationUnit c) {
-        super.visitCompilationUnit(c);
-        c.setScope(currentScope);
+    public void visitCompilationUnit(CompilationUnit cu) {
+        for(ImportDecl id : cu.getImports())
+            id.getCompilationUnit().visit(this);
+
+        currentScope = currentScope.openScope();
+        super.visitCompilationUnit(cu);
+        cu.setScope(currentScope);
+
         handler.printMessages();
     }
 
@@ -273,7 +267,9 @@ public class NameChecker extends Visitor {
                        .generateError();
             }
 
-            constant.getInitialValue().visit(this);
+            if(constant.hasInitialValue())
+                constant.getInitialValue().visit(this);
+
             // Add the constant and have it point back to the enum.
             currentScope.addName(constant.toString(), ed);
         }
@@ -300,11 +296,6 @@ public class NameChecker extends Visitor {
                    .generateError();
         }
         currentScope.addName(fd);
-
-        if(fd.hasInitialValue()) {
-            fd.getInitialValue().visit(this);
-            helper.checkVariableSelfInitialization(fd);
-        }
     }
 
     /**
@@ -405,7 +396,7 @@ public class NameChecker extends Visitor {
         }
         currentScope.addName(gd);
 
-        if(gd.hasInitialValue()) {
+        if(gd.hasInitialValue() && gd.getInitialValue() != null) {
             gd.getInitialValue().visit(this);
             helper.checkVariableSelfInitialization(gd);
         }
@@ -434,21 +425,6 @@ public class NameChecker extends Visitor {
             is.setScope(currentScope);
             currentScope = currentScope.closeScope();
         }
-    }
-
-    /**
-     * Creates a new scope for an {@link ImportDecl}.
-     * <p>
-     *     For an import declaration, we will run the {@code NameChecker} on its {@link CompilationUnit}
-     *     unit and save the compilation unit's symbol table into the current scope in order to access
-     *     any names declared in the {@link ImportDecl}.
-     * </p>
-     * @param im {@link ImportDecl}
-     */
-    public void visitImportDecl(ImportDecl im) {
-       // currentScope = currentScope.openImportScope();
-        im.getCompilationUnit().visit(this);
-        //currentScope = previousCompilationScope;
     }
 
     /**
@@ -488,7 +464,7 @@ public class NameChecker extends Visitor {
         }
         currentScope.addName(ld);
 
-        if(ld.hasInitialValue()) {
+        if(ld.hasInitialValue() && ld.getInitialValue() != null) {
             ld.getInitialValue().visit(this);
             helper.checkVariableSelfInitialization(ld);
         }
@@ -749,18 +725,23 @@ public class NameChecker extends Visitor {
          *     fields and methods from the base class into the subclass.
          * </p>
          * @param subClass {@link ClassDecl} representing the class we want to update the symbol table.
-         * @param baseClass {@link ClassDecl} representing an inherited base class.
          */
-        public void updateSubClassSymbolTable(ClassDecl subClass, ClassDecl baseClass) {
-            NameIterator namesDeclaredInBaseClass = new NameIterator(baseClass.getScope());
+        public void checkForRedeclaredFields(ClassDecl subClass) {
+            // If the class does not inherit from another class, no error checking is needed!
+            if(subClass.getSuperClass() == null)
+                return;
 
-            while(namesDeclaredInBaseClass.hasNext()) {
-                FieldDecl currentField = namesDeclaredInBaseClass.next().asClassNode().asFieldDecl();
+            ClassDecl baseClass = currentScope.findName(subClass.getSuperClass().getClassName())
+                                              .asTopLevelDecl().asClassDecl();
+            NameIterator fieldsInSubClass = new NameIterator(currentScope);
+            while(fieldsInSubClass.hasNext()) {
+                FieldDecl currentField = fieldsInSubClass.next().asClassNode().asFieldDecl();
 
                 // ERROR CHECK #1: If a class is inherited, then we need to make sure the subclass will have access to
                 //                 all fields declared by the base class. This means a user can not redeclare a base
                 //                 class field within a subclass.
-                if(currentScope.hasName(currentField)) {
+                if(isFieldInClassHierarchy
+                        (currentField.toString(), baseClass)) {
                     handler.createErrorBuilder(ScopeError.class)
                            .addLocation(currentScope.findName(currentField))
                            .addErrorNumber(MessageNumber.SCOPE_ERROR_324)
@@ -769,11 +750,26 @@ public class NameChecker extends Visitor {
                            .addOriginalDeclaration(currentField)
                            .generateError();
                 }
-
-                currentScope.addName(currentField);
             }
+        }
 
-            // currentScope.addAllMethods(baseClass.getScope());
+        /**
+         * Checks if a field name is contained within a given class hierarchy. This is recursive!
+         * @param fieldName String representing the field we want to find in the class hierarchy.
+         * @param cd The current {@link ClassDecl} we want to check for a field name in.
+         * @return {@code True} if the field was found in the class hierarchy, {@code False} otherwise.
+         */
+        private boolean isFieldInClassHierarchy(String fieldName, ClassDecl cd) {
+            // Base Case 1: If the field name is found, then stop the recursion.
+            if(cd.getScope().hasName(fieldName))
+                return true;
+
+            // Base Case 2: If no superclass exists, we have looked through the entire class hierarchy!
+            if(cd.getSuperClass() == null)
+                return false;
+
+            return isFieldInClassHierarchy(fieldName,
+                    currentScope.findName(cd.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl());
         }
 
         /**
@@ -786,31 +782,40 @@ public class NameChecker extends Visitor {
          *     understand which methods will be called when working with the appropriate types as
          *     virtual functions are a common headache for beginners.
          * </p>
-         * @param subClass The {@link ClassDecl} we are checking for correct method redefinitions.
-         * @param baseClass The {@link ClassDecl} we will use to make sure method redefinitions are correct.
+         * @param subClass The {@link ClassDecl} we are checking for correct method redefinitions in.
          */
-        public void checkOverriddenMethods(ClassDecl subClass, ClassDecl baseClass) {
-            for(MethodDecl subMethod : subClass.getClassBody().getMethods()) {
-                boolean methodFoundInBaseClass = false;
+        public void checkOverriddenMethods(ClassDecl subClass) {
+            // If the class does not inherit from another class, we still check to make sure no methods are redefined!
+            ClassDecl baseClass = null;
+            if(subClass.getSuperClass() != null)
+                baseClass = currentScope.findName(subClass.getSuperClass().getClassName())
+                                        .asTopLevelDecl().asClassDecl();
 
-                // ERROR CHECK #1: If two methods from a base and subclass respectively have the same signature,
-                //                 then the user must explicitly use the `override` keyword in the subclass to denote
-                //                 the subclass method will be called instead of the base class method when using
-                //                 objects of the subclass type.
-                if(baseClass != null && baseClass.containsMethod(subMethod)) {
-                    methodFoundInBaseClass = true;
-                    if(!subMethod.isOverridden()) {
-                        handler.createErrorBuilder(ScopeError.class)
-                                .addLocation(subMethod)
-                                .addErrorNumber(MessageNumber.SCOPE_ERROR_311)
-                                .addErrorArgs(subMethod, baseClass)
-                                .generateError();
-                    }
+            for(MethodDecl subMethod : subClass.getClassBody().getMethods()) {
+                MethodDecl methodFound = null;
+
+                if(baseClass != null)
+                    methodFound = isMethodInClassHierarchy(subMethod.getDeclName(),subMethod.getParamSignature(),baseClass);
+
+                /*
+                    ERROR CHECK #1: If two methods from a base and subclass respectively have the same signature,
+                                    then the user must explicitly use the `override` keyword in the subclass to denote
+                                    the subclass method will be called instead of the base class method when using
+                                    objects of the subclass type.
+                 */
+                if(methodFound != null && !subMethod.isOverridden()) {
+                    handler.createErrorBuilder(ScopeError.class)
+                           .addLocation(subMethod)
+                           .addErrorNumber(MessageNumber.SCOPE_ERROR_311)
+                           .addErrorArgs(subMethod, baseClass)
+                           .generateError();
                 }
 
-                // ERROR CHECK #2: The 'override' keyword can only be used when a subclass method shares the same
-                //                 signature as a base class method (or else the method is not really overridden).
-                if(!methodFoundInBaseClass && subMethod.isOverridden()) {
+                /*
+                    ERROR CHECK #2: The 'override' keyword can only be used when a subclass method shares the same
+                                    signature as a base class method (or else the method is not really overridden).
+                 */
+                else if(methodFound == null && subMethod.isOverridden()) {
                     handler.createErrorBuilder(ScopeError.class)
                            .addLocation(subMethod)
                            .addErrorNumber(MessageNumber.SCOPE_ERROR_312)
@@ -818,6 +823,28 @@ public class NameChecker extends Visitor {
                            .generateError();
                 }
             }
+        }
+
+        /**
+         * Checks if a method was declared somewhere in the class hierarchy. This is recursive!
+         * @param methodName The method name we are searching for.
+         * @param signature The string representation of the method's type signature.
+         * @param cd The current {@link ClassDecl} we are checking for the method's declaration in.
+         * @return {@link MethodDecl} if the method was found, {@code null} otherwise.
+         */
+        private MethodDecl isMethodInClassHierarchy(String methodName, String signature, ClassDecl cd) {
+            AST node = cd.getScope().findMethod(methodName,signature);
+
+            // Base Case 1: If the method was found, then stop the recursion.
+            if(node != null)
+                return node.asClassNode().asMethodDecl();
+
+            // Base Case 2: If no superclass exists, we have looked through the entire class hierarchy!
+            if(cd.getSuperClass() == null)
+                return null;
+
+            return isMethodInClassHierarchy(methodName,signature,
+                    currentScope.findName(cd.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl());
         }
 
         /**

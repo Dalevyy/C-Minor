@@ -1,12 +1,7 @@
 package cminor.ast.topleveldecls;
 
 import cminor.ast.AST;
-import cminor.ast.misc.Modifier;
-import cminor.ast.misc.Name;
-import cminor.ast.misc.NameDecl;
-import cminor.ast.misc.ParamDecl;
-import cminor.ast.misc.ScopeDecl;
-import cminor.ast.misc.TypeParam;
+import cminor.ast.misc.*;
 import cminor.ast.statements.BlockStmt;
 import cminor.ast.types.Type;
 import cminor.token.Token;
@@ -18,7 +13,7 @@ import cminor.utilities.Visitor;
  * A {@link TopLevelDecl} node that represents a function.
  * @author Daniel Levy
  */
-public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
+public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl, ReturnDecl {
 
     /**
      * The scope of the function.
@@ -66,6 +61,11 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     private String paramSignature;
 
     /**
+     * Flag used by {@link cminor.typechecker.TypeChecker} to determine if the function is guaranteed to return a value.
+     */
+    private boolean containsReturnStmt;
+
+    /**
      * Default constructor for {@link FuncDecl}.
      */
     public FuncDecl() { this(new Token(),null,null,new Vector<>(),new Vector<>(),null,null); }
@@ -90,6 +90,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
         this.params = params;
         this.returnType = returnType;
         this.body = body;
+        this.containsReturnStmt = false;
 
         addChildNode(this.typeParams);
         addChildNode(this.params);
@@ -155,19 +156,16 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < params.size(); i++)
             sb.append(params.get(i).getType().typeSignature());
+
         paramSignature = sb.toString();
         return paramSignature;
     }
 
     /**
-     * Sets the value of {@link #returnType}.
-     * <p>
-     *     This will be called during the {@link micropasses.TypeValidityPass} when we are checking if
-     *     all types are valid.
-     * </p>
-     * @param returnType The {@link Type} we will update {@link #returnType} to store.
+     * Setter for {@link #returnType}. This should only be called by {@link cminor.micropasses.TypeValidator}.
+     * @param returnType {@link Type} to save into {@link #returnType}.
      */
-    public void updateReturnType(Type returnType) { this.returnType = returnType; }
+    public void setReturnType(Type returnType) { this.returnType = returnType; }
 
     // Come back later to make sure this is good
     public void removeTypeParams(){
@@ -179,7 +177,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     /**
      * Updates the {@link #signature} of the current function.
      * <p>
-     *     This method will be used by {@link micropasses.TypeValidityPass} in order to
+     *     This method will be used by {@link cminor.micropasses.TypeValidator} in order to
      *     change the function's signature when a template function is instantiated.
      * </p>
      */
@@ -230,22 +228,22 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return true; }
-
-    /**
-     * {@inheritDoc}
-     */
     public SymbolTable getScope() { return (scope != null) ? scope : null; }
 
     /**
      * {@inheritDoc}
      */
     public void setScope(SymbolTable st) { scope = (scope == null) ? st : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setIfReturnStmtFound() { containsReturnStmt = true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean containsReturnStmt() { return containsReturnStmt; }
 
     /**
      * {@inheritDoc}
@@ -315,7 +313,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
         private final FuncDecl fd = new FuncDecl();
 
         /**
-         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
          * @return Current instance of {@link FuncDeclBuilder}.
          */
         public FuncDeclBuilder setMetaData(AST node) {

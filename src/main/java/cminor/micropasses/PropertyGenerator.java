@@ -92,7 +92,7 @@ public class PropertyGenerator extends Visitor {
 
             builder.setModifier(buildModifier());
             builder.setMethodName(new Name("get" + fd));
-            builder.setReturnType(fd.getDeclaredType());
+            builder.setReturnType(fd.getType());
 
             ReturnStmt retStmt = new ReturnStmtBuilder()
                                      .setReturnExpr(buildFieldExpr(fd))
@@ -120,7 +120,7 @@ public class PropertyGenerator extends Visitor {
             ParamDecl param = new ParamDeclBuilder()
                                   .setModifier(passMode)
                                   .setName(new Name(fd.toString()))
-                                  .setType(fd.getDeclaredType())
+                                  .setType(fd.getType())
                                   .create();
             builder.setParams(new Vector<>(param));
 

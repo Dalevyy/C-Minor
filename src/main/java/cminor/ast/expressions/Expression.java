@@ -1,6 +1,7 @@
 package cminor.ast.expressions;
 
 import cminor.ast.AST;
+import cminor.ast.types.ClassType;
 import cminor.ast.types.Type;
 import cminor.token.Token;
 
@@ -21,6 +22,21 @@ public abstract class Expression extends AST {
      * @param metaData Token containing metadata we want to save
      */
     public Expression(Token metaData) { super(metaData); }
+
+    /**
+     * Retrieves the target {@link Type} if an expression is written inside a {@link FieldExpr}.
+     * <p>
+     *     This is useful for type checking complex field expressions since each type must
+     *     evaluate to be a {@link ClassType}, so we can correctly find the right declarations we need.
+     * </p>
+     * @return {@link Type} representing the type of a target. Throws an exception if no type can be found.
+     */
+    public Type getTargetType() {
+        if(parent != null && parent.isExpression() && parent.asExpression().isFieldExpr())
+            return parent.asExpression().asFieldExpr().getTargetType();
+
+        throw new RuntimeException("The current expression is not found inside a field expression!");
+    }
 
     /**
      * Checks if the current AST node is an {@link ArrayExpr}.

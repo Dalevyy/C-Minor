@@ -2,6 +2,7 @@ package cminor.ast.topleveldecls;
 
 import cminor.ast.AST;
 import cminor.ast.misc.ParamDecl;
+import cminor.ast.misc.ReturnDecl;
 import cminor.ast.misc.ScopeDecl;
 import cminor.ast.statements.BlockStmt;
 import cminor.ast.types.Type;
@@ -19,7 +20,7 @@ import cminor.utilities.Visitor;
  * </p>
  * @author Daniel Levy
  */
-public class MainDecl extends TopLevelDecl implements ScopeDecl {
+public class MainDecl extends TopLevelDecl implements ScopeDecl, ReturnDecl {
 
     /**
      * The scope of the main function.
@@ -40,6 +41,11 @@ public class MainDecl extends TopLevelDecl implements ScopeDecl {
      * The body of the main function.
      */
     private BlockStmt body;
+
+    /**
+     * Flag used by {@link cminor.typechecker.TypeChecker} to determine if {@code Main} is guaranteed to return a value.
+     */
+    private boolean containsReturnStmt;
 
     /**
      * Default constructor for {@link MainDecl}.
@@ -91,6 +97,16 @@ public class MainDecl extends TopLevelDecl implements ScopeDecl {
      * {@inheritDoc}
      */
     public void setScope(SymbolTable st) { scope = (scope == null) ? st : scope; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setIfReturnStmtFound() { containsReturnStmt = true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean containsReturnStmt() { return containsReturnStmt; }
 
     /**
      * {@inheritDoc}

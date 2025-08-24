@@ -65,7 +65,7 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return globalVariable.getInitialValue() != null; }
+    public boolean hasInitialValue() { return globalVariable.hasInitialValue(); }
 
     /**
      * {@inheritDoc}
@@ -85,7 +85,12 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public Type getDeclaredType() { return globalVariable.getDeclaratedType(); }
+    public Type getType() { return globalVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setType(Type type) { globalVariable.setDeclaredType(type);}
 
     /**
      * {@inheritDoc}
@@ -107,16 +112,6 @@ public class GlobalDecl extends TopLevelDecl implements NameDecl, VarDecl {
      * {@inheritDoc}
      */
     public String getDeclName() { return globalVariable.toString(); }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
 
     /**
      * {@inheritDoc}

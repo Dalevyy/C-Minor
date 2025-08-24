@@ -1,13 +1,16 @@
 package cminor.utilities;
 
 import cminor.ast.AST;
+import cminor.ast.topleveldecls.ClassDecl;
+import cminor.ast.types.ClassType;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
-import cminor.micropasses.PropertyGenerator;
-import cminor.micropasses.SemanticAnalyzer;
+import cminor.micropasses.*;
+import cminor.modifierchecker.ModifierChecker;
 import cminor.namechecker.NameChecker;
+import cminor.typechecker.TypeChecker;
 
 /**
  * A class designed to store and execute all compiler phases.
@@ -60,12 +63,6 @@ public class PhaseHandler {
     }
 
     /**
-     * Adds a {@link Visitor} to execute.
-     * @param v {@link Visitor}
-     */
-    public void addPhase(Visitor v) { phases.add(v); }
-
-    /**
      * Executes all {@link Visitor} in {@link #phases}.
      * <p>
      *     If an error occurs while executing in interpretation mode, then an exception will
@@ -74,21 +71,31 @@ public class PhaseHandler {
      * @param node The {@link AST} node that executes each {@link Visitor}.
      */
     public void execute(AST node) {
-        if(finalPhase != null) {
+        if(finalPhase != null)
             executeUntilFinalPhase(node);
-            return;
-        }
-
-        for(Visitor v : phases)
-            node.visit(v);
+        else
+            for(Visitor v : phases)
+                node.visit(v);
     }
+
+//    private void execute(ClassDecl cd) {
+//        phases.add(PhaseNumber.FIELD_REWRITER.ordinal(), new FieldRewriter());
+//
+//        if(finalPhase != null)
+//            executeUntilFinalPhase(cd);
+//        else
+//            for(Visitor v : phases)
+//                cd.visit(v);
+//
+//        phases.remove(PhaseNumber.FIELD_REWRITER.ordinal());
+//    }
 
     /**
      * Executes only a specified amount of {@link Visitor} based on the value of {@link #finalPhase}.
      * @param node The {@link AST} we would like to execute each {@link Visitor} with.
      */
     private void executeUntilFinalPhase(AST node) {
-        for(int i = 0; i < finalPhase.ordinal(); i++)
+        for(int i = 0; i <= finalPhase.ordinal(); i++)
             node.visit(phases.get(i));
     }
 
@@ -161,7 +168,7 @@ public class PhaseHandler {
     public void setFinalPhase(PhaseNumber phase) { finalPhase = phase; }
 
     private void reset() {
-        this.phases = new Vector<>();
+        phases = new Vector<>();
         setup();
     }
 
@@ -169,5 +176,10 @@ public class PhaseHandler {
         phases.add(new SemanticAnalyzer());
         phases.add(new PropertyGenerator());
         phases.add(new NameChecker(globalScope));
+        phases.add(new FieldRewriter());
+        phases.add(new TypeValidator(globalScope));
+        phases.add(new TypeChecker(globalScope));
+        phases.add(new ConstructorGenerator());
+        phases.add(new ModifierChecker(globalScope));
     }
 }

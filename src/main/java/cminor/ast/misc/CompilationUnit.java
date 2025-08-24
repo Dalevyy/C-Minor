@@ -2,6 +2,7 @@ package cminor.ast.misc;
 
 import cminor.ast.AST;
 import cminor.ast.topleveldecls.*;
+import cminor.ast.types.ClassType;
 import cminor.micropasses.ImportHandler;
 import cminor.token.Token;
 import cminor.utilities.SymbolTable;

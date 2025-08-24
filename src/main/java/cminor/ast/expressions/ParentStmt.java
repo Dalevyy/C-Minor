@@ -1,6 +1,7 @@
 package cminor.ast.expressions;
 
 import cminor.ast.AST;
+import cminor.ast.topleveldecls.ClassDecl;
 import cminor.token.Token;
 import cminor.utilities.Visitor;
 
@@ -20,6 +21,51 @@ public class ParentStmt extends Expression {
      * @param metaData {@link Token} containing all the metadata we will save into this node.
      */
     public ParentStmt(Token metaData) { super(metaData); }
+
+    /**
+     * Checks if the {@link ParentStmt} was written inside a {@link FieldExpr}.
+     * @return {@code True} if the {@code parent} keyword is contained in a field expression, {@code False} otherwise.
+     */
+    public boolean insideFieldExpr() {
+        return parent != null && (parent.isExpression() && parent.asExpression().isFieldExpr());
+    }
+
+    /**
+     * Checks if the parent keyword can properly be evaluated.
+     * <p>
+     *     By proper, we are referring to the fact that the 'parent' keyword
+     *     should always be found at the start of a field expression!
+     * </p>
+     * @return {@code True} if the parent keyword was written correctly, {@code False} otherwise.
+     */
+    public boolean wasParentKeywordWrittenCorrectly() {
+        AST node = parent;
+
+        // If there is another field expression above the current one, then
+        // the 'parent' keyword was not used at the start of the field expression!
+        if(node.getParent().isExpression() && node.getParent().asExpression().isFieldExpr())
+            return false;
+
+        // If the field expression was written as '<...>.parent', this is not allowed!
+        return node.asExpression().asFieldExpr().getAccessExpr().isParentStmt();
+    }
+
+    /**
+     * Returns the {@link ClassDecl} the current {@link ParentStmt} is in.
+     * <p>
+     *     This method should only be called by the {@link cminor.typechecker.TypeChecker},
+     *     so we may correctly assign the right type to the 'parent' keyword!
+     * </p>
+     * @return The {@link ClassDecl} the 'parent' keyword is used in.
+     */
+    public ClassDecl getClassDecl() {
+        AST node = this;
+
+        while(!node.isTopLevelDecl() && !node.asTopLevelDecl().isClassDecl())
+            node = node.getParent();
+
+        return node.asTopLevelDecl().asClassDecl();
+    }
 
     /**
      * {@inheritDoc}

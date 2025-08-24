@@ -55,7 +55,7 @@ public class RuntimeList extends Value {
      */
     public void add(Value val) {
         if(val.isList()) {
-            if(this.getType().asListType().numOfDims == val.asList().getType().asListType().numOfDims)
+            if(this.getType().asList().dims == val.asList().getType().asList().dims)
                 for(int i = 1; i <= val.asList().size(); i++)
                     arr.add(val.asList().get(i));
             else

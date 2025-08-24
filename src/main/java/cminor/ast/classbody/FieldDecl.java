@@ -51,7 +51,7 @@ public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return fieldVariable.getInitialValue() != null; }
+    public boolean hasInitialValue() { return fieldVariable.hasInitialValue(); }
 
     /**
      * {@inheritDoc}
@@ -72,7 +72,12 @@ public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public Type getDeclaredType() { return fieldVariable.getDeclaratedType(); }
+    public Type getType() { return fieldVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setType(Type type) { fieldVariable.setDeclaredType(type);}
 
     /**
      * {@inheritDoc}
@@ -94,16 +99,6 @@ public class FieldDecl extends ClassNode implements NameDecl, VarDecl {
      * {@inheritDoc}
      */
     public String getDeclName() { return fieldVariable.toString();}
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
 
     /**
      * {@inheritDoc}

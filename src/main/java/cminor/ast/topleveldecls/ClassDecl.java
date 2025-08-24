@@ -7,6 +7,7 @@ import cminor.ast.classbody.InitDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.misc.*;
 import cminor.ast.types.ClassType;
+import cminor.micropasses.ConstructorGenerator;
 import cminor.token.Token;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
@@ -44,7 +45,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     private ClassBody body;
 
     /**
-     * The constructor of the current class. This will be set by the {@link cminor.micropasses.ConstructorGeneration} pass.
+     * The constructor of the current class. This will be set by the {@link ConstructorGenerator} pass.
      */
     private InitDecl constructor;
 
@@ -161,16 +162,6 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
     public SymbolTable getScope() { return (scope != null) ? scope : null; }
 
     /**
@@ -227,7 +218,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
             typeParams.add(tp.deepCopy().asSubNode().asTypeParam());
 
         if(superClass != null)
-            cb.setSuperClass(superClass.deepCopy().asType().asClassType());
+            cb.setSuperClass(superClass.deepCopy().asType().asClass());
 
         return cb.setMetaData(this)
                   .setMods(mod)

@@ -42,7 +42,7 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public boolean hasInitialValue() { return localVariable.getInitialValue() != null; };
+    public boolean hasInitialValue() { return localVariable.hasInitialValue(); };
 
     /**
      * {@inheritDoc}
@@ -62,7 +62,12 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
     /**
      * {@inheritDoc}
      */
-    public Type getDeclaredType() { return localVariable.getDeclaratedType(); }
+    public Type getType() { return localVariable.getDeclaratedType(); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void setType(Type type) { localVariable.setDeclaredType(type);}
 
     /**
      * {@inheritDoc}
@@ -84,16 +89,6 @@ public class LocalDecl extends Statement implements NameDecl, VarDecl {
      * {@inheritDoc}
      */
     public String getDeclName() { return localVariable.toString(); }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isMethod() { return false; }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean isFunction() { return false; }
 
     /**
      * {@inheritDoc}

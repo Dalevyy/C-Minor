@@ -2,16 +2,14 @@ package cminor.interpreter;
 
 import cminor.ast.AST;
 import cminor.ast.misc.CompilationUnit;
+import cminor.ast.types.ClassType;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
 import cminor.micropasses.*;
-import cminor.modifierchecker.ModifierChecker;
-import cminor.namechecker.NameChecker;
 import cminor.parser.Parser;
-import cminor.typechecker.TypeChecker;
 import cminor.utilities.PhaseHandler;
 import cminor.utilities.PhaseNumber;
 import cminor.utilities.Vector;
@@ -38,7 +36,7 @@ public class VM {
     /**
      * {@link PhaseHandler} that will execute all compilation phases when we are in the {@link VM}.
      */
-    private PhaseHandler phaseHandler;
+    private final PhaseHandler phaseHandler;
 
     /**
      * {@link MessageHandler} that will print out errors related to compiler settings.

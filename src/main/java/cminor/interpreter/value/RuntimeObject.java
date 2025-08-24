@@ -73,7 +73,7 @@ public class RuntimeObject extends Value {
      * @return {@link ClassType}
      */
     public ClassType getCurrentType() {
-        return type.isMultiType() ? type.asMultiType().getRuntimeType() : type.asClassType();
+        return type.isMulti() ? type.asMulti().getRuntimeType() : type.asClass();
     }
 
     /**

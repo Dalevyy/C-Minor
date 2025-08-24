@@ -106,57 +106,6 @@ public abstract class AST {
     public String header() { return location.start.line + "| " + text + "\n"; }
 
     /**
-     * Retrieves the closest {@link AST} node that contains the current node.
-     * <p>
-     *     This method is used when generating errors in order to get the most specific {@link AST} node
-     *     that has the current node as a child. The goal is to get additional {@link #text} for the error
-     *     message, so the user has a clearer idea about the context in which an error was generated in.
-     * </p>
-     * @return The {@link AST} node that we will be using when generating an error message.
-     */
-    public AST getFullLocation() {
-        AST currentNode = this;
-
-        while(currentNode.parent != null) {
-            currentNode = currentNode.parent;
-            if(currentNode.isStatement() && currentNode.asStatement().isExprStmt())
-                return currentNode;
-        }
-
-        return currentNode;
-    }
-
-    /**
-     * Retrieves the closest {@link TopLevelDecl} the current node is contained in.
-     * @return {@link AST} representing the closest {@link TopLevelDecl} (if it exists).
-     */
-    public AST getTopLevelDecl() {
-        AST currentNode = this;
-
-        while(currentNode.parent != null && !currentNode.isTopLevelDecl())
-            currentNode = currentNode.parent;
-
-        return currentNode;
-    }
-
-    /**
-     * Retrieves the root {@link CompilationUnit} of the current {@link AST} node.
-     * @return A {@link CompilationUnit} node representing the root of the current node. If no {@link CompilationUnit}
-     * was found, then {@code null} is returned.
-     */
-    public CompilationUnit getCompilationUnit() {
-        AST currentNode = this;
-
-        while(currentNode.parent != null && !(currentNode.isSubNode() && currentNode.asSubNode().isCompilationUnit()))
-            currentNode = currentNode.parent;
-
-        if(!(currentNode.isSubNode() && currentNode.asSubNode().isCompilationUnit()))
-            return null;
-
-        return currentNode.asSubNode().asCompilationUnit();
-    }
-
-    /**
      * Removes all references of {@code this} node and replaces it with the current node in the {@link AST} hierarchy.
      * @param replacementNode The {@link AST} node we wish to replace the {@code this} node with.
      */
@@ -277,6 +226,17 @@ public abstract class AST {
     public String toString() { return text; }
 
     /**
+     * Checks if 2 AST nodes are equal to each other.
+     * <p>
+     *     In this case, we will check if both nodes represent the same location in the program
+     *     AND they both contain the same exact text.
+     * </p>
+     * @param node The {@link AST} node we wish to do a comparison with.
+     * @return {@code True} if both nodes are equal to each other, {@code False} otherwise.
+     */
+    public boolean equals(AST node) { return location.equals(node.location) && text.equals(node.text); }
+
+    /**
      * Internal class that will build the metadata for an {@link AST} node.
      */
     protected static class NodeBuilder {
@@ -296,6 +256,57 @@ public abstract class AST {
     }
 
     /* #################################### HELPERS #################################### */
+
+    /**
+     * Retrieves the closest {@link AST} node that contains the current node.
+     * <p>
+     *     This method is used when generating errors in order to get the most specific {@link AST} node
+     *     that has the current node as a child. The goal is to get additional {@link #text} for the error
+     *     message, so the user has a clearer idea about the context in which an error was generated in.
+     * </p>
+     * @return The {@link AST} node that we will be using when generating an error message.
+     */
+    public AST getFullLocation() {
+        AST currentNode = this;
+
+        while(currentNode.parent != null) {
+            currentNode = currentNode.parent;
+            if(currentNode.isStatement() && currentNode.asStatement().isExprStmt())
+                return currentNode;
+        }
+
+        return currentNode;
+    }
+
+    /**
+     * Retrieves the closest {@link TopLevelDecl} the current node is contained in.
+     * @return {@link AST} representing the closest {@link TopLevelDecl} (if it exists).
+     */
+    public AST getTopLevelDecl() {
+        AST currentNode = this;
+
+        while(currentNode.parent != null && !currentNode.isTopLevelDecl())
+            currentNode = currentNode.parent;
+
+        return currentNode;
+    }
+
+    /**
+     * Retrieves the root {@link CompilationUnit} of the current {@link AST} node.
+     * @return A {@link CompilationUnit} node representing the root of the current node. If no {@link CompilationUnit}
+     * was found, then {@code null} is returned.
+     */
+    public CompilationUnit getCompilationUnit() {
+        AST currentNode = this;
+
+        while(currentNode.parent != null && !(currentNode.isSubNode() && currentNode.asSubNode().isCompilationUnit()))
+            currentNode = currentNode.parent;
+
+        if(!(currentNode.isSubNode() && currentNode.asSubNode().isCompilationUnit()))
+            return null;
+
+        return currentNode.asSubNode().asCompilationUnit();
+    }
 
     /**
      * Checks if the current AST node is a {@link ClassNode}.

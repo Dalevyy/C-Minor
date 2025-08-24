@@ -1,32 +1,49 @@
 package cminor.ast.types;
 
 import cminor.ast.AST;
-import cminor.token.*;
-import cminor.utilities.*;
+import cminor.token.Token;
+import cminor.utilities.Visitor;
 
-/*
-___________________________ VoidType ___________________________
-At the bottom of the structured type hierarchy, there is a
-VoidType. ThisStmt type will represent any NULL values in C Minor.
-________________________________________________________________
-*/
+/**
+ * A {@link Type} representing a null value.
+ * <p>
+ *     A {@link VoidType} is the last structured type, and it appears at the
+ *     bottom of the structured type hierarchy. This type is mainly used when
+ *     working with {@code Void} return types.
+ * </p>
+ * @author Daniel Levy
+ */
 public class VoidType extends Type {
 
+    /**
+     * Default constructor for {@link VoidType}.
+     */
     public VoidType() { this(new Token()); }
-    public VoidType(Token t) { super(t); }
-
-    public boolean isVoidType() { return true; }
-    public VoidType asVoidType() { return this; }
-
-    @Override
-    public String typeName() { return "Void"; }
-
-    @Override
-    public String toString() { return typeName(); }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link VoidType}
+     * Main constructor for {@link VoidType}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     */
+    public VoidType(Token metaData) { super(metaData); }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isVoid() { return true; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public VoidType asVoid() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getTypeName() { return "Void"; }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public AST deepCopy() {
@@ -35,6 +52,9 @@ public class VoidType extends Type {
                    .create();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void visit(Visitor v) { v.visitVoidType(this); }
 
@@ -49,9 +69,8 @@ public class VoidType extends Type {
         private final VoidType vt = new VoidType();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return VoidTypeBuilder
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link VoidTypeBuilder}.
          */
         public VoidTypeBuilder setMetaData(AST node) {
             super.setMetaData(vt,node);

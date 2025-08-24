@@ -10,33 +10,55 @@ import cminor.utilities.Visitor;
  * also continuous blocks of memory like arrays, but lists may be
  * dynamically resized by the user during runtime.
  */
-public class ListType extends Type {
+public class ListType extends ArrayType {
 
-    // A list is homogeneous in C Minor which means a list
-    // only stores a single data type
-    private Type baseType;
-    public int numOfDims;
-
+    /**
+     * Default constructor for {@link ListType}.
+     */
     public ListType() { this(new Token(),null,0); }
-    public ListType(Type bt, int num) { this(new Token(),bt,num); }
-    public ListType(Token metaData, Type bt, int num) {
-        super(metaData);
-        this.baseType = bt;
-        this.numOfDims = num;
-    }
 
-    public boolean isListType() { return true; }
-    public ListType asListType() { return this; }
+    /**
+     * Main constructor for {@link ListType}.
+     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * @param baseType {@link Type} to store into {@link #baseType}.
+     * @param dims {@code int} to store into {@link #dims}.
+     */
+    public ListType(Token metaData, Type baseType, int dims) { super(metaData,baseType,dims); }
 
-    public Type baseType() { return baseType; }
-    public int getDims() { return numOfDims; }
+    /**
+     * {@inheritDoc}
+     * <p>
+     *     Overriding the parent method since a list is different from an array in C Minor.
+     * </p>
+     */
+    @Override
+    public boolean isArray() { return false; }
 
-    public void setBaseType(Type baseType) {
-        this.baseType = baseType;
-    }
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isList() { return true; }
 
-    public void setNumOfDims(int numOfDims) {
-        this.numOfDims = numOfDims;
+    /**
+     * {@inheritDoc}
+     */
+    public ListType asList() { return this; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public String getTypeName() {
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = 0; i <= dims; i++) {
+            if(i == dims)
+                sb.append(baseType.getTypeName());
+            else
+                sb.append("List[");
+        }
+
+        sb.append("]".repeat(Math.max(0, dims)));
+        return sb.toString();
     }
 
     public boolean baseTypeCompatible(Type t) { return assignmentCompatible(baseType,t); }
@@ -44,14 +66,14 @@ public class ListType extends Type {
     /**
      * Checks if a passed type can represent a sublist type of the current {@link ListType}.
      * <p><br>
-     *     This method is primary used by the {@link typechecker.TypeChecker#visitListStmt(ListStmt)} method
-     *     to type check the value that is added or removed by the list.
+     *     This method is primarily used by the {@link cminor.typechecker.TypeChecker#visitListStmt(ListStmt)}
+     *     method to type check the value that is added or removed by the list.
      * </p>
      * @param currentType Generic {@link Type}
      * @return Boolean
      */
     public boolean isSubList(Type currentType) {
-        if(currentType.isListType()) {
+        if(currentType.isList()) {
             // If the lists are assignment compatible, then the passed list type is the same type
             // as the current list type. Thus, two lists of the same type can be sublists of each other.
             if(assignmentCompatible(this,currentType))
@@ -60,59 +82,31 @@ public class ListType extends Type {
             // If the lists aren't assignment compatible, then we check if the passed list type has one
             // less dimension than the current list and if their base types are the same. This means the
             // passed list type is a proper sublist if both evaluate to be true.
-            return currentType.asListType().numOfDims+1 == this.numOfDims
-                        && this.baseTypeCompatible(currentType.asListType().baseType);
+            return currentType.asList().dims+1 == this.dims
+                        && this.baseTypeCompatible(currentType.asList().baseType);
         }
         else
             // For a 1D list, a single value can act as a sublist.
-            return this.baseTypeCompatible(currentType) && this.numOfDims == 1;
+            return this.baseTypeCompatible(currentType) && this.dims == 1;
     }
 
     public String validSublist() {
         StringBuilder sb = new StringBuilder();
 
-        for(int i = 1; i <= numOfDims; i++) {
-            if(i == numOfDims)
-                sb.append(baseType.typeName());
+        for(int i = 1; i <= dims; i++) {
+            if(i == dims)
+                sb.append(baseType.getTypeName());
             else
                 sb.append("List[");
         }
 
-        sb.append("]".repeat(Math.max(0, numOfDims-1)));
+        sb.append("]".repeat(Math.max(0, dims-1)));
         return sb.toString();
     }
-
-    @Override
-    public String typeName() {
-        StringBuilder sb = new StringBuilder();
-
-        for(int i = 0; i <= numOfDims; i++) {
-            if(i == numOfDims)
-                sb.append(baseType.typeName());
-            else
-                sb.append("List[");
-        }
-
-        sb.append("]".repeat(Math.max(0, numOfDims)));
-        return sb.toString();
-    }
-
-    @Override
-    public String toString()  { return typeName(); }
 
     /**
-     * {@code deepCopy} method.
-     * @return Deep copy of the current {@link ListType}
+     * {@inheritDoc}
      */
-    @Override
-    public AST deepCopy() {
-        return new ListTypeBuilder()
-                .setMetaData(this)
-                .setBaseType(this.baseType.deepCopy().asType())
-                .setNumOfDims(this.numOfDims)
-                .create();
-    }
-
     @Override
     public void visit(Visitor v) { v.visitListType(this); }
 
@@ -127,32 +121,31 @@ public class ListType extends Type {
         private final ListType lt = new ListType();
 
         /**
-         * Copies the metadata of an existing AST node into the builder.
-         * @param node AST node we want to copy.
-         * @return ListTypeBuilder
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @return Current instance of {@link ListTypeBuilder}.
          */
         public ListTypeBuilder setMetaData(AST node) {
-            super.setMetaData(lt,node);
+            super.setMetaData(lt, node);
             return this;
         }
 
         /**
          * Sets the list type's {@link #baseType}.
-         * @param baseType Type that represents the values stored by the list
-         * @return ListTypeBuilder
+         * @param baseType {@link Type} that represents the values stored by the list.
+         * @return Current instance of {@link ListTypeBuilder}.
          */
         public ListTypeBuilder setBaseType(Type baseType) {
-            lt.setBaseType(baseType);
+            lt.baseType = baseType;
             return this;
         }
 
         /**
-         * Sets the list type's {@link #numOfDims}.
-         * @param numOfDims Int representing how many dimensions the list has
-         * @return ListTypeBuilder
+         * Sets the list type's {@link #dims}.
+         * @param dims {@code Int} representing how many dimensions the list type has.
+         * @return Current instance of {@link ListTypeBuilder}.
          */
-        public ListTypeBuilder setNumOfDims(int numOfDims) {
-            lt.setNumOfDims(numOfDims);
+        public ListTypeBuilder setNumOfDims(int dims) {
+            lt.dims = dims;
             return this;
         }
 

@@ -31,18 +31,32 @@ public class Var extends SubNode {
     private Type declaredType;
 
     /**
+     * Flag denoting whether the variable was initialized with a value or the keyword {@code uninit}.
+     */
+    private boolean wasInitialized;
+
+    /**
      * Default constructor for {@link Var}.
      */
-    public Var() { this(new Token(),null,null,null); }
+    public Var() {
+        this(new Token(),null,null,null);
+        this.wasInitialized = false;
+    }
 
     /**
      * Constructor for instantiating a {@link Var} without an initial value (for enum constants).
      * @param metaData {@link Token} containing all the metadata we will save into this node.
      * @param variableName {@link Name} to store into {@link #variableName}.
      */
-    public Var(Token metaData, Name variableName) { this(metaData, variableName, null, null); }
+    public Var(Token metaData, Name variableName) {
+        this(metaData, variableName, null, null);
+        this.wasInitialized = false;
+    }
 
-    public Var(Token metaData, Name variableName, Type t) { this(metaData, variableName, null, t); }
+    public Var(Token metaData, Name variableName, Type declaredType) {
+        this(metaData, variableName, null, declaredType);
+        this.wasInitialized = false;
+    }
 
     /**
      * Constructor for instantiating a {@link Var} with an initial value (for field and enum constants).
@@ -67,10 +81,17 @@ public class Var extends SubNode {
         this.variableName = variableName;
         this.initialValue = initialValue;
         this.declaredType = declaredType;
+        this.wasInitialized = true;
 
         addChildNode(this.variableName);
         addChildNode(this.initialValue);
     }
+
+    /**
+     * Checks if the current variable was initialized.
+     * @return {@code True} if {@link #wasInitialized} was set, {@code False} otherwise.
+     */
+    public boolean hasInitialValue() { return wasInitialized; }
 
     /**
      * Getter method to retrieve {@link #variableName}.
@@ -99,6 +120,12 @@ public class Var extends SubNode {
      * @return {@link Type} representing the type given to the variable (if applicable).
      */
     public Type getDeclaratedType() { return declaredType; }
+
+    /**
+     * Setter method for {@link #declaredType}.
+     * @param type The {@link Type} to store into {@link #declaredType}.
+     */
+    public void setDeclaredType(Type type) { this.declaredType = type; }
 
     /**
      * {@inheritDoc}
