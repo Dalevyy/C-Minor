@@ -1,7 +1,0 @@
-
-def func(in a Int) => Void {}
-def func(in a Real) => Void {}
-
-def main() => Void {
-    func('error')
-}

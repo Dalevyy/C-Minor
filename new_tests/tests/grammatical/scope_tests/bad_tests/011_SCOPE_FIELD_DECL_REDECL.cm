@@ -1,8 +1,0 @@
-
-class Person {
-    protected firstName String
-    protected firstName String
-    protected lastName String
-}
-
-def main() => Void { }

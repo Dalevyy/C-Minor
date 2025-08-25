@@ -1,8 +1,0 @@
-
-class Test { }
-
-def main() => Void {
-    def local a = new Test() Test
-
-    a.func()
-}

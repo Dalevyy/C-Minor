@@ -1,8 +1,0 @@
-
-def main() => Void {
-    def local myVar = 3 Int
-
-    {
-       def local myVar = 9 Int
-    }
-}
