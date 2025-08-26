@@ -177,7 +177,7 @@ public class FieldRewriter extends Visitor {
             if(decl.isClassNode() && decl.asClassNode().isFieldDecl()) {
                 FieldExpr fe = new FieldExprBuilder()
                                    .setTarget(new ThisStmt())
-                                   .setAccessExpr(new NameExpr(ne.toString()))
+                                   .setAccessExpr(new NameExpr(ne))
                                    .create();
                 ne.replaceWith(fe);
             }

@@ -32,6 +32,16 @@ public class NameExpr extends Expression {
     public NameExpr(String name) { this(new Token(),new Name(name)); }
 
     /**
+     * Deep copy constructor for {@link NameExpr}.
+     * @param ne The {@link NameExpr} we wish to create a copy of.
+     */
+    public NameExpr(NameExpr ne) {
+        super(new Token());
+        this.name = ne.getName().deepCopy().asSubNode().asName();
+        this.text = ne.text;
+    }
+
+    /**
      * Main constructor for {@link NameExpr}.
      * @param metaData Token containing metadata we want to save
      * @param name Name to save into {@link #name}
@@ -48,7 +58,7 @@ public class NameExpr extends Expression {
      */
     public boolean inComplexFieldExpr() {
         if(!inFieldExpr())
-            return false;
+            return false; // this.x
 
         // To return true, the name has to be found AFTER the first target!
         AST target = parent;
@@ -56,7 +66,7 @@ public class NameExpr extends Expression {
         if(target.getParent() != null &&
                 target.getParent().isExpression() && target.getParent().asExpression().isFieldExpr())
             return true;
-
+        System.out.println(!this.equals(target.asExpression().asFieldExpr().getTarget()));
         return !this.equals(target.asExpression().asFieldExpr().getTarget());
     }
 
