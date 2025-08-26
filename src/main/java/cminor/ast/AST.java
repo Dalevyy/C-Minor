@@ -128,7 +128,9 @@ public abstract class AST {
         }
 
         // We will now let the garbage collector deallocate the 'this' node.
+        replacementNode.parent = parent;
         parent = null;
+
     }
 
     /**
