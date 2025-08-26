@@ -50,15 +50,15 @@ public class NameExpr extends Expression {
         if(!inFieldExpr())
             return false;
 
-        // Ugly! This makes sure a PREVIOUS target ALREADY exists since we need that target type to get the right class!
-        if(parent.getParent() == null
-                || !parent.getParent().isExpression() || !parent.getParent().asExpression().isFieldExpr())
-            return false;
-
         // To return true, the name has to be found AFTER the first target!
-        AST target = parent.getParent().asExpression().asFieldExpr();
+        AST target = parent;
 
-        return !this.equals(target);
+        System.out.println(target.getParent());
+        if(target.getParent() != null &&
+                target.getParent().isExpression() && target.getParent().asExpression().isFieldExpr())
+            return true;
+
+        return !this.equals(target.asExpression().asFieldExpr().getTarget());
     }
 
     /**

@@ -1283,7 +1283,8 @@ public class TypeChecker extends Visitor {
                 helper.checkIfTargetValid(ne, ne.getParent().asExpression().getTargetType());
             // Case 2: If the name is found in the middle, then target is the PREVIOUS field expression's type.
             else
-                helper.checkIfTargetValid(ne, ne.getParent().getParent().asExpression().getTargetType());
+                helper.checkIfTargetValid(ne, ne.getParent().getParent().asExpression().asFieldExpr().getTargetType());
+
             return;
         }
 

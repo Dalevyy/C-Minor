@@ -135,7 +135,7 @@ public class FieldExpr extends Expression {
      * @return String representing the name of the field/method being accessed.
      */
     @Override
-    public String toString() { return accessExpr.toString(); }
+    public String toString() { return target.toString() + "." + accessExpr.toString(); }
 
     /**
      * {@code update} method.
