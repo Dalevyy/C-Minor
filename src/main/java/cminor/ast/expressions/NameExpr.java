@@ -53,7 +53,6 @@ public class NameExpr extends Expression {
         // To return true, the name has to be found AFTER the first target!
         AST target = parent;
 
-        System.out.println(target.getParent());
         if(target.getParent() != null &&
                 target.getParent().isExpression() && target.getParent().asExpression().isFieldExpr())
             return true;
