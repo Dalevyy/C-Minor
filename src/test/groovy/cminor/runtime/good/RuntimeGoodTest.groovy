@@ -11,7 +11,7 @@ class RuntimeGoodTest extends RuntimeTest {
     def setupSpec() {
         // We will have the interpreter write to a separate stream!
         os = new ByteArrayOutputStream()
-        System.setOut(new PrintStream(os))
+        //System.setOut(new PrintStream(os))
     }
 
     def "Assignment Statement - Assignment Operators (Int)"() {
@@ -468,6 +468,96 @@ class RuntimeGoodTest extends RuntimeTest {
             os.toString().contains("1 4 7 10")
     }
 
+    def "Field Expression - Evaluate Complex Field Expression"() {
+        when: "A complex field expression is used."
+            input = '''
+                        class A {
+                            public method create() => A { return new A() }
+                            public method print() => Void { cout << 'Hi there' << endl }
+                        }
+                        
+                        def a:A = new A()
+                        a.create().print() 
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should correctly call the appropriate method."
+            os.toString().contains("Hi there")
+
+    }
+
+    def "Field Expression - Evaluate Complex Field Expression 2"() {
+        when: "A complex field expression is used."
+            input = '''
+                        class B {
+                            protected x:Int
+                            public method create() => B { 
+                                return new B(x=5) 
+                            }
+                            public method print() => Void { 
+                                cout << 'x = ' << x << endl 
+                            }
+                        }
+                        
+                        def b:B = new B(x=3)        
+                        b.print()
+                        b.create().print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should correctly call the appropriate method."
+            os.toString().contains(
+                "x = 3\n" +
+                "x = 5"
+            )
+    }
+
+    def "Field Expression - Evaluate Complex Field Expression 3"() {
+        when: "A complex field expression is used."
+            input = '''
+                        class E {
+                            public x:Int
+                            public method create() => E { return new E(x=20) }
+                        }
+                        
+                        def e:E = new E(x=5)
+                        cout << 'x = ' << e.x << endl
+                        cout << 'x = ' << e.create().x << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should correctly call the appropriate method."
+            os.toString().contains(
+                "x = 5\n" +
+                "x = 20"
+            )
+    }
+
+    def "Field Expression - Evaluate Complex Field Expression 4"() {
+        when: "A complex field expression is used."
+            input = '''
+                        class D {
+                            public a:Array[Int]
+                        
+                            public method create() => D { return new D() }
+                            public method print() => Void { 
+                                cout << 'a = '
+                                for(def i:Int in 1..3) {
+                                    cout << a[i] << ' '
+                                }
+                            }
+                        }
+                        
+                        def d:D = new D(a=Array(1,2,3))
+                        d.create().print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should correctly call the appropriate method."
+        os.toString().contains("a = 1 2 3")
+    }
+
+
     def "Global Declaration - Accessing Bool Variable"() {
         when: "A Bool global variable is declared."
             input = '''
@@ -699,6 +789,72 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "Invocation - Parent Invocation From Child Class"() {
+        when: "A method from the parent is invoked from a child class."
+            input = '''              
+                        class A {
+                            protected method hi() => Void { cout << 'in A!' << endl }
+                        }
+                        
+                        class B inherits A {
+                            protected method hey() => Void { cout << 'in B!' << endl }
+                            public method yo() => Void {
+                                hey()
+                                hi()
+                            }
+                        }
+                        
+                        def b:B = new B()
+                        b.yo()  
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The method should correctly be invoked from the child class."
+            os.toString().contains(
+                "in B!\n" +
+                "in A!"
+            )
+    }
+
+    def "Invocation - Parent Invocation From Child Class 2"() {
+        when: "Methods from inherited parent classes are invoked from a child class."
+            input = '''              
+                        class A {
+                            protected method printA() => Void { cout << 'In A!\n' }
+                        }
+                        
+                        class B inherits A {
+                            protected method printB() => Void { cout << 'In B!\n' }
+                        }
+                        
+                        class C inherits B {
+                            protected method printC() => Void { cout << 'In C!\n' }
+                        }
+                        
+                        class D inherits C {
+                            protected method printD() => Void { cout << 'In D!\n' }
+                            public method print() => Void {
+                                printD()
+                                printC()
+                                printB()
+                                printA()
+                            }
+                        }
+                        
+                        def d:D = new D()
+                        d.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "All methods should correctly be invoked by a child object."
+            os.toString().contains(
+                "In D!\n" +
+                "In C!\n" +
+                "In B!\n" +
+                "In A!"
+        )
+    }
+
     def "Local Declaration - Accessing Bool Variable"() {
         when: "A Bool local variable is declared."
             input = '''
@@ -800,6 +956,31 @@ class RuntimeGoodTest extends RuntimeTest {
                 "a.b = 3.14\n" +
                 "a.c = hello\n" +
                 "a.d = true"
+            )
+    }
+
+    def "New Expression - Instantiate a Chain Subtype"() {
+        when: "An object is instantiated from multiple subtypes."
+            input = '''
+                        class A { public x:Int }   
+                        class B inherits A { public y:Real }
+                        class C inherits B { public z:Bool }
+                        class D inherits C { public a:A }
+                        
+                        def a:D = new D(x=5, y=3.14, z=True, a=new A(x=8))
+                        cout << 'a.x = ' << a.x << endl
+                        cout << 'a.y = ' << a.y << endl
+                        cout << 'a.z = ' << a.z << endl
+                        cout << 'a.a.x = ' << a.a.x << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The object's fields should all be initialized correctly."
+            os.toString().contains(
+                "a.x = 5\n" +
+                "a.y = 3.14\n" +
+                "a.z = true\n" +
+                "a.a.x = 8"
             )
     }
 
