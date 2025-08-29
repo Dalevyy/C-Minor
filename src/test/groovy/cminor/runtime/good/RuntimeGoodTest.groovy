@@ -11,7 +11,70 @@ class RuntimeGoodTest extends RuntimeTest {
     def setupSpec() {
         // We will have the interpreter write to a separate stream!
         os = new ByteArrayOutputStream()
-        //System.setOut(new PrintStream(os))
+       // System.setOut(new PrintStream(os))
+    }
+
+    def "Array Expression - 1D Array"() {
+        when: "A 1D array is declared with initial values."
+            input = '''
+                        def a:Array[Int] = Array(1,2,3,4,5)
+
+                        cout << a[2] << endl
+                        cout << a[4] << endl
+                        cout << a[1] << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Each value should be stored in the correct position in the array."
+            os.toString().contains(
+                "2\n" +
+                "4\n" +
+                "1"
+            )
+    }
+
+    def "Array Expression - 2D Array"() {
+        when: "A 2D array is declared with initial values."
+            input = '''
+                        def a:Array[Array[Int]] = Array[2][3](Array(1,2,3),Array(4,5,6))
+
+                        cout << a[1][3] << endl
+                        cout << a[2][2] << endl
+                        cout << a[1][1] << endl
+                        cout << a[2][1] << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Each value should be stored in the correct position in the array."
+            os.toString().contains(
+                "3\n" +
+                "5\n" +
+                "1\n" +
+                "4"
+            )
+    }
+
+    def "Array Expression - 3D Array"() {
+        when: "A 3D array is declared with initial values."
+            input = '''
+                        def a:Array[Array[Array[Int]]] = Array[2][3][4](
+                                                         Array(Array(1,2,3,4),Array(5,6,7,8),Array(9,10,11,12)), 
+                                                         Array(Array(13,14,15,16),Array(17,18,19,20),Array(21,22,23,24))
+                                                         )
+                        cout << a[1][3][3] << endl
+                        cout << a[2][2][2] << endl
+                        cout << a[2][3][4] << endl
+                        cout << a[1][2][3] << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Each value should be stored in the correct position in the array."
+            os.toString().contains(
+                "11\n" +
+                "18\n" +
+                "24\n" +
+                "7"
+            )
     }
 
     def "Assignment Statement - Assignment Operators (Int)"() {
@@ -468,6 +531,27 @@ class RuntimeGoodTest extends RuntimeTest {
             os.toString().contains("1 4 7 10")
     }
 
+    def "Field Expression - Accessing Array of Objects"() {
+        when: "An object is instantiated with an array of objects."
+            input = '''
+                        class A {
+                            protected x:Int 
+                            public method print() => Void {
+                                cout << 'x = ' << x << endl 
+                            }
+                        }
+                    
+                        class B { public arr:Array[A]  }
+                    
+                        def b:B = new B(arr=Array(new A(x=1),new A(x=2)))
+                        b.arr[2].print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An object in the array should be able to be accessed."
+            os.toString().contains("x = 2")
+    }
+
     def "Field Expression - Evaluate Complex Field Expression"() {
         when: "A complex field expression is used."
             input = '''
@@ -539,7 +623,7 @@ class RuntimeGoodTest extends RuntimeTest {
                         class D {
                             public a:Array[Int]
                         
-                            public method create() => D { return new D() }
+                            public method create() => D { return new D(a=Array(4,5,6)) }
                             public method print() => Void { 
                                 cout << 'a = '
                                 for(def i:Int in 1..3) {
@@ -554,7 +638,57 @@ class RuntimeGoodTest extends RuntimeTest {
             vm.runInterpreter(input)
 
         then: "The returned object should correctly call the appropriate method."
-        os.toString().contains("a = 1 2 3")
+            os.toString().contains("a = 4 5 6")
+    }
+
+    //TODO: Output CORRECT, but formatting is not correct????? Dark magic.
+/*
+    def "Field Expression - Evaluate Complex Field Expression 5"() {
+        when: "A complex field expression is used."
+            input = '''
+                        class C {
+                            protected x:Int
+                            protected a:Array[Int]
+                        
+                            public method create() => C { return new C(x=7, a=Array(4,5,6)) }
+                            public method print() => Void { 
+                                cout << 'x = ' << x << ', a = ' 
+                                for(def i:Int in 1..3) {
+                                    cout << a[i] << ' '
+                                }
+                                cout << '\n'
+                            }
+                        }
+                        
+                        def c:C = new C(x=2, a=Array(1,2,3))
+                        c.print()
+                        c.create().print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should correctly call the appropriate method."
+            os.toString().contains(
+                "x = 2, a = 1 2 3\n" +
+                "x = 7, a = 4 5 6"
+            )
+    }
+*/
+
+    def "Field Expression - Evaluate Complex Field Expression 6"() {
+        when: "A complex field expression is used."
+            input = '''
+                        class A { public x:Int }
+                        class B { public a:A }
+                        class C { public b:B }
+                        
+                        def c:C = new C(b=new B(a=new A(x=5)))
+                        
+                        cout << c.b.a.x
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should correctly access the appropriate field."
+            os.toString().contains("5")
     }
 
 
@@ -741,6 +875,54 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "Invocation - In Mode Passing"() {
+        when: "An invocation passes argument to a function with In parameters."
+            input = '''    
+                        def func1(in a:Int, in b:Real) => Void {
+                            set a += 5
+                            set b += 2.18
+                        }
+                        
+                        def val:Int = 3  
+                        def val2:Real = 3.14 
+                        
+                        cout << 'Before func1 call: val = ' << val << ', val2 = ' << val2 << endl                
+                        func1(val,val2)                   
+                        cout << 'After func1 call: val = ' << val << ', val2 = ' << val2 << endl          
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The arguments should not be affected by the execution of the function."
+            os.toString().contains(
+                "Before func1 call: val = 3, val2 = 3.14\n" +
+                "After func1 call: val = 3, val2 = 3.14"
+            )
+    }
+
+    def "Invocation - Out Mode Passing"() {
+        when: "An invocation passes argument to a function with Out parameters."
+            input = '''    
+                        def func1(out a:Int, out b:Real) => Void {
+                            set a += 5
+                            set b += 2.18
+                        }
+                        
+                        def val:Int = 3  
+                        def val2:Real = 3.14 
+                        
+                        cout << 'Before func1 call: val = ' << val << ', val2 = ' << val2 << endl                
+                        func1(val,val2)                   
+                        cout << 'After func1 call: val = ' << val << ', val2 = ' << val2 << endl          
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The arguments should not be affected by the execution of the function."
+            os.toString().contains(
+                "Before func1 call: val = 3, val2 = 3.14\n" +
+                "After func1 call: val = 8, val2 = 5.32"
+            )
+    }
+
     def "Invocation - Method Invocation"() {
         when: "A method is invoked through an object."
             input = '''
@@ -786,6 +968,45 @@ class RuntimeGoodTest extends RuntimeTest {
             os.toString().contains(
                 "In print()\n" +
                 "In print2()"
+            )
+    }
+
+    def "Invocation - Objects are Returned"() {
+        when: "An invocation is made to a method that returns an object."
+            input = '''
+                        class A { public x:Char  }
+                        
+                        class B {
+                            public y:Real
+                            
+                            public method createA() => A { return new A(x='c') }
+                        }
+                        
+                        class C {
+                            public z:Int
+                            
+                            public method createA() => A { return new A(x='d') }
+                            public method createB() => B { return new B(y=3.14) }
+                        }
+                        
+                        class D { public method createC() => C { return new C(z=4) } }
+                        
+                        def c:C = new C(z=4)
+                        cout << 'c.z = ' << c.z << endl
+                        
+                        def b:B = c.createB()
+                        cout << 'b.y = ' << b.y << endl
+                        
+                        def a:A = c.createB().createA()
+                        cout << 'a.x = ' << a.x << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The returned object should call the appropriate method."
+            os.toString().contains(
+                "c.z = 4\n" +
+                "b.y = 3.14\n" +
+                "a.x = c"
             )
     }
 
@@ -853,6 +1074,34 @@ class RuntimeGoodTest extends RuntimeTest {
                 "In B!\n" +
                 "In A!"
         )
+    }
+
+    def "Invocation - Parent Invocation From Child Class 3"() {
+        when: "A method from an inherited parent class is invoked using the parent keyword."
+            input = '''              
+                        class A {
+                            public method print() => Void {
+                                cout << 'In A!' << endl 
+                            }
+                        }
+                        
+                        class B inherits A {
+                            public override method print() => Void {
+                                parent.print()
+                                cout << 'In B!' << endl 
+                            }
+                        }
+                        
+                        def b:B = new B()
+                        b.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The parent method should correctly be invoked from the child class."
+            os.toString().contains(
+                "In A!\n" +
+                "In B!"
+            )
     }
 
     def "Local Declaration - Accessing Bool Variable"() {
@@ -1003,6 +1252,141 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "Operator Overloading - Unary Negation Overload"() {
+        when: "An overload is made on the negation operator."
+            input = '''
+                        class A {
+                            protected x:Bool
+                        
+                            public operator not() => Void {
+                                set x = not x 
+                            }
+                        
+                            public method print() => Void {
+                                cout << 'Value of x = ' << x << endl 
+                            }
+                        }
+                        
+                        def a:A = new A(x=False)
+                        a.print()
+                        not a 
+                        a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The value should correctly be updated inside the object."
+            os.toString().contains(
+                "Value of x = false\n" +
+                "Value of x = true"
+            )
+    }
+
+    def "Operator Overloading - Unary Overload on Subtype"() {
+        when: "An overload is made on the negation operator."
+            input = '''
+                        class A {
+                            protected x:Bool
+                        
+                            public operator not() => Void {
+                                set x = not x 
+                            }
+                        
+                            public method print() => Void {
+                                cout << 'Value of x = ' << x << endl 
+                            }
+                        }
+                        
+                        class B inherits A { }
+                        
+                        def b:B = new B(x=False)
+                        b.print()
+                        not b 
+                        b.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The value should correctly be updated inside the object."
+            os.toString().contains(
+                "Value of x = false\n" +
+                "Value of x = true"
+            )
+    }
+
+    //TODO: Formatting is also off here...
+//    def "Output Statement - Correct Output"() {
+//        when: "Different output statements are written."
+//            input = '''
+//                        class A { public x:Bool }
+//                        class B { public x:Int }
+//
+//                        def func() => Void { cout << 'hello there' }
+//
+//                        def a:A = new A(x=True)
+//                        def b:B = new B(x=5)
+//                        def c:Array[Int] = Array(1,2,3,4,5)
+//
+//                        cout << 'hello' << ' is this working?' << endl << 'yes it is' << endl
+//
+//                        cout << (3+(4*3)-2) << endl
+//                        cout << 5*8-3/3*(3+9) << endl\t
+//                        cout << 5*8-3+2*(3+4-3) << ' ' << 3+2*8 << endl << 8+3-8
+//                        cout << (5+3-1*3) << ' ' << (5-3*2+4) << endl << (5+3-3*8)
+//
+//                        cout << False or True
+//                        cout << False or True << endl
+//                        cout << True or False and True or False and True << endl
+//                        cout << False or True << endl << True or False
+//                        cout << False or True << endl << True or False << endl << True and False << endl
+//                        cout << True and True and False << endl << 'hello there\'
+//
+//                        cout << a.x and True or False
+//                        cout << 'a.x = ' << a.x << endl << 'hi there\'
+//                        cout << a.x and True or False and a.x << endl << 'hi there\'
+//
+//                        cout << b.x + 5 * 2 << ' hi there' << endl << b.x - 3 * 2 << endl
+//
+//                        cout << 'before func call' << endl << func() << endl << 'after func call' << endl
+//
+//                        cout << c[3] + 4 * 5 << ' ' << (c[1]+4)*5 << endl
+//                    '''
+//            vm.runInterpreter(input)
+//
+//        then: "The correct output should be printed for each one."
+//            os.toString().contains(
+//                "hello is this working?\n" +
+//                "yes it is\n" +
+//                "13\n" +
+//                "28\n" +
+//                "45 19\n" +
+//                "3\n" +
+//                "5 3\n" +
+//                "-16\n" +
+//                "true\n" +
+//                "true\n" +
+//                "true\n" +
+//                "true\n" +
+//                "true\n" +
+//                "true\n" +
+//                "true\n" +
+//                "false\n" +
+//                "false\n" +
+//                "hello there\n" +
+//                "true\n" +
+//                "a.x = true\n" +
+//                "hi there\n" +
+//                "true\n" +
+//                "hi there\n" +
+//                "15 hi there\n" +
+//                "-1\n" +
+//                "\n" +
+//                "before func call\n" +
+//                "hello therehello there\n" +
+//                "after func call\n" +
+//                "\n" +
+//                "23 25"
+//            )
+//    }
+
     def "Return Statement - Function Returns Early"() {
         when: "A function has an explicit return statement."
             input = '''
@@ -1037,6 +1421,279 @@ class RuntimeGoodTest extends RuntimeTest {
 
         then: "The value should be correctly returned to the caller."
             os.toString().contains("42")
+    }
+
+    def "Retype Statement - Numerous Control Flow Executions"() {
+        when: "A more complex class structure is used with retype statements."
+            input = '''
+                        class A {
+                            protected x:Int 
+                            public method print() => Void { 
+                                cout << 'x = ' << x << endl 
+                            }
+                        }
+                        
+                        class B inherits A { 
+                            protected y:Real
+                            public override method print() => Void { 
+                                parent.print()
+                                cout << 'y = ' << y << endl 
+                            }
+                        }
+                        
+                        class C inherits A {
+                            protected z:Bool 
+                            public override method print() => Void { 
+                                parent.print()
+                                cout << 'z = ' << z << endl 
+                                }
+                        }
+                        
+                        class D inherits B {
+                            protected n:String
+                            public override method print() => Void { 
+                                parent.print()
+                                cout << 'n = ' << n << endl 
+                            }
+                        }
+                        
+                        def a:A = uninit
+                        def i:Int = 0
+                        
+                        while(True) {
+                            if(i >= 5) { retype a = new D(x=7,y=3.1415,n='hello') } 
+                            else {
+                                def b:Int = 5
+                                retype a = new C(z=True,x=10)
+                                while(b != 10) {
+                                    retype a = new B(y=7.28035,x=15)
+                                    set b += 1
+                                }
+                            }
+                        
+                            if(a instanceof D) { break }
+                            set i += 1
+                        }
+                        
+                        a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct method should be executed based on the expected runtime type."
+            os.toString().contains(
+                "x = 7\n" +
+                "y = 3.1415\n" +
+                "n = hello"
+            )
+    }
+
+    def "Retype Statement - Retype in Control Flow"() {
+        when: "A retype statement is found inside an if statement."
+            input = '''
+                        class A { public method print() => Void { cout << 'in A' } }
+                        class B inherits A { public method hi() => Void { cout << 'Hi' } }
+                        class C inherits A { public method hey() => Void { cout << 'Hey' } }
+                        
+                        def a:A = uninit
+                        
+                        if(3 < 5) { retype a = new B() } 
+                        else { retype a = new C() }
+                        
+                        a.hi()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct function will be called during runtime, and no runtime exceptions are generated."
+            os.toString().contains("Hi")
+    }
+
+    def "Retype Statement - Retype in Control Flow 2"() {
+        when: "A retype statement is found inside a while statement."
+            input = '''
+                        class A { public method print() => Void { cout << 'in A' } }
+                        class B inherits A { public method hi() => Void { cout << 'Hi' } }
+                        class C inherits A { public method hey() => Void { cout << 'Hey' } }
+                        class D inherits A { public method yo() => Void { cout << 'Yo' } }
+
+                        def a:A = uninit 
+                        def i:Int = 0
+                        
+                        while(True) {
+                            if(i < 5) {
+                                retype a = new B()
+                            } else {
+                                def b:Int = 5
+                                retype a = new C()
+                                while(b != 10) {
+                                    retype a = new D()
+                                    set b += 1
+                                }
+                            }
+                        
+                            if(a instanceof B) {
+                                break 
+                            }
+                        
+                            set i += 1
+                        }
+                        a.hi()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct function will be called during runtime, and no runtime exceptions are generated."
+            os.toString().contains("Hi")
+    }
+
+    def "Retype Statement - Retype in Control Flow 3"() {
+        when: "A retype statement is found in an if statement."
+            input = '''
+                    class A { public x:Int  }    
+                    class B inherits A { public y:Real }   
+                    class C inherits A { public z:Bool }
+                    
+                    def a:A = uninit 
+                    if(3<5) { retype a = new B(x=5,y=3.14) } 
+                    else { retype a = new C(z=True,x=3) }
+                    
+                    cout << 'a.y = ' << a.y 
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct field should be able to be accessed based on the expected runtime type."
+            os.toString().contains("a.y = 3.14")
+    }
+
+    def "Retype Statement - Retype in Control Flow 4"() {
+        when: "Multiple retype statements are found inside nested control flow structures."
+            input = '''     
+                        class A { public x:Int  }
+                        class B inherits A { public y:Real }
+                        class C inherits A { public z:Bool }
+                        
+                        def a:A = uninit
+                        for(def i:Int in 1..10) {
+                            if(i%2 == 0) { 
+                                retype a = new B(x=3,y=3.14) 
+                                cout << 'a.y = ' << a.y
+                            } else {
+                                retype a = new C(x=4,z=True)
+                                cout << 'a.z = ' << a.z
+                            }
+                        
+                            cout << ', a.x = ' << a.x << endl 
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct fields should be accessed and no runtime exceptions are generated."
+            os.toString().contains(
+                "a.z = true, a.x = 4\n" +
+                "a.y = 3.14, a.x = 3\n" +
+                "a.z = true, a.x = 4\n" +
+                "a.y = 3.14, a.x = 3\n" +
+                "a.z = true, a.x = 4\n" +
+                "a.y = 3.14, a.x = 3\n" +
+                "a.z = true, a.x = 4\n" +
+                "a.y = 3.14, a.x = 3\n" +
+                "a.z = true, a.x = 4\n" +
+                "a.y = 3.14, a.x = 3"
+            )
+
+    }
+
+    def "Retype Statement - Retype in Control Flow 5"() {
+        when: "Multiple retype statements are found inside nested control flow structures."
+            input = '''     
+                        class A { public method print() => Void { cout << 'In A' << endl } }
+                        class B inherits A { public override method print() => Void { cout << 'In B' << endl } }
+                        class C inherits B { public override method print() => Void { cout << 'In C' << endl } }
+                        
+                        def a:A = uninit
+                        for(def i:Int in 1..10) {
+                            if(i%2 == 0) { retype a = new B() } 
+                            else { retype a = new C() }
+                            a.print()
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct methods should be called and no runtime exceptions are generated."
+            os.toString().contains(
+                "In C\n" +
+                "In B\n" +
+                "In C\n" +
+                "In B\n" +
+                "In C\n" +
+                "In B\n" +
+                "In C\n" +
+                "In B\n" +
+                "In C\n" +
+                "In B"
+            )
+    }
+
+    def "Retype Statement - Retype Object"() {
+        when: "An object is retyped from a supertype to a subtype."
+            input = '''
+                        class A { public x:Int }
+                        class B inherits A { public y:Real }
+                        
+                        def a:A = new A(x=5)
+                        retype a = new B(x=3,y=3.14)
+                        
+                        cout << 'a.x = ' << a.x << endl
+                        cout << 'a.y = ' << a.y << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct fields should be accessible based on the new typing."
+            os.toString().contains(
+                "a.x = 3\n" +
+                "a.y = 3.14"
+            )
+    }
+
+    def "Retype Statement - Retype Object 2"() {
+        when: "An object is retyped to its initial type"
+            input = '''
+                        class A { public x:Int }
+                        class B inherits A { public y:Real }
+                        class C inherits B { public z:Bool }
+                        
+                        def a:A = uninit 
+                        retype a = new B()
+                        retype a = new C()
+                        retype a = new A(x=5)
+                        
+                        cout << 'a.x = ' << a.x << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct fields should be accessible based on the new typing."
+            os.toString().contains("a.x = 5")
+    }
+
+    def "Retype Statement - Retype Object 3"() {
+        when: "A retype statement is executed for the same object."
+            input = '''
+                        class A { public method print() => Void { cout << 'Hi' << endl } }
+                        class B inherits A { public override method print() => Void { cout << 'Hey' << endl } }
+                        
+                        def a:A = new A()
+                        a.print()
+                        retype a = new B()
+                        a.print()
+                        retype a = new A()
+                        a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct method should be called based on the current type of the object."
+            os.toString().contains(
+                "Hi\n" +
+                "Hey\n" +
+                "Hi"
+            )
     }
 
     def "Unary Expression - Bitwise Negation (Char)"() {

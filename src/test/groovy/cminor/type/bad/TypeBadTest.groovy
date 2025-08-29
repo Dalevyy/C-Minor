@@ -651,35 +651,36 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_466
     }
 
-    def "Field Declaration - Same Type as Inherited Class"() {
-        when: "A subtype declares a field that matches an inherited supertype."
-            input = '''
-                        class A { }
-                        class B inherits A { protected x:A }
-                    '''
-            vm.runInterpreter(input)
-
-        then: "A class will contain an instance of a supertype which shouldn't be allowed."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.TYPE_ERROR_467
-
-    }
-
-    def "Field Declaration - Same Type as Inherited Class 2"() {
-        when: "A subtype declares a field that matches an inherited supertype."
-            input = '''
-                            class A {}
-                            class B inherits A {}
-                            class C inherits B {}
-                            class D inherits C { protected x:B }
-                        '''
-            vm.runInterpreter(input)
-
-        then: "A class will contain an instance of a supertype which shouldn't be allowed."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.TYPE_ERROR_467
-
-    }
+    // This is fine!
+//    def "Field Declaration - Same Type as Inherited Class"() {
+//        when: "A subtype declares a field that matches an inherited supertype."
+//            input = '''
+//                        class A { }
+//                        class B inherits A { protected x:A }
+//                    '''
+//            vm.runInterpreter(input)
+//
+//        then: "A class will contain an instance of a supertype which shouldn't be allowed."
+//            error = thrown CompilationMessage
+//            error.msg.messageType == MessageNumber.TYPE_ERROR_467
+//
+//    }
+//
+//    def "Field Declaration - Same Type as Inherited Class 2"() {
+//        when: "A subtype declares a field that matches an inherited supertype."
+//            input = '''
+//                            class A {}
+//                            class B inherits A {}
+//                            class C inherits B {}
+//                            class D inherits C { protected x:B }
+//                        '''
+//            vm.runInterpreter(input)
+//
+//        then: "A class will contain an instance of a supertype which shouldn't be allowed."
+//            error = thrown CompilationMessage
+//            error.msg.messageType == MessageNumber.TYPE_ERROR_467
+//
+//    }
 
     // Note: This error can occur because the name checker does not check any types!
     /*
