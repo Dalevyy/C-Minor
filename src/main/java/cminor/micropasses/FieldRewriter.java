@@ -2,6 +2,8 @@ package cminor.micropasses;
 
 import cminor.ast.AST;
 import cminor.ast.classbody.MethodDecl;
+import cminor.ast.expressions.ArrayExpr;
+import cminor.ast.expressions.ArrayExpr.ArrayExprBuilder;
 import cminor.ast.expressions.Expression;
 import cminor.ast.expressions.FieldExpr;
 import cminor.ast.expressions.FieldExpr.FieldExprBuilder;
@@ -48,6 +50,33 @@ public class FieldRewriter extends Visitor {
     private boolean insideClass = false;
 
     /**
+     * Checks if an array expression references a {@link cminor.ast.classbody.FieldDecl} and rewrites it.
+     * <p>
+     *     If we have an array expression inside a class, then we need to rewrite
+     *     the array expression if the array's target references a field declared in the class.
+     * </p>
+     * @param ae {@link ArrayExpr}
+     */
+    public void visitArrayExpr(ArrayExpr ae) {
+        if(insideClass && ae.getArrayTarget().isNameExpr() && currentScope.hasNameInProgram(ae.getArrayTarget())) {
+            AST decl = currentScope.findName(ae.getArrayTarget());
+            if(decl.isClassNode() && decl.asClassNode().isFieldDecl()) {
+                FieldExpr fe = new FieldExprBuilder()
+                                   .setTarget(new ThisStmt())
+                                   .setAccessExpr(
+                                       new ArrayExprBuilder()
+                                           .setMetaData(ae)
+                                           .setTarget(ae.getArrayTarget())
+                                           .setIndex(ae.getArrayIndex())
+                                           .create()
+                                   )
+                                   .create();
+                ae.replaceWith(fe);
+            }
+        }
+    }
+
+    /**
      * Sets the {@link #currentScope} to be inside a case statement.
      * @param cs {@link CaseStmt}
      */
@@ -79,7 +108,9 @@ public class FieldRewriter extends Visitor {
     public void visitClassDecl(ClassDecl cd) {
         currentScope = cd.getScope();
         insideClass = true;
-        super.visitClassDecl(cd);
+        // Only visit the methods, ignore the fields!
+        for(MethodDecl md : cd.getClassBody().getMethods())
+            md.visit(this);
         insideClass = false;
     }
 
@@ -160,12 +191,12 @@ public class FieldRewriter extends Visitor {
      * @param in {@link Invocation}
      */
     public void visitInvocation(Invocation in) {
-        if(insideClass && in.getClassDecl().getScope().hasMethodName(in.toString())) {
+        if(insideClass && in.getClassDecl().getScope().hasMethodName(in.getName())) {
             FieldExpr fe = new FieldExprBuilder()
                                .setTarget(new ThisStmt())
                                .setAccessExpr(
                                    new InvocationBuilder()
-                                       .setName(new NameExpr(in.toString()))
+                                       .setName(new NameExpr(in.getName().asNameExpr()))
                                        .setArgs(in.getArgs())
                                        .setTypeParams(in.getTypeArgs())
                                        .create()
