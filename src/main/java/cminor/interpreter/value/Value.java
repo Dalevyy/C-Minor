@@ -148,14 +148,14 @@ public class Value {
      * <p>
      *     This method will be called by the {@code ==} and {@code !=}
      *     operators in the {@link Interpreter} to deduce
-     *     whether or not two values are equal. We will return the result
+     *     whether two values are equal. We will return the result
      *     to the {@link Interpreter}, so it can save the value.
      * </p>
      * @param RHS {@link Value} that we are checking equality for
      * @return Boolean
      */
     public boolean equals(Value RHS) {
-        if(this.type.equals(RHS.type))
+        if(!this.type.equals(RHS.type))
             return false;
         else if(RHS.type.isInt())
             return this.asInt() == RHS.asInt();

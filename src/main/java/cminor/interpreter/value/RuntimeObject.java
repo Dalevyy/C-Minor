@@ -95,6 +95,12 @@ public class RuntimeObject extends Value {
     public RuntimeObject asObject() { return this; }
 
     @Override
-    public String toString() { return "Object"; }
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Object\n");
+        for(String key : obj.keySet())
+            sb.append(key).append(": ").append(obj.get(key)).append("\n");
+
+        return sb.toString();
+    }
 
 }
