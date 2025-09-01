@@ -2,7 +2,6 @@ package cminor.ast.expressions;
 
 import cminor.ast.AST;
 import cminor.ast.topleveldecls.ClassDecl;
-import cminor.ast.misc.Name;
 import cminor.token.Token;
 import cminor.ast.topleveldecls.FuncDecl;
 import cminor.ast.types.Type;
@@ -39,11 +38,6 @@ public class Invocation extends Expression {
      * Vector containing any arguments passed to the callee
      */
     private Vector<Expression> args;
-
-    /**
-     * Class in which invocation will be invoked for (only set for methods).
-     */
-    public Type targetType;
 
     /**
      * String representation of the invocation signature.
@@ -137,19 +131,6 @@ public class Invocation extends Expression {
     }
 
     /**
-     * Returns the target type of a method {@link Invocation}.
-     * <p>
-     *     This will be used to retrieve the correct class that contains the method needing to be invoked.
-     * </p>
-     * @return The {@link Type} representing the target that calls the current {@link Invocation}
-     */
-    public Type getTargetType() {
-        if(name.isFieldExpr())
-            return name.asFieldExpr().getTarget().type;
-        return parent.asExpression().asFieldExpr().getTarget().type;
-    }
-
-    /**
      * Setter for {@link #typeArgs}.
      * @param typeArgs Vector of Types
      */
@@ -229,7 +210,18 @@ public class Invocation extends Expression {
      * @return String representing the name of the function/method called.
      */
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() {
+        StringBuilder s = new StringBuilder(name + "(");
+
+        if(!args.isEmpty()) {
+            for(int i = 0; i < args.size()-1; i++)
+                s.append(args.get(i)).append(", ");
+            s.append(args.getLast());
+        }
+
+        s.append(")");
+        return s.toString();
+    }
 
     /**
      * {@code update} method.
