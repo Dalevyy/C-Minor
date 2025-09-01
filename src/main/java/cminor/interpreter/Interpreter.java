@@ -67,14 +67,14 @@ public class Interpreter extends Visitor {
     private boolean continueFound;
 
     /**
-     * Flag set when the {@link Interpreter} executes an assignment statement.
-     */
-    private boolean insideAssignment;
-
-    /**
      * Flag set when a {@code return} statement is found.
      */
     private boolean returnFound;
+
+    /**
+     * Flag set when the {@link Interpreter} executes an assignment statement.
+     */
+    private boolean insideAssignment;
 
     /**
      * Creates the interpreter for the {@link VM}.
@@ -178,6 +178,9 @@ public class Interpreter extends Visitor {
         as.getRHS().visit(this);
         Value newValue = currentValue;
 
+        if(oldValue.isObject())
+            oldValue = oldValue.asObject().getField(as.getLHS().asFieldExpr().getFieldName());
+
         switch(assignOp) {
             case "=":
                 break;
@@ -218,6 +221,7 @@ public class Interpreter extends Visitor {
             currentValue.asList().addElement(newValue);
             insideAssignment = false;
         }
+
     }
 
     /**

@@ -11,7 +11,7 @@ class RuntimeGoodTest extends RuntimeTest {
     def setupSpec() {
         // We will have the interpreter write to a separate stream!
         os = new ByteArrayOutputStream()
-       // System.setOut(new PrintStream(os))
+        System.setOut(new PrintStream(os))
     }
 
     def "Array Expression - 1D Array"() {
@@ -74,6 +74,46 @@ class RuntimeGoodTest extends RuntimeTest {
                 "18\n" +
                 "24\n" +
                 "7"
+            )
+    }
+
+    def "Assignment Statement - Assign to 1D Array"() {
+        when: "An element in an array is assigned a new value."
+            input = '''
+                        def a:Array[Int] = Array(1,2,3,4,5)
+                
+                        set a[3] = 9
+                        cout << a[3] << endl
+                        
+                        set a[1] = 12
+                        cout << a[1] << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The array should be correctly updated with the new values assigned."
+            os.toString().contains(
+                "9\n" +
+                "12"
+            )
+    }
+
+    def "Assignment Statement - Assign to 2D Array"() {
+        when: "An element in a 2D array is assigned a new value."
+            input = '''
+                        def a:Array[Array[Int]] = Array[2][2](Array(1,2),Array(3,4))
+                        
+                        set a[1][2] = 10
+                        cout << a[1][2] << endl
+                        
+                        set a[2][1] = 35
+                        cout << a[2][1] << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The 2D array should be correctly updated with the new values assigned."
+            os.toString().contains(
+                "10\n" +
+                "35"
             )
     }
 
@@ -165,6 +205,30 @@ class RuntimeGoodTest extends RuntimeTest {
             os.toString().contains(
                 "Before Assignment = 5\n" +
                 "After Assignment = 7"
+            )
+    }
+
+    def "Assignment Statement - Field Expressions"() {
+        when: "An assignment is made on an object's field."
+            input = '''
+                        class A { public x:Int }
+                        class B { public a:A }
+                        class C { public b:B }
+                        
+                        def c:C = new C(b=new B(a=new A(x=5)))
+                        
+                        set c.b.a.x = 10
+                        cout << c.b.a.x << endl
+                        
+                        set c.b.a.x += 25
+                        cout << c.b.a.x << endl 
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The field should be properly updated with the appropriate value."
+            os.toString().contains(
+                "10\n" +
+                "35"
             )
     }
 
@@ -506,6 +570,30 @@ class RuntimeGoodTest extends RuntimeTest {
             os.toString().contains("1 2 3 4 5 6 7 8 9")
     }
 
+    def "Do Statement - Multiple Break Statements"() {
+        when: "A do while loop has multiple break keywords written."
+            input = '''
+                        def a:Int = 0
+                        do {
+                            while(a != 10) {
+                                set a += 1
+                                if(a%5 == 0){ break }
+                            }
+                        
+                            cout << 'The value of a is ' << a << endl
+                            if(a == 10) { break }
+                        
+                        } while(True)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Each break statement should correctly terminate the appropriate loop."
+            os.toString().contains(
+                "The value of a is 5\n" +
+                "The value of a is 10"
+            )
+    }
+
     def "Do Statement - Nested While Loop"() {
         when: "A nested while loop is executed in a do while loop."
             input = '''
@@ -690,7 +778,6 @@ class RuntimeGoodTest extends RuntimeTest {
         then: "The returned object should correctly access the appropriate field."
             os.toString().contains("5")
     }
-
 
     def "Global Declaration - Accessing Bool Variable"() {
         when: "A Bool global variable is declared."
@@ -1252,6 +1339,53 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "Operator Overloading - Binary Minus Overload"() {
+        when: "A binary overload on the minus operator is defined in a class."
+            input = '''
+                        class A {
+                            property x:Int 
+                        
+                            public operator-(in val:Int) => Int { return x - val }
+                            public method print() => Void { cout << x << endl }
+                        }
+                        
+                        def a:A = new A(x=1)
+                        def b:Int = uninit 
+                        set b = a - 1
+                        cout << 'After overload: ' << b << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The overload should be executed and the correct result returned."
+            os.toString().contains("After overload: 0")
+    }
+
+    def "Operator Overloading - Binary Plus Overload"() {
+        when: "A binary overload on the plus operator is defined in a class."
+            input = '''
+                        class A {
+                            property x:Int 
+                        
+                            public operator+(in obj:A) => A {
+                                def y:Int = x + obj.getx() 
+                                return new A(x=y)
+                            }
+                        
+                            public method print() => Void { cout << x << endl }
+                        }
+                        
+                        def a1:A = new A(x=1)
+                        def a2:A = new A(x=2)
+                        
+                        def a3:A = a1 + a2
+                        a3.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The overload should be executed and the correct result returned."
+            os.toString().contains("3")
+    }
+
     def "Operator Overloading - Unary Negation Overload"() {
         when: "An overload is made on the negation operator."
             input = '''
@@ -1281,19 +1415,43 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "Operator Overloading - Unary Overload on Multitype"() {
+        when: "A unary operator overload is executed for a multityped variable."
+            input = '''
+                        class A {
+                            protected x:Bool
+                        
+                            public operator not() => Void { set x = not x }
+                            public method print() => Void { cout << 'Value of x = ' << x << endl }
+                        }
+                        
+                        class B inherits A { }
+                        
+                        def a:A = uninit
+                        if(6 < 5) { retype a = new A(x=False) } 
+                        else { retype a = new B(x=True) }
+                        
+                        a.print()
+                        not a 
+                        a.print()
+                        '''
+            vm.runInterpreter(input)
+
+        then: "The interpreter will be able to execute the overload, and the results will be printed."
+            os.toString().contains(
+                "Value of x = true\n" +
+                "Value of x = false"
+            )
+    }
+
     def "Operator Overloading - Unary Overload on Subtype"() {
         when: "An overload is made on the negation operator."
             input = '''
                         class A {
                             protected x:Bool
                         
-                            public operator not() => Void {
-                                set x = not x 
-                            }
-                        
-                            public method print() => Void {
-                                cout << 'Value of x = ' << x << endl 
-                            }
+                            public operator not() => Void { set x = not x }
+                            public method print() => Void { cout << 'Value of x = ' << x << endl }
                         }
                         
                         class B inherits A { }
