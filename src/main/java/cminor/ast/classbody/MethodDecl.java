@@ -327,7 +327,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
          * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setMethodName(Name name) {
-            if(md.op != null)
+            if(md.op == null)
                 md.name = name;
             return this;
         }
@@ -338,7 +338,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
          * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setOperator(Operator op) {
-            if(md.name != null)
+            if(md.name == null)
                 md.op = op;
             return this;
         }
