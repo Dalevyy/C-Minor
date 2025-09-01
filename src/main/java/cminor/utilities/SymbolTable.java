@@ -150,7 +150,7 @@ public class SymbolTable {
      * @param method The {@link NameDecl} representing a function/method that will be added.
      */
     public void addMethod(NameDecl method) {
-        if(!hasMethodName(method.getDeclName()))
+        if(!methods.containsKey(method.getDeclName()))
             methods.put(method.getDeclName(), new SymbolTable());
 
         SymbolTable methodTable = methods.get(method.getDeclName());
@@ -178,9 +178,7 @@ public class SymbolTable {
      * @return {@code True} if the method was declared in the program, {@code False} otherwise.
      */
     public boolean hasMethodName(String name) {
-        if(methods.isEmpty())
-            return false;
-        else if(methods.containsKey(name))
+        if(methods.containsKey(name))
             return true;
         else if(parent != null)
             return parent.hasMethodName(name);
@@ -211,7 +209,7 @@ public class SymbolTable {
      */
     public boolean hasMethodOverload(NameDecl node) {
         // No overload exists if the method name wasn't previously declared!
-        if(!hasMethodName(node.getDeclName()))
+        if(!methods.containsKey(node.getDeclName()))
             return false;
 
         // Remember, this method is always called by a FuncDecl or MethodDecl visit!
