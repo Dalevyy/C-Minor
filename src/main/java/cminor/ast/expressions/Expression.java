@@ -32,9 +32,35 @@ public abstract class Expression extends AST {
      * @return {@link Type} representing the type of a target. Throws an exception if no type can be found.
      */
     public Type getTargetType() {
-        if(parent != null && parent.isExpression() && parent.asExpression().isFieldExpr())
-            return parent.asExpression().asFieldExpr().getTargetType();
+        if(this.isFieldExpr())
+            return this.asFieldExpr().getTarget().type;
+        if(parent != null && parent.isExpression() && (parent.asExpression().isArrayExpr() || parent.asExpression().isFieldExpr())) {
+            // Case 1: We need to get the target type for an array expression.
+            if(parent.asExpression().isArrayExpr()) {
+                FieldExpr fe = parent.getParent().asExpression().asFieldExpr();
+                // Case 1.1: The array expression is the last expression in a complex field expression.
+                if(fe.getAccessExpr().equals(parent))
+                    return fe.getTarget().type;
+                // Case 1.2: The array expression is found in between a complex field expression.
+                else
+                    return fe.getParent().asExpression().asFieldExpr().getTarget().type;
+            }
+            // Case 2: We need to get the target type for a name/invocation.
+            else {
+                FieldExpr fe = parent.asExpression().asFieldExpr();
+                // Case 2.1: The name/invocation is the last expression in a complex field expression.
+                if(fe.getAccessExpr().equals(this))
+                    return fe.getTarget().type;
+                // Case 2.2: The name/invocation is found in between a complex field expression.
+                else
+                    return fe.getParent().asExpression().asFieldExpr().getTarget().type;
+            }
+        }
+        // Case 3: If we do not have a complex field expression, just get the type of the target.
+//        else if(this.isFieldExpr())
+//            return this.asFieldExpr().getTarget().type;
 
+        // Throw an exception if this method is called by an AST node not contained in a field expression.
         throw new RuntimeException("The current expression is not found inside a field expression!");
     }
 

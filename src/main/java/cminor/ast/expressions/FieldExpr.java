@@ -73,8 +73,6 @@ public class FieldExpr extends Expression {
      */
     public boolean isMethodInvocation() { return isInvocation; }
 
-    public Type getTargetType() { return target.type; }
-
     /**
      * Getter for {@link #target}.
      * @return Expression

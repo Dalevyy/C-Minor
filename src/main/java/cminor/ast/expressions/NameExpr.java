@@ -57,16 +57,20 @@ public class NameExpr extends Expression {
      * @return {@code True} if the name is in a complex field expression, {@code False} otherwise.
      */
     public boolean inComplexFieldExpr() {
-        if(!inFieldExpr())
-            return false; // this.x
-
         // To return true, the name has to be found AFTER the first target!
         AST target = parent;
+
+        if(!inFieldExpr()) {
+            if(inArrayExpr() && target.asExpression().asArrayExpr().inFieldExpr())
+                target = target.getParent();
+            else
+                return false;
+        }
 
         if(target.getParent() != null &&
                 target.getParent().isExpression() && target.getParent().asExpression().isFieldExpr())
             return true;
-        System.out.println(!this.equals(target.asExpression().asFieldExpr().getTarget()));
+
         return !this.equals(target.asExpression().asFieldExpr().getTarget());
     }
 
@@ -77,7 +81,22 @@ public class NameExpr extends Expression {
      * </p>
      * @return {@code True} if the name is in a {@link FieldExpr}, {@code False} otherwise.
      */
-    private boolean inFieldExpr() {return parent.isExpression() && parent.asExpression().isFieldExpr();}
+    public boolean inFieldExpr() {return parent != null && parent.isExpression() && parent.asExpression().isFieldExpr();}
+
+    /**
+     * Checks if the current {@link NameExpr} represents the target of an array.
+     * <p>
+     *     This helper assists with the type checking of complex field expressions. We want to make sure this method
+     *     only returns true when the name represents an array target. Any names used as indices will be avoided!
+     * </p>
+     * @return {@code True} if the name is the target of an {@link ArrayExpr}, {@code False} otherwise.
+     */
+    public boolean inArrayExpr() {
+        return parent != null
+            && parent.isExpression()
+            && parent.asExpression().isArrayExpr()
+            && parent.asExpression().asArrayExpr().getArrayTarget().equals(this);
+    }
 
     /**
      * Getter for {@link #name}.

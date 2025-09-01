@@ -25,13 +25,21 @@ import cminor.messages.MessageNumber;
 import cminor.messages.errors.ErrorBuilder;
 import cminor.messages.errors.scope.ScopeError;
 import cminor.messages.errors.type.TypeError;
+import cminor.namechecker.NameChecker;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
 public class TypeChecker extends Visitor {
 
+    /**
+     * Current scope we are resolving types in.
+     */
     private SymbolTable currentScope;
+
+    /**
+     * Instance of {@link TypeCheckerHelper} that will be used for additional name checking tasks.
+     */
     private final TypeCheckerHelper helper;
 
     /**
@@ -77,7 +85,10 @@ public class TypeChecker extends Visitor {
         Type lst = helper.getTargetType(ae.getArrayTarget());
         if(lst == null) {
             ClassDecl cd = currentScope.findName(ae.getArrayTarget().getTargetType()).asTopLevelDecl().asClassDecl();
-            lst = cd.getScope().findName(ae.getArrayTarget()).asClassNode().asFieldDecl().getType();
+            if(ae.getArrayTarget().isFieldExpr())
+                lst = cd.getScope().findName(ae.getArrayTarget().asFieldExpr().getAccessExpr()).asClassNode().asFieldDecl().getType();
+            else
+                lst = cd.getScope().findName(ae.getArrayTarget()).asClassNode().asFieldDecl().getType();
         }
 
         if(lst.isArray()) {
@@ -317,7 +328,7 @@ public class TypeChecker extends Visitor {
                             .setTarget(be.getLHS())
                             .setAccessExpr(
                                 new InvocationBuilder()
-                                .setName(new Name("operator" + be.getBinaryOp()))
+                                .setName(new NameExpr("operator" + be.getBinaryOp()))
                                 .setArgs(new Vector<>(be.getRHS()))
                                 .create()
                             )
@@ -1118,7 +1129,7 @@ public class TypeChecker extends Visitor {
             if(currentScope.hasMethodOverload(ls,commandSignature.toString())) {
                 Invocation in = new InvocationBuilder()
                                 .setMetaData(ls)
-                                .setName(new Name(ls.toString()))
+                                .setName(new NameExpr(ls.toString()))
                                 .setArgs(ls.getAllArgs())
                                 .create();
                 ls.replaceWith(in);
@@ -1274,27 +1285,21 @@ public class TypeChecker extends Visitor {
      * @param ne {@link NameExpr}
      */
     public void visitNameExpr(NameExpr ne) {
-        // Special Case: If the name is in a complex field expression, we need to get the name from a class. This
-        //               means we still have to do name checking since we didn't have the target types earlier!
+        // Special Case: If the name is found inside a complex field expression, then we need to check if the name
+        //               is defined in the class. This
         if(ne.inComplexFieldExpr()) {
-            // The target type we need to access is dependent on where the name is found in the name expression...
-            // Case 1: If the name is found at the end of the field expression, then target is current field expression.
-            if(ne.getParent().asExpression().asFieldExpr().getAccessExpr().equals(ne))
-                helper.checkIfTargetValid(ne, ne.getParent().asExpression().getTargetType());
-            // Case 2: If the name is found in the middle, then target is the PREVIOUS field expression's type.
-            else
-                helper.checkIfTargetValid(ne, ne.getParent().getParent().asExpression().asFieldExpr().getTargetType());
-
+            helper.checkTargetValidity(ne);
             return;
         }
 
         // The name's type is based on the declared type.
         AST decl = currentScope.findName(ne);
-
         if(decl.isClassNode())
             ne.type = decl.asClassNode().asFieldDecl().getType();
-        else if(decl.isTopLevelDecl())
+        else if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl())
             ne.type = decl.asTopLevelDecl().asGlobalDecl().getType();
+        else if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isClassDecl())
+            ne.type = new ClassType(decl.asTopLevelDecl().asClassDecl().getDeclName());
         else if(decl.isSubNode())
             ne.type = decl.asSubNode().asParamDecl().getType();
         else
@@ -1523,7 +1528,7 @@ public class TypeChecker extends Visitor {
                     .setTarget(ue.getExpr())
                     .setAccessExpr(
                         new InvocationBuilder()
-                            .setName(new Name("operator" + ue.getUnaryOp()))
+                            .setName(new NameExpr("operator" + ue.getUnaryOp()))
                             .create()
                     )
                     .create();
@@ -1841,24 +1846,50 @@ public class TypeChecker extends Visitor {
          * @return {@code True} if the RHS is assignment compatible with the LHS, {@code False} otherwise.
          */
         private boolean classAssignmentCompatibility(ClassType LHS, ClassType RHS) {
-            SymbolTable classTable = currentScope.getGlobalScope();
-            ClassDecl subClass = classTable.findName(RHS.getClassName()).asTopLevelDecl().asClassDecl();
-
-            // We will look through the class hierarchy until the class matches the LHS class.
-            while(subClass.getSuperClass() != null) {
-                if(subClass.getName().equals(LHS.getClassName()))
-                    return true;
-                subClass = classTable.findName(subClass.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
-            }
-
-            return subClass.getName().equals(LHS.getClassName());
+            if(ClassType.isSuperClass(currentScope.getGlobalScope(), LHS, RHS))
+                return true;
+            else
+                return ClassType.isSuperClass(currentScope.getGlobalScope(), RHS, LHS);
         }
 
-        private void checkIfTargetValid(NameExpr ne, Type target) {
+        /**
+         * Checks if a name inside a complex {@link FieldExpr} can properly be typed.
+         * <p>
+         *     This helper will handle the checking of all names that are contained with a
+         *     complex {@link FieldExpr}. This method will determine the appropriate target
+         *     type for the name, and it will ensure the name was found in the target's class
+         *     to determine if the complex field expression was written correctly.
+         * </p>
+         * @param ne The {@link NameExpr} we wish to evaluate the type of.
+         */
+        private void checkTargetValidity(NameExpr ne) {
+            Type target; // Type of the target that accesses the current name.
+
+            // Case 1: The name is found inside an array expression. This is a special case!
+            if(ne.inArrayExpr()) {
+                // We need to go up 2 levels in the AST to get the field expression the array is in.
+                FieldExpr fe = ne.getParent().getParent().asExpression().asFieldExpr();
+
+                // Case 1.1: If the name is the final name in a complex field, then we will get the last target.
+                if(fe.getAccessExpr().equals(ne.getParent()))
+                    target = fe.getTargetType();
+                // Case 1.2: If not, we need to get the target of the previous field.
+                else
+                    target = fe.getParent().asExpression().asFieldExpr().getTargetType();
+            }
+            // Case 2: If the name is the final name in a complex field, then get the last target.
+            else if(ne.getParent().asExpression().asFieldExpr().getAccessExpr().equals(ne))
+                target = ne.getParent().asExpression().getTargetType();
+            // Case 3: If the name is not the final name in a complex field, then get the previous target.
+            else
+                target = ne.getParent().getParent().asExpression().asFieldExpr().getTargetType();
+
             ClassDecl cd;
+            // ERROR CHECK #1: We have to check if the name that the target is accessing was declared
+            //                 in the class since we haven't done this error check yet!
             if(target.isClass()) {
                 cd = currentScope.findName(target.asClass().getClassName()).asTopLevelDecl().asClassDecl();
-                if(!cd.getScope().hasName(ne)) {
+                if(!cd.getScope().hasNameInProgram(ne)) {
                     handler.createErrorBuilder(ScopeError.class)
                            .addLocation(ne.getFullLocation())
                            .addErrorNumber(MessageNumber.SCOPE_ERROR_329)
@@ -1868,6 +1899,7 @@ public class TypeChecker extends Visitor {
             } else
                 cd = validateMultiType(ne.getName(),target.asMulti());
 
+            // The name expression will have the type of the class field that is being accessed.
             ne.type = cd.getScope().findName(ne).asClassNode().asFieldDecl().getType();
         }
 
