@@ -115,8 +115,8 @@ class ScopeGoodTest extends ScopeTest {
                         def const b:Real = 6.35
                         
                         class A {
-                            protected a:Int = 5
-                            protected b:Real = 6.35
+                            protected a:Int
+                            protected b:Real
                         }
                     '''
             vm.runInterpreter(input)
@@ -302,6 +302,25 @@ class ScopeGoodTest extends ScopeTest {
             vm.runInterpreter(input)
 
         then: "No error will be thrown as long as the user remembers to use the 'overrides' keyword for each method."
+            notThrown CompilationMessage
+    }
+
+    def "Inheritance - Method Overriding 3"() {
+        when: "A subclass overrides all methods from a base class."
+            input = '''
+                        class A {
+                            public method test() => Void {}
+                            public method test2() => Void {}
+                        }
+                        
+                        class B inherits A {
+                            public override method test() => Void {}
+                            public override method test2() => Void {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "There should not be any name-related errors generated."
             notThrown CompilationMessage
     }
 

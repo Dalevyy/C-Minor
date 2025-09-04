@@ -1449,16 +1449,16 @@ class RuntimeGoodTest extends RuntimeTest {
             input = '''
                         class A {
                             protected x:Bool
-                        
+
                             public operator not() => Void { set x = not x }
                             public method print() => Void { cout << 'Value of x = ' << x << endl }
                         }
-                        
+
                         class B inherits A { }
-                        
+
                         def b:B = new B(x=False)
                         b.print()
-                        not b 
+                        not b
                         b.print()
                     '''
             vm.runInterpreter(input)
