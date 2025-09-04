@@ -1,9 +1,16 @@
+/*
+    A class that mimics the behavior of a mathematical fraction.
+
+    Output:
+        6/28
+        21/8
+*/
 
 class Fraction {
-    public num:Int 
-    public den:Int
+    protected num:Int
+    protected den:Int
 
-    public method print() => Void { cout << num << '/' << den }
+    public method print() => Void { cout << num << '/' << den << endl }
 
     public operator*(out f:Fraction) => Fraction { return new Fraction(num=num*f.num,den=den*f.den) }
     public operator/(out f:Fraction) => Fraction { return new Fraction(num=num*f.den,den=den*f.num) }
@@ -12,6 +19,7 @@ class Fraction {
         if(a == 0) { return b }
         return gcd(b % a, a)
     }
+
     protected method lcd(out f:Fraction) => Int { return (den * f.den) / gcd(den,f.den) }
 }
 
@@ -19,9 +27,9 @@ def main() => Void {
     def f1:Fraction = new Fraction(num=3,den=4)
     def f2:Fraction = new Fraction(num=2,den=7)
 
-    def f3:Fraction = f1*f2 
+    def f3:Fraction = f1*f2
     def f4:Fraction = f1/f2
-    
+
     f3.print()
     f4.print()
 }

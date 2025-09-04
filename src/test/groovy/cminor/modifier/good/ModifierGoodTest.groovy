@@ -40,6 +40,22 @@ class ModifierGoodTest extends ModifierTest {
             notThrown CompilationMessage
     }
 
+    def "Method Declaration - Accessing Public Method"() {
+        when: "A public method is invoked by an object."
+            input = '''
+                        class A {
+                            public method test() => Void {}
+                        }
+                        
+                        def a:A = new A()
+                        a.test()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Public methods can be accessed outside a class, so no errors are generated."
+            notThrown CompilationMessage
+    }
+
     def "Field Expression - Accessing Public Field"() {
         when: "A field is accessed outside a class."
             input = ''' 

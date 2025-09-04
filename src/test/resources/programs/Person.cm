@@ -1,3 +1,6 @@
+/*
+    A class that denotes a Person.
+*/
 
 def global myName:String = 'Daniel', myLast:String = 'Levy', dogName:String = 'Cloud' 
 def const a:Int = 5, b:Int = 7, c:Int = 1094, d:Int = 0 
@@ -18,10 +21,9 @@ class Person {
             cout << 'You are not the legal age to drink in USA.'
             return False
         }
-        else {
-            cout << 'You are the legal age to drink in USA.'
-            return True
-        }
+
+        cout << 'You are the legal age to drink in USA.'
+        return True
     }
 }
 
@@ -33,14 +35,14 @@ final class Student inherits Person {
     property creditRemaining:Int 
 
     public final method printCredits() => Void {
-        cout << 'Total Credits Remaining = ' << creditRemaining
-        cout << 'Total Credits Earned = ' << creditTotal
+        cout << 'Total Credits Remaining = ' << creditRemaining << endl
+        cout << 'Total Credits Earned = ' << creditTotal << endl
     }
 }
 
 def main() => Void {
-    def p1:Person = new Person() 
-    def p2:Person = new Person()
+    def p1:Person = new Person(age = a)
+    def p2:Person = new Person(age = c)
     def p3:Person = new Person(firstName='Isaac',lastName='Newton',age=28) 
     def p4:Student = new Student(firstName='Bob',lastName='Paul',age=19,creditTotal=93,creditRemaining=23,ID='1234')
 

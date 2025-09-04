@@ -2,8 +2,8 @@
 
 final class Rectangle {
 
-    protected width:Int = uninit
-    protected height:Int  = uninit
+    protected width:Int
+    protected height:Int
 
     // Constructors are automated
 
@@ -19,8 +19,8 @@ final class Rectangle {
     public final method calcPerim() => Int { return (2*width) + (2*height) }
     public final method calcArea() => Int { return width*height }
     public final method printDims() => Void {
-        cout << 'Width = ' << width
-        cout << 'Height = ' << height
+        cout << 'Width = ' << width << endl
+        cout << 'Height = ' << height << endl
     }
 }
 
@@ -31,7 +31,7 @@ def main() => Void {
     myRectangle.setWidth(5)
     myRectangle.setHeight(4)
 
-    cout << 'Dimensions of myRectangle = \n' << myRectangle.printDims()
-    cout << 'Perimeter of myRectangle = ' << myRectangle.calcPerim()
-    cout << 'Area of myRectangle = ' << myRectangle.calcArea()
+    cout << 'Dimensions of myRectangle = \n' << myRectangle.printDims() << endl
+    cout << 'Perimeter of myRectangle = ' << myRectangle.calcPerim() << endl
+    cout << 'Area of myRectangle = ' << myRectangle.calcArea() << endl
 }

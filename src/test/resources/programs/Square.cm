@@ -1,27 +1,5 @@
-// Square inheritance of a Rectangle object
-class Rectangle {
 
-    protected width:Int = uninit
-    protected height:Int = uninit
-
-    // Constructors are automated
-
-    // Setters
-    public final method setWidth(in w:Int) => Void { set width = w }
-    public final method setHeight(in h:Int) => Void { set height = h }
-
-    // Getters
-    public final method getWidth() => Int { return width }
-    public final method getHeight() => Int { return height }
-
-    // Main Methods
-    public final method calcPerim() => Int { return (2*width) + (2*height) }
-    public final method calcArea() => Int { return width*height }
-    public final method printDims() => Void {
-        cout << 'Width = ' << width
-        cout << 'Height = ' << height
-    }
-}
+import "Rectangle.cm"
 
 final class Square inherits Rectangle {
     // Setters

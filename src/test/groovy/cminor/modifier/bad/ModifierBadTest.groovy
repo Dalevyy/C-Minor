@@ -66,6 +66,38 @@ class ModifierBadTest extends ModifierTest {
             error.msg.messageType == MessageNumber.MOD_ERROR_505
     }
 
+    def "Method Declaration - Calling Non-Public Method"() {
+        when: "A non-public method is invoked outside a class."
+            input = '''
+                        class A { protected method test() => Void {} }
+                        
+                        def a:A = new A()
+                        a.test()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since protected methods can't be invoked outside a class."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.MOD_ERROR_504
+    }
+
+    def "Method Declaration - Recursive Call on Non-Recursive Method"() {
+        when: "A recursive call is made to a method not declared as recursive."
+            input = '''
+                        class A {
+                            public method factorial(in a:Int) => Int {
+                                if(a == 0) { return 1 }
+                                return a * factorial(a-1)
+                            }                        
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This could result in a stack overflow, so we need to error out to the user."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.MOD_ERROR_503
+    }
+
     def "New Expression - Object Instantiated From Abstract Class"() {
         when: "An object is instantiated from an abstract class."
             input = '''

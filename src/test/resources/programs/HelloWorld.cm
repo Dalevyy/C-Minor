@@ -1,0 +1,11 @@
+/*
+    The C Minor Hello World program.
+
+    Output:
+        'Hello World!'
+*/
+
+def main() => Void {
+    cout << 'Hello World!' << endl
+    stop
+}

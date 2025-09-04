@@ -1191,6 +1191,21 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "List Statement - Append"() {
+        when: "A list is declared and elements are appended to the list."
+            input = '''
+                        def a:List[Int] = List(1,2,3)
+                        
+                        append(a,4)
+                        append(a,5)
+                        cout << a << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "This will append the correct elements to the list."
+            os.toString().contains("[1, 2, 3, 4, 5]")
+    }
+
     def "Local Declaration - Accessing Bool Variable"() {
         when: "A Bool local variable is declared."
             input = '''

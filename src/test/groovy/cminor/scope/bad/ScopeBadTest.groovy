@@ -44,6 +44,19 @@ class ScopeBadTest extends ScopeTest {
             error.msg.messageType == MessageNumber.SCOPE_ERROR_307
     }
 
+    def "Class Declaration - Redeclaration of a Class Template"() {
+        when: "Two template classes are declared with the same type parameter."
+            input = '''
+                        class A<T> {}
+                        class A<S> {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Both classes are the same, so an error needs to be thrown."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.SCOPE_ERROR_307
+    }
+
     def "Class Declaration - Redeclaration of a Top Level Declaration"() {
         when: "A class uses the same name as a previous top level declaration."
             input = '''

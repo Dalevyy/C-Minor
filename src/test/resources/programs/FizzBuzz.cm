@@ -18,9 +18,9 @@ def FizzBuzz() => Void {
             set fizzybuzzy = True
         }
 
-        if(not fizzybuzzy) {
-            cout << i
-        }
+        if(not fizzybuzzy) { cout << i }
+
+        cout << endl
         set i += 1
     }
 }
