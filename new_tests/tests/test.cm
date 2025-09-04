@@ -1,9 +1,0 @@
-
-def pure func(out a:Int) => Void {
-    set a += 5
-}
-
-def main() => Void {
-    stop
-}
-

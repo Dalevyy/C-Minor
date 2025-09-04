@@ -1,1 +1,0 @@
-def a:Array[Array[Int]] = Array[2][2](Array(1,2),Array(3,4))
