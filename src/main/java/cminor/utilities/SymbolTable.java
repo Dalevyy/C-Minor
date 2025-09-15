@@ -70,13 +70,6 @@ public class SymbolTable {
     public void addName(String name, NameDecl node) { names.put(name,node); }
 
     /**
-     * Adds a name to the global scope. This is used when instantiating template classes and functions.
-     * @param name The name we wish to add to the scope.
-     * @param node The {@link NameDecl} we wish to store into the global scope.
-     */
-    public void addGlobalName(String name, NameDecl node) { getGlobalScope().addName(name,node); }
-
-    /**
      * Checks if a passed {@link NameDecl} is contained in the current scope.
      * @param name The name we wish to check if it exists in the current scope.
      * @return {@code True} if the {@link NameDecl} is contained in the current scope, {@code False} otherwise.

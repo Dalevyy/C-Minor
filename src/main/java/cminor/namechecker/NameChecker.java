@@ -162,7 +162,7 @@ public class NameChecker extends Visitor {
         }
         currentScope.addName(cd);
 
-        ClassDecl baseClass = null;
+        ClassDecl baseClass;
         if(cd.getSuperClass() != null) {
             // ERROR CHECK #2: The user can not have a class inherit from itself.
             if(cd.getDeclName().equals(cd.getSuperClass().getClassName().toString())) {
@@ -192,6 +192,8 @@ public class NameChecker extends Visitor {
             currentScope = currentScope.openScope();
 
         cd.setScope(currentScope);
+        for(TypeParam tp : cd.getTypeParams())
+            tp.visit(this);
         for(FieldDecl fd : cd.getClassBody().getFields())
             fd.visit(this);
         for(MethodDecl md : cd.getClassBody().getMethods())
