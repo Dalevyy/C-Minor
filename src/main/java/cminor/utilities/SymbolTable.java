@@ -1,6 +1,7 @@
 package cminor.utilities;
 
 import cminor.ast.AST;
+import cminor.ast.expressions.Invocation;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.topleveldecls.FuncDecl;
 import cminor.ast.misc.NameDecl;
@@ -67,6 +68,13 @@ public class SymbolTable {
      * @param node A {@link NameDecl} we wish to add into the current scope.
      */
     public void addName(String name, NameDecl node) { names.put(name,node); }
+
+    /**
+     * Adds a name to the global scope. This is used when instantiating template classes and functions.
+     * @param name The name we wish to add to the scope.
+     * @param node The {@link NameDecl} we wish to store into the global scope.
+     */
+    public void addGlobalName(String name, NameDecl node) { getGlobalScope().addName(name,node); }
 
     /**
      * Checks if a passed {@link NameDecl} is contained in the current scope.
@@ -291,6 +299,13 @@ public class SymbolTable {
         NameDecl d = methodTable.names.get(signature);
         return d == null ? null : d.getDecl();
     }
+
+    /**
+     * Retrieves a method overload from the {@link #methods} table.
+     * @param in The {@link Invocation} we wish to find the corresponding method of.
+     * @return An {@link AST} node representing a {@link FuncDecl} or {@link MethodDecl}
+     */
+    public AST findMethod(Invocation in) { return findMethod(in.getName().toString(),in.getSignature()); }
 
     /**
      * Retrieves the global scope of the program.
