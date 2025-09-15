@@ -74,9 +74,12 @@ public class BlockStmt extends Statement {
             locals.add(pos, node.asStatement().asLocalDecl());
         }
         else {
-            pos -= stmts.size();
+            pos -= locals.size();
             stmts.remove(pos);
-            stmts.add(pos, node.asStatement());
+            if(node.isExpression())
+                stmts.add(pos, new ExprStmt(node.asExpression()));
+            else
+                stmts.add(pos, node.asStatement());
         }
     }
 

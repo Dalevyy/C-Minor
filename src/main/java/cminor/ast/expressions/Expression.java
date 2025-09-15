@@ -23,6 +23,17 @@ public abstract class Expression extends AST {
      */
     public Expression(Token metaData) { super(metaData); }
 
+    public boolean insideAssignment() {
+        AST node = this;
+
+        while(node != null) {
+            if(node.isStatement() && node.asStatement().isAssignStmt())
+                return node.asStatement().asAssignStmt().getLHS().equals(this);
+            node = node.getParent();
+        }
+        return false;
+    }
+
     /**
      * Retrieves the target {@link Type} if an expression is written inside a {@link FieldExpr}.
      * <p>

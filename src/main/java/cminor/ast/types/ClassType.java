@@ -2,7 +2,9 @@ package cminor.ast.types;
 
 import cminor.ast.AST;
 import cminor.ast.misc.Name;
+import cminor.ast.topleveldecls.ClassDecl;
 import cminor.token.Token;
+import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
@@ -58,6 +60,32 @@ public class ClassType extends Type {
         this.typeArgs = typeArgs;
     }
 
+    public static boolean isSuperClass(SymbolTable globalScope, ClassType LHS, ClassType RHS) {
+        SymbolTable classTable = globalScope.getGlobalScope();
+        ClassDecl subClass = classTable.findName(RHS.getClassName()).asTopLevelDecl().asClassDecl();
+
+        // We will look through the class hierarchy until the class matches the LHS class.
+        while(subClass.getSuperClass() != null) {
+            if(subClass.getName().equals(LHS.getClassName()))
+                return true;
+            subClass = classTable.findName(subClass.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
+        }
+        return subClass.getName().equals(LHS.getClassName());
+    }
+
+    public static boolean temporaryName(SymbolTable globalScope, ClassType obj, ClassType className) {
+        SymbolTable classTable = globalScope.getGlobalScope();
+        ClassDecl subClass = classTable.findName(obj.getClassName()).asTopLevelDecl().asClassDecl();
+
+        // We will look through the class hierarchy until the class matches the LHS class.
+        while(subClass.getSuperClass() != null) {
+            if(subClass.getName().equals(className.getClassName()))
+                return true;
+            subClass = classTable.findName(subClass.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
+        }
+        return subClass.getName().equals(className.getClassName());
+    }
+
     /**
      * Getter method for {@link #className}.
      * @return {@link Name}
@@ -109,6 +137,12 @@ public class ClassType extends Type {
         else
             return this.className.equals(ct.className);
     }
+
+    /**
+     * Returns the class name.
+     * @return String representation of the class name.
+     */
+    public String toString() { return className.toString(); }
 
     /**
      * {@inheritDoc}

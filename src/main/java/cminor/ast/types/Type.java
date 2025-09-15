@@ -1,22 +1,19 @@
 package cminor.ast.types;
 
-import cminor.ast.*;
+import cminor.ast.AST;
 import cminor.ast.expressions.Expression;
 import cminor.ast.misc.Name;
-import cminor.token.*;
+import cminor.token.Token;
 import cminor.utilities.Vector;
 
-/*
-__________________________ Type __________________________
-Type is an abstract class that will be inherited by all C
-Minor type nodes. ThisStmt class contains a bunch of helper
-methods to aid in type checking/interpretation including
-type equality and assignment compatibility.
-
-C Minor will have two main forms of types: Structured and
-Primitive types.
-__________________________________________________________
-*/
+/**
+ * An abstract class representing a data type in C Minor.
+ * <p>
+ *     This class serves as the superclass for the implementation
+ *     of the C Minor type system.
+ * </p>
+ * @author Daniel Levy
+ */
 public abstract class Type extends AST {
 
     /**
@@ -93,7 +90,7 @@ public abstract class Type extends AST {
 
     /**
      * Generates a new type based on a provided type parameter.
-     * <p><br>
+     * <p>
      *     When we are instantiating a template class or function, we need to replace every
      *     type parameter with the appropriate type argument the user specified. This method
      *     will be responsible for creating all the new types that will be saved into the
@@ -105,8 +102,8 @@ public abstract class Type extends AST {
      *     the type {@code Vector<T>} within the class itself. This is important to keep in mind as
      *     we need to make sure the type argument only replaces the {@code T} type parameter and not
      *     the entire {@code Vector<T>} type in order to preserve the user's semantics. This is why
-     *     we are checking whether or not the given template type has a {@code '<'} to denote whether
-     *     the template type is simply a type parameter or a class type that contains a type parameter.
+     *     we are checking whether the given template type has a {@code '<'} to denote whether the
+     *     template type is simply a type parameter or a class type that contains a type parameter.
      * </p>
      * <p>
      *     Note: Remember, a user can not instantiate a class with a List or an Array type.
@@ -115,12 +112,12 @@ public abstract class Type extends AST {
      * @param typeArg Type we want to now use in place of the type parameter
      * @return Newly created {@link Type} when we instantiate a template class or function
      */
-//    public static Type instantiateType(ClassType templateType, Type typeArg) {
-//        if(templateType.toString().contains("<"))
-//            return new ClassType(new Name(templateType.getClassNameAsString()), new Vector<>(typeArg));
-//        else
-//            return typeArg;
-//    }
+    public static Type instantiateType(ClassType templateType, Type typeArg) {
+        if(templateType.toString().contains("<"))
+            return new ClassType(null,new Name(templateType.toString()),new Vector<>(typeArg));
+        else
+            return typeArg;
+    }
 
     /**
      * Checks if the current AST node is an {@link ArrayType}.

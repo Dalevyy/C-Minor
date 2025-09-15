@@ -29,9 +29,8 @@ public class ThisStmt extends Expression {
     public ClassDecl getClassDecl() {
         AST node = this;
 
-        while(!node.isTopLevelDecl() && !node.asTopLevelDecl().isClassDecl())
+        while(!node.isTopLevelDecl() || !node.asTopLevelDecl().isClassDecl())
             node = node.getParent();
-
 
         return node.asTopLevelDecl().asClassDecl();
     }

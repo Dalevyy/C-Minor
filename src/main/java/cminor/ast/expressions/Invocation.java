@@ -94,6 +94,24 @@ public class Invocation extends Expression {
      */
     public boolean containsTypeArgs() { return !typeArgs.isEmpty(); }
 
+    public boolean insideFunction() {
+        AST node = this;
+
+        while(node != null && (!node.isTopLevelDecl() || !node.asTopLevelDecl().isFuncDecl()))
+            node = node.getParent();
+
+        return node != null && node.isTopLevelDecl() && node.asTopLevelDecl().isFuncDecl();
+    }
+
+    public boolean insideMethod() {
+        AST node = this;
+
+        while(node != null && (!node.isClassNode() || !node.asClassNode().isMethodDecl()))
+            node = node.getParent();
+
+        return node != null && node.isClassNode() && node.asClassNode().isMethodDecl();
+    }
+
     /**
      * Getter for {@link #name}.
      * @return Name

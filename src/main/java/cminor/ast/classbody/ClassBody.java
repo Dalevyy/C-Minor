@@ -98,9 +98,9 @@ public class ClassBody extends ClassNode {
         Vector<FieldDecl> fields = new Vector<>();
         Vector<MethodDecl> methods = new Vector<>();
 
-        for(FieldDecl fd : fields)
+        for(FieldDecl fd : this.fields)
             fields.add(fd.deepCopy().asClassNode().asFieldDecl());
-        for(MethodDecl md : methods)
+        for(MethodDecl md : this.methods)
             methods.add(md.deepCopy().asClassNode().asMethodDecl());
 
         return new ClassBodyBuilder()
