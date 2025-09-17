@@ -72,9 +72,15 @@ public class Interpreter extends Visitor {
     private boolean returnFound;
 
     /**
-     * Flag set when the {@link Interpreter} executes an assignment statement.
+     * Flag set when a {@link OutStmt} is executed.
+     * <p>
+     *     Okay... this is sorta a hack, but the whole point of this flag is to properly
+     *     generate output in the virtual environment so the input prompt can be correctly
+     *     displayed. In my opinion, this provides better runtime performance than having to
+     *     traverse the AST to check if an output statement was executed!
+     * </p>
      */
-    private boolean insideAssignment;
+    private static boolean outputFound;
 
     /**
      * Creates the interpreter for the {@link VM}.
@@ -86,9 +92,18 @@ public class Interpreter extends Visitor {
         this.currentScope = globalScope;
         this.breakFound = false;
         this.continueFound = false;
-        this.insideAssignment = false;
         this.returnFound = false;
         this.handler = new MessageHandler();
+    }
+
+    /**
+     * Prints an extra line when executing in the {@link VM}. See {@link #outputFound}.
+     */
+    public static void printLine() {
+        if(outputFound) {
+            System.out.println();
+            outputFound = false;
+        }
     }
 
     /**
@@ -130,7 +145,7 @@ public class Interpreter extends Visitor {
             currentValue = lst.get(offset);
             if(currentValue.isList())
                 lst = currentValue.asList();
-            else if(insideAssignment) {
+            else if(ae.insideAssignment()) {
                 lst.setOffset(offset);
                 currentValue = lst;
             }
@@ -170,10 +185,8 @@ public class Interpreter extends Visitor {
     public void visitAssignStmt(AssignStmt as) {
         String assignOp = as.getOperator().toString();
 
-        insideAssignment = true;
-        as.getLHS().visit(this);
+        as.getLHS().visit(this);    // so when this visits, the currentValue for "y" is not updated correctly!
         Value oldValue = currentValue;
-        insideAssignment = false;
 
         as.getRHS().visit(this);
         Value newValue = currentValue;
@@ -210,16 +223,12 @@ public class Interpreter extends Visitor {
         if(as.getLHS().isNameExpr())
             stack.setValue(as.getLHS(), newValue);
         else if(as.getLHS().isFieldExpr()) {
-            insideAssignment = true;
             as.getLHS().visit(this);
             currentValue.asObject().setField(as.getLHS().asFieldExpr().getFieldName(),newValue);
-            insideAssignment = false;
         }
         else if(as.getLHS().isArrayExpr()) {
-            insideAssignment = true;
             as.getLHS().visit(this);
             currentValue.asList().addElement(newValue);
-            insideAssignment = false;
         }
 
     }
@@ -581,11 +590,8 @@ public class Interpreter extends Visitor {
             fe.getAccessExpr().visit(this);
         // If we're executing an assignment statement and a field expression appears on the LHS,
         // we have to make sure we can save the value into the object instead of just getting a field value.
-        if(insideAssignment) {
+        if(fe.insideAssignment())
             currentValue = obj;
-            insideAssignment = false;
-        }
-
     }
 
     /**
@@ -833,7 +839,7 @@ public class Interpreter extends Visitor {
 //            }
 
             // Find the class that contains the specific method we want to call
-            ClassDecl cd = currentScope.findName(obj.getCurrentType().asClass()).asTopLevelDecl().asClassDecl();
+            ClassDecl cd = currentScope.findName(obj.getCurrentType().getTypeName()).asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.getScope().findMethod(in.getName().toString(), in.getSignature()).asClassNode().asMethodDecl();
             params = md.getParams();
             currentScope = md.getScope();
@@ -1011,7 +1017,7 @@ public class Interpreter extends Visitor {
         else {
             currentValue = stack.getValue(ne);
             // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.
-            if(currentValue == null && !insideAssignment) {
+            if(currentValue == null && !ne.insideAssignment()) {
                 handler.createErrorBuilder(RuntimeError.class)
                     .addLocation(ne.getFullLocation())
                     .addErrorNumber(MessageNumber.RUNTIME_ERROR_607)
@@ -1033,7 +1039,12 @@ public class Interpreter extends Visitor {
      */
     public void visitNewExpr(NewExpr ne) {
         RuntimeObject obj = new RuntimeObject(ne.type);
-        ClassDecl cd = currentScope.findName(ne.getClassName()).asTopLevelDecl().asClassDecl();
+        ClassDecl cd;
+
+        if(ne.createsFromTemplate())
+            cd = ne.getInstantiatedClass();
+        else
+            cd = currentScope.findName(ne.getClassName()).asTopLevelDecl().asClassDecl();
 
         for(Var field : ne.getInitialFields()) {
             field.getInitialValue().visit(this);
@@ -1065,6 +1076,7 @@ public class Interpreter extends Visitor {
             else
                 System.out.print(currentValue);
         }
+        outputFound = true;
     }
 
     /**

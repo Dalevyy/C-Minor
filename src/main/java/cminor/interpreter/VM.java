@@ -2,7 +2,6 @@ package cminor.interpreter;
 
 import cminor.ast.AST;
 import cminor.ast.misc.CompilationUnit;
-import cminor.ast.types.ClassType;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
@@ -15,6 +14,7 @@ import cminor.utilities.PhaseNumber;
 import cminor.utilities.Vector;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -135,7 +135,7 @@ public class VM {
             }
 
             try { runInterpreter(program.toString()); }
-            catch(CompilationMessage msg) { ; /*  DO NOTHING FOR NOW!!!!*/ }
+            catch(CompilationMessage msg) { /*  DO NOTHING FOR NOW!!!!*/ }
         }
     }
 
@@ -161,5 +161,7 @@ public class VM {
                 msg.printMessage();
             }
         }
+
+        Interpreter.printLine();
     }
 }
