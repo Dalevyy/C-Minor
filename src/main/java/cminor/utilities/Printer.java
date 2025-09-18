@@ -11,8 +11,8 @@ import cminor.ast.types.Type;
 /**
  * A {@link Visitor} class designed to print out a C Minor parse tree.
  * <p>
- *     This visitor is executed after the execution of the {@link parser.Parser}. A user
- *     will be able to print out how the {@link ast.AST} looks though this visitor is primarily
+ *     This visitor is executed after the execution of the {@link cminor.parser.Parser}. A user
+ *     will be able to print out how the {@link cminor.ast.AST} looks though this visitor is primarily
  *     for debugging purposes, so it needs to be enabled before using.
  * </p>
  * @author Daniel Levy
@@ -212,8 +212,10 @@ public class Printer extends Visitor {
         helper.increaseSpaces();
         System.out.println("Class Declaration");
 
-        helper.printSpaces();
-        System.out.println("Modifier: " + cd.mod);
+        if(!cd.mod.isEmpty()) {
+            helper.printSpaces();
+            System.out.println("Modifier: " + cd.mod);
+        }
 
         helper.printSpaces();
         System.out.println("Name: " + cd.getDeclName());
@@ -790,7 +792,9 @@ public class Printer extends Visitor {
             System.out.println("Type: " + v.getDeclaratedType());
         }
 
-        v.getInitialValue().visit(this);
+        if(v.hasInitialValue())
+            v.getInitialValue().visit(this);
+
         helper.decreaseSpaces();
     }
 

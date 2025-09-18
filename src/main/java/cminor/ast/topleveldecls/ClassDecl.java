@@ -126,15 +126,7 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
      */
     public void setConstructor(InitDecl init) { constructor = (constructor == null) ? init : constructor; }
 
-    public void addBaseClass(Name n) { inheritedClasses.add(n); }
-    public Vector<Name> getInheritedClasses() { return inheritedClasses; }
-
-    public boolean inherits(String sup) {
-        for(Name sub : this.inheritedClasses)
-            if(sub.toString().equals(sup))
-                return true;
-        return false;
-    }
+    public void setName(Name name) { this.name = name; }
 
     public void removeTypeParams() {
         for(TypeParam tp : typeParams)

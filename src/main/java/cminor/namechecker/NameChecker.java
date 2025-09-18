@@ -363,7 +363,6 @@ public class NameChecker extends Visitor {
                    .generateError();
         }
         currentScope.addMethod(fd);
-
         currentScope = currentScope.openScope();
 
         for(TypeParam tp : fd.getTypeParams())

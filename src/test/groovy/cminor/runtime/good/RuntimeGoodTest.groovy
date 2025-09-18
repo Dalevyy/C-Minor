@@ -1191,6 +1191,25 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
+    def "Invocation - Property Methods"() {
+        when: "A class is declared with a field marked as a property."
+            input = '''
+                        class A { property x:Int }
+                        
+                        def a:A = new A(x=5)
+                        cout << a.getx() << endl
+                        a.setx(20)
+                        cout << a.getx() << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The appropriate getter and setter should be generated based on the type of the field."
+            os.toString().contains(
+                "5\n" +
+                "20"
+            )
+    }
+
     def "List Statement - Append"() {
         when: "A list is declared and elements are appended to the list."
             input = '''
@@ -1867,6 +1886,146 @@ class RuntimeGoodTest extends RuntimeTest {
                 "Hey\n" +
                 "Hi"
             )
+    }
+
+    def "Template - Class Instantiation"() {
+        when: "A template class is declared and instantiated."
+            input = '''
+                        class A<discr t> {
+                            public x:t
+                            public method print() => Void {
+                                def y:t = uninit
+                                set y = x
+                                cout << y << endl
+                            }
+                        }
+                        
+                        def a:A<Int> = new A<Int>(x=5)
+                        a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct value should be accessed."
+            os.toString().contains("5")
+    }
+
+    def "Template - Class Instantiation 2"() {
+        when: "A template class is instantiated using two different types."
+            input = '''
+                        class A<scalar s, discr t> {
+                            protected a:s 
+                            protected b:t 
+                        
+                            public method print() => Void {
+                                cout << 'Value of a = ' << a << endl
+                                cout << 'Value of b = ' << b << endl
+                            }
+                        }
+                        def a:A<Real,Bool> = new A<Real,Bool>(a=3.14,b=True)
+                        a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The fields should be typed accordingly, and the correct values are stored."
+            os.toString().contains(
+                "Value of a = 3.14\n" +
+                "Value of b = true"
+            )
+    }
+
+    def "Template - Class Instantiation 3"() {
+        when: "A template class only accepts class types."
+            input = '''
+                        class A {
+                            protected a:Int 
+                        
+                            public method print() => Void {
+                                cout << 'My number is ' << a << endl
+                            }
+                        }              
+                        class B<class T> { protected a:T }  
+                                      
+                        def a:B<A> = new B<A>(a=new A(a=5))
+                        a.a.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The field should represent an object that can be correctly accessed."
+            os.toString().contains("My number is 5")
+    }
+
+    def "Template - Class Instantiation 4"() {
+        when: "A template class includes a field marked with the property attribute."
+            input = '''
+                        class A<discr T> { property x:T }
+                        
+                        def a:A<Char> = new A<Char>(x='o')
+                        cout << a.getx() << endl
+                        
+                        a.setx('e')
+                        cout << a.getx() << endl
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The instantiated object should correctly have the appropriate property methods."
+            os.toString().contains(
+                "o\n" +
+                "e"
+            )
+    }
+
+    def "Template - Class Instantiation 5"() {
+        when: "A template class is declared in a program."
+            input = '''
+                        class A<T> {
+                            protected val:T 
+                        
+                            public method print() => Void {
+                                cout << 'My value is ' << val << endl
+                            }
+                        }
+                        
+                        def a1:A<Int> = new A<Int>(val=7)
+                        def a2:A<Real> = new A<Real>(val=78.394)
+                        def a3:A<Bool> = new A<Bool>(val=False)
+                        def a4:A<Int> = new A<Int>(val=9)
+                        
+                        a1.print()
+                        a2.print()
+                        a3.print()
+                        a4.print()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "A template class should be able to be instantiated multiple times for the correct type."
+            os.toString().contains(
+                "My value is 7\n" +
+                "My value is 78.394\n" +
+                "My value is false\n" +
+                "My value is 9"
+            )
+    }
+
+    def "Template - Class Instantiation 6"() {
+        when: "A template class is written with two overloaded methods."
+            input = '''
+                        class A<discr T> {
+                            public method print(in a:T) => Void {
+                                cout << 'Non-Specific Value is ' << a << endl
+                            }
+                        
+                            public method print(in a:Int) => Void {
+                                cout << 'Specific Value is ' << a  << endl
+                            }
+                        }
+                        
+                        def a:A<Int> = new A<Int>()
+                        a.print(5)
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The correct method should be called based on the passed argument."
+            os.toString().contains("Specific Value is 5")
     }
 
     def "Unary Expression - Bitwise Negation (Char)"() {

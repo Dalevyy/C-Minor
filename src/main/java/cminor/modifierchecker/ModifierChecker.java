@@ -63,6 +63,8 @@ public class ModifierChecker extends Visitor {
         }
 
         AST LHS = currentScope.findName(as.getLHS());
+        if(LHS == null && as.getLHS().isArrayExpr())
+            LHS = currentScope.findName(as.getLHS().asArrayExpr().getArrayTarget());
         if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
             // ERROR CHECK #1: A global constant can not have its value changed.
             if(LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
@@ -152,36 +154,36 @@ public class ModifierChecker extends Visitor {
         ds.getCondition().visit(this);
     }
 
-////    *
-////     * Checks field expression modifier usage.<br><br>
-////     * <p>
-////     *     We only have one modifier check to perform for field expressions
-////     *     involving the access scope of a field. Fields can only be accessed
-////     *     outside of a class if they were declared public.
-////     * </p>
-////     * @param fe Field Expressions
-//
-//    public void visitFieldExpr(FieldExpr fe) {
-//        fe.getTarget().visit(this);
+//    *
+//     * Checks field expression modifier usage.<br><br>
+//     * <p>
+//     *     We only have one modifier check to perform for field expressions
+//     *     involving the access scope of a field. Fields can only be accessed
+//     *     outside of a class if they were declared public.
+//     * </p>
+//     * @param fe Field Expressions
+
+    public void visitFieldExpr(FieldExpr fe) {
+        fe.getTarget().visit(this);
 //        if(fe.getAccessExpr().isNameExpr() || fe.getAccessExpr().isArrayExpr()) {
 //            ClassDecl cd;
 //            FieldDecl fd = null;
-//            if(fe.getTarget().type.isClassType()) {
-//                cd = currentScope.findName(fe.getTarget().type.toString()).getDecl().asTopLevelDecl().asClassDecl();
-//                fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
+//            if(fe.getTarget().type.isClass()) {
+//                cd = currentScope.findName(fe.getTarget().type).asTopLevelDecl().asClassDecl();
+//                fd = cd.getScope().findName(fe.getAccessExpr()).asClassNode().asFieldDecl();
 //            }
 //            else {
-//                for(ClassType ct : fe.getTarget().type.asMultiType().getAllTypes()) {
-//                    cd = currentScope.findName(ct.toString()).getDecl().asTopLevelDecl().asClassDecl();
-//                    if(cd.getScope().hasName(fe.getAccessExpr().toString())) {
-//                        fd = cd.getScope().findName(fe.getAccessExpr().toString()).getDecl().asClassNode().asFieldDecl();
+//                for(ClassType ct : fe.getTarget().type.asMulti().getAllTypes()) {
+//                    cd = currentScope.findName(ct).asTopLevelDecl().asClassDecl();
+//                    if(cd.getScope().hasName(fe.getAccessExpr())) {
+//                        fd = cd.getScope().findName(fe.getAccessExpr()).asClassNode().asFieldDecl();
 //                        break;
 //                    }
 //                }
 //            }
 //
 //            // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
-//            if (!fe.getTarget().toString().equals("this") && !fd.mod.isPublic()) {
+//            if (!fe.getTarget().isThisStmt() && !fd.mod.isPublic()) {
 //                handler.createErrorBuilder(ModError.class)
 //                        .addLocation(fe)
 //                        .addErrorNumber(MessageNumber.MOD_ERROR_507)
@@ -190,9 +192,8 @@ public class ModifierChecker extends Visitor {
 //                        .generateError();
 //            }
 //        }
-//        fe.getAccessExpr().visit(this);
-//        parentFound = false;
-//    }
+        fe.getAccessExpr().visit(this);
+    }
 
     /**
      * Sets the current scope to be in a {@link ForStmt}
@@ -245,80 +246,77 @@ public class ModifierChecker extends Visitor {
 ////     *     order to be able to call it outside of the class.
 ////     * </p>
 ////     * @param in Invocation
-//
-//    public void visitInvocation(Invocation in) {
-//        String funcSignature = in.getSignature();
-//
-//        // Temporary here to prevent exception, probably move in the future :)
-//        if(in.toString().equals("length")) {
-//            funcSignature = null;
-//        }
-//        // Function Invocation
-//        else if(!in.targetType.isClassOrMultiType()) {
-//            FuncDecl fd = in.templatedFunction != null ? in.templatedFunction :
-//                                              currentScope.findName(funcSignature).getDecl().asTopLevelDecl().asFuncDecl();
-//
-//            if(currentContext == fd && fd.getSignature().equals(funcSignature))  {
-//                // ERROR CHECK #1: A function can not call itself without `recurs` modifier
-//                if(!fd.mod.isRecursive()) {
-//                    handler.createErrorBuilder(ModError.class)
-//                            .addLocation(in)
-//                            .addErrorNumber(MessageNumber.MOD_ERROR_502)
-//                            .addErrorArgs(fd.toString())
-//                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1502)
-//                            .generateError();
-//                }
-//            }
-//            if(fd.isTemplate())
-//                in.templatedFunction.visit(this);
-//        }
-//        // Method Invocation
-//        else {
-//            ClassDecl cd = currentScope.findName(in.targetType.toString()).getDecl().asTopLevelDecl().asClassDecl();
-//            MethodDecl md = cd.getScope().findName(in.getSignature()).getDecl().asClassNode().asMethodDecl();
-//
-//            // ERROR CHECK #2: A method can not call itself without `recurs` modifier
-//            if(currentContext == md && md.toString().equals(in.toString()) && !parentFound) {
-//                if(!md.mod.isRecursive()) {
-//                    handler.createErrorBuilder(ModError.class)
-//                            .addLocation(in)
-//                            .addErrorNumber(MessageNumber.MOD_ERROR_503)
-//                            .addErrorArgs(md.toString())
-//                            .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
-//                            .generateError();
-//                }
-//            }
-//            // ERROR CHECK #3: An object can only invoke public methods outside its class
-//            if(!md.mod.isPublic() && (currentClass == null || (currentClass != cd && !currentClass.inherits(cd.toString())))) {
-//                handler.createErrorBuilder(ModError.class)
-//                        .addLocation(in)
-//                        .addErrorNumber(MessageNumber.MOD_ERROR_504)
-//                        .addErrorArgs("this",in.toString())
-//                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1504)
-//                        .generateError();
-//            }
-//        }
-//        super.visitInvocation(in);
-//    }
-//
-////    *
-////     * Sets current scope to be inside <verb>main</verb> function.
-////     * @param md Main Declaration
-//
-//    public void visitMainDecl(MainDecl md) {
-//        currentScope = md.getScope();
-//        currentContext = md;
-//        super.visitMainDecl(md);
-//    }
-//
-//    *
-//     * Sets current scope to be inside current method.
-//     * @param md Method Declaration
 
+    public void visitInvocation(Invocation in) {
+        // Function Invocation
+        if(!in.isMethodInvocation()) {
+            if(in.insideFunction()) {
+                FuncDecl fd = currentScope.findMethod(in).asTopLevelDecl().asFuncDecl();
+                FuncDecl method = helper.getMethod(in).asTopLevelDecl().asFuncDecl();
+                // ERROR CHECK #1: A function can not call itself without the `recurs` keyword.
+                if(method.equals(fd) && !fd.mod.isRecursive()) {
+                    handler.createErrorBuilder(ModError.class)
+                           .addLocation(in)
+                           .addErrorNumber(MessageNumber.MOD_ERROR_502)
+                           .addErrorArgs(fd)
+                           .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1502)
+                           .generateError();
+                }
+            }
+        }
+        // Method Invocation
+        else { ;
+//            ClassDecl cd = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl();
+//            MethodDecl md = cd.getScope().findMethod(in).asClassNode().asMethodDecl();
+//            if(in.insideMethod()) {
+//                AST method = helper.getMethod(in);
+//                // ERROR CHECK #2: A method can not call itself without the `recurs` keyword.
+//                if(method.equals(md) && !md.mod.isRecursive()) {
+//                    handler.createErrorBuilder(ModError.class)
+//                           .addLocation(in)
+//                           .addErrorNumber(MessageNumber.MOD_ERROR_503)
+//                           .addErrorArgs(md)
+//                           .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
+//                           .generateError();
+//                }
+//            }
+//
+//            // ERROR CHECK #3: A method must be marked 'public' in order to be invoked outside a class.
+//            if(!md.mod.isPublic() && !in.insideMethod()) {
+//                handler.createErrorBuilder(ModError.class)
+//                       .addLocation(in)
+//                       .addErrorNumber(MessageNumber.MOD_ERROR_504)
+//                       .addErrorArgs("this",in)
+//                       .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1504)
+//                       .generateError();
+//            }
+        }
+        super.visitInvocation(in);
+    }
+
+    /**
+     * Sets the current scope to be in a {@link MainDecl}.
+     * @param md {@link MainDecl}
+     */
+    public void visitMainDecl(MainDecl md) {
+        currentScope = md.getScope();
+        super.visitMainDecl(md);
+    }
+
+    /**
+     * Sets the current scope to be in a {@link MethodDecl}.
+     * @param md {@link MethodDecl}
+     */
     public void visitMethodDecl(MethodDecl md) {
         currentScope = md.getScope();
         super.visitMethodDecl(md);
         currentScope = currentScope.closeScope();
+    }
+
+    public void visitNameExpr(NameExpr ne) {
+        if(ne.inFieldExpr()) {
+
+        }
     }
 
     /**
@@ -421,6 +419,19 @@ public class ModifierChecker extends Visitor {
                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1501)
                        .generateError();
             }
+        }
+
+        private AST getMethod(AST node) {
+            AST curr = node;
+
+            while(true) {
+                curr = curr.getParent();
+                if(curr.isTopLevelDecl() && curr.asTopLevelDecl().isFuncDecl())
+                    return curr;
+                else if(curr.isClassNode() && curr.asClassNode().isMethodDecl())
+                    return curr;
+            }
+
         }
     }
 }

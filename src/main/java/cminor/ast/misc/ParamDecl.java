@@ -68,7 +68,7 @@ public class ParamDecl extends SubNode implements NameDecl {
     /**
      * Setter method to reset {@link #type}.
      * <p>
-     *     This will be called by the {@link micropasses.TypeValidityPass} when we are updating
+     *     This will be called by the {@link cminor.micropasses.TypeValidator} when we are updating
      *     the type of a {@link ParamDecl}.
      * </p>
      * @param type {@link Type} we wish to replace the current type with.
@@ -130,7 +130,7 @@ public class ParamDecl extends SubNode implements NameDecl {
                    .setMetaData(this)
                    .setModifier(mod)
                    .setName(name.deepCopy().asSubNode().asName())
-                   .setType(type.deepCopy().asSubNode().asType())
+                   .setType(type.deepCopy().asType())
                    .create();
     }
 

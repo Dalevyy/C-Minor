@@ -1763,7 +1763,7 @@ public class Parser {
                     match(TokenType.RPAREN);
 
                     input.setText(tokenStack.top());
-                    RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),types,args);
+                    RHS = new Invocation(tokenStack.top(),LHS.asExpression(),types,args);
                 }
                 else {
                     boolean oldField = insideField;
@@ -1813,7 +1813,7 @@ public class Parser {
             if(!nextLA(TokenType.RPAREN)) { args = arguments(); }
             match(TokenType.RPAREN);
 
-            return new Invocation(nodeToken(),new Name("length"),new Vector<>(),args);
+            return new Invocation(nodeToken(),new NameExpr("length"),new Vector<>(),args);
         }
         return postfixExpression();
     }

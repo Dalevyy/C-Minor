@@ -125,12 +125,14 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
             return paramSignature;
 
         StringBuilder sb = new StringBuilder();
-        for(int i = 0; i < params.size(); i++)
-            sb.append(params.get(i).getType().typeSignature());
+        for(ParamDecl param : params)
+            sb.append(param.getType().typeSignature());
 
         paramSignature = sb.toString();
         return paramSignature;
     }
+
+    public void resetParamSignature() { paramSignature = null; }
 
     /**
      * Getter method for {@link #name}
@@ -303,7 +305,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
         private final MethodDecl md = new MethodDecl();
 
         /**
-         * @see ast.AST.NodeBuilder#setMetaData(AST, AST)
+         * @see cminor.ast.AST.NodeBuilder#setMetaData(AST, AST)
          * @return Current instance of {@link MethodDeclBuilder}.
          */
         public MethodDeclBuilder setMetaData(AST node) {
@@ -393,6 +395,7 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
                 md.addChildNode(md.op);
             md.addChildNode(md.params);
             md.addChildNode(md.body);
+
             return md;
         }
     }

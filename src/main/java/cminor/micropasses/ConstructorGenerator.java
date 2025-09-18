@@ -5,6 +5,7 @@ import cminor.ast.classbody.InitDecl;
 import cminor.ast.classbody.InitDecl.InitDeclBuilder;
 import cminor.ast.expressions.FieldExpr.FieldExprBuilder;
 import cminor.ast.expressions.NameExpr.NameExprBuilder;
+import cminor.ast.expressions.NewExpr;
 import cminor.ast.expressions.ThisStmt;
 import cminor.ast.misc.CompilationUnit;
 import cminor.ast.operators.AssignOp.AssignOpBuilder;
@@ -31,6 +32,12 @@ import cminor.utilities.Visitor;
  * @author Daniel Levy
  */
 public class ConstructorGenerator extends Visitor {
+
+    /**
+     * Keeps track of a list of instantiated classes that we have created constructors for.
+     * This prevents us from creating multiple constructors for the same class!
+     */
+    private static final Vector<String> classes = new Vector<>();
 
     /**
      * Creates a constructor for the current {@link ClassDecl}.
@@ -96,5 +103,16 @@ public class ConstructorGenerator extends Visitor {
 
         for(ClassDecl cd : cu.getClasses())
             cd.visit(this);
+    }
+
+    /**
+     * Generates a constructor for any classes that were instantiated.
+     * @param ne {@link NewExpr}
+     */
+    public void visitNewExpr(NewExpr ne) {
+        if(ne.createsFromTemplate() && !classes.contains(ne.type.getTypeName())) {
+            ne.getInstantiatedClass().visit(this);
+            classes.add(ne.type.getTypeName());
+        }
     }
 }

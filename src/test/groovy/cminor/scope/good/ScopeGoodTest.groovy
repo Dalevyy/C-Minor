@@ -469,6 +469,18 @@ class ScopeGoodTest extends ScopeTest {
             notThrown CompilationMessage
     }
 
+    def "Template - Reusing Function Name as Template Function Name"() {
+        when: "A function and template function are both declared using the same name."
+            input = '''
+                        def func() => Void {}
+                        def func<discr T>() => Void {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Both of these functions have unique names from each other, so no error should occur."
+            notThrown CompilationMessage
+    }
+
     def "Type Parameter - Redeclaring a Top Level Declaration"() {
         when: "A function's type parameter redeclares an existing top level declaration."
             input = '''

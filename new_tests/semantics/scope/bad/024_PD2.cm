@@ -1,5 +1,0 @@
-
-class A<discr t> {
-    public method check(in a:Int) => Void {}
-    public method print(in t:Int) => Void {}
-}

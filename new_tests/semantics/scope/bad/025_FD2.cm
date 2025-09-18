@@ -1,4 +1,0 @@
-
-class A<discr t> {
-    protected t:Int 
-}

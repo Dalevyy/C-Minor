@@ -276,16 +276,16 @@ public class SymbolTable {
 
     /**
      * Retrieves a method overload from the {@link #methods} table.
-     * @param methodName The method we wish to find the declaration of.
+     * @param method The method we wish to find the declaration of.
      * @param signature The string representation of the method's signature.
      * @return An {@link AST} node representing a {@link FuncDecl} or {@link MethodDecl}
      */
-    public AST findMethod(String methodName, String signature) {
-        SymbolTable methodTable = methods.get(methodName);
+    public AST findMethod(String method, String signature) {
+        SymbolTable methodTable = methods.get(method);
 
         if(methodTable == null) {
             if(parent != null)
-                return parent.findMethod(methodName,signature);
+                return parent.findMethod(method,signature);
             return null;
         }
 
@@ -299,6 +299,22 @@ public class SymbolTable {
      * @return An {@link AST} node representing a {@link FuncDecl} or {@link MethodDecl}
      */
     public AST findMethod(Invocation in) { return findMethod(in.getName().toString(),in.getSignature()); }
+
+    /**
+     * Removes a method from the {@link #methods} table.
+     * <p>
+     *     This is only called when we are instantiating template
+     *     functions or methods inside a template class!
+     * </p>
+     * @param method The name of the method we want to lookup.
+     * @param signature The signature representing the actual method we want removed.
+     */
+    public void removeMethod(String method, String signature) {
+        if(methods.containsKey(method)) {
+            SymbolTable st = methods.get(method);
+            st.names.remove(signature);
+        }
+    }
 
     /**
      * Retrieves the global scope of the program.
@@ -343,6 +359,33 @@ public class SymbolTable {
         this.methods = new HashMap<>();
         this.parent = null;
         this.importParent = null;
+    }
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        buildScopeHierarchy(sb);
+        return sb.toString();
+    }
+
+    private void buildScopeHierarchy(StringBuilder sb) {
+        if(parent != null)
+            parent.buildScopeHierarchy(sb);
+
+        sb.append("----------------------------------\n");
+        sb.append("Names:\n");
+        for(String name : names.keySet())
+            sb.append("\t").append(name).append("\n");
+
+        if(!methods.isEmpty()) {
+            sb.append("Methods:\n");
+            for(String method : methods.keySet()) {
+                sb.append("\t").append(method).append("\n");
+                SymbolTable st = methods.get(method);
+                for(String sig : st.names.keySet())
+                    sb.append("\t\t").append(sig).append("\n");
+            }
+        }
+        sb.append("----------------------------------\n");
     }
 
     /**

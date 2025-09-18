@@ -203,7 +203,6 @@ public class TypeChecker extends Visitor {
                    .addSuggestionArgs(LHS)
                    .generateError();
         }
-
         switch(as.getOperator().getAssignOp()) {
             case EQ:
                 break;
@@ -775,7 +774,6 @@ public class TypeChecker extends Visitor {
      */
     public void visitFieldExpr(FieldExpr fe) {
         fe.getTarget().visit(this);
-
         // ERROR CHECK #1: The target has to always evaluate to be an object!
         if(!fe.getTarget().type.isClassOrMulti()) {
             handler.createErrorBuilder(TypeError.class)
@@ -1029,16 +1027,15 @@ public class TypeChecker extends Visitor {
                 // ERROR CHECK #1: If no methods were found, then output an error!
                 handler.createErrorBuilder(TypeError.class).addErrorNumber(MessageNumber.TYPE_ERROR_471).generateError();
             }
+            lookup = currentScope.findName(in.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl().getScope();
 
-            lookup = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl().getScope();
-
-            // ERROR CHECK #1: This checks if the method was defined somewhere in the global scope.
+            // ERROR CHECK #1: This checks if the method was defined somewhere in the class scope.
             if(!lookup.hasMethodName(in.getName())) {
                 handler.createErrorBuilder(ScopeError.class)
-                        .addLocation(in)
-                        .addErrorNumber(MessageNumber.SCOPE_ERROR_327)
-                        .addErrorArgs(in.getName(),in.getTargetType())
-                        .generateError();
+                       .addLocation(in)
+                       .addErrorNumber(MessageNumber.SCOPE_ERROR_327)
+                       .addErrorArgs(in.getName(),in.getTargetType())
+                       .generateError();
             }
 
             // ERROR CHECK #2: This checks if a valid method overload exists for the given argument signature.
@@ -1277,11 +1274,6 @@ public class TypeChecker extends Visitor {
 
     /**
      * Evaluates the type represented by a name.
-     * <p>
-     *     Additionally, we need to some more error checks when we are inside a
-     *     complex field expression. These checks will be handled by
-     *     {@link TypeCheckerHelper#checkIfTargetValid(NameExpr, Type)}.
-     * </p>
      * @param ne {@link NameExpr}
      */
     public void visitNameExpr(NameExpr ne) {
@@ -1318,7 +1310,13 @@ public class TypeChecker extends Visitor {
      * @param ne {@link NewExpr}
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.getClassType()).asTopLevelDecl().asClassDecl();
+        ClassDecl cd;
+        if(ne.createsFromTemplate()) {
+            ne.getInstantiatedClass().visit(this);
+            cd = ne.getInstantiatedClass();
+        }
+        else
+            cd = currentScope.findName(ne.getClassType()).asTopLevelDecl().asClassDecl();
 
         for(Var arg : ne.getInitialFields()) {
             Type fieldType = cd.getScope().findName(arg).asClassNode().asFieldDecl().getType();
@@ -1335,6 +1333,7 @@ public class TypeChecker extends Visitor {
                        .generateError();
             }
         }
+
         ne.type = ne.getClassType();
     }
 
@@ -1888,7 +1887,7 @@ public class TypeChecker extends Visitor {
             // ERROR CHECK #1: We have to check if the name that the target is accessing was declared
             //                 in the class since we haven't done this error check yet!
             if(target.isClass()) {
-                cd = currentScope.findName(target.asClass().getClassName()).asTopLevelDecl().asClassDecl();
+                cd = currentScope.findName(target.asClass().getTypeName()).asTopLevelDecl().asClassDecl();
                 if(!cd.getScope().hasNameInProgram(ne)) {
                     handler.createErrorBuilder(ScopeError.class)
                            .addLocation(ne.getFullLocation())
@@ -1905,7 +1904,7 @@ public class TypeChecker extends Visitor {
 
         private ClassDecl validateMultiType(Name name, MultiType target) {
             for(ClassType ct : target.getAllTypes()) {
-                ClassDecl cd = currentScope.getGlobalScope().findName(ct.getClassName()).asTopLevelDecl().asClassDecl();
+                ClassDecl cd = currentScope.getGlobalScope().findName(ct.getTypeName()).asTopLevelDecl().asClassDecl();
 
                 if(cd.getScope().hasName(name))
                     return cd;

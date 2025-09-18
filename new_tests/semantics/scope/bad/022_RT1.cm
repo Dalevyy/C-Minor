@@ -1,4 +1,0 @@
-
-class A {}
-
-retype a+3 = new A()
