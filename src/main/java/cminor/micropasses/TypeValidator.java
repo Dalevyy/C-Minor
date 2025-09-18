@@ -567,7 +567,7 @@ public class TypeValidator extends Visitor {
          * @param in {@link Invocation} containing the type arguments we will use to instantiate the template with
          * @return {@link FuncDecl} representing the instantiated function
          */
-        public FuncDecl instantiatesFuncTemplate(FuncDecl template, Invocation in) {
+//        public FuncDecl instantiatesFuncTemplate(FuncDecl template, Invocation in) {
 //            // If the template function was already instantiated with the given type arguments, then we don't want to
 //            // reinstantiate it and instead get the already instantiated function. Since a user could overload a template
 //            // function with a more specific parameter type, we will also check if there isn't an already matching signature
@@ -598,7 +598,7 @@ public class TypeValidator extends Visitor {
 //                currentScope.getRootTable().removeName(in.getSignature());
 //
 //            return copyOfTemplate;
-        }
+//        }
 
         /**
          * Checks if the validator is currently checking a template class or function.
