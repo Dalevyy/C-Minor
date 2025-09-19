@@ -78,6 +78,32 @@ public class Lexer {
 
     public String getFileName() { return fileName; }
 
+    public void setText(Token startToken, Token endToken) {
+        Position start = startToken.getStartPos();
+        Position end = endToken.getEndPos();
+        StringBuilder sb = new StringBuilder();
+
+        start.line--;
+        end.line--;
+        start.column--;
+        end.column--;
+
+        int strSize;
+        int startCol = start.column;
+
+        for(int i = start.line; i <= end.line; i++) {
+            String curr = lines.get(i);
+
+            if(i != end.line) { strSize = curr.length(); }
+            else { strSize = end.column; }
+
+            for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
+            startCol = 0;
+        }
+
+        startToken.setText(sb.toString());
+    }
+
     /**
      * Sets a token text to be between its starting and ending {@code positions}.
      * @param tokenForAST This represents the token we are saving into an AST node.

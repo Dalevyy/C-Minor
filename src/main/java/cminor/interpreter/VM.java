@@ -9,6 +9,7 @@ import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
 import cminor.micropasses.*;
 import cminor.parser.Parser;
+import cminor.parser.PEG;
 import cminor.utilities.PhaseHandler;
 import cminor.utilities.PhaseNumber;
 import cminor.utilities.Vector;
@@ -144,11 +145,11 @@ public class VM {
      * @param program String representation of the user program that will be parsed and analyzed by the compiler.
      */
     private void runInterpreter(String program) {
-        Parser parser = new Parser(new Lexer(program));
+        PEG parser = new PEG(new Lexer(program));
         Vector<? extends AST> nodes;
 
         // Ugly!!!!! This isn't Python so you can technically write multiple statements on a single line!!!!!!!!!!!!
-        try { nodes = parser.nextNode(); }
+        try { nodes = parser.parse(); }
         catch(CompilationMessage msg) {
             msg.printMessage();
             return;
