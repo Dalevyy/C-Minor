@@ -83,6 +83,8 @@ public class Lexer {
         Position end = endToken.getEndPos();
         StringBuilder sb = new StringBuilder();
 
+        startToken.setEndLocation(end.copy()); // Make sure the token has the start node!
+
         start.line--;
         end.line--;
         start.column--;
