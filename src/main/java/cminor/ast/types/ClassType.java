@@ -41,11 +41,11 @@ public class ClassType extends Type {
     public ClassType(String className) { this(new Token(),new Name(className),new Vector<>()); }
 
     /**
-     * Creates a {@link ClassType} based on a passed {@link Name}.
-     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * Creates a {@link ClassType} based on a passed {@link Name} and {@link Vector} of types.
      * @param className {@link Name} to store into {@link #className}.
+     * @param typeArgs {@link Vector} of {@link Type} to store into {@link #typeArgs}.
      */
-    public ClassType(Token metaData, Name className) { this(metaData,className,new Vector<>()); }
+    public ClassType(Name className, Vector<Type> typeArgs) { this(null,className,new Vector<>()); }
 
     /**
      * Main constructor for {@link ClassType}.

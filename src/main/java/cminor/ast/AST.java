@@ -50,8 +50,10 @@ public abstract class AST {
      * @param metaData {@link Token} containing all the metadata stored with the {@link AST}.
      */
     public AST(Token metaData) {
-        this.text = metaData.getText();
-        this.location = metaData.getLocation();
+        if(metaData != null) {
+            this.text = metaData.getText();
+            this.location = metaData.getLocation();
+        }
         this.children = new Vector<>();
     }
 
