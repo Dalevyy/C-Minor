@@ -1,6 +1,7 @@
 package cminor.modifier.good
 
 import cminor.messages.CompilationMessage
+import cminor.messages.MessageNumber
 import cminor.modifier.ModifierTest
 
 class ModifierGoodTest extends ModifierTest {
@@ -23,6 +24,21 @@ class ModifierGoodTest extends ModifierTest {
             vm.runInterpreter(input)
 
         then: "If all methods from the abstract class are implemented, then no errors will be generated."
+            notThrown CompilationMessage
+    }
+
+    def "Field Expression - Inherited Method is Called From Child Class"() {
+        when: "A protected method is invoked from a class it was not declared in."
+            input = '''
+                        class A { protected method m() => Void {} }           
+                        class B inherits A { public method test() => Void { m() } }
+                        
+                        def b:B = new B()
+                        b.test()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No error will occur as 'this.m()' can be invoked directly since the method is inherited."
             notThrown CompilationMessage
     }
 
