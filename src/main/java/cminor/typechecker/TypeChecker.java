@@ -1292,6 +1292,8 @@ public class TypeChecker extends Visitor {
             ne.type = decl.asTopLevelDecl().asGlobalDecl().getType();
         else if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isClassDecl())
             ne.type = new ClassType(decl.asTopLevelDecl().asClassDecl().getDeclName());
+        else if(decl.isTopLevelDecl() && decl.asTopLevelDecl().isEnumDecl())
+            ne.type = decl.asTopLevelDecl().asEnumDecl().getConstantType();
         else if(decl.isSubNode())
             ne.type = decl.asSubNode().asParamDecl().getType();
         else

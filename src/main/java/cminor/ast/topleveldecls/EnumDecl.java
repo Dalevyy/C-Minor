@@ -4,6 +4,7 @@ import cminor.ast.AST;
 import cminor.ast.misc.Name;
 import cminor.ast.misc.NameDecl;
 import cminor.ast.misc.Var;
+import cminor.ast.types.Type;
 import cminor.token.Token;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
@@ -55,6 +56,12 @@ public class EnumDecl extends TopLevelDecl implements NameDecl {
      * @return {@link Vector} of variables.
      */
     public Vector<Var> getConstants() { return constants;}
+
+    /**
+     * Getter method that retrieves the types of the enum's constants.
+     * @return {@link Type}
+     */
+    public Type getConstantType() { return constants.getFirst().getInitialValue().type; }
 
     /**
      * {@inheritDoc}
