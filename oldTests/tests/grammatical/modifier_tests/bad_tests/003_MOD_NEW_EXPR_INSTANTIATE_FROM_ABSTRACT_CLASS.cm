@@ -1,6 +1,0 @@
-
-abstr class Shape { }
-
-def main() => Void {
-    def local a = new Shape() Shape
-}
