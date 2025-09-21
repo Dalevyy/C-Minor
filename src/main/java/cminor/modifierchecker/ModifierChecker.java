@@ -3,19 +3,19 @@ package cminor.modifierchecker;
 //TODO: A template class can only be inherited when it's instantiated!
 
 import cminor.ast.AST;
-import cminor.ast.classbody.FieldDecl;
+import cminor.ast.classbody.ClassNode;
 import cminor.ast.classbody.MethodDecl;
-import cminor.ast.expressions.*;
+import cminor.ast.expressions.FieldExpr;
+import cminor.ast.expressions.Invocation;
+import cminor.ast.expressions.NewExpr;
+import cminor.ast.misc.Modifier;
 import cminor.ast.statements.*;
 import cminor.ast.topleveldecls.ClassDecl;
 import cminor.ast.topleveldecls.FuncDecl;
 import cminor.ast.topleveldecls.MainDecl;
-import cminor.ast.types.ClassType;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.mod.ModError;
-import cminor.namechecker.NameChecker;
-import cminor.typechecker.TypeChecker;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
@@ -62,11 +62,18 @@ public class ModifierChecker extends Visitor {
             return;
         }
 
-        AST LHS = currentScope.findName(as.getLHS());
-        if(LHS == null && as.getLHS().isArrayExpr())
+        // We will only do the modifier checks when the LHS represents an array or name!
+        if(!as.getLHS().isArrayExpr() && !as.getLHS().isNameExpr())
+            return;
+
+        AST LHS;
+        if(as.getLHS().isArrayExpr())
             LHS = currentScope.findName(as.getLHS().asArrayExpr().getArrayTarget());
+        else
+            LHS = currentScope.findName(as.getLHS());
+
         if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isGlobalDecl()) {
-            // ERROR CHECK #1: A global constant can not have its value changed.
+            // ERROR CHECK #1: If we have a global constant, then its value can not be reassigned.
             if(LHS.asTopLevelDecl().asGlobalDecl().isConstant()) {
                 handler.createErrorBuilder(ModError.class)
                        .addLocation(as)
@@ -76,7 +83,7 @@ public class ModifierChecker extends Visitor {
                        .generateError();
             }
         }
-        // ERROR CHECK #2: An enum constant can not be reassigned its value.
+        // ERROR CHECK #2: Similarly, a constant declared in an Enum can not have its value reassigned.
         else if(LHS.isTopLevelDecl() && LHS.asTopLevelDecl().isEnumDecl()) {
             handler.createErrorBuilder(ModError.class)
                    .addLocation(as)
@@ -139,7 +146,9 @@ public class ModifierChecker extends Visitor {
                 helper.checkAbstrClassImplementation(cd, superClass);
         }
 
+        helper.currentContext = cd;
         super.visitClassDecl(cd);
+        helper.currentContext = null;
         currentScope = currentScope.closeScope();
     }
 
@@ -154,44 +163,46 @@ public class ModifierChecker extends Visitor {
         ds.getCondition().visit(this);
     }
 
-//    *
-//     * Checks field expression modifier usage.<br><br>
-//     * <p>
-//     *     We only have one modifier check to perform for field expressions
-//     *     involving the access scope of a field. Fields can only be accessed
-//     *     outside of a class if they were declared public.
-//     * </p>
-//     * @param fe Field Expressions
-
+    /**
+     * Verifies if field expressions can be accessed based on modifier usage.
+     * <p>
+     *     We want to make sure that all fields and invoked methods are properly
+     *     accessed by the user based on the given modifier.
+     * </p>
+     * @param fe {@link FieldExpr}
+     */
     public void visitFieldExpr(FieldExpr fe) {
-        fe.getTarget().visit(this);
-//        if(fe.getAccessExpr().isNameExpr() || fe.getAccessExpr().isArrayExpr()) {
-//            ClassDecl cd;
-//            FieldDecl fd = null;
-//            if(fe.getTarget().type.isClass()) {
-//                cd = currentScope.findName(fe.getTarget().type).asTopLevelDecl().asClassDecl();
-//                fd = cd.getScope().findName(fe.getAccessExpr()).asClassNode().asFieldDecl();
-//            }
-//            else {
-//                for(ClassType ct : fe.getTarget().type.asMulti().getAllTypes()) {
-//                    cd = currentScope.findName(ct).asTopLevelDecl().asClassDecl();
-//                    if(cd.getScope().hasName(fe.getAccessExpr())) {
-//                        fd = cd.getScope().findName(fe.getAccessExpr()).asClassNode().asFieldDecl();
-//                        break;
-//                    }
-//                }
-//            }
-//
-//            // ERROR CHECK #1: Only fields declared as 'public' can be accessed outside a class
-//            if (!fe.getTarget().isThisStmt() && !fd.mod.isPublic()) {
-//                handler.createErrorBuilder(ModError.class)
-//                        .addLocation(fe)
-//                        .addErrorNumber(MessageNumber.MOD_ERROR_507)
-//                        .addErrorArgs(fe.getTarget().toString(), fd.toString())
-//                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1507)
-//                        .generateError();
-//            }
-//        }
+        // 1. We first need to get the class where the field/method belongs to.
+        ClassDecl cd;
+        if(fe.getTargetType().isClass())
+            cd = currentScope.findName(fe.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
+        else {
+            fe.getTarget().visit(this);
+            fe.getAccessExpr().visit(this);
+            return;
+        }
+
+        // 2. Then, we need to find the field/method in the class and retrieve its modifier.
+        Modifier mod = helper.getModifier(cd.getScope(),fe);
+
+        // ERROR CHECK #1: A member can not be accessed outside a class if it was marked as 'protected' or 'property'.
+        if(!fe.getTarget().isThisStmt() && !mod.isPublic() && !helper.insideClass(cd)) {
+            AST field;
+            if(fe.getAccessExpr().isFieldExpr())
+                field = fe.getAccessExpr().asFieldExpr().getTarget();
+            else
+                field = fe.getAccessExpr();
+
+            handler.createErrorBuilder(ModError.class)
+                   .addLocation(fe)
+                   .addErrorNumber(MessageNumber.MOD_ERROR_507)
+                   .addErrorArgs(fe.getTarget(),field)
+                   .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1507)
+                   .generateError();
+        }
+
+        if(fe.getTarget().isInvocation())
+            fe.getTarget().visit(this);
         fe.getAccessExpr().visit(this);
     }
 
@@ -211,7 +222,9 @@ public class ModifierChecker extends Visitor {
      */
     public void visitFuncDecl(FuncDecl fd) {
         currentScope = fd.getScope();
+        helper.currentContext = fd;
         super.visitFuncDecl(fd);
+        helper.currentContext = null;
         currentScope = currentScope.closeScope();
     }
 
@@ -236,25 +249,21 @@ public class ModifierChecker extends Visitor {
         }
     }
 
-////    *
-////     * Checks invocation modifier usage.<br><br>
-////     * <p>
-////     *     For both function and method invocations, we need to check if
-////     *     the user explicitly allowed recursion with the `recurs` keyword
-////     *     in order to allow recursive invocations. Additionally, for method
-////     *     invocations, we want to make sure the method was declared public in
-////     *     order to be able to call it outside of the class.
-////     * </p>
-////     * @param in Invocation
-
+    /**
+     * Checks if an {@link Invocation} correctly calls a recursive method.
+     * <p>
+     *     This visit primarily checks to make sure a user properly invokes a recursive
+     *     method based on the given modifier associated with the method.
+     * </p>
+     * @param in {@link Invocation}
+     */
     public void visitInvocation(Invocation in) {
         // Function Invocation
         if(!in.isMethodInvocation()) {
             if(in.insideFunction()) {
                 FuncDecl fd = currentScope.findMethod(in).asTopLevelDecl().asFuncDecl();
-                FuncDecl method = helper.getMethod(in).asTopLevelDecl().asFuncDecl();
                 // ERROR CHECK #1: A function can not call itself without the `recurs` keyword.
-                if(method.equals(fd) && !fd.mod.isRecursive()) {
+                if(helper.insideFunction(fd) && !fd.mod.isRecursive()) {
                     handler.createErrorBuilder(ModError.class)
                            .addLocation(in)
                            .addErrorNumber(MessageNumber.MOD_ERROR_502)
@@ -265,31 +274,20 @@ public class ModifierChecker extends Visitor {
             }
         }
         // Method Invocation
-        else { ;
-//            ClassDecl cd = currentScope.findName(in.getTargetType()).asTopLevelDecl().asClassDecl();
-//            MethodDecl md = cd.getScope().findMethod(in).asClassNode().asMethodDecl();
-//            if(in.insideMethod()) {
-//                AST method = helper.getMethod(in);
-//                // ERROR CHECK #2: A method can not call itself without the `recurs` keyword.
-//                if(method.equals(md) && !md.mod.isRecursive()) {
-//                    handler.createErrorBuilder(ModError.class)
-//                           .addLocation(in)
-//                           .addErrorNumber(MessageNumber.MOD_ERROR_503)
-//                           .addErrorArgs(md)
-//                           .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
-//                           .generateError();
-//                }
-//            }
-//
-//            // ERROR CHECK #3: A method must be marked 'public' in order to be invoked outside a class.
-//            if(!md.mod.isPublic() && !in.insideMethod()) {
-//                handler.createErrorBuilder(ModError.class)
-//                       .addLocation(in)
-//                       .addErrorNumber(MessageNumber.MOD_ERROR_504)
-//                       .addErrorArgs("this",in)
-//                       .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1504)
-//                       .generateError();
-//            }
+        else {
+            ClassDecl cd = currentScope.findName(in.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
+            MethodDecl md = cd.getScope().findMethod(in).asClassNode().asMethodDecl();
+            if(in.insideMethod()) {
+                // ERROR CHECK #2: A method can not call itself without the `recurs` keyword.
+                if(helper.insideMethod(md) && !md.mod.isRecursive()) {
+                    handler.createErrorBuilder(ModError.class)
+                           .addLocation(in)
+                           .addErrorNumber(MessageNumber.MOD_ERROR_503)
+                           .addErrorArgs(md)
+                           .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1503)
+                           .generateError();
+                }
+            }
         }
         super.visitInvocation(in);
     }
@@ -305,18 +303,36 @@ public class ModifierChecker extends Visitor {
 
     /**
      * Sets the current scope to be in a {@link MethodDecl}.
+     * <p>
+     *     During this visit, we also check if an overridden method was allowed to be
+     *     overridden based on whether the parent class marked the method as 'final'.
+     * </p>
      * @param md {@link MethodDecl}
      */
     public void visitMethodDecl(MethodDecl md) {
-        currentScope = md.getScope();
-        super.visitMethodDecl(md);
-        currentScope = currentScope.closeScope();
-    }
-
-    public void visitNameExpr(NameExpr ne) {
-        if(ne.inFieldExpr()) {
-
+        ClassDecl currentClass = helper.currentContext.asTopLevelDecl().asClassDecl();
+        if(currentClass.getSuperClass() != null) {
+            ClassDecl superClass = currentScope.getGlobalScope()
+                                               .findName(currentClass.getSuperClass().getTypeName())
+                                               .asTopLevelDecl().asClassDecl();
+            if(superClass.getScope().hasMethodOverload(md)) {
+                MethodDecl superMethod = superClass.getScope().findMethod(md).asClassNode().asMethodDecl();
+                // ERROR CHECK #1: A method can not be overridden if it was declared as final!
+                if(superMethod.mod.isFinal()) {
+                    handler.createErrorBuilder(ModError.class)
+                           .addLocation(md)
+                           .addErrorNumber(MessageNumber.MOD_ERROR_509)
+                           .addErrorArgs(md)
+                           .generateError();
+                }
+            }
         }
+
+        currentScope = md.getScope();
+        helper.currentContext = md;
+        super.visitMethodDecl(md);
+        helper.currentContext = null;
+        currentScope = currentScope.closeScope();
     }
 
     /**
@@ -329,7 +345,9 @@ public class ModifierChecker extends Visitor {
      * @param ne {@link NewExpr}
      */
     public void visitNewExpr(NewExpr ne) {
-        ClassDecl cd = currentScope.findName(ne.type.asClass().getClassName()).asTopLevelDecl().asClassDecl();
+        ClassDecl cd = ne.getInstantiatedClass();
+        if(cd == null)
+            cd = currentScope.findName(ne.type.asClass().getClassName()).asTopLevelDecl().asClassDecl();
 
         // ERROR CHECK #1: A user can not instantiate an object from an abstract class.
         if(cd.mod.isAbstract()) {
@@ -357,6 +375,15 @@ public class ModifierChecker extends Visitor {
      * An internal helper class for {@link ModifierChecker}.
      */
     private class ModifierCheckerHelper {
+
+        /**
+         * {@link AST} representing the current context we are in.
+         * <p>
+         *     This will help speed up the modifier checking, so we can know the exact
+         *     context we are in to do specific checks for! :)
+         * </p>
+         */
+        public AST currentContext;
 
         /**
          * Determines if abstract methods were implemented in concrete classes.x
@@ -421,17 +448,76 @@ public class ModifierChecker extends Visitor {
             }
         }
 
-        private AST getMethod(AST node) {
-            AST curr = node;
+        /**
+         * Retrieves the modifier for a {@link ClassNode}, called by {@link #visitFieldExpr(FieldExpr)}.
+         * @param classScope The class {@link SymbolTable we wish to find a field/method in.
+         * @param field The current {@link FieldExpr} we want to retrieve a modifier of.
+         * @return
+         */
+        private Modifier getModifier(SymbolTable classScope, FieldExpr field) {
+            AST node;
 
-            while(true) {
-                curr = curr.getParent();
-                if(curr.isTopLevelDecl() && curr.asTopLevelDecl().isFuncDecl())
-                    return curr;
-                else if(curr.isClassNode() && curr.asClassNode().isMethodDecl())
-                    return curr;
+            // If we are inside a complex field expression, then the next target will be the field/method we need.
+            if(field.getAccessExpr().isFieldExpr()) {
+                field = field.getAccessExpr().asFieldExpr();
+                if(field.getTarget().isArrayExpr())
+                    node = classScope.findName(field.getTarget().asArrayExpr().getArrayTarget());
+                else if(field.getTarget().isInvocation())
+                    node = classScope.findMethod(field.getTarget().asInvocation());
+                else
+                    node = classScope.findName(field.getTarget());
+            }
+            // Otherwise, the access expression contains the field/method we need to find!
+            else {
+                if(field.getAccessExpr().isArrayExpr())
+                    node = classScope.findName(field.getAccessExpr().asArrayExpr().getArrayTarget());
+                else if(field.getAccessExpr().isInvocation())
+                    node = classScope.findMethod(field.getAccessExpr().asInvocation());
+                else
+                    node = classScope.findName(field.getAccessExpr());
             }
 
+
+            if(node.asClassNode().isFieldDecl())
+                return node.asClassNode().asFieldDecl().mod;
+            else
+                return node.asClassNode().asMethodDecl().mod;
+        }
+
+        /**
+         * Checks if {@link #currentContext} represents the passed {@link ClassDecl}.
+         * @param cd The {@link ClassDecl} we wish to check for equality.
+         * @return {@code True} if the {@link #currentContext} represents the passed class, {@code False} otherwise.
+         */
+        private boolean insideClass(ClassDecl cd) {
+            return currentContext != null
+                && currentContext.isTopLevelDecl()
+                && currentContext.asTopLevelDecl().isClassDecl()
+                && currentContext.asTopLevelDecl().asClassDecl().getName().equals(cd.getName());
+        }
+
+        /**
+         * Checks if {@link #currentContext} represents the passed {@link FuncDecl}.
+         * @param fd The {@link FuncDecl} we wish to check for equality.
+         * @return {@code True} if the {@link #currentContext} represents the passed function, {@code False} otherwise.
+         */
+        private boolean insideFunction(FuncDecl fd) {
+            return currentContext != null
+                && currentContext.isTopLevelDecl()
+                && currentContext.asTopLevelDecl().isFuncDecl()
+                && currentContext.asTopLevelDecl().asFuncDecl().equals(fd);
+        }
+
+        /**
+         * Checks if {@link #currentContext} represents the passed {@link MethodDecl}.
+         * @param md The {@link MethodDecl} we wish to check for equality.
+         * @return {@code True} if the {@link #currentContext} represents the passed method, {@code False} otherwise.
+         */
+        private boolean insideMethod(MethodDecl md) {
+            return currentContext != null
+                && currentContext.isClassNode()
+                && currentContext.asClassNode().isMethodDecl()
+                && currentContext.asClassNode().asMethodDecl().equals(md);
         }
     }
 }
