@@ -1,0 +1,12 @@
+/*
+    Type Error 404
+
+    1| set a *= ' is short.'
+    The assignment operation '*=' can not be used with a variable of type String.
+
+    Suggestion:
+    The assignment operation '*=' is only supported for variables of type Int and Real.
+*/
+
+def global a:String = 'my string' 
+set a *= ' is short.'

@@ -2,6 +2,7 @@ package cminor.messages.errors;
 
 import cminor.messages.Message;
 import cminor.messages.errors.scope.ScopeError;
+import cminor.messages.errors.syntax.SyntaxError;
 
 /**
  * A {@link Message} class representing a compilation error.
@@ -38,5 +39,13 @@ public abstract class Error extends Message {
      */
     public ScopeError asScopeError() {
         throw new RuntimeException("The current error does not represent a scope error.");
+    }
+
+    /**
+     * Explicitly casts the current instance of {@link Error} into a {@link SyntaxError}.
+     * @return Current instance of {@link Error} as a {@link SyntaxError}.
+     */
+    public SyntaxError asSyntaxError() {
+        throw new RuntimeException("The current error does not represent a syntax error.");
     }
 }

@@ -1,15 +1,18 @@
 package cminor.messages;
 
 import java.io.File;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Properties;
 import cminor.utilities.PropertiesLoader;
+
+import javax.swing.*;
 
 /**
  * An enumeration that keeps track of all messages available to the compiler for error handling.
  * <p>
  *     This is an error handling system that Dr. C came up with for ProcessJ, and I decided to
- *     adapt it to use inside of C Minor. Inside of utilities, there is a file called
+ *     adapt it to use inside C Minor. Inside of utilities, there is a file called
  *     {@code MessageNumber.properties} that has a list of all available messages the compiler
  *     currently supports. This enumeration allows us to use those messages.
  * </p>
@@ -20,6 +23,7 @@ public enum MessageNumber {
     /* ######################################## SYNTAX ERRORS ######################################## */
     SYNTAX_ERROR_100,
     SYNTAX_ERROR_101,
+    SYNTAX_ERROR_102,
 
     /* ######################################## SCOPE ERRORS ######################################## */
     SCOPE_ERROR_300,
@@ -273,6 +277,7 @@ public enum MessageNumber {
     MOD_SUGGEST_1505,
     MOD_SUGGEST_1506,
     MOD_SUGGEST_1507,
+    MOD_SUGGEST_1508,
 
     /* ######################################## SEMANTIC SUGGESTIONS ######################################## */
     SEMANTIC_SUGGEST_1700,
@@ -294,7 +299,7 @@ public enum MessageNumber {
     /**
      * The file location containing the compiler messages. DO NOT CHANGE UNLESS FILE CHANGES DIRECTORY.
      */
-    private static final String PATH = "src/main/java/cminor/utilities/MessageNumber.properties";
+    private static final String PATH = "MessageNumber.properties";
 
     /**
      * List of messages that come from {@link #PATH}.
@@ -309,12 +314,16 @@ public enum MessageNumber {
 
     // This loads and stores the messages from the properties file into the enumeration file.
     static {
-        URL url = PropertiesLoader.getURL(PATH);
-        String path = PATH;
+        InputStream p = Thread.currentThread().getContextClassLoader().getResourceAsStream(PATH);
+        msgs = new Properties();
+       try { msgs.load(p);}
+       catch(Exception e) { System.out.println(e); }
+        // URL url = PropertiesLoader.getURL(PATH);
+//String path = PATH;
 
-        if(url != null)
-            path = url.getFile();
+//        if(url != null)
+//            path = url.getFile();
 
-        msgs = PropertiesLoader.loadProperties(new File(path));
+    //    msgs = PropertiesLoader.loadProperties(path);
     }
 }

@@ -1,0 +1,66 @@
+/*
+    Retype Statement Test #8
+
+    This tests many retype statements in 
+    succession within control statements.
+
+    Output:
+        x = 7
+        y = 3.1415
+        n = hello
+*/
+
+class A {
+    protected x:Int 
+    public method print() => Void { 
+        cout << 'x = ' << x << endl 
+    }
+}
+
+class B inherits A { 
+    protected y:Real
+    public override method print() => Void { 
+        parent.print()
+        cout << 'y = ' << y << endl 
+    }
+}
+
+class C inherits A {
+    protected z:Bool 
+    public override method print() => Void { 
+        parent.print()
+        cout << 'z = ' << z << endl 
+        }
+}
+
+class D inherits B {
+    protected n:String
+    public override method print() => Void { 
+        parent.print()
+        cout << 'n = ' << n << endl 
+    }
+}
+
+def a:A = uninit
+def i:Int = 0
+
+while(True) {
+    if(i >= 5) {
+        retype a = new D(x=7,y=3.1415,n='hello')
+    } else {
+        def b:Int = 5
+        retype a = new C(z=True,x=10)
+        while(b != 10) {
+            retype a = new B(y=7.28035,x=15)
+            set b += 1
+        }
+    }
+
+    if(a instanceof D) {
+        break 
+    }
+
+    set i += 1
+}
+
+a.print()

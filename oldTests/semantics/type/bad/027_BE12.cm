@@ -1,0 +1,4 @@
+
+def a:Bool = True 
+def b:String = 'hey'
+a and b 

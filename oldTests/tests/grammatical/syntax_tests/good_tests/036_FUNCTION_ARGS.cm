@@ -1,0 +1,12 @@
+
+def myFunction(in a Int, out b Int) => Void {
+
+}
+
+def myFunction2(inout a Int, inout b Real, ref c Array[Int]) => Void {
+
+}
+
+def main() => Void {
+
+}

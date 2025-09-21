@@ -63,6 +63,23 @@ class TypeGoodTest extends TypeTest {
             notThrown CompilationMessage
     }
 
+    def "Array Literal - Declaring a 5D Array"() {
+        when: "A 5D array is declared in a program."
+            input = '''
+                        def a:Array[Array[Array[Array[Array[Int]]]]] =  
+                            Array[2][2][2][2][1](Array[2][2][2][1](Array[2][2][1](
+                                    Array[2][1](Array(1),Array(2)),Array[2][1](Array(3),Array(4))),
+                                    Array[2][2][1](Array[2][1](Array(5),Array(6)),Array[2][1](Array(7),Array(8)))),
+                                    Array[2][2][2][1](Array[2][2][1](Array[2][1](Array(9),Array(10)),
+                                    Array[2][1](Array(11),Array(12))),Array[2][2][1]
+                                    (Array[2][1](Array(13),Array(14)),Array[2][1](Array(15),Array(16)))))
+                    '''
+            vm.runInterpreter(input)
+
+        then: "No errors should occur... if the user wrote it correctly :)"
+            notThrown CompilationMessage
+    }
+
     def "Assignment Statement - String Concatenation"() {
         when: "The += assignment operation is used on Strings."
             input = '''

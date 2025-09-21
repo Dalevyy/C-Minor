@@ -1,0 +1,21 @@
+/*
+    Class Template Runtime Test #1
+
+    This tests if a class can be instantiated.
+
+    Output:
+        5
+*/
+
+class A<discr t> {
+    public x:t
+    public method print() => Void {
+        def y:t = uninit
+        set y = x
+        cout << y
+    }
+}
+
+def a:A<Int> = new A<Int>(x=5)
+
+a.print()

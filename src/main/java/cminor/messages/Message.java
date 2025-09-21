@@ -10,7 +10,8 @@ import cminor.utilities.PrettyPrint;
  * <p>
  *     This class contains most of the meta information and helper methods needed
  *     for the compiler to generate a specific message to the user. Currently, we
- *     have two types of messages: {@link messages.errors.Error} and {@link messages.warnings.Warning}.
+ *     have two types of messages: {@link cminor.messages.errors.Error} and
+ *     {@link cminor.messages.warnings.Warning}.
  * </p>
  * @author Daniel Levy
  */
@@ -65,7 +66,7 @@ public abstract class Message {
      * Builds a string representing the location in the program that the message is generated for.
      * @return String representation of the {@link #location}.
      */
-    protected String buildLocationInfo() { return (location == null) ? "" : PrettyPrint.RESET + location.header(); }
+    protected String buildLocationInfo() { return (location == null) ? PrettyPrint.RESET : PrettyPrint.RESET + location.header(); }
 
     /**
      * Builds the main message that the user needs to see.

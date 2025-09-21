@@ -1,0 +1,4 @@
+
+def a:Int = 5 
+def b:Real = 3.14 
+a << b 

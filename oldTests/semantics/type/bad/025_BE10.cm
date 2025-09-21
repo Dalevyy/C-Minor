@@ -1,0 +1,4 @@
+
+def a:Real = 1.23 
+def b:Real = 2.12 
+a & b

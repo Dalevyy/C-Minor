@@ -32,6 +32,16 @@ public class NameExpr extends Expression {
     public NameExpr(String name) { this(new Token(),new Name(name)); }
 
     /**
+     * Deep copy constructor for {@link NameExpr}.
+     * @param ne The {@link NameExpr} we wish to create a copy of.
+     */
+    public NameExpr(NameExpr ne) {
+        super(new Token());
+        this.name = ne.getName().deepCopy().asSubNode().asName();
+        this.text = ne.text;
+    }
+
+    /**
      * Main constructor for {@link NameExpr}.
      * @param metaData Token containing metadata we want to save
      * @param name Name to save into {@link #name}
@@ -47,18 +57,21 @@ public class NameExpr extends Expression {
      * @return {@code True} if the name is in a complex field expression, {@code False} otherwise.
      */
     public boolean inComplexFieldExpr() {
-        if(!inFieldExpr())
-            return false;
-
-        // Ugly! This makes sure a PREVIOUS target ALREADY exists since we need that target type to get the right class!
-        if(parent.getParent() == null
-                || !parent.getParent().isExpression() || !parent.getParent().asExpression().isFieldExpr())
-            return false;
-
         // To return true, the name has to be found AFTER the first target!
-        AST target = parent.getParent().asExpression().asFieldExpr();
+        AST target = parent;
 
-        return !this.equals(target);
+        if(!inFieldExpr()) {
+            if(inArrayExpr() && target.asExpression().asArrayExpr().inFieldExpr())
+                target = target.getParent();
+            else
+                return false;
+        }
+
+        if(target.getParent() != null &&
+                target.getParent().isExpression() && target.getParent().asExpression().isFieldExpr())
+            return true;
+
+        return !this.equals(target.asExpression().asFieldExpr().getTarget());
     }
 
     /**
@@ -68,7 +81,22 @@ public class NameExpr extends Expression {
      * </p>
      * @return {@code True} if the name is in a {@link FieldExpr}, {@code False} otherwise.
      */
-    private boolean inFieldExpr() {return parent.isExpression() && parent.asExpression().isFieldExpr();}
+    public boolean inFieldExpr() {return parent != null && parent.isExpression() && parent.asExpression().isFieldExpr();}
+
+    /**
+     * Checks if the current {@link NameExpr} represents the target of an array.
+     * <p>
+     *     This helper assists with the type checking of complex field expressions. We want to make sure this method
+     *     only returns true when the name represents an array target. Any names used as indices will be avoided!
+     * </p>
+     * @return {@code True} if the name is the target of an {@link ArrayExpr}, {@code False} otherwise.
+     */
+    public boolean inArrayExpr() {
+        return parent != null
+            && parent.isExpression()
+            && parent.asExpression().isArrayExpr()
+            && parent.asExpression().asArrayExpr().getArrayTarget().equals(this);
+    }
 
     /**
      * Getter for {@link #name}.

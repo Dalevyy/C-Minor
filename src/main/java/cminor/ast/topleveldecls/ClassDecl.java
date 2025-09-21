@@ -121,24 +121,16 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
     public InitDecl getConstructor() { return constructor; }
 
     /**
-     * Sets the {@link #constructor} field during the {@link micropasses.ConstructorGeneration} pass.
+     * Sets the {@link #constructor} field during the {@link cminor.micropasses.ConstructorGenerator} pass.
      * @param init The {@link InitDecl} we generated for this class.
      */
     public void setConstructor(InitDecl init) { constructor = (constructor == null) ? init : constructor; }
 
-    public void addBaseClass(Name n) { inheritedClasses.add(n); }
-    public Vector<Name> getInheritedClasses() { return inheritedClasses; }
+    public void setName(Name name) { this.name = name; }
 
-    public boolean inherits(String sup) {
-        for(Name sub : this.inheritedClasses)
-            if(sub.toString().equals(sup))
-                return true;
-        return false;
-    }
-
-    public void removeTypeParams(){
-        for(TypeParam tp : this.typeParams);
-        // scope.removeName(tp.toString());
+    public void removeTypeParams() {
+        for(TypeParam tp : typeParams)
+            scope.removeName(tp);
         this.typeParams = new Vector<>();
     }
 
@@ -221,11 +213,11 @@ public class ClassDecl extends TopLevelDecl implements NameDecl, ScopeDecl {
             cb.setSuperClass(superClass.deepCopy().asType().asClass());
 
         return cb.setMetaData(this)
-                  .setMods(mod)
-                  .setClassName(name.deepCopy().asSubNode().asName())
-                  .setTypeArgs(typeParams)
-                  .setClassBody(body.deepCopy().asClassNode().asClassBody())
-                  .create();
+                 .setMods(mod)
+                 .setClassName(name.deepCopy().asSubNode().asName())
+                 .setTypeArgs(typeParams)
+                 .setClassBody(body.deepCopy().asClassNode().asClassBody())
+                 .create();
     }
 
     /**

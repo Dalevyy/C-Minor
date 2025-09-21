@@ -1,0 +1,7 @@
+
+def global SIZE = 10 Int
+
+def main() => Void {
+    def lst = Array[SIZE](1,2,3,4,5,6,7,8,9,10) Array[Int]
+
+}

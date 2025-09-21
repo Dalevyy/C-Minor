@@ -3,6 +3,7 @@ package cminor.messages.errors;
 import cminor.ast.AST;
 import cminor.messages.MessageHandler;
 import cminor.messages.errors.scope.ScopeErrorBuilder;
+import cminor.messages.errors.syntax.SyntaxErrorBuilder;
 import cminor.messages.MessageNumber;
 
 /**
@@ -98,5 +99,13 @@ public abstract class ErrorBuilder {
      */
     public ScopeErrorBuilder asScopeErrorBuilder() {
         throw new RuntimeException("The current builder is not generating a scope-related error.");
+    }
+
+    /**
+     * Explicitly casts the current instance of {@link ErrorBuilder} into a {@link SyntaxErrorBuilder}.
+     * @return Current instance of {@link ErrorBuilder} as a {@link SyntaxErrorBuilder}.
+     */
+    public SyntaxErrorBuilder asSyntaxErrorBuilder() {
+        throw new RuntimeException("The current builder is not generating a syntax-related error.");
     }
 }

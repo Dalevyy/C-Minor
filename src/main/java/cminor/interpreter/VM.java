@@ -2,7 +2,6 @@ package cminor.interpreter;
 
 import cminor.ast.AST;
 import cminor.ast.misc.CompilationUnit;
-import cminor.ast.types.ClassType;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
@@ -10,11 +9,13 @@ import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
 import cminor.micropasses.*;
 import cminor.parser.Parser;
+import cminor.parser.PEG;
 import cminor.utilities.PhaseHandler;
 import cminor.utilities.PhaseNumber;
 import cminor.utilities.Vector;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -135,7 +136,7 @@ public class VM {
             }
 
             try { runInterpreter(program.toString()); }
-            catch(CompilationMessage msg) { ; /*  DO NOTHING FOR NOW!!!!*/ }
+            catch(CompilationMessage msg) { /*  DO NOTHING FOR NOW!!!!*/ }
         }
     }
 
@@ -148,7 +149,10 @@ public class VM {
         Vector<? extends AST> nodes;
 
         // Ugly!!!!! This isn't Python so you can technically write multiple statements on a single line!!!!!!!!!!!!
-        try { nodes = parser.nextNode(); }
+        try { nodes = parser.nextNode();
+//            for(AST node : nodes)
+//                System.out.println(node.getLocation());
+        }
         catch(CompilationMessage msg) {
             msg.printMessage();
             return;
@@ -161,5 +165,7 @@ public class VM {
                 msg.printMessage();
             }
         }
+
+        Interpreter.printLine();
     }
 }

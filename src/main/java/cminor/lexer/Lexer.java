@@ -78,6 +78,36 @@ public class Lexer {
 
     public String getFileName() { return fileName; }
 
+    public String getText() { return lines.getLast(); }
+
+    public void setText(Token startToken, Token endToken) {
+        Position start = startToken.getStartPos();
+        Position end = endToken.getEndPos();
+        StringBuilder sb = new StringBuilder();
+
+        startToken.setEndLocation(end.copy()); // Make sure the token has the start node!
+
+        start.line--;
+        end.line--;
+        start.column--;
+        end.column--;
+
+        int strSize;
+        int startCol = start.column;
+
+        for(int i = start.line; i <= end.line; i++) {
+            String curr = lines.get(i);
+
+            if(i != end.line) { strSize = curr.length(); }
+            else { strSize = end.column; }
+
+            for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
+            startCol = 0;
+        }
+
+        startToken.setText(sb.toString());
+    }
+
     /**
      * Sets a token text to be between its starting and ending {@code positions}.
      * @param tokenForAST This represents the token we are saving into an AST node.
@@ -109,7 +139,7 @@ public class Lexer {
     }
 
     /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
-    public void printSyntaxError(Position start) { System.out.println(start.line + "| " + lines.get(start.line-1)); }
+    public String syntaxError(Position start) { return start.line + "| " + lines.get(start.line-1); }
 
     /** Updates the lookahead character and program text every time there is a valid match.*/
     private void consume() {

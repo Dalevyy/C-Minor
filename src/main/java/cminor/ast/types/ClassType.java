@@ -2,7 +2,9 @@ package cminor.ast.types;
 
 import cminor.ast.AST;
 import cminor.ast.misc.Name;
+import cminor.ast.topleveldecls.ClassDecl;
 import cminor.token.Token;
+import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
@@ -39,11 +41,11 @@ public class ClassType extends Type {
     public ClassType(String className) { this(new Token(),new Name(className),new Vector<>()); }
 
     /**
-     * Creates a {@link ClassType} based on a passed {@link Name}.
-     * @param metaData {@link Token} containing all the metadata we will save into this node.
+     * Creates a {@link ClassType} based on a passed {@link Name} and {@link Vector} of types.
      * @param className {@link Name} to store into {@link #className}.
+     * @param typeArgs {@link Vector} of {@link Type} to store into {@link #typeArgs}.
      */
-    public ClassType(Token metaData, Name className) { this(metaData,className,new Vector<>()); }
+    public ClassType(Name className, Vector<Type> typeArgs) { this(null,className,new Vector<>()); }
 
     /**
      * Main constructor for {@link ClassType}.
@@ -56,6 +58,32 @@ public class ClassType extends Type {
 
         this.className = className;
         this.typeArgs = typeArgs;
+    }
+
+    public static boolean isSuperClass(SymbolTable globalScope, ClassType LHS, ClassType RHS) {
+        SymbolTable classTable = globalScope.getGlobalScope();
+        ClassDecl subClass = classTable.findName(RHS.getClassName()).asTopLevelDecl().asClassDecl();
+
+        // We will look through the class hierarchy until the class matches the LHS class.
+        while(subClass.getSuperClass() != null) {
+            if(subClass.getName().equals(LHS.getClassName()))
+                return true;
+            subClass = classTable.findName(subClass.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
+        }
+        return subClass.getName().equals(LHS.getClassName());
+    }
+
+    public static boolean temporaryName(SymbolTable globalScope, ClassType obj, ClassType className) {
+        SymbolTable classTable = globalScope.getGlobalScope();
+        ClassDecl subClass = classTable.findName(obj.getClassName()).asTopLevelDecl().asClassDecl();
+
+        // We will look through the class hierarchy until the class matches the LHS class.
+        while(subClass.getSuperClass() != null) {
+            if(subClass.getName().equals(className.getClassName()))
+                return true;
+            subClass = classTable.findName(subClass.getSuperClass().getClassName()).asTopLevelDecl().asClassDecl();
+        }
+        return subClass.getName().equals(className.getClassName());
     }
 
     /**
@@ -109,6 +137,12 @@ public class ClassType extends Type {
         else
             return this.className.equals(ct.className);
     }
+
+    /**
+     * Returns the class name.
+     * @return String representation of the class name.
+     */
+    public String toString() { return className.toString(); }
 
     /**
      * {@inheritDoc}

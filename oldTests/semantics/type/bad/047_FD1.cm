@@ -1,0 +1,4 @@
+
+class A {
+    protected x:Int = 3.14
+}

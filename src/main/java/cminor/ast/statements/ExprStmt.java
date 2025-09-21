@@ -26,6 +26,8 @@ public class ExprStmt extends Statement {
      */
     public ExprStmt() { this(new Token(),null); }
 
+    public ExprStmt(Expression expr) { this(new Token(),expr); }
+
     /**
      * Main constructor for {@link ExprStmt}.
      * @param metaData {@link Token} containing all the metadata we will save into this node.

@@ -1,0 +1,7 @@
+
+def local a:Int = 5 
+
+choice(a) {
+    on 5..'c' {}
+    other {}
+}

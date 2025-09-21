@@ -651,35 +651,36 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_466
     }
 
-    def "Field Declaration - Same Type as Inherited Class"() {
-        when: "A subtype declares a field that matches an inherited supertype."
-            input = '''
-                        class A { }
-                        class B inherits A { protected x:A }
-                    '''
-            vm.runInterpreter(input)
-
-        then: "A class will contain an instance of a supertype which shouldn't be allowed."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.TYPE_ERROR_467
-
-    }
-
-    def "Field Declaration - Same Type as Inherited Class 2"() {
-        when: "A subtype declares a field that matches an inherited supertype."
-            input = '''
-                            class A {}
-                            class B inherits A {}
-                            class C inherits B {}
-                            class D inherits C { protected x:B }
-                        '''
-            vm.runInterpreter(input)
-
-        then: "A class will contain an instance of a supertype which shouldn't be allowed."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.TYPE_ERROR_467
-
-    }
+    // This is fine!
+//    def "Field Declaration - Same Type as Inherited Class"() {
+//        when: "A subtype declares a field that matches an inherited supertype."
+//            input = '''
+//                        class A { }
+//                        class B inherits A { protected x:A }
+//                    '''
+//            vm.runInterpreter(input)
+//
+//        then: "A class will contain an instance of a supertype which shouldn't be allowed."
+//            error = thrown CompilationMessage
+//            error.msg.messageType == MessageNumber.TYPE_ERROR_467
+//
+//    }
+//
+//    def "Field Declaration - Same Type as Inherited Class 2"() {
+//        when: "A subtype declares a field that matches an inherited supertype."
+//            input = '''
+//                            class A {}
+//                            class B inherits A {}
+//                            class C inherits B {}
+//                            class D inherits C { protected x:B }
+//                        '''
+//            vm.runInterpreter(input)
+//
+//        then: "A class will contain an instance of a supertype which shouldn't be allowed."
+//            error = thrown CompilationMessage
+//            error.msg.messageType == MessageNumber.TYPE_ERROR_467
+//
+//    }
 
     // Note: This error can occur because the name checker does not check any types!
     /*
@@ -1284,6 +1285,102 @@ class TypeBadTest extends TypeTest {
         then: "An error is thrown since only types in the class hierarchy are allowed to be used based on the LHS type."
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.TYPE_ERROR_442
+    }
+
+    def "Template - Invalid Class Template Type"() {
+        when: "A template type is specified for a non-templated class."
+            input = '''
+                        class A {}
+                        def a:A<Int> = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since the incorrect type was used."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_444
+    }
+
+    def "Template - Invalid Class Template Type 2"() {
+        when: "A template class is declared, but an incorrect template type is used."
+            input = '''
+                        class A<discr T> {}
+                        def a:A<Real> = uninit
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error should be generated as long as a type annotation was given."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_446
+    }
+
+    def "Template - Invalid Class Template Type 3"() {
+        when: "A template type uses more type arguments than a template accepts."
+            input = '''
+                        class A<discr t> {}
+                        def a:A<Int,Bool> = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since this type is not written correctly."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_445
+    }
+
+    def "Template - Invalid Class Template Type 4"() {
+        when: "A template type uses more type arguments than a template accepts."
+            input = '''
+                        class A<discr t> {}
+                        def a:A<Int,Real> = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since this type is not written correctly."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_445
+    }
+
+    def "Template - Invalid Class Template Type 5"() {
+        when: "A template type uses less type arguments than a template accepts."
+            input = '''
+                        class A<t,s,u> {}
+                        def a:A<Int,Real> = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since this type is not written correctly."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_445
+    }
+
+    def "Template - Invalid Class Template Type 6"() {
+        when: "A template type uses an invalid type argument."
+            input = '''
+                        class A<discr t, scalar e> {}
+                        def a:A<Int,Bool> = new A()
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since this type is not written correctly."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_400
+    }
+
+    def "Template - Invalid Class Instantiation"() {
+        when: "A class is instantiated with types that will lead to a type error."
+            input = '''
+                    class A<discr t, scalar s> {
+                        public x:t
+                        public y:s
+                        public method print() => Void { cout << x + y << endl }
+                    }
+
+                    def a:A<Int,String> = new A<Int,String>(x=5,y='hi')
+                    '''
+            vm.runInterpreter(input)
+
+        then: "The type error within the class should be displayed to the user."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.TYPE_ERROR_405
     }
 
     def "Unary Expression - Invalid ~ Operation"() {

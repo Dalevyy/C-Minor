@@ -1,0 +1,19 @@
+/*
+    List Expression Test #1
+
+    This tests if we can access sublists
+    within a multidimensional list.
+
+    Output:
+        [1, 2, 3]
+        [6, 7, 8, 9]
+        2
+        6
+*/
+
+def a:List[List[Int]] = List(List(1,2,3),List(4,5),List(6,7,8,9))
+
+cout << a[1] 
+cout << a[3]
+cout << a[1][2]
+cout << a[3][1]

@@ -6,6 +6,7 @@ import cminor.ast.types.Type;
 import cminor.interpreter.Interpreter;
 
 import java.util.HashMap;
+import java.util.TreeSet;
 
 /**
  * A type representing an object the {@link Interpreter} can interact with.
@@ -95,6 +96,17 @@ public class RuntimeObject extends Value {
     public RuntimeObject asObject() { return this; }
 
     @Override
-    public String toString() { return "Object"; }
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Object(");
+        int size = obj.size();
+        for(String key : obj.keySet()) {
+            sb.append(key).append("=").append(obj.get(key));
+            size -= 1;
+            if(size > 0)
+                sb.append(", ");
+        }
 
+        sb.append(")");
+        return sb.toString();
+    }
 }

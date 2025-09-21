@@ -50,6 +50,9 @@ import cminor.ast.types.VoidType;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
+import cminor.messages.MessageNumber;
+import cminor.messages.errors.scope.ScopeError;
+import cminor.messages.errors.syntax.SyntaxError;
 import cminor.micropasses.ImportHandler;
 import cminor.token.Token;
 import cminor.token.TokenType;
@@ -152,11 +155,11 @@ public class Parser {
             consume();
         }
         else {
-            //System.out.println(handler.createError().header());
-            input.printSyntaxError(currentLA().getStartPos());
-            System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
-
-            throw new RuntimeException();
+            handler.createErrorBuilder(SyntaxError.class)
+                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_102)
+                   .asSyntaxErrorBuilder()
+                   .addLocation(input.syntaxError(currentLA().getStartPos()) +"\n" + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column))
+                   .generateError();
         }
     }
 
@@ -711,7 +714,7 @@ public class Parser {
             Vector<Type> types = typeParams();
             return new ClassType(nodeToken(),n,types);
         }
-        return new ClassType(nodeToken(),n);
+        return new ClassType(n,null);
     }
 
     // --. type_params : '@' type ( ',' type )* '@'
@@ -1763,7 +1766,7 @@ public class Parser {
                     match(TokenType.RPAREN);
 
                     input.setText(tokenStack.top());
-                    RHS = new Invocation(tokenStack.top(),LHS.asExpression().asNameExpr().getName(),types,args);
+                    RHS = new Invocation(tokenStack.top(),LHS.asExpression(),types,args);
                 }
                 else {
                     boolean oldField = insideField;
@@ -1813,7 +1816,7 @@ public class Parser {
             if(!nextLA(TokenType.RPAREN)) { args = arguments(); }
             match(TokenType.RPAREN);
 
-            return new Invocation(nodeToken(),new Name("length"),new Vector<>(),args);
+            return new Invocation(nodeToken(),new NameExpr("length"),new Vector<>(),args);
         }
         return postfixExpression();
     }

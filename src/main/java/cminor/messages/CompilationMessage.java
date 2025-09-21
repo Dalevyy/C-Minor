@@ -34,7 +34,7 @@ public class CompilationMessage extends RuntimeException {
      * Prints out the {@link #msg} for the user.
      */
     public void printMessage() {
-        System.out.println(msg.getMessage());
+        System.out.print(msg.getMessage());
 
         if(debugMode) {
             printStackTrace();

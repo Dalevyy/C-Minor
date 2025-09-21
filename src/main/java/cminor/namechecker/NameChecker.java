@@ -162,7 +162,7 @@ public class NameChecker extends Visitor {
         }
         currentScope.addName(cd);
 
-        ClassDecl baseClass = null;
+        ClassDecl baseClass;
         if(cd.getSuperClass() != null) {
             // ERROR CHECK #2: The user can not have a class inherit from itself.
             if(cd.getDeclName().equals(cd.getSuperClass().getClassName().toString())) {
@@ -191,8 +191,13 @@ public class NameChecker extends Visitor {
         else
             currentScope = currentScope.openScope();
 
-        super.visitClassDecl(cd);
         cd.setScope(currentScope);
+        for(TypeParam tp : cd.getTypeParams())
+            tp.visit(this);
+        for(FieldDecl fd : cd.getClassBody().getFields())
+            fd.visit(this);
+        for(MethodDecl md : cd.getClassBody().getMethods())
+            md.visit(this);
 
         helper.checkForRedeclaredFields(cd);
         helper.checkOverriddenMethods(cd);
@@ -358,7 +363,6 @@ public class NameChecker extends Visitor {
                    .generateError();
         }
         currentScope.addMethod(fd);
-
         currentScope = currentScope.openScope();
 
         for(TypeParam tp : fd.getTypeParams())
@@ -582,12 +586,12 @@ public class NameChecker extends Visitor {
                    .generateError();
         }
 
-        ClassDecl cd = currentScope.findName(ne.getClassName()).asTopLevelDecl().asClassDecl();
+        ClassDecl cd = currentScope.getGlobalScope().findName(ne.getClassName()).asTopLevelDecl().asClassDecl();
         Vector<String> initializedFields = new Vector<>();
 
         for(Var field : ne.getInitialFields()) {
             // ERROR CHECK #2: For each field specified, we need to make sure it was actually declared in the class.
-            if(!cd.getScope().hasName(field)) {
+            if(!cd.getScope().hasNameInProgram(field)) {
                 handler.createErrorBuilder(ScopeError.class)
                        .addLocation(ne)
                        .addErrorNumber(MessageNumber.SCOPE_ERROR_315)
@@ -793,7 +797,6 @@ public class NameChecker extends Visitor {
 
             for(MethodDecl subMethod : subClass.getClassBody().getMethods()) {
                 MethodDecl methodFound = null;
-
                 if(baseClass != null)
                     methodFound = isMethodInClassHierarchy(subMethod.getDeclName(),subMethod.getParamSignature(),baseClass);
 

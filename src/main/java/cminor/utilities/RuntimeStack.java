@@ -117,4 +117,28 @@ public class RuntimeStack {
      * @return {@link RuntimeStack} representing the parent call frame
      */
     public RuntimeStack destroyCallFrame() { return this.parent; }
+
+    /**
+     * Generates a string representation of the current stack state.
+     * @return String representing each call frame in the stack.
+     */
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        generateStackFrame(sb);
+        return sb.toString();
+    }
+
+    /**
+     * Generates a string representation of the current state of the runtime system.
+     * @param sb The {@link StringBuilder} we will store the stack state within.
+     */
+    private void generateStackFrame(StringBuilder sb) {
+        if(parent != null)
+            parent.generateStackFrame(sb);
+
+        sb.append("---------------------------------\n");
+        for(String s : stack.keySet())
+            sb.append(s).append(": ").append(stack.get(s)).append("\n");
+        sb.append("---------------------------------\n");
+    }
 }

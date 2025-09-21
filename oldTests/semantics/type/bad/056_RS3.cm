@@ -1,0 +1,4 @@
+
+def func() => Int {
+    return 3.14
+}

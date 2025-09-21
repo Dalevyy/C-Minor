@@ -1,6 +1,7 @@
 package cminor.utilities;
 
 import cminor.ast.AST;
+import cminor.ast.expressions.Invocation;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.topleveldecls.FuncDecl;
 import cminor.ast.misc.NameDecl;
@@ -150,7 +151,7 @@ public class SymbolTable {
      * @param method The {@link NameDecl} representing a function/method that will be added.
      */
     public void addMethod(NameDecl method) {
-        if(!hasMethodName(method.getDeclName()))
+        if(!methods.containsKey(method.getDeclName()))
             methods.put(method.getDeclName(), new SymbolTable());
 
         SymbolTable methodTable = methods.get(method.getDeclName());
@@ -178,9 +179,7 @@ public class SymbolTable {
      * @return {@code True} if the method was declared in the program, {@code False} otherwise.
      */
     public boolean hasMethodName(String name) {
-        if(methods.isEmpty())
-            return false;
-        else if(methods.containsKey(name))
+        if(methods.containsKey(name))
             return true;
         else if(parent != null)
             return parent.hasMethodName(name);
@@ -211,7 +210,7 @@ public class SymbolTable {
      */
     public boolean hasMethodOverload(NameDecl node) {
         // No overload exists if the method name wasn't previously declared!
-        if(!hasMethodName(node.getDeclName()))
+        if(!methods.containsKey(node.getDeclName()))
             return false;
 
         // Remember, this method is always called by a FuncDecl or MethodDecl visit!
@@ -277,21 +276,44 @@ public class SymbolTable {
 
     /**
      * Retrieves a method overload from the {@link #methods} table.
-     * @param methodName The method we wish to find the declaration of.
+     * @param method The method we wish to find the declaration of.
      * @param signature The string representation of the method's signature.
      * @return An {@link AST} node representing a {@link FuncDecl} or {@link MethodDecl}
      */
-    public AST findMethod(String methodName, String signature) {
-        SymbolTable methodTable = methods.get(methodName);
+    public AST findMethod(String method, String signature) {
+        SymbolTable methodTable = methods.get(method);
 
         if(methodTable == null) {
             if(parent != null)
-                return parent.findMethod(methodName,signature);
+                return parent.findMethod(method,signature);
             return null;
         }
 
         NameDecl d = methodTable.names.get(signature);
         return d == null ? null : d.getDecl();
+    }
+
+    /**
+     * Retrieves a method overload from the {@link #methods} table.
+     * @param in The {@link Invocation} we wish to find the corresponding method of.
+     * @return An {@link AST} node representing a {@link FuncDecl} or {@link MethodDecl}
+     */
+    public AST findMethod(Invocation in) { return findMethod(in.getName().toString(),in.getSignature()); }
+
+    /**
+     * Removes a method from the {@link #methods} table.
+     * <p>
+     *     This is only called when we are instantiating template
+     *     functions or methods inside a template class!
+     * </p>
+     * @param method The name of the method we want to lookup.
+     * @param signature The signature representing the actual method we want removed.
+     */
+    public void removeMethod(String method, String signature) {
+        if(methods.containsKey(method)) {
+            SymbolTable st = methods.get(method);
+            st.names.remove(signature);
+        }
     }
 
     /**
@@ -337,6 +359,33 @@ public class SymbolTable {
         this.methods = new HashMap<>();
         this.parent = null;
         this.importParent = null;
+    }
+
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        buildScopeHierarchy(sb);
+        return sb.toString();
+    }
+
+    private void buildScopeHierarchy(StringBuilder sb) {
+        if(parent != null)
+            parent.buildScopeHierarchy(sb);
+
+        sb.append("----------------------------------\n");
+        sb.append("Names:\n");
+        for(String name : names.keySet())
+            sb.append("\t").append(name).append("\n");
+
+        if(!methods.isEmpty()) {
+            sb.append("Methods:\n");
+            for(String method : methods.keySet()) {
+                sb.append("\t").append(method).append("\n");
+                SymbolTable st = methods.get(method);
+                for(String sig : st.names.keySet())
+                    sb.append("\t\t").append(sig).append("\n");
+            }
+        }
+        sb.append("----------------------------------\n");
     }
 
     /**

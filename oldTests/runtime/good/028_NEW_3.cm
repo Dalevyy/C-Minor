@@ -1,0 +1,23 @@
+/*
+    New Expression Test #3
+
+    This tests if an inherited object can
+    be instantiated
+
+    Output:
+        b.x = 5
+        b.y = hi
+*/
+
+class A {
+    public x:Int 
+}
+
+class B inherits A {
+    public y:String
+}
+
+def b:B = new B(x=5,y='hi')
+
+cout << 'b.x = ' << b.x 
+cout << 'b.y = ' << b.y

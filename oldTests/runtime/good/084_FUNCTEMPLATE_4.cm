@@ -1,0 +1,19 @@
+/*
+    Function Template Runtime Test #4
+
+    This tests if the correct overloaded template function 
+    will be called depending on the passed argument types.
+
+    Output:
+        Specific Value is 3.14 and 5
+*/
+
+def func<T>(in val:T, in val2:Int) => Void {
+    cout << 'Non-Specific Value is ' << val << ' and ' << val2 
+}
+
+def func<T>(in val:Real, in val2:Int) => Void {
+    cout << 'Specific Value is ' << val << ' and ' << val2 
+}
+
+func@Real@(3.14,5)

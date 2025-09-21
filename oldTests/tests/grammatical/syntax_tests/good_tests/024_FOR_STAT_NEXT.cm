@@ -1,0 +1,8 @@
+
+
+def main() => Void {
+    for def x = 0 Int do x <= 5 next set x += 1 {
+        cout << 'Hi, we are in the for loop\n';
+    }
+}
+

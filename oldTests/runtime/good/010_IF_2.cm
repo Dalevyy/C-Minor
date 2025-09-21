@@ -1,0 +1,17 @@
+
+/*
+    If Statement Test #2
+
+    This tests if the else block will be executed.
+
+    Output:
+        This is incorrect. 
+*/
+
+def a:Int = 5
+
+if(a < 5) {
+    cout << 'This is correct.'
+} else {
+    cout << 'This is incorrect.'
+}

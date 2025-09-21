@@ -1,0 +1,24 @@
+/*
+    Class Template Runtime Test #2
+
+    This tests if a class can be instantiated with 
+    multiple type arguments.
+
+    Output:
+        3.14
+        True 
+*/
+
+class A<scalar s, discr t> {
+    protected a:s 
+    protected b:t 
+
+    public method print() => Void {
+        cout << 'Value of a = ' << a 
+        cout << '\nValue of b = ' << b 
+    }
+}
+
+def a:A<Real,Bool> = new A<Real,Bool>(a=3.14,b=True)
+
+a.print()

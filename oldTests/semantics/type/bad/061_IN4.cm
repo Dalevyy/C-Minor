@@ -1,0 +1,7 @@
+
+class A {
+    public method print(in a:String) => Void {}
+}
+
+def a:A = new A()
+a.print()

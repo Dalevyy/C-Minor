@@ -1,0 +1,25 @@
+/*
+    Invocation Test #7
+
+    This tests if a parent method invocation will be evaluated.
+
+    Output:
+        In A!
+        In B! 
+*/
+
+class A {
+    public method print() => Void {
+        cout << 'In A!' << endl 
+    }
+}
+
+class B inherits A {
+    public override method print() => Void {
+        parent.print()
+        cout << 'In B!' << endl 
+    }
+}
+
+def b:B = new B()
+b.print()

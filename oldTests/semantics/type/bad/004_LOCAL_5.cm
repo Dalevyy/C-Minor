@@ -1,0 +1,11 @@
+/*
+    Type Error 400
+
+    1| def local a:String = 'c'
+    Local variable 'a' was declared with type String, but 'a' was initialized to a value of type Char.
+
+    Suggestion:
+    A variable declared with type String must be initialized to a value of type String.
+*/
+
+def local a:String = 'c' 

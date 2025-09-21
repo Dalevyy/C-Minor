@@ -1,0 +1,4 @@
+
+class A<t,s,u> {}
+
+def a:A<Int,Real> = new A()

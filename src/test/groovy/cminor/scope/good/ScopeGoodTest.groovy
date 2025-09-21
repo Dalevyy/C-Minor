@@ -115,8 +115,8 @@ class ScopeGoodTest extends ScopeTest {
                         def const b:Real = 6.35
                         
                         class A {
-                            protected a:Int = 5
-                            protected b:Real = 6.35
+                            protected a:Int
+                            protected b:Real
                         }
                     '''
             vm.runInterpreter(input)
@@ -305,6 +305,25 @@ class ScopeGoodTest extends ScopeTest {
             notThrown CompilationMessage
     }
 
+    def "Inheritance - Method Overriding 3"() {
+        when: "A subclass overrides all methods from a base class."
+            input = '''
+                        class A {
+                            public method test() => Void {}
+                            public method test2() => Void {}
+                        }
+                        
+                        class B inherits A {
+                            public override method test() => Void {}
+                            public override method test2() => Void {}
+                        }
+                    '''
+            vm.runInterpreter(input)
+
+        then: "There should not be any name-related errors generated."
+            notThrown CompilationMessage
+    }
+
     def "Inheritance - Proper Field Declarations"() {
         when: "A class hierarchy is declared in a program."
             input = '''
@@ -447,6 +466,18 @@ class ScopeGoodTest extends ScopeTest {
             vm.runInterpreter(input)
 
         then: "No error occurs since the parameter name is found in a function's scope instead of the global scope."
+            notThrown CompilationMessage
+    }
+
+    def "Template - Reusing Function Name as Template Function Name"() {
+        when: "A function and template function are both declared using the same name."
+            input = '''
+                        def func() => Void {}
+                        def func<discr T>() => Void {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "Both of these functions have unique names from each other, so no error should occur."
             notThrown CompilationMessage
     }
 

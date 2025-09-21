@@ -1,0 +1,20 @@
+/*
+    Field Expression Test #1
+
+    This tests if we can invoke a method 
+    using an object. 
+
+    Output:
+        this.x = 5
+*/
+
+class A {
+    protected x:Int 
+
+    public method print() => Void {
+        cout << 'this.x = ' << x 
+    }
+}
+
+def a:A = new A(x=5)
+a.print()

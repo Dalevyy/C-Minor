@@ -223,7 +223,7 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl, Retur
     /**
      * {@inheritDoc}
      */
-    public String getDeclName() { return name.toString(); }
+    public String getDeclName() { return toString(); }
 
     /**
      * {@inheritDoc}
@@ -260,7 +260,17 @@ public class FuncDecl extends TopLevelDecl implements NameDecl, ScopeDecl, Retur
      * @return String representation of the function name.
      */
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() {
+        if(typeParams.isEmpty())
+            return name.toString();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(name).append("<");
+        for(int i = 0; i < typeParams.size()-1; i++)
+            sb.append(typeParams.get(i)).append(", ");
+
+        sb.append(typeParams.getLast()).append(">");
+        return sb.toString(); }
 
     /**
      * {@inheritDoc}

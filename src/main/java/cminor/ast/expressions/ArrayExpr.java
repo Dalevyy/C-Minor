@@ -74,6 +74,14 @@ public class ArrayExpr extends Expression {
     private void setArrayIndices(Vector<Expression> index) { this.index = index; }
 
     /**
+     * Checks if the current {@link ArrayExpr} is found inside a {@link FieldExpr}.
+     * @return {@code True} if the array expression is in a field expression, {@code False} otherwise.
+     */
+    public boolean inFieldExpr() {
+        return parent != null && parent.isExpression() && parent.asExpression().isFieldExpr();
+    }
+
+    /**
      * Checks if the current AST node is an {@link ArrayExpr}.
      * @return Boolean
      */
@@ -90,7 +98,7 @@ public class ArrayExpr extends Expression {
      * @return String representing the name of the array we are accessing.
      */
     @Override
-    public String toString() { return target.toString(); }
+    public String toString() { return text; }
 
     /**
      * {@code update} method.

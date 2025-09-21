@@ -1,0 +1,10 @@
+
+def WEEKS type = { MON, TUES, WED, THURS, FRI, SAT, SUN }
+def COLORS Int type = { RED = 1, ORANGE = 2, YELLOW = 3, GREEN = 4, BLUE = 5}
+def LOCATIONS Char type = { Vegas = 'a', Henderson = 'b', Flamingo = 'c', Dallas = 'd' }
+def SIGNALS Bool type = { GREEN = True, YELLOW = False, RED = FALSE }
+def GRADES Real type = { A=90.00, B=80.00, C=70.00, D=60.00, E=50.00 }
+
+def main() => Void {
+
+}

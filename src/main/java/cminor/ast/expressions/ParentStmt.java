@@ -47,7 +47,7 @@ public class ParentStmt extends Expression {
             return false;
 
         // If the field expression was written as '<...>.parent', this is not allowed!
-        return node.asExpression().asFieldExpr().getAccessExpr().isParentStmt();
+        return !node.asExpression().asFieldExpr().getAccessExpr().isParentStmt();
     }
 
     /**
@@ -61,7 +61,7 @@ public class ParentStmt extends Expression {
     public ClassDecl getClassDecl() {
         AST node = this;
 
-        while(!node.isTopLevelDecl() && !node.asTopLevelDecl().isClassDecl())
+        while(!node.isTopLevelDecl() || !node.asTopLevelDecl().isClassDecl())
             node = node.getParent();
 
         return node.asTopLevelDecl().asClassDecl();

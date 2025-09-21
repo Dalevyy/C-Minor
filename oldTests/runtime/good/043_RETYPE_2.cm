@@ -1,0 +1,29 @@
+/*
+    Retype Statement Test #2
+
+    This tests if an object can be retyped 
+    back to its initial type.
+
+    Output:
+        a.x = 5
+*/
+
+class A {
+    public x:Int
+}
+
+class B inherits A {
+    public y:Real
+}
+
+class C inherits B {
+    public z:Bool
+}
+
+
+def a:A = uninit 
+retype a = new B()
+retype a = new C()
+retype a = new A(x=5)
+
+cout << 'a.x = ' << a.x 

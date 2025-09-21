@@ -1,0 +1,12 @@
+
+abstr class myClass {
+    protected method use() => Void {}
+    protected method find() => Void {}
+}
+
+class mySubClass inherits myClass {
+    protected override method use() => Void {}
+    protected override method find() => Void {}
+}
+
+def main() => Void { }

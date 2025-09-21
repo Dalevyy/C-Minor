@@ -1,0 +1,23 @@
+/*
+    Assignment Statement Test #3
+
+    This tests if we can assign a value to a field 
+    when we have to evaluate a field expression with
+    multiple objects.
+
+    Output:
+        10
+        35 
+*/
+
+class A { public x:Int }
+class B { public a:A }
+class C { public b:B }
+
+def c:C = new C(b=new B(a=new A(x=5)))
+
+set c.b.a.x = 10
+cout << c.b.a.x
+
+set c.b.a.x += 25
+cout << c.b.a.x

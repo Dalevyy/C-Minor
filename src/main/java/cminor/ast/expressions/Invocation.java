@@ -1,7 +1,7 @@
 package cminor.ast.expressions;
 
 import cminor.ast.AST;
-import cminor.ast.misc.Name;
+import cminor.ast.topleveldecls.ClassDecl;
 import cminor.token.Token;
 import cminor.ast.topleveldecls.FuncDecl;
 import cminor.ast.types.Type;
@@ -27,7 +27,7 @@ public class Invocation extends Expression {
     /**
      * Name of the function or method that is called.
      */
-    private Name name;
+    private Expression name;
 
     /**
      * Vector containing any type parameters passed to the callee (only set for functions).
@@ -38,11 +38,6 @@ public class Invocation extends Expression {
      * Vector containing any arguments passed to the callee
      */
     private Vector<Expression> args;
-
-    /**
-     * Class in which invocation will be invoked for (only set for methods).
-     */
-    public Type targetType;
 
     /**
      * String representation of the invocation signature.
@@ -72,7 +67,7 @@ public class Invocation extends Expression {
      * @param typeParams Vector of types to save into {@link #typeArgs}
      * @param args Vector of expressions to save into {@link #args}
      */
-    public Invocation(Token metaData, Name name, Vector<Type> typeParams, Vector<Expression> args) {
+    public Invocation(Token metaData, Expression name, Vector<Type> typeParams, Vector<Expression> args) {
         super(metaData);
         this.name = name;
         this.typeArgs = typeParams;
@@ -99,11 +94,29 @@ public class Invocation extends Expression {
      */
     public boolean containsTypeArgs() { return !typeArgs.isEmpty(); }
 
+    public boolean insideFunction() {
+        AST node = this;
+
+        while(node != null && (!node.isTopLevelDecl() || !node.asTopLevelDecl().isFuncDecl()))
+            node = node.getParent();
+
+        return node != null && node.isTopLevelDecl() && node.asTopLevelDecl().isFuncDecl();
+    }
+
+    public boolean insideMethod() {
+        AST node = this;
+
+        while(node != null && (!node.isClassNode() || !node.asClassNode().isMethodDecl()))
+            node = node.getParent();
+
+        return node != null && node.isClassNode() && node.asClassNode().isMethodDecl();
+    }
+
     /**
      * Getter for {@link #name}.
      * @return Name
      */
-    public Name getName() { return this.name; }
+    public Expression getName() { return this.name; }
 
     /**
      * Getter for {@link #typeArgs}.
@@ -132,23 +145,8 @@ public class Invocation extends Expression {
      */
     public boolean isMethodInvocation() {
         // The parent for a method invocation will always be a field expression!
-        return parent != null && parent.isExpression() && parent.asExpression().isFieldExpr();
+        return (parent != null && parent.isExpression() && parent.asExpression().isFieldExpr()) || name.isFieldExpr();
     }
-
-    /**
-     * Returns the target type of a method {@link Invocation}.
-     * <p>
-     *     This will be used to retrieve the correct class that contains the method needing to be invoked.
-     * </p>
-     * @return The {@link Type} representing the target that calls the current {@link Invocation}
-     */
-    public Type getTargetType() { return parent.asExpression().asFieldExpr().getTarget().type; }
-
-    /**
-     * Setter for {@link #name}.
-     * @param name Name
-     */
-    private void setName(Name name) { this.name = name; }
 
     /**
      * Setter for {@link #typeArgs}.
@@ -176,11 +174,34 @@ public class Invocation extends Expression {
      */
     public void setLengthInvocation() { this.isLengthInvocation = true; }
 
+    public boolean inClass() {
+        AST node = this;
+
+        while(!node.isTopLevelDecl() || !node.asTopLevelDecl().isClassDecl())
+            node = node.getParent();
+
+        return node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl();
+    }
+
+    public ClassDecl getClassDecl() {
+        AST node = this;
+
+        while(node != null) {
+            if(node.isTopLevelDecl() && node.asTopLevelDecl().isClassDecl())
+                return node.asTopLevelDecl().asClassDecl();
+            node = node.getParent();
+        }
+
+        return null;
+    }
+
     /**
      * Checks if the current AST node is an {@link Invocation}.
      * @return Boolean
      */
     public boolean isInvocation() { return true; }
+
+    public void setName(Expression e) { this.name = e; }
 
     /**
      * Type cast method for {@link Invocation}
@@ -207,7 +228,18 @@ public class Invocation extends Expression {
      * @return String representing the name of the function/method called.
      */
     @Override
-    public String toString() { return name.toString(); }
+    public String toString() {
+        StringBuilder s = new StringBuilder(name + "(");
+
+        if(!args.isEmpty()) {
+            for(int i = 0; i < args.size()-1; i++)
+                s.append(args.get(i)).append(", ");
+            s.append(args.getLast());
+        }
+
+        s.append(")");
+        return s.toString();
+    }
 
     /**
      * {@code update} method.
@@ -218,7 +250,7 @@ public class Invocation extends Expression {
     public void update(int pos, AST node) {
         switch(pos) {
             case 0:
-                name = node.asSubNode().asName();
+                name = node.asExpression();
                 break;
             default:
                 args.remove(pos-1);
@@ -249,9 +281,7 @@ public class Invocation extends Expression {
         if(this.isLengthInvocation)
             inb.setLengthInvocation();
 
-
-
-        return inb.setName(this.name.deepCopy().asSubNode().asName())
+        return inb.setName(this.name.deepCopy().asExpression())
                   .setArgs(args)
                   .create();
     }
@@ -288,8 +318,8 @@ public class Invocation extends Expression {
          * @param name Name representing the function or method being called.
          * @return InvocationBuilder
          */
-        public InvocationBuilder setName(Name name) {
-            in.setName(name);
+        public InvocationBuilder setName(Expression name) {
+            in.name = name;
             return this;
         }
 

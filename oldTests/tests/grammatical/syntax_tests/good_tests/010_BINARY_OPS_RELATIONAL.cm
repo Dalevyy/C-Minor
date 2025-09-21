@@ -1,0 +1,11 @@
+
+def main() => Void {
+    def local a = 10, b = 8 Int
+
+    a == b
+    a != b
+    a < b
+    a <= b
+    a > b
+    a >= b 
+}

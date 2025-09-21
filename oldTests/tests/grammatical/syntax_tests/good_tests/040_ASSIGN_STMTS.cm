@@ -1,0 +1,12 @@
+
+def main() => Void {
+    def local num = 10 Int
+
+    set a = 5
+    set a += 1
+    set a -= 34
+    set a *= 3
+    set a /= 2
+    set a %= 4
+    set a **= 6
+}

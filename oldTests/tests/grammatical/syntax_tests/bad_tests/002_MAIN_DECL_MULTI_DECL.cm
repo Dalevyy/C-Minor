@@ -1,0 +1,9 @@
+// First main declaration
+def main() => Void {
+
+}
+
+// Second main declaration 
+def main() => Void {
+    
+}

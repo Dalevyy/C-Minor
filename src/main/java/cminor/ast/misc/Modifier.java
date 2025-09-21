@@ -10,7 +10,7 @@ import cminor.utilities.Visitor;
  * <p>
  *     This class serves as a helper for us to know the access privileges that
  *     various other {@link AST} nodes will have. As a result, it will simply be
- *     apart of other parse tree nodes.
+ *     a part of other parse tree nodes.
  * </p>
  * @author Daniel Levy
  */
@@ -261,6 +261,12 @@ public class Modifier extends SubNode {
     }
 
     /**
+     * Checks if there are any modifiers present.
+     * @return {@code True} if there are modifiers, {@code False} otherwise.
+     */
+    public boolean isEmpty() { return allModifiers.isEmpty(); }
+
+    /**
      * {@inheritDoc}
      */
     public boolean isModifier() { return true; }
@@ -298,13 +304,14 @@ public class Modifier extends SubNode {
      */
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        if(allModifiers.isEmpty())
+            return "";
 
+        StringBuilder sb = new StringBuilder();
         for(int i = 0; i < allModifiers.size()-1; i++)
             sb.append(allModifiers.get(i)).append(", ");
 
-        sb.append(allModifiers.get(allModifiers.size()-1));
-
+        sb.append(allModifiers.getLast());
         return sb.toString();
     }
 }

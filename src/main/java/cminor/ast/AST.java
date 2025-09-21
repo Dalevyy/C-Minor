@@ -50,8 +50,10 @@ public abstract class AST {
      * @param metaData {@link Token} containing all the metadata stored with the {@link AST}.
      */
     public AST(Token metaData) {
-        this.text = metaData.getText();
-        this.location = metaData.getLocation();
+        if(metaData != null) {
+            this.text = metaData.getText();
+            this.location = metaData.getLocation();
+        }
         this.children = new Vector<>();
     }
 
@@ -103,7 +105,11 @@ public abstract class AST {
      * Creates a string representation of the node for error handling.
      * @return {@code String} displaying the line and code associated with the current node.
      */
-    public String header() { return location.start.line + "| " + text + "\n"; }
+    public String header() {
+        if(location != null)
+            return location.start.line + "| " + text + "\n";
+        return "";
+    }
 
     /**
      * Removes all references of {@code this} node and replaces it with the current node in the {@link AST} hierarchy.
@@ -128,7 +134,9 @@ public abstract class AST {
         }
 
         // We will now let the garbage collector deallocate the 'this' node.
+        replacementNode.parent = parent;
         parent = null;
+
     }
 
     /**

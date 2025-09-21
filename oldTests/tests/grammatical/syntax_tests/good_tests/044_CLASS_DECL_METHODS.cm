@@ -1,0 +1,11 @@
+
+class MyClass {
+    public method myMethod(in a Int, in b String) => Void {
+
+    }
+    protected method myMethod2() => String {
+        return 'hello there'
+    }
+}
+
+def main() => Void { }

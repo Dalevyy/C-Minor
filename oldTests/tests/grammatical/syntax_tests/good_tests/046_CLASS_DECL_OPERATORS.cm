@@ -1,0 +1,11 @@
+
+class MyClass {
+    public operator ==(in a Int, in b String) => Void {
+
+    }
+    protected operator <=() => String {
+        return 'hello there'
+    }
+}
+
+def main() => Void { }

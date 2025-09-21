@@ -3,6 +3,7 @@ package cminor.utilities;
 import cminor.ast.AST;
 import cminor.ast.topleveldecls.ClassDecl;
 import cminor.ast.types.ClassType;
+import cminor.interpreter.Interpreter;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
@@ -77,18 +78,6 @@ public class PhaseHandler {
             for(Visitor v : phases)
                 node.visit(v);
     }
-
-//    private void execute(ClassDecl cd) {
-//        phases.add(PhaseNumber.FIELD_REWRITER.ordinal(), new FieldRewriter());
-//
-//        if(finalPhase != null)
-//            executeUntilFinalPhase(cd);
-//        else
-//            for(Visitor v : phases)
-//                cd.visit(v);
-//
-//        phases.remove(PhaseNumber.FIELD_REWRITER.ordinal());
-//    }
 
     /**
      * Executes only a specified amount of {@link Visitor} based on the value of {@link #finalPhase}.
@@ -181,5 +170,6 @@ public class PhaseHandler {
         phases.add(new TypeChecker(globalScope));
         phases.add(new ConstructorGenerator());
         phases.add(new ModifierChecker(globalScope));
+        phases.add(new Interpreter(globalScope));
     }
 }

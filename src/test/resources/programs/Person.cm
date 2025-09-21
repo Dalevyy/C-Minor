@@ -1,0 +1,54 @@
+/*
+    A class that denotes a Person.
+*/
+
+def global myName:String = 'Daniel', myLast:String = 'Levy', dogName:String = 'Cloud' 
+def const a:Int = 5, b:Int = 7, c:Int = 1094, d:Int = 0 
+
+class Person {
+
+    property firstName:String
+    property lastName:String 
+    property birthYear:Int
+    property age:Int
+
+    public final method isLegalDrinkingAge() => Bool {
+        if(age < 18) {
+            cout << 'You are too young to drink.'
+            return False
+        }
+        else if(age >= 18 and age < 21) {
+            cout << 'You are not the legal age to drink in USA.'
+            return False
+        }
+
+        cout << 'You are the legal age to drink in USA.'
+        return True
+    }
+}
+
+final class Student inherits Person {
+
+    property ID:String
+    property startYear:Int, expectedGrad:Int
+    property creditTotal:Int 
+    property creditRemaining:Int 
+
+    public final method printCredits() => Void {
+        cout << 'Total Credits Remaining = ' << creditRemaining << endl
+        cout << 'Total Credits Earned = ' << creditTotal << endl
+    }
+}
+
+def main() => Void {
+    def p1:Person = new Person(age = a)
+    def p2:Person = new Person(age = c)
+    def p3:Person = new Person(firstName='Isaac',lastName='Newton',age=28) 
+    def p4:Student = new Student(firstName='Bob',lastName='Paul',age=19,creditTotal=93,creditRemaining=23,ID='1234')
+
+    p1.isLegalDrinkingAge()
+    p4.printCredits()
+    p2.isLegalDrinkingAge()
+
+    stop
+}
