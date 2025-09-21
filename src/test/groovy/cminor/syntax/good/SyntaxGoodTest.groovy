@@ -5,6 +5,19 @@ import cminor.syntax.SyntaxTest
 
 class SyntaxGoodTest extends SyntaxTest {
 
+    def "Comment - Single Line"() {
+        when:
+            input = '''
+                        // This is a single line comment
+                        // The parser should ignore comments
+                        // And no errors will be generated
+                    '''
+            vm.runInterpreter(input)
+
+        then:
+            notThrown CompilationMessage
+    }
+
     def "Enum Declaration"() {
         when:
             input = '''

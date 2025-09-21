@@ -390,9 +390,9 @@ public class TypeValidator extends Visitor {
                                 now check if the current class type can resolve to either a class, an enum, or
                                 a type parameter. If no resolution can be made, we will print out a type error.
             */
-            if(typeArguments == null && !currentScope.hasNameInProgram(ct)) { // The first null check to avoid this
+            if(typeArguments == null && !currentScope.hasNameInProgram(ct)) { // The first null check done to avoid this
                 handler.createErrorBuilder(TypeError.class)                   // error check when instantiating a
-                       .addLocation(ct.getFullLocation())                     // template... I do not know why the error
+                       .addLocation(ct)                                       // template... I do not know why the error
                        .addErrorNumber(MessageNumber.TYPE_ERROR_443)          // triggers for instantiated templates.
                        .addErrorArgs(ct)
                        .addSuggestionNumber(MessageNumber.TYPE_SUGGEST_1440)

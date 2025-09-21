@@ -37,14 +37,14 @@ type : scalar_type | class_name | 'List' '[' type ']' | 'Array' '[' type ']'
 
 scalar_type
     : discrete_type
-    | 'String' ('[' Int_literal ']')*
-    | 'Real' ('[' Int_literal ']')*
+    | 'String'
+    | 'Real'
     ;
 
 discrete_type
-    : 'Bool' ('[' Int_literal ']')*
-    | 'Int' ('[' Int_literal ']')*
-    | 'Char' ('[' Int_literal ']')*
+    : 'Bool'
+    | 'Int'
+    | 'Char'
     ;
 
 class_name : Name ('<' type (',' type)* '>')? ;
@@ -65,9 +65,7 @@ class_body : '{' data_decl* method_decl* '}' ;
 // Field declaration
 // -----------------
 
-data_decl : ('property' | 'protected' | 'public') field_attribute? variable_decl ;
-
-field_attribute : 'static'
+data_decl : ('property' | 'protected' | 'public') variable_decl ;
 
 // Method declaration
 // ------------------

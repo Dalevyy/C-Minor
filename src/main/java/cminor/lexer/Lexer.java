@@ -78,6 +78,8 @@ public class Lexer {
 
     public String getFileName() { return fileName; }
 
+    public String getText() { return lines.getLast(); }
+
     public void setText(Token startToken, Token endToken) {
         Position start = startToken.getStartPos();
         Position end = endToken.getEndPos();
@@ -137,7 +139,7 @@ public class Lexer {
     }
 
     /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
-    public void printSyntaxError(Position start) { System.out.println(start.line + "| " + lines.get(start.line-1)); }
+    public String syntaxError(Position start) { return start.line + "| " + lines.get(start.line-1); }
 
     /** Updates the lookahead character and program text every time there is a valid match.*/
     private void consume() {

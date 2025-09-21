@@ -146,6 +146,9 @@ public class ModifierChecker extends Visitor {
      * @param cd {@link ClassDecl}
      */
     public void visitClassDecl(ClassDecl cd) {
+        if(cd.isTemplate())
+            return;
+
         currentScope = cd.getScope();
 
         if(cd.getSuperClass() != null) {
@@ -305,6 +308,10 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation
         else {
+            // Skip multi-types for now!
+            if(in.getTargetType().isMulti())
+                return;
+
             ClassDecl cd = currentScope.findName(in.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.getScope().findMethod(in).asClassNode().asMethodDecl();
             if(in.insideMethod()) {
@@ -379,6 +386,8 @@ public class ModifierChecker extends Visitor {
         ClassDecl cd = ne.getInstantiatedClass();
         if(cd == null)
             cd = currentScope.findName(ne.type.asClass().getClassName()).asTopLevelDecl().asClassDecl();
+        else
+            cd.visit(this);
 
         // ERROR CHECK #1: A user can not instantiate an object from an abstract class.
         if(cd.mod.isAbstract()) {
@@ -420,7 +429,7 @@ public class ModifierChecker extends Visitor {
          * Determines if a variable is changing state while inside a pure method.
          * <p>
          *     This is a helper method that checks if a given declaration from the
-         *     {@link AST} matches a set of criteria defined in the method. If this
+         *     {@link AST} matches a set of criteria defined in the method. If the
          *     criteria is met, this means the variable associated with the declaration
          *     is updated in some way and thus could be producing a side effect.
          * </p>

@@ -65,15 +65,17 @@ public class MessageHandler {
     public void storeMessage(Message msg) {
         msg.createMessage(fileName);
 
-        if(inInterpretationMode) {
+        if(inInterpretationMode && msg.isError()) {
             // Throw special exception if we are redeclaring a node.
-            if(msg.isError() && msg.asError().isScopeError() && msg.asError().asScopeError().isRedeclarationError())
+            if(msg.asError().isScopeError() && msg.asError().asScopeError().isRedeclarationError())
                 throw new RedeclarationError(msg.asError().asScopeError());
 
             throw new CompilationMessage(msg);
         }
         else
             messages.add(msg);
+
+        System.out.println(msg.msg); // Just print out the warning for now... maybe do a more elegant solution later?
     }
 
     /**

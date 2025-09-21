@@ -50,6 +50,9 @@ import cminor.ast.types.VoidType;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
+import cminor.messages.MessageNumber;
+import cminor.messages.errors.scope.ScopeError;
+import cminor.messages.errors.syntax.SyntaxError;
 import cminor.micropasses.ImportHandler;
 import cminor.token.Token;
 import cminor.token.TokenType;
@@ -152,11 +155,11 @@ public class Parser {
             consume();
         }
         else {
-            //System.out.println(handler.createError().header());
-            input.printSyntaxError(currentLA().getStartPos());
-            System.out.println(errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column));
-
-            throw new RuntimeException();
+            handler.createErrorBuilder(SyntaxError.class)
+                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_102)
+                   .asSyntaxErrorBuilder()
+                   .addLocation(input.syntaxError(currentLA().getStartPos()) +"\n" + errorPosition(currentLA().getStartPos().column,currentLA().getEndPos().column))
+                   .generateError();
         }
     }
 
@@ -711,7 +714,7 @@ public class Parser {
             Vector<Type> types = typeParams();
             return new ClassType(nodeToken(),n,types);
         }
-        return new ClassType(nodeToken(),n);
+        return new ClassType(n,null);
     }
 
     // --. type_params : '@' type ( ',' type )* '@'

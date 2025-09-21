@@ -228,7 +228,9 @@ public class MethodDecl extends ClassNode implements NameDecl, ScopeDecl, Return
      * @return {@code True} if the methods share the same parameter signature, {@code False} otherwise.
      */
     public boolean equals(MethodDecl md) {
-        return toString().equals(md.toString()) && paramSignature.equals(md.paramSignature);
+        return toString().equals(md.toString())
+            && paramSignature.equals(md.paramSignature)
+            && location.equals(md.location);
     }
 
     /**

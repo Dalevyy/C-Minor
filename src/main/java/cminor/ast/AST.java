@@ -105,7 +105,11 @@ public abstract class AST {
      * Creates a string representation of the node for error handling.
      * @return {@code String} displaying the line and code associated with the current node.
      */
-    public String header() { return location.start.line + "| " + text + "\n"; }
+    public String header() {
+        if(location != null)
+            return location.start.line + "| " + text + "\n";
+        return "";
+    }
 
     /**
      * Removes all references of {@code this} node and replaces it with the current node in the {@link AST} hierarchy.

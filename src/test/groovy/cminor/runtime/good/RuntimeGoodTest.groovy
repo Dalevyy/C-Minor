@@ -1943,7 +1943,7 @@ class RuntimeGoodTest extends RuntimeTest {
                                 cout << 'My number is ' << a << endl
                             }
                         }              
-                        class B<class T> { protected a:T }  
+                        class B<class T> { public a:T }  
                                       
                         def a:B<A> = new B<A>(a=new A(a=5))
                         a.a.print()

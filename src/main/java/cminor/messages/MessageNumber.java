@@ -23,6 +23,7 @@ public enum MessageNumber {
     /* ######################################## SYNTAX ERRORS ######################################## */
     SYNTAX_ERROR_100,
     SYNTAX_ERROR_101,
+    SYNTAX_ERROR_102,
 
     /* ######################################## SCOPE ERRORS ######################################## */
     SCOPE_ERROR_300,
@@ -276,6 +277,7 @@ public enum MessageNumber {
     MOD_SUGGEST_1505,
     MOD_SUGGEST_1506,
     MOD_SUGGEST_1507,
+    MOD_SUGGEST_1508,
 
     /* ######################################## SEMANTIC SUGGESTIONS ######################################## */
     SEMANTIC_SUGGEST_1700,
