@@ -64,6 +64,19 @@ class ModifierBadTest extends ModifierTest {
             error.msg.messageType == MessageNumber.MOD_ERROR_500
     }
 
+    def "Class Declaration - Class Inherits From a Template Class"() {
+        when: "A concrete class inherits from a template class."
+            input = '''
+                        class A<discr T> {}
+                        class B inherits A {}
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is generated since a template class can only be inherited when it's instantiated!"
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.MOD_ERROR_500
+    }
+
     def "Field Expression - Property Field is Accessed Outside Class"() {
         when: "A property field is accessed outside of its class."
             input = '''

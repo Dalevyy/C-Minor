@@ -1,7 +1,5 @@
 package cminor.modifierchecker;
 
-//TODO: A template class can only be inherited when it's instantiated!
-
 import cminor.ast.AST;
 import cminor.ast.classbody.ClassNode;
 import cminor.ast.classbody.MethodDecl;
@@ -9,6 +7,7 @@ import cminor.ast.expressions.FieldExpr;
 import cminor.ast.expressions.Invocation;
 import cminor.ast.expressions.NewExpr;
 import cminor.ast.misc.Modifier;
+import cminor.ast.misc.ParamDecl;
 import cminor.ast.statements.*;
 import cminor.ast.topleveldecls.ClassDecl;
 import cminor.ast.topleveldecls.FuncDecl;
@@ -20,6 +19,17 @@ import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
+/**
+ * Modifier Checking Pass.
+ * <p>
+ *     This is the last major semantic pass and is responsible for modifier checking. Modifiers
+ *     denote special characteristics that certain programming constructs are expected to follow.
+ *     Modifiers can come in the form of access (denoting how a construct should be accessed by
+ *     the user) or rule (denoting how a construct should behave). This pass is responsible for ensuring
+ *     a user properly follows all modifier behavior.
+ * </p>
+ * @author Daniel Levy
+ */
 public class ModifierChecker extends Visitor {
 
     /**
@@ -56,6 +66,16 @@ public class ModifierChecker extends Visitor {
      * @param as {@link AssignStmt}
      */
     public void visitAssignStmt(AssignStmt as) {
+
+        // WARNING CHECK #1: This checks if a warning needs to be generated when a potential side effect could occur.
+        if(helper.insidePureMethod() && helper.methodChangesState(currentScope.findName(as.getLHS()))) {
+            handler.createWarningBuilder()
+                   .addLocation(as)
+                   .addWarningNumber(MessageNumber.WARNING_1)
+                   .addWarningArgs(as.getLHS(),helper.currentContext)
+                   .generateWarning();
+        }
+
         // If the LHS represents a field expression, we will let a separate visit error check it.
         if(as.getLHS().isFieldExpr()) {
             as.getLHS().visit(this);
@@ -129,7 +149,7 @@ public class ModifierChecker extends Visitor {
         currentScope = cd.getScope();
 
         if(cd.getSuperClass() != null) {
-            ClassDecl superClass = currentScope.findName(cd.getSuperClass()).asTopLevelDecl().asClassDecl();
+            ClassDecl superClass = currentScope.findName(cd.getSuperClass().getTypeName()).asTopLevelDecl().asClassDecl();
 
             // ERROR CHECK #1: A class may not inherit from a superclass that was labeled as 'final'.
             if(superClass.mod.isFinal()) {
@@ -138,6 +158,16 @@ public class ModifierChecker extends Visitor {
                        .addErrorNumber(MessageNumber.MOD_ERROR_500)
                        .addErrorArgs(cd, superClass)
                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1500)
+                       .generateError();
+            }
+
+            // ERROR CHECK #2: A template class can not be inherited by itself!
+            if(superClass.isTemplate()) {
+                handler.createErrorBuilder(ModError.class)
+                       .addLocation(cd)
+                       .addErrorNumber(MessageNumber.MOD_ERROR_500)
+                       .addErrorArgs(cd, superClass)
+                       .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1508)
                        .generateError();
             }
 
@@ -329,9 +359,10 @@ public class ModifierChecker extends Visitor {
         }
 
         currentScope = md.getScope();
+        AST oldContext = helper.currentContext;
         helper.currentContext = md;
         super.visitMethodDecl(md);
-        helper.currentContext = null;
+        helper.currentContext = oldContext;
         currentScope = currentScope.closeScope();
     }
 
@@ -384,6 +415,27 @@ public class ModifierChecker extends Visitor {
          * </p>
          */
         public AST currentContext;
+
+        /**
+         * Determines if a variable is changing state while inside a pure method.
+         * <p>
+         *     This is a helper method that checks if a given declaration from the
+         *     {@link AST} matches a set of criteria defined in the method. If this
+         *     criteria is met, this means the variable associated with the declaration
+         *     is updated in some way and thus could be producing a side effect.
+         * </p>
+         * @param decl {@link AST} node that could be changing state
+         * @return Boolean
+         */
+        private boolean methodChangesState(AST decl) {
+            if(!decl.isSubNode() || !decl.asSubNode().isParamDecl())
+                return false;
+            ParamDecl pd = decl.asSubNode().asParamDecl();
+            if(!pd.mod.isInMode())
+                return true;
+
+            return decl.isTopLevelDecl() && decl.asTopLevelDecl().isGlobalDecl();
+        }
 
         /**
          * Determines if abstract methods were implemented in concrete classes.x
@@ -442,7 +494,7 @@ public class ModifierChecker extends Visitor {
                 handler.createErrorBuilder(ModError.class)
                        .addLocation(subClass)
                        .addErrorNumber(MessageNumber.MOD_ERROR_501)
-                       .addErrorArgs(subClass.toString(),superClass.toString())
+                       .addErrorArgs(subClass,superClass)
                        .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1501)
                        .generateError();
             }
@@ -518,6 +570,21 @@ public class ModifierChecker extends Visitor {
                 && currentContext.isClassNode()
                 && currentContext.asClassNode().isMethodDecl()
                 && currentContext.asClassNode().asMethodDecl().equals(md);
+        }
+
+        /**
+         * Checks if {@link #currentContext} is inside a pure function or method.
+         * @return {@code True} if the checker is in a pure function or method, {@code False} otherwise.
+         */
+        private boolean insidePureMethod() {
+            return (currentContext != null
+                && currentContext.isTopLevelDecl()
+                && currentContext.asTopLevelDecl().isFuncDecl()
+                && currentContext.asTopLevelDecl().asFuncDecl().mod.isPure())
+            || (   currentContext != null
+                && currentContext.isClassNode()
+                && currentContext.asClassNode().isMethodDecl()
+                && currentContext.asClassNode().asMethodDecl().mod.isPure());
         }
     }
 }
