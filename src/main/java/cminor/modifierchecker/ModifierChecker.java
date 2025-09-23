@@ -209,11 +209,8 @@ public class ModifierChecker extends Visitor {
         ClassDecl cd;
         if(fe.getTargetType().isClass())
             cd = currentScope.findName(fe.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
-        else {
-            fe.getTarget().visit(this);
-            fe.getAccessExpr().visit(this);
-            return;
-        }
+        else // Maybe... the last type we found would technically contain all the fields we could possibly access?
+            cd = currentScope.findName(fe.getTargetType().asMulti().getAllTypes().getLast().getTypeName()).asTopLevelDecl().asClassDecl();
 
         // 2. Then, we need to find the field/method in the class and retrieve its modifier.
         Modifier mod = helper.getModifier(cd.getScope(),fe);
@@ -308,11 +305,12 @@ public class ModifierChecker extends Visitor {
         }
         // Method Invocation
         else {
-            // Skip multi-types for now!
-            if(in.getTargetType().isMulti())
-                return;
+            ClassDecl cd;
+            if(in.getTargetType().isClass())
+                cd = currentScope.findName(in.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
+            else // Same reasoning as field expressions for using last inserted type to access methods... might crash and burn 0-o
+                cd = currentScope.findName(in.getTargetType().asMulti().getAllTypes().getLast().getTypeName()).asTopLevelDecl().asClassDecl();
 
-            ClassDecl cd = currentScope.findName(in.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.getScope().findMethod(in).asClassNode().asMethodDecl();
             if(in.insideMethod()) {
                 // ERROR CHECK #2: A method can not call itself without the `recurs` keyword.
