@@ -40,4 +40,16 @@ class SyntaxGoodTest extends SyntaxTest {
         then:
             notThrown CompilationMessage
     }
+
+    def "Global Declaration"() {
+        when:
+            input = '''
+                        def global a:Int 
+                    '''
+            vm.runInterpreter(input)
+
+        then:
+            notThrown CompilationMessage
+    }
+
 }
