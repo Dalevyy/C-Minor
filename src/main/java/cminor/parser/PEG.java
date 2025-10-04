@@ -1,24 +1,25 @@
 package cminor.parser;
 
 import cminor.ast.AST;
+import cminor.ast.classbody.ClassBody;
+import cminor.ast.classbody.FieldDecl;
+import cminor.ast.classbody.MethodDecl;
 import cminor.ast.expressions.*;
 import cminor.ast.expressions.Literal.ConstantType;
-import cminor.ast.types.*;
-import cminor.ast.types.ScalarType.Scalars;
 import cminor.ast.misc.*;
-import cminor.ast.statements.*;
-import cminor.ast.topleveldecls.*;
-import cminor.ast.classbody.*;
 import cminor.ast.operators.*;
 import cminor.ast.operators.AssignOp.AssignType;
 import cminor.ast.operators.BinaryOp.BinaryType;
 import cminor.ast.operators.LoopOp.LoopType;
 import cminor.ast.operators.UnaryOp.UnaryType;
-import cminor.ast.misc.CompilationUnit;
-import cminor.ast.misc.Name;
-import cminor.ast.misc.Var;
+import cminor.ast.statements.*;
 import cminor.ast.statements.ListStmt.Commands;
+import cminor.ast.topleveldecls.ClassDecl;
 import cminor.ast.topleveldecls.EnumDecl;
+import cminor.ast.topleveldecls.FuncDecl;
+import cminor.ast.topleveldecls.GlobalDecl;
+import cminor.ast.types.*;
+import cminor.ast.types.ScalarType.Scalars;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
@@ -27,8 +28,6 @@ import cminor.messages.errors.syntax.SyntaxError;
 import cminor.token.Token;
 import cminor.token.TokenType;
 import cminor.utilities.Vector;
-
-import java.util.function.BinaryOperator;
 
 public class PEG {
 
@@ -155,12 +154,9 @@ public class PEG {
      * @param tokenCount The amount of tokens we want to add to {@link #lookaheads}.
      */
     private void fill(int tokenCount) {
-        for(int i = 0; i < tokenCount; i++) {
+        // Add 'tokenCount' amount of tokens to vector
+        for(int i = 0; i < tokenCount; i++)
             lookaheads.add(input.nextToken());
-            System.out.println(lookaheads.getLast());
-
-            // Add 'tokenCount' amount of tokens to vector
-        }
     }
 
     /**
@@ -205,82 +201,62 @@ public class PEG {
         return start;
     }
 
-    /*
-            while(!nextLA(TokenType.EOF)) {
-            if(nextLA(TokenType.DEF)) {
-                mark();
-                try {
-                    nodes.add(enumType());
-                    continue;
-                }
-                catch(CompilationMessage msg) { reset(); }
-
-                mark();
-                try {
-                    nodes.merge(globalVariable());
-                }
-                catch(CompilationMessage msg) { msg.printMessage(); }
-            }
-
-            mark();
-            try {
-                nodes.add(classType());
-                continue;
-            } catch(CompilationMessage msg) { msg.printMessage(); }
-            reset();
-        }
+    /**
+     * Tries to parse C Minor code written inside the {@link cminor.interpreter.VM}.
+     * @return A {@link Vector} of {@link AST} nodes representing the code that a user wrote.
      */
     public Vector<? extends AST> parse() {
         Vector<AST> nodes = new Vector<>();
 
-//        if(nextLA(TokenType.DEF)) {
-//            mark();
-//            try { nodes.add(enumType()); return nodes; }
-//            catch(CompilationMessage msg) { /* ############ DO NOTHING ############ */ }
-//            reset();
-//
-//            mark();
-//            try { nodes.merge(globalVariable()); }
-//            catch(CompilationMessage msg) { msg.printMessage(); }
-//            reset();
-//        }
+        while(true) {
+            switch(currentLA().getTokenType()) {
+                // Case 1) When EOF is found, the parsing is over!
+                case EOF:
+                    return nodes;
+                // Case 2) Special case to handle any imported files
+                case INCLUDE:
+                    break;  //TODO: Add support for imports
+                // Case 3) If a construct begins with the 'def' keyword, there are 4 possible paths the parser can take.
+                case DEF:
+                    // 2.1) Parse an enumeration
+                    try {
+                        mark();
+                        nodes.add(enumType());
+                        break;
+                    } catch(CompilationMessage msg) { reset(); }
 
-        mark();
-        try { nodes.add(expression()); }
-        catch(CompilationMessage msg) { msg.printMessage(); reset();}
+                    // 2.2) Parse a global variable
+                    try {
+                        nodes.merge(globalVariable());
+                        break;
+                    } catch(CompilationMessage msg) { reset(); }
 
-//        mark();
-//        try { nodes.add(classType()); return nodes; }
-//        catch(CompilationMessage msg) { /* ############ DO NOTHING ############ */ }
-//        reset();
+                    // 2.3) Parse a local variable
+                    try {
+                        nodes.merge(declaration());
+                        break;
+                    } catch(CompilationMessage msg) { reset(); }
 
-//        if(!nextLA(TokenType.EOF)){
-//            handler.createErrorBuilder(SyntaxError.class)
-//                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
-//                   .asSyntaxErrorBuilder()
-//                   .addLocation(currentLA(),input)
-//                   .generateError();
-//        }
-
-        return nodes;
+                    // 2.4) Parse a function
+                    // If all of the above fails, then output the error message!
+                    try {
+                        nodes.add(function());
+                        break;
+                    } catch(CompilationMessage msg) { msg.printMessage(); }
+                // Case 4) Case to handle classes
+                case CLASS:
+                case ABSTR:
+                case FINAL:
+                    nodes.add(classType());
+                    break;
+                // Case 5) Everything else will represent a statement
+                default:
+                    nodes.add(statement());
+            }
+        }
     }
 
-//    // 1. compilation : import_stmt* enum_type* global_variable* class_type* function* main ;
-//    public CompilationUnit compilation() {
-//        // import_stmt : '#include' String_literal
-//
-//        if(nextLA(TokenType.DEF)) {
-//            mark();
-//        }
-//        // enum_type : 'def' Name 'type' '=' '{' enum_field (',' enum_field)* '}' ;
-//        // global_variable : 'def' ('const' | 'global') variable_decl ;
-//        // class_type : ('abstr' | 'final')? 'class' name typefier_params? super_class? class_body ;
-//        // function : 'def' ('pure' | 'recurs')? function_header '=>' return_type block_statement ;
-//    }
-
-    // 2. import_stmt ::= '#include' String_literal ;
-
-    // 3. enum_type ::= 'def' Name 'type' '=' '{' enum_field (',' enum_field)* '}' ;
+    // enum_type ::= 'def' Name 'type' '=' '{' enum_field (',' enum_field)* '}' ;
     private EnumDecl enumType() {
         match(TokenType.DEF);
         Name name = new Name(currentLA());
@@ -304,7 +280,7 @@ public class PEG {
         return new EnumDecl(metadata(),name,constants);
     }
 
-    // 4. enum_field ::= Name ('=' constant)? ;
+    // enum_field ::= Name ('=' constant)? ;
     private Var enumField() {
         Name name = new Name(currentLA());
         match(TokenType.ID);
@@ -1268,6 +1244,8 @@ args : '(' formal_params? ')' ;
 //            catch(CompilationMessage msg) { return exclusiveRight(); }
 //        }
 //            return inclusive();
+        return null;
+        //TODO: HERE!
     }
 
     // inclusive ::= '..' ;
