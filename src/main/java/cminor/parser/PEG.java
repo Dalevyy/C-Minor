@@ -10,11 +10,14 @@ import cminor.ast.statements.*;
 import cminor.ast.topleveldecls.*;
 import cminor.ast.classbody.*;
 import cminor.ast.operators.*;
+import cminor.ast.operators.AssignOp.AssignType;
 import cminor.ast.operators.BinaryOp.BinaryType;
+import cminor.ast.operators.LoopOp.LoopType;
 import cminor.ast.operators.UnaryOp.UnaryType;
 import cminor.ast.misc.CompilationUnit;
 import cminor.ast.misc.Name;
 import cminor.ast.misc.Var;
+import cminor.ast.statements.ListStmt.Commands;
 import cminor.ast.topleveldecls.EnumDecl;
 import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
@@ -956,10 +959,426 @@ public class PEG {
         return header;
     }
 
-    private BlockStmt blockStatement() { return null; }
 
+
+
+
+
+
+
+    /*
+    // Main function
+// -------------
+
+main : 'def' 'main' args? '=>' return_type block_statement ;
+
+args : '(' formal_params? ')' ;
+     */
+
+    // block_statement ::= '{' declaration* statement* '}' ;
+    private BlockStmt blockStatement() {
+        match(TokenType.LBRACE);
+
+        Vector<LocalDecl> locals = new Vector<>();
+        while(nextLA(TokenType.DEF)) {
+            mark();
+            Vector<AST> vars = declaration();
+            for(AST local : vars)
+                locals.add(local.asStatement().asLocalDecl());
+            release();
+        }
+
+        Vector<Statement> stmts = new Vector<>();
+        try {
+            // Once an error
+            while(true) {
+                mark();
+                stmts.add(statement());
+                release();
+            }
+        } catch(CompilationMessage msg) { release(); }
+
+        match(TokenType.RBRACE);
+        return new BlockStmt(metadata(),locals,stmts);
+    }
+
+
+    // declaration ::= 'def' 'local'? variable_decl ;
+    private Vector<AST> declaration() {
+        match(TokenType.DEF);
+
+        if(nextLA(TokenType.LOCAL))
+            match(TokenType.LOCAL);
+
+        Vector<Var> vars = variableDecl();
+        Vector<AST> locals = new Vector<>();
+
+        for(Var v : vars)
+            locals.add(new LocalDecl(metadata(),v));
+
+        return locals;
+    }
+
+    // statement ::= 'stop'
+    //             | return_statement
+    //             | block_statement
+    //             | if_statement
+    //             | while_statement
+    //             | do_while_statement
+    //             | for_statement
+    //             | choice_statement
+    //             | input_statement
+    //             | output_statement
+    //             | list_command_statement
+    //             | expression_statement ;
+    private Statement statement() {
+        switch(currentLA().getTokenType()) {
+            case STOP:
+                match(TokenType.STOP);
+                return new StopStmt(metadata());
+            case RETURN: return returnStatement();
+            case LBRACE: return blockStatement();
+            case IF: return ifStatement();
+            case WHILE: return whileStatement();
+            case DO: return doWhileStatement();
+            case FOR: return forStatement();
+            case CHOICE: return choiceStatement();
+            default:
+                if(currentLA().equals("append") || currentLA().equals("insert") || currentLA().equals("remove"))
+                    return listCommandStatement();
+                else
+                    return expressionStatement();
+        }
+    }
+
+    // return_statement ::= 'return' expression? ;
+    private ReturnStmt returnStatement() {
+        match(TokenType.RETURN);
+        Expression expr = null;
+
+        try { expr = expression(); }
+        catch(CompilationMessage msg) { /* DO NOTHING */ }
+
+        return new ReturnStmt(metadata(),expr);
+    }
+
+    // expression_statement ::= 'set' expression assignment_operator expression
+    //                        | 'retype' expression '=' object_constant
+    //                        |  expression ;
+    private Statement expressionStatement() {
+        if(nextLA(TokenType.SET)) {
+            match(TokenType.SET);
+            Expression LHS = expression();
+
+            mark();
+            AssignOp assignOp = assignmentOperator();
+            release();
+
+            Expression RHS = expression();
+            return new AssignStmt(metadata(),LHS,RHS,assignOp);
+        }
+        else if(nextLA(TokenType.RETYPE)) {
+            match(TokenType.RETYPE);
+            Expression LHS = expression();
+            match(TokenType.EQ);
+            NewExpr RHS = objectConstant();
+            return new RetypeStmt(metadata(),LHS,RHS);
+        }
+        else
+            return new ExprStmt(metadata(),expression());
+    }
+
+    // assignment_operator ::= '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**=' ;
+    private AssignOp assignmentOperator() {
+        return switch(currentLA().getTokenType()) {
+            case EQ -> {
+                match(TokenType.EQ);
+                yield new AssignOp(metadata(), AssignType.EQ);
+            }
+            case PLUSEQ -> {
+                match(TokenType.PLUSEQ);
+                yield new AssignOp(metadata(), AssignType.PLUSEQ);
+            }
+            case MINUSEQ -> {
+                match(TokenType.MINUSEQ);
+                yield new AssignOp(metadata(), AssignType.MINUSEQ);
+            }
+            case MULTEQ -> {
+                match(TokenType.MULTEQ);
+                yield new AssignOp(metadata(), AssignType.MULTEQ);
+            }
+            case DIVEQ -> {
+                match(TokenType.DIVEQ);
+                yield new AssignOp(metadata(), AssignType.DIVEQ);
+            }
+            case MODEQ -> {
+                match(TokenType.MODEQ);
+                yield new AssignOp(metadata(), AssignType.MODEQ);
+            }
+            case EXPEQ -> {
+                match(TokenType.EXPEQ);
+                yield new AssignOp(metadata(), AssignType.EXPEQ);
+            }
+            default -> null;
+        };
+
+    }
+
+    // if_statement ::= 'if' expression block_statement (elif_statement)* ('else' block_statement)? ;
+    private IfStmt ifStatement() {
+        match(TokenType.IF);
+
+        mark();
+        Expression condition = expression();
+        release();
+
+        mark();
+        BlockStmt block = blockStatement();
+        release();
+
+        Vector<IfStmt> elifs = new Vector<>();
+        BlockStmt elseBlock = null;
+        while(true) {
+            try {
+                mark();
+                elifs.add(elifStatement());
+                release();
+            }
+            catch(CompilationMessage msg) {
+                reset();
+                if(nextLA(TokenType.ELSE)) {
+                    match(TokenType.ELSE);
+
+                    mark();
+                    elseBlock = blockStatement();
+                    release();
+                }
+                break;
+            }
+        }
+
+        return new IfStmt(metadata(),condition,block,elifs,elseBlock);
+    }
+
+    // elif_statement ::= 'else' 'if' expression block_statement ;
+    private IfStmt elifStatement() {
+        match(TokenType.ELSE);
+        match(TokenType.IF);
+
+        mark();
+        Expression condition = expression();
+        release();
+
+        mark();
+        BlockStmt block = blockStatement();
+        release();
+
+        return new IfStmt(metadata(),condition,block);
+    }
+
+    // while_statement ::= 'while' expression block_statement ;
+    private WhileStmt whileStatement() {
+        match(TokenType.WHILE);
+
+        mark();
+        Expression condition = expression();
+        release();
+
+        mark();
+        BlockStmt block = blockStatement();
+        release();
+
+        return new WhileStmt(metadata(),condition,block);
+    }
+
+    // do_while_statement ::= 'do' block_statement 'while' expression ;
+    private DoStmt doWhileStatement() {
+        match(TokenType.DO);
+
+        mark();
+        BlockStmt block = blockStatement();
+        release();
+        match(TokenType.WHILE);
+
+        mark();
+        Expression condition = expression();
+        release();
+
+        return new DoStmt(metadata(),block,condition);
+    }
+
+    // for_statement ::= 'for' '(' range_iterator | array_iterator ')' block_statement ;
+    private ForStmt forStatement() {
+        match(TokenType.FOR);
+        match(TokenType.LPAREN);
+        Vector<AST> forHeader = rangeIterator();
+        match(TokenType.RPAREN);
+
+        mark();
+        BlockStmt block = blockStatement();
+        release();
+
+        LocalDecl controlVar = forHeader.getFirst().asStatement().asLocalDecl();
+        Expression LHS = forHeader.get(1).asExpression();
+        LoopOp loopOp = forHeader.get(2).asOperator().asLoopOp();;
+        Expression RHS = forHeader.getLast().asExpression();
+        return new ForStmt(metadata(),controlVar,LHS,RHS,loopOp,block);
+    }
+
+    // range_iterator ::= 'def' Name ':' type 'in' expression range_operator expression ;
+    private Vector<AST> rangeIterator() {
+        Vector<AST> forHeader = new Vector<>();
+
+        mark();
+        match(TokenType.DEF);
+        Name name = new Name(currentLA());
+        match(TokenType.ID);
+        match(TokenType.COLON);
+
+        mark();
+        Type type = type();
+        release();
+
+        forHeader.add(new Var(metadata(),name,type));
+        release();
+
+        match(TokenType.IN);
+        mark();
+        forHeader.add(expression());
+        release();
+
+        mark();
+        forHeader.add(rangeOperator());
+        release();
+
+        mark();
+        forHeader.add(expression());
+        release();
+
+        return forHeader;
+    }
+
+    //TODO: Implement once done! --> array_iterator ::= Name ( 'in' | 'inrev' ) expression ;
+
+    // range_operator ::= inclusive | exclusive_right | exclusive_left | exclusive ;
+    private LoopOp rangeOperator() {
+//        if(nextLA(TokenType.INC)) {
+//            if(nextLA())
+//            try { return inclusive(); }
+//            catch(CompilationMessage msg) { return exclusiveRight(); }
+//        }
+//            return inclusive();
+    }
+
+    // inclusive ::= '..' ;
+    private LoopOp inclusive() {
+        match(TokenType.INC);
+        return new LoopOp(metadata(),LoopType.INCL);
+    }
+
+    // exclusive_right ::= '..<' ;
+    private LoopOp exclusiveRight() {
+        match(TokenType.INC);
+        match(TokenType.LT);
+        return new LoopOp(metadata(),LoopType.EXCL_R);
+    }
+
+    // exclusive_left ::= '<..' ;
+    private LoopOp exclusiveLeft() {
+        match(TokenType.LT);
+        match(TokenType.INC);
+        return new LoopOp(metadata(),LoopType.EXCL_L);
+    }
+
+    // exclusive ::= '<..<' ;
+    private LoopOp exclusive() {
+        match(TokenType.LT);
+        match(TokenType.INC);
+        match(TokenType.LT);
+        return new LoopOp(metadata(),LoopType.EXCL);
+    }
+
+    // choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}' ;
+    private ChoiceStmt choiceStatement() {
+        match(TokenType.CHOICE);
+
+        mark();
+        Expression choice = expression();
+        release();
+
+        match(TokenType.LBRACE);
+        Vector<CaseStmt> cases = new Vector<>();
+        while(nextLA(TokenType.ON)) {
+            mark();
+            cases.add(caseStatement());
+            release();
+        }
+
+        match(TokenType.OTHER);
+
+        mark();
+        BlockStmt defaultBlock = blockStatement();
+        release();
+
+        match(TokenType.RBRACE);
+        return new ChoiceStmt(metadata(),choice,cases,defaultBlock);
+    }
+
+    // case_statement ::= 'on' label block_statement ;
+    private CaseStmt caseStatement() {
+        match(TokenType.ON);
+
+        mark();
+        Label label = label();
+        release();
+
+        mark();
+        BlockStmt block = blockStatement();
+        release();
+
+        return new CaseStmt(metadata(),label,block);
+    }
+
+    // label ::= scalar_constant ('..' scalar_constant)? ;
+    private Label label() {
+        Literal LHS = scalarConstant(), RHS = null;
+
+        if(nextLA(TokenType.INC)) {
+            match(TokenType.INC);
+
+            mark();
+            RHS = scalarConstant();
+            release();
+        }
+
+        return new Label(metadata(),LHS,RHS);
+    }
+
+    // list_command_statement ::= 'append' '(' arguments? ')'
+    //                          | 'remove' '(' arguments? ')'
+    //                          | 'insert' '(' arguments? ')' ;
+    private ListStmt listCommandStatement() {
+        Commands command = switch (currentLA().getText()) {
+            case "append" -> Commands.APPEND;
+            case "insert" -> Commands.INSERT;
+            case "remove" -> Commands.REMOVE;
+            default -> null;
+        };
+
+        match(TokenType.ID);
+        match(TokenType.LPAREN);
+
+        Vector<Expression> args = new Vector<>();
+        if(!nextLA(TokenType.RPAREN))
+            args = arguments();
+        match(TokenType.RPAREN);
+        return new ListStmt(metadata(),command,args);
+    }
+
+    // input_statement ::= 'cin' ('>>' expression)+ ;
     private InStmt inputStatement() { return null; }
 
+    // TODO: Back here... :(
     // output_statement ::= 'cout' ('<<' expression)+ ;
     private OutStmt outputStatement() {
         match(TokenType.COUT);
