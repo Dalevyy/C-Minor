@@ -85,6 +85,36 @@ public class Modifier extends SubNode {
     }
 
     /**
+     * Copies the true attributes of a {@link Modifier} to the current {@link Modifier}.
+     * This is slow... but it won't be called often so it's fine for now... 0_0
+     * @param mod The {@link Modifier} we wish to combine with the current one.
+     */
+    public void add(Modifier mod) {
+        if(mod.isPublic)
+            this.isPublic = true;
+        if(mod.isProtected)
+            this.isProtected = true;
+        if(mod.isProperty)
+            this.isProperty = true;
+        if(mod.isFinal)
+            this.isFinal = true;
+        if(mod.isAbstract)
+            this.isAbstract = true;
+        if(mod.isPure)
+            this.isPure = true;
+        if(mod.isRecursive)
+            this.isRecursive = true;
+        if(mod.isInMode)
+            this.isInMode = true;
+        if(mod.isOutMode)
+            this.isOutMode = true;
+        if(mod.isInOutMode)
+            this.isInOutMode = true;
+        if(mod.isRefMode)
+            this.isRefMode = true;
+    }
+
+    /**
      * Returns value of {@link #isPublic}.
      * @return Boolean
      */
