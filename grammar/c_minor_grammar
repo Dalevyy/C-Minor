@@ -5,12 +5,12 @@
 // Program
 // -------
 
-compilation : import_stmt* enum_type* global_variable* class_type* function* main ;
+compilation : import_stmt* enum_type* global_variable* class_type* function* main_function ;
 
 // Imports
 // -------
 
-import_stmt : '#include' String_literal
+import_stmt : '#include' String_literal ;
 
 // Enumeration
 // -----------
@@ -65,7 +65,7 @@ class_body : '{' data_decl* method_decl* '}' ;
 // Field declaration
 // -----------------
 
-data_decl : ('property' | 'protected' | 'public') variable_decl ;
+field_decl : ('property' | 'protected' | 'public') variable_decl ;
 
 // Method declaration
 // ------------------
@@ -86,9 +86,7 @@ param_modifier : 'in' | 'out' | 'inout' | 'ref' ;
 
 return_type : 'Void' | type ;
 
-operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement ;
-
-operator_modifier : 'protected' | 'public' ;
+operator_class : method_modifier 'final'? 'operator' operator_header '=>' return_type block_statement ;
 
 operator_header : operator_symbol '(' formal_params? ')' ;
 
@@ -124,7 +122,7 @@ function_header : Name typefier_params? '(' formal_params? ')' ;
 // Main function
 // -------------
 
-main : 'def' 'main' args? '=>' return_type block_statement ;
+main_function : 'def' 'main' args '=>' return_type block_statement ;
 
 args : '(' formal_params? ')' ;
 
@@ -153,7 +151,7 @@ return_statement : 'return' expression? ;
 expression_statement
     : 'set' expression assignment_operator '=' expression
     | 'retype' expression '=' object_constant
-    |  logical_or_expression
+    |  expression
     ;
 
 assignment_operator : '='
@@ -301,9 +299,9 @@ logical_or_expression
 
 constant : object_constant | array_constant | list_constant | scalar_constant ;
 
-object_constant : 'new' Name (type_params)? '(' object_field (',' object_field)* ')' ;
+object_constant : 'new' Name (type_params)? '(' object_field? ')' ;
 
-object_field : Name '=' expression ;
+object_field : Name '=' expression (',' Name '=' expression)* ;
 
 array_constant : 'Array' ( '[' expression ']' )* '(' arguments ')' ; // for 2d Array[2][2](Array(1, 2), Array(3, 4))
 
