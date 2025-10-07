@@ -113,6 +113,10 @@ public class PEG {
      * @param expectedToken The {@link TokenType} that is expected in the input.
      */
     private void match(TokenType expectedToken) {
+        System.out.println(lookaheads.size() + ", position = " + pos);
+        for(Token t : lookaheads)
+            System.out.println(t);
+        System.out.println();
         if(nextLA(1) == expectedToken)
             consume();
         else
@@ -159,7 +163,7 @@ public class PEG {
      */
     private void fill(int tokenCount) {
         // Add 'tokenCount' amount of tokens to vector
-        for(int i = 0; i < tokenCount; i++)
+        for(int i = 0; i <= tokenCount; i++)
             lookaheads.add(input.nextToken());
     }
 
@@ -368,7 +372,6 @@ public class PEG {
         match(TokenType.ID);
         match(TokenType.COLON);
         Type type = type();
-
         Expression init = null;
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
@@ -377,7 +380,6 @@ public class PEG {
             else
                 init = expression();
         }
-
         return new Var(release(),name,init,type);
     }
 
@@ -411,7 +413,7 @@ public class PEG {
                     baseType.copyMetaData(release());
                     return baseType;
                 }
-                return new ArrayType(metadata(),baseType,1);
+                return new ArrayType(release(),baseType,1);
             }
             default:
                 return scalarType();
@@ -604,15 +606,19 @@ public class PEG {
 
     // method_decl ::= method_class | operator_class ;
     private MethodDecl methodDecl() {
-        mark();
-
         // First, try to parse a method
-        try { return methodClass(); }
+        try {
+            mark();
+            return methodClass();
+        }
         catch(CompilationMessage msg) { reset(); }
 
         // Then, try to parse an operator overload. If this fails, then there
         // is for sure an error, so we will print out an error.
-        try { return operatorClass(); }
+        try {
+            mark();
+            return operatorClass();
+        }
         catch(CompilationMessage msg) { msg.printMessage(); }
 
         return null; // Here to stop Java compiler complaining... \(-_-)/
@@ -784,20 +790,15 @@ public class PEG {
 
     // operator_header ::= operator_symbol '(' formal-params? ')' ;
     private Vector<Object> operatorHeader() {
-        for(Token t : lookaheads)
-            System.out.println(t);
-        System.out.println(pos);
-//        System.out.print("Start: ");
-//        for(int p : positions)
-//            System.out.print(p + " ");
+        System.out.println("SubPosition:");
+        for(int t :subPositions)
+            System.out.print(t + ", ");
+        System.out.println();
         Operator op = operatorSymbol();
-        for(Token t : lookaheads)
-            System.out.println(t);
-        System.out.println(pos);
-//        System.out.println();
-//        System.out.print("End: ");
-//        for(int p : positions)
-//            System.out.print(p + " ");
+        System.out.println("SubPosition2:");
+        for(int t :subPositions)
+            System.out.print(t + ", ");
+        System.out.println();
         match(TokenType.LPAREN);
         Vector<ParamDecl> params = new Vector<>();
         if(nextLA(TokenType.IN) || nextLA(TokenType.OUT) || nextLA(TokenType.INOUT) || nextLA(TokenType.REF))
