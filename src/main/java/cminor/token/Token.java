@@ -31,6 +31,12 @@ public class Token {
     public void setEndLocation(Position end) { this.location.end = end; }
 
     public boolean equals(String lexeme) { return this.text.equals(lexeme); }
+
+    public boolean equals(Token RHS) {
+        return this.type.equals(RHS.type) && this.location.equals(RHS.location) && this.equals(RHS.text);
+    }
+
+    public void print() { System.out.println(this); }
     
     @Override
     public String toString() {
