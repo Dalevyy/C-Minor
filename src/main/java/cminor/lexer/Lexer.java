@@ -80,32 +80,43 @@ public class Lexer {
 
     public String getText() { return lines.getLast(); }
 
-    public void setText(Token startToken, Token endToken) {
-        Position start = startToken.getStartPos();
-        Position end = endToken.getEndPos();
-        StringBuilder sb = new StringBuilder();
+    public Token generateMetaData(Token start, Token end) {
+        // If the tokens are the exact same, then we already have the metadata, so let's reuse one of them! :)
+        if(start.equals(end))
+            return start;
 
-        startToken.setEndLocation(end.copy()); // Make sure the token has the start node!
+        // Copy the starting/ending positions for the program construct.
+        Token metadata = new Token();
+        metadata.setStartLocation(start.getStartPos().copy());
+        metadata.setEndLocation(end.getEndPos().copy());
 
-        start.line--;
-        end.line--;
-        start.column--;
-        end.column--;
+        // Get all the lines and columns. This determines which parts of the program will be
+        // saved into the next AST node. (Make sure to decrement by 1 for proper indexing!)
+        int startLine = start.getStartPos().line - 1, endLine = end.getEndPos().line - 1;
+        int startCol = start.getStartPos().column - 1, endCol = end.getEndPos().column - 1;
 
-        int strSize;
-        int startCol = start.column;
+        String currentLine;
+        StringBuilder text = new StringBuilder();
 
-        for(int i = start.line; i <= end.line; i++) {
-            String curr = lines.get(i);
-
-            if(i != end.line) { strSize = curr.length(); }
-            else { strSize = end.column; }
-
-            for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
-            startCol = 0;
+        // Add each line associated with the AST node.
+        for(int i = startLine; i < endLine; i++) {
+            currentLine = lines.get(i); // Get the current line
+            text.append(currentLine);   // Store that line into the text field
         }
 
-        startToken.setText(sb.toString());
+        // For the final line, there is a problem if a user writes two separate statements
+            // Ex. This is legal syntax:
+                //     class A {
+                //         ...
+                //     } class B inherits A {}
+        currentLine = lines.get(endLine);
+        // So first check if we can get the end line based on the given start/end columns
+        try { text.append(currentLine, startCol, endCol+1); }
+        // If the above fails, then we will extract the info based on the ending token's columns.
+        catch(IndexOutOfBoundsException _) { text.append(currentLine, end.getStartPos().column-1, endCol+1); }
+
+        metadata.setText(text.toString());
+        return metadata;
     }
 
     /**
