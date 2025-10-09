@@ -19,6 +19,7 @@ import cminor.ast.topleveldecls.ClassDecl;
 import cminor.ast.topleveldecls.EnumDecl;
 import cminor.ast.topleveldecls.FuncDecl;
 import cminor.ast.topleveldecls.GlobalDecl;
+import cminor.ast.topleveldecls.MainDecl;
 import cminor.ast.types.*;
 import cminor.ast.types.ScalarType.Scalars;
 import cminor.lexer.Lexer;
@@ -113,10 +114,9 @@ public class PEG {
      * @param expectedToken The {@link TokenType} that is expected in the input.
      */
     private void match(TokenType expectedToken) {
-        System.out.println(lookaheads.size() + ", position = " + pos);
-        for(Token t : lookaheads)
-            System.out.println(t);
-        System.out.println();
+//        System.out.println(lookaheads.size() + ", position = " + pos);
+//        lookaheads.print();
+//        System.out.println();
         if(nextLA(1) == expectedToken)
             consume();
         else
@@ -202,7 +202,7 @@ public class PEG {
      */
     private void reset() {
         pos = positions.removeLast();
-        while(!subPositions.isEmpty() && subPositions.getLast() >= pos)
+        while(!positions.isEmpty() && positions.getLast() >= pos)
             subPositions.removeLast();
     }
 
@@ -211,6 +211,8 @@ public class PEG {
         while(!positions.isEmpty() && positions.getLast() >= pos)
             positions.removeLast();
     }
+
+    private Token getStartToken() { return lookaheads.get(positions.removeLast()); }
 
     /**
      * Generates the metadata associated for a non-{@link cminor.ast.topleveldecls.TopLevelDecl} node.
@@ -221,9 +223,12 @@ public class PEG {
             throw new RuntimeException("The parser is not able to generate the correct metadata for a sub rule...");
 
         Token start = lookaheads.get(subPositions.removeLast()); // Gets the starting token for a given grammar rule
-        input.setText(start,lookaheads.get(pos-1));              // Saves metadata associated with the grammar rule!
+        input.generateMetaData(start,lookaheads.get(pos-1));              // Saves metadata associated with the grammar rule!
         return start;
     }
+
+    private Token test() {
+        return input.generateMetaData(getStartToken(),lookaheads.get(pos-1)); }
 
     /**
      * Generates the metadata associated with a given {@link AST} node.
@@ -231,7 +236,14 @@ public class PEG {
      */
     private Token metadata() {
         Token start = lookaheads.get(positions.removeLast()); // Gets the starting token for a given grammar rule
-        input.setText(start,lookaheads.get(pos-1));        // Saves metadata associated with the grammar rule!
+        input.generateMetaData(start,lookaheads.get(pos-1));        // Saves metadata associated with the grammar rule!
+        return start;
+    }
+
+    //TODO: hmm
+    private Token exprMetadata() {
+        Token start = lookaheads.get(positions.getLast()); // Gets the starting token for a given grammar rule
+        input.generateMetaData(start,lookaheads.get(pos-1));        // Saves metadata associated with the grammar rule!
         return start;
     }
 
@@ -241,6 +253,7 @@ public class PEG {
      */
     public Vector<? extends AST> parse() {
         Vector<AST> nodes = new Vector<>();
+        int start = 0;
 
         while(true) {
             switch(currentLA().getTokenType()) {
@@ -254,24 +267,24 @@ public class PEG {
                 case DEF:
                     // 2.1) Parse an enumeration
                     try {
-                        mark();
+                        start = mark();
                         nodes.add(enumType());
                         break;
-                    } catch(CompilationMessage msg) { reset(); }
+                    } catch(CompilationMessage msg) { reset(start); }
 
                     // 2.2) Parse a global variable
                     try {
-                        mark();
+                        start = mark();
                         nodes.merge(globalVariable());
                         break;
-                    } catch(CompilationMessage msg) { reset(); }
+                    } catch(CompilationMessage msg) { reset(start); }
 
                     // 2.3) Parse a local variable
                     try {
-                        mark();
+                        start = mark();
                         nodes.merge(declaration());
                         break;
-                    } catch(CompilationMessage msg) { reset(); }
+                    } catch(CompilationMessage msg) { reset(start); }
 
                     // 2.4) Parse a function
                     // If all of the above fails, then output the error message!
@@ -289,10 +302,15 @@ public class PEG {
                     break;
                 // Case 5) Everything else should represent some type of statement!
                 default:
+                    mark();
                     nodes.add(statement());
             }
         }
     }
+
+    //TODO: Add rules
+    // compilation ::= import_stmt* enum_type* global_variable* class_type* function* main_function ;
+    // import_stmt ::= '#include' String_literal ;
 
     // enum_type ::= 'def' Name 'type' '=' '{' enum_field (',' enum_field)* '}' ;
     private EnumDecl enumType() {
@@ -310,12 +328,12 @@ public class PEG {
         }
 
         match(TokenType.RBRACE);
-        return new EnumDecl(metadata(),name,constants);
+        return new EnumDecl(test(),name,constants);
     }
 
     // enum_field ::= Name ('=' constant)? ;
     private Var enumField() {
-        save();
+        mark();
         Name name = new Name(currentLA());
         match(TokenType.ID);
 
@@ -324,7 +342,7 @@ public class PEG {
             match(TokenType.EQ);
             expr = constant();
         }
-        return new Var(release(),name,expr);
+        return new Var(test(),name,expr);
     }
 
     // global_variable ::= 'def' ('const' | 'global') variable_decl ;
@@ -343,8 +361,7 @@ public class PEG {
 
         Vector<Var> vars = variableDecl();
         Vector<AST> globals = new Vector<>();
-        Token metadata = metadata(); // Use the same metadata for multiple global declarations in a single line!
-
+        Token metadata = test(); // Use the same metadata for multiple global declarations in a single line!
         for(Var var : vars)
             globals.add(new GlobalDecl(metadata,var,constant));
 
@@ -367,11 +384,12 @@ public class PEG {
 
     // variable_decl_init ::= Name ':' type ('=' (expression | 'uninit'))? ;
     private Var variableDeclInit() {
-        save();
+        mark();
         Name name = new Name(currentLA());
         match(TokenType.ID);
         match(TokenType.COLON);
         Type type = type();
+
         Expression init = null;
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
@@ -380,12 +398,13 @@ public class PEG {
             else
                 init = expression();
         }
-        return new Var(release(),name,init,type);
+
+        return new Var(test(),name,init,type);
     }
 
     // type ::= scalar_type | class_name | 'List' '[' type ']' | 'Array' '[' type ']' ;
     private Type type() {
-        save();
+        mark();
         switch(currentLA().getTokenType()) {
             case ID:
                 return className();
@@ -397,10 +416,10 @@ public class PEG {
 
                 if(baseType.isList()) {
                     baseType.asList().dims += 1;
-                    baseType.copyMetaData(release());
+                    baseType.copyMetaData(test());
                     return baseType;
                 }
-                return new ListType(release(),baseType,1);
+                return new ListType(test(),baseType,1);
             }
             case ARRAY: {
                 match(TokenType.ARRAY);
@@ -410,10 +429,10 @@ public class PEG {
 
                 if(baseType.isArray()) {
                     baseType.asArray().dims += 1;
-                    baseType.copyMetaData(release());
+                    baseType.copyMetaData(test());
                     return baseType;
                 }
-                return new ArrayType(release(),baseType,1);
+                return new ArrayType(test(),baseType,1);
             }
             default:
                 return scalarType();
@@ -425,10 +444,10 @@ public class PEG {
         switch(currentLA().getTokenType()) {
             case STRING:
                 match(TokenType.STRING);
-                return new ScalarType(release(),Scalars.STR);
+                return new ScalarType(test(),Scalars.STR);
             case REAL:
                 match(TokenType.REAL);
-                return new ScalarType(release(),Scalars.REAL);
+                return new ScalarType(test(),Scalars.REAL);
             default:
                 return discreteType();
         }
@@ -439,13 +458,13 @@ public class PEG {
         switch(currentLA().getTokenType()) {
             case BOOL:
                 match(TokenType.BOOL);
-                return new DiscreteType(release(),Scalars.BOOL);
+                return new DiscreteType(test(),Scalars.BOOL);
             case INT:
                 match(TokenType.INT);
-                return new DiscreteType(release(),Scalars.INT);
+                return new DiscreteType(test(),Scalars.INT);
             default:
                 match(TokenType.CHAR);
-                return new DiscreteType(release(),Scalars.CHAR);
+                return new DiscreteType(test(),Scalars.CHAR);
         }
     }
 
@@ -466,7 +485,7 @@ public class PEG {
             match(TokenType.GT);
         }
 
-        return new ClassType(release(),name,types);
+        return new ClassType(test(),name,types);
     }
 
     // class_type ::= ( 'abstr' | 'final' )? 'class' ID typefier_params? super_class? class_body ;
@@ -498,7 +517,7 @@ public class PEG {
             superClass = superClass();
 
         ClassBody body = classBody();
-        return new ClassDecl(metadata(),mod,name,typeParams,superClass,body);
+        return new ClassDecl(test(),mod,name,typeParams,superClass,body);
     }
 
     // typeifier_params ::= '<' typeifier ( ',' typeifier )* '>' ;
@@ -517,7 +536,7 @@ public class PEG {
 
     // typeifier ::= ( 'discr' | 'scalar' | 'class' )? ID ;
     private TypeParam typeifier() {
-        save();
+        mark();
         TypeAnnotation annotation = switch(currentLA().getTokenType()) {
             case DISCR -> {
                 match(TokenType.DISCR);
@@ -536,14 +555,14 @@ public class PEG {
 
         Name name = new Name(currentLA());
         match(TokenType.ID);
-        return new TypeParam(release(),annotation,name);
+        return new TypeParam(test(),annotation,name);
     }
 
     // super_class ::= 'inherits' ID type_params? ;
     private ClassType superClass() {
         match(TokenType.INHERITS);
 
-        save();
+        mark();
         Name name = new Name(currentLA());
         match(TokenType.ID);
 
@@ -551,29 +570,29 @@ public class PEG {
         if(nextLA(TokenType.LT))
             types = typeParams();
 
-        return new ClassType(release(),name,types);
+        return new ClassType(test(),name,types);
     }
 
-    // class_body ::= '{' data_decl* method_decl* '}' ;
+    // class_body ::= '{' field_decl* method_decl* '}' ;
     private ClassBody classBody() {
-        save();
+        mark();
         match(TokenType.LBRACE);
 
         Vector<FieldDecl> fields = new Vector<>();
+        int start = 0; // This is the position we will reset the parser to if we can't parse another field declaration!
         try {
             while(true) {
-                mark();
+                start = mark();
                 fields.merge(fieldDecl());
             }
-        } catch(CompilationMessage msg) { reset(); }
+        } catch(CompilationMessage msg) { reset(start); }
 
         Vector<MethodDecl> methods = new Vector<>();
         // Try to parse methods until the end of the class is reached!
         while(!nextLA(TokenType.RBRACE))
             methods.add(methodDecl());
         match(TokenType.RBRACE);
-
-        return new ClassBody(release(),fields,methods);
+        return new ClassBody(test(),fields,methods);
     }
 
     // field_decl ::= ('property' | 'protected' | 'public') variable_decl ;
@@ -597,7 +616,7 @@ public class PEG {
         Vector<Var> vars = variableDecl();
         Vector<FieldDecl> fields = new Vector<>();
 
-        Token metadata = metadata(); // Use the same metadata for multiple field declarations in a single line!
+        Token metadata = test(); // Use the same metadata for multiple field declarations in a single line!
         for(Var v : vars)
             fields.add(new FieldDecl(metadata,mod,v));
 
@@ -648,7 +667,7 @@ public class PEG {
         Type returnType = returnType();
         BlockStmt block = blockStatement();
 
-        return new MethodDecl(metadata(),mod,name,null,params,returnType,block,override);
+        return new MethodDecl(test(),mod,name,null,params,returnType,block,override);
     }
 
     // method_modifier ::= 'protected' | 'public' ;
@@ -705,7 +724,7 @@ public class PEG {
 
     // formal_params ::= param_modifier Name ':' type ( ',' param_modifier Name ':' type)* ;
     private Vector<ParamDecl> formalParams() {
-        save();
+        mark();
         Modifier mod = paramModifier();
 
         Name name = new Name(currentLA());
@@ -714,12 +733,12 @@ public class PEG {
         Type paramType = type();
 
         Vector<ParamDecl> params = new Vector<>();
-        params.add(new ParamDecl(release(),mod,name,paramType));
+        params.add(new ParamDecl(test(),mod,name,paramType));
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
 
-            save();
+            mark();
             mod = paramModifier();
 
             name = new Name(currentLA());
@@ -727,7 +746,7 @@ public class PEG {
             match(TokenType.COLON);
             paramType = type();
 
-            params.add(new ParamDecl(release(),mod,name,paramType));
+            params.add(new ParamDecl(test(),mod,name,paramType));
         }
 
         return params;
@@ -785,20 +804,12 @@ public class PEG {
         Type rt = returnType();
         BlockStmt block = blockStatement();
 
-        return new MethodDecl(metadata(),mod,null,op,pd,rt,block,false);
+        return new MethodDecl(test(),mod,null,op,pd,rt,block,false);
     }
 
     // operator_header ::= operator_symbol '(' formal-params? ')' ;
     private Vector<Object> operatorHeader() {
-        System.out.println("SubPosition:");
-        for(int t :subPositions)
-            System.out.print(t + ", ");
-        System.out.println();
         Operator op = operatorSymbol();
-        System.out.println("SubPosition2:");
-        for(int t :subPositions)
-            System.out.print(t + ", ");
-        System.out.println();
         match(TokenType.LPAREN);
         Vector<ParamDecl> params = new Vector<>();
         if(nextLA(TokenType.IN) || nextLA(TokenType.OUT) || nextLA(TokenType.INOUT) || nextLA(TokenType.REF))
@@ -915,7 +926,7 @@ public class PEG {
         Type returnType = returnType();
         BlockStmt block = blockStatement();
 
-        return new FuncDecl(metadata(),mod,name,typeParams,params,returnType,block);
+        return new FuncDecl(test(),mod,name,typeParams,params,returnType,block);
     }
 
     // function_header ::= ID function_type_params? '(' formal_params? ')' ;
@@ -942,18 +953,33 @@ public class PEG {
         return header;
     }
 
-    /*
-    // Main function
-// -------------
+    // main_function ::= 'def' 'main' args '=>' return_type block_statement ;
+    private MainDecl mainFunction() {
+        match(TokenType.DEF);
+        match(TokenType.MAIN);
+        Vector<ParamDecl> params = args();
+        match(TokenType.ARROW);
 
-main : 'def' 'main' args? '=>' return_type block_statement ;
+        Type returnType = returnType();
+        BlockStmt block = blockStatement();
+        return new MainDecl(test(),params,returnType,block);
+    }
 
-args : '(' formal_params? ')' ;
-     */
+    // args ::= '(' formal_params? ')' ;
+    private Vector<ParamDecl> args() {
+        Vector<ParamDecl> params = new Vector<>();
+
+        match(TokenType.LPAREN);
+        if(nextLA(TokenType.IN) || nextLA(TokenType.OUT) || nextLA(TokenType.INOUT) || nextLA(TokenType.REF))
+            params = formalParams();
+        match(TokenType.RPAREN);
+
+        return params;
+    }
 
     // block_statement ::= '{' declaration* statement* '}' ;
     private BlockStmt blockStatement() {
-        save();
+        mark();
         match(TokenType.LBRACE);
 
         Vector<LocalDecl> locals = new Vector<>();
@@ -965,18 +991,14 @@ args : '(' formal_params? ')' ;
         }
 
         Vector<Statement> stmts = new Vector<>();
-//        try {
-//            // Once an error
-//            while(true) {
-//                mark();
-//                stmts.add(statement());
-//            }
-//        } catch(CompilationMessage msg) { reset(); }
+        while(!nextLA(TokenType.RBRACE)) {
+            mark();
+            stmts.add(statement());
+        }
 
         match(TokenType.RBRACE);
-        return new BlockStmt(release(),locals,stmts);
+        return new BlockStmt(test(),locals,stmts);
     }
-
 
     // declaration ::= 'def' 'local'? variable_decl ;
     private Vector<AST> declaration() {
@@ -984,10 +1006,9 @@ args : '(' formal_params? ')' ;
 
         if(nextLA(TokenType.LOCAL))
             match(TokenType.LOCAL);
-
         Vector<Var> vars = variableDecl();
         Vector<AST> locals = new Vector<>();
-        Token metadata = metadata(); // Use the same metadata for multiple local declarations in a single line!
+        Token metadata = test(); // Use the same metadata for multiple local declarations in a single line!
 
         for(Var v : vars)
             locals.add(new LocalDecl(metadata,v));
@@ -995,8 +1016,7 @@ args : '(' formal_params? ')' ;
         return locals;
     }
 
-    // statement ::= 'stop'
-    //             | return_statement
+    // statement ::= 'stop' | return_statement
     //             | block_statement
     //             | if_statement
     //             | while_statement
@@ -1011,7 +1031,7 @@ args : '(' formal_params? ')' ;
         switch(currentLA().getTokenType()) {
             case STOP:
                 match(TokenType.STOP);
-                return new StopStmt(metadata());
+                return new StopStmt(test());
             case RETURN: return returnStatement();
             case LBRACE: return blockStatement();
             case IF: return ifStatement();
@@ -1033,9 +1053,9 @@ args : '(' formal_params? ')' ;
         Expression expr = null;
 
         try { expr = expression(); }
-        catch(CompilationMessage msg) { /* DO NOTHING */ }
+        catch(CompilationMessage msg) { reset(); }
 
-        return new ReturnStmt(metadata(),expr);
+        return new ReturnStmt(test(),expr);
     }
 
     // expression_statement ::= 'set' expression assignment_operator expression
@@ -1045,23 +1065,21 @@ args : '(' formal_params? ')' ;
         if(nextLA(TokenType.SET)) {
             match(TokenType.SET);
             Expression LHS = expression();
-
-            mark();
             AssignOp assignOp = assignmentOperator();
-            release();
-
             Expression RHS = expression();
-            return new AssignStmt(metadata(),LHS,RHS,assignOp);
+            return new AssignStmt(test(),LHS,RHS,assignOp);
         }
         else if(nextLA(TokenType.RETYPE)) {
             match(TokenType.RETYPE);
             Expression LHS = expression();
             match(TokenType.EQ);
             NewExpr RHS = objectConstant();
-            return new RetypeStmt(metadata(),LHS,RHS);
+            return new RetypeStmt(test(),LHS,RHS);
         }
-        else
-            return new ExprStmt(metadata(),expression());
+        else {
+            Expression expr = expression();
+            return new ExprStmt(test(),expr);
+        }
     }
 
     // assignment_operator ::= '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '**=' ;
@@ -1069,31 +1087,31 @@ args : '(' formal_params? ')' ;
         return switch(currentLA().getTokenType()) {
             case EQ -> {
                 match(TokenType.EQ);
-                yield new AssignOp(metadata(), AssignType.EQ);
+                yield new AssignOp(currentLA(), AssignType.EQ);
             }
             case PLUSEQ -> {
                 match(TokenType.PLUSEQ);
-                yield new AssignOp(metadata(), AssignType.PLUSEQ);
+                yield new AssignOp(currentLA(), AssignType.PLUSEQ);
             }
             case MINUSEQ -> {
                 match(TokenType.MINUSEQ);
-                yield new AssignOp(metadata(), AssignType.MINUSEQ);
+                yield new AssignOp(currentLA(), AssignType.MINUSEQ);
             }
             case MULTEQ -> {
                 match(TokenType.MULTEQ);
-                yield new AssignOp(metadata(), AssignType.MULTEQ);
+                yield new AssignOp(currentLA(), AssignType.MULTEQ);
             }
             case DIVEQ -> {
                 match(TokenType.DIVEQ);
-                yield new AssignOp(metadata(), AssignType.DIVEQ);
+                yield new AssignOp(currentLA(), AssignType.DIVEQ);
             }
             case MODEQ -> {
                 match(TokenType.MODEQ);
-                yield new AssignOp(metadata(), AssignType.MODEQ);
+                yield new AssignOp(currentLA(), AssignType.MODEQ);
             }
             case EXPEQ -> {
                 match(TokenType.EXPEQ);
-                yield new AssignOp(metadata(), AssignType.EXPEQ);
+                yield new AssignOp(currentLA(), AssignType.EXPEQ);
             }
             default -> null;
         };
@@ -1104,36 +1122,27 @@ args : '(' formal_params? ')' ;
     private IfStmt ifStatement() {
         match(TokenType.IF);
 
-        mark();
         Expression condition = expression();
-        release();
-
-        mark();
         BlockStmt block = blockStatement();
-        release();
 
         Vector<IfStmt> elifs = new Vector<>();
         BlockStmt elseBlock = null;
-        while(true) {
+        while(true) { //TODO: this is problemo
             try {
                 mark();
                 elifs.add(elifStatement());
-                release();
             }
             catch(CompilationMessage msg) {
                 reset();
                 if(nextLA(TokenType.ELSE)) {
                     match(TokenType.ELSE);
-
-                    mark();
                     elseBlock = blockStatement();
-                    release();
                 }
                 break;
             }
         }
 
-        return new IfStmt(metadata(),condition,block,elifs,elseBlock);
+        return new IfStmt(test(),condition,block,elifs,elseBlock);
     }
 
     // elif_statement ::= 'else' 'if' expression block_statement ;
@@ -1141,63 +1150,42 @@ args : '(' formal_params? ')' ;
         match(TokenType.ELSE);
         match(TokenType.IF);
 
-        mark();
         Expression condition = expression();
-        release();
-
-        mark();
         BlockStmt block = blockStatement();
-        release();
-
-        return new IfStmt(metadata(),condition,block);
+        return new IfStmt(test(),condition,block);
     }
 
     // while_statement ::= 'while' expression block_statement ;
     private WhileStmt whileStatement() {
         match(TokenType.WHILE);
-
-        mark();
         Expression condition = expression();
-        release();
-
-        mark();
         BlockStmt block = blockStatement();
-        release();
-
-        return new WhileStmt(metadata(),condition,block);
+        return new WhileStmt(test(),condition,block);
     }
 
     // do_while_statement ::= 'do' block_statement 'while' expression ;
     private DoStmt doWhileStatement() {
         match(TokenType.DO);
-
-        mark();
         BlockStmt block = blockStatement();
-        release();
         match(TokenType.WHILE);
-
-        mark();
         Expression condition = expression();
-        release();
-
-        return new DoStmt(metadata(),block,condition);
+        return new DoStmt(test(),block,condition);
     }
 
     // for_statement ::= 'for' '(' range_iterator | array_iterator ')' block_statement ;
     private ForStmt forStatement() {
         match(TokenType.FOR);
         match(TokenType.LPAREN);
+
+        save();
         Vector<AST> forHeader = rangeIterator();
-        match(TokenType.RPAREN);
-
-        mark();
-        BlockStmt block = blockStatement();
-        release();
-
-        LocalDecl controlVar = forHeader.getFirst().asStatement().asLocalDecl();
+        LocalDecl controlVar = new LocalDecl(release(),forHeader.getFirst().asSubNode().asVar());
         Expression LHS = forHeader.get(1).asExpression();
         LoopOp loopOp = forHeader.get(2).asOperator().asLoopOp();;
         Expression RHS = forHeader.getLast().asExpression();
+        match(TokenType.RPAREN);
+
+        BlockStmt block = blockStatement();
         return new ForStmt(metadata(),controlVar,LHS,RHS,loopOp,block);
     }
 
@@ -1205,39 +1193,30 @@ args : '(' formal_params? ')' ;
     private Vector<AST> rangeIterator() {
         Vector<AST> forHeader = new Vector<>();
 
-        mark();
         match(TokenType.DEF);
         Name name = new Name(currentLA());
+        save();
         match(TokenType.ID);
         match(TokenType.COLON);
 
-        mark();
         Type type = type();
-        release();
-
-        forHeader.add(new Var(metadata(),name,type));
-        release();
+        forHeader.add(new Var(release(),name,type));
 
         match(TokenType.IN);
-        mark();
         forHeader.add(expression());
-        release();
-
-        mark();
         forHeader.add(rangeOperator());
-        release();
-
-        mark();
         forHeader.add(expression());
-        release();
-
         return forHeader;
     }
 
     //TODO: Implement once done! --> array_iterator ::= Name ( 'in' | 'inrev' ) expression ;
 
+    //TODO: This !
     // range_operator ::= inclusive | exclusive_right | exclusive_left | exclusive ;
     private LoopOp rangeOperator() {
+        save();
+        if(nextLA(TokenType.INC))
+            return inclusive();
 //        if(nextLA(TokenType.INC)) {
 //            if(nextLA())
 //            try { return inclusive(); }
@@ -1245,27 +1224,26 @@ args : '(' formal_params? ')' ;
 //        }
 //            return inclusive();
         return null;
-        //TODO: HERE!
     }
 
     // inclusive ::= '..' ;
     private LoopOp inclusive() {
         match(TokenType.INC);
-        return new LoopOp(metadata(),LoopType.INCL);
+        return new LoopOp(release(),LoopType.INCL);
     }
 
     // exclusive_right ::= '..<' ;
     private LoopOp exclusiveRight() {
         match(TokenType.INC);
         match(TokenType.LT);
-        return new LoopOp(metadata(),LoopType.EXCL_R);
+        return new LoopOp(release(),LoopType.EXCL_R);
     }
 
     // exclusive_left ::= '<..' ;
     private LoopOp exclusiveLeft() {
         match(TokenType.LT);
         match(TokenType.INC);
-        return new LoopOp(metadata(),LoopType.EXCL_L);
+        return new LoopOp(release(),LoopType.EXCL_L);
     }
 
     // exclusive ::= '<..<' ;
@@ -1273,63 +1251,49 @@ args : '(' formal_params? ')' ;
         match(TokenType.LT);
         match(TokenType.INC);
         match(TokenType.LT);
-        return new LoopOp(metadata(),LoopType.EXCL);
+        return new LoopOp(release(),LoopType.EXCL);
     }
 
     // choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}' ;
     private ChoiceStmt choiceStatement() {
         match(TokenType.CHOICE);
 
-        mark();
         Expression choice = expression();
-        release();
-
         match(TokenType.LBRACE);
         Vector<CaseStmt> cases = new Vector<>();
-        while(nextLA(TokenType.ON)) {
-            mark();
+        while(nextLA(TokenType.ON))
             cases.add(caseStatement());
-            release();
-        }
 
         match(TokenType.OTHER);
-
-        mark();
         BlockStmt defaultBlock = blockStatement();
-        release();
-
         match(TokenType.RBRACE);
         return new ChoiceStmt(metadata(),choice,cases,defaultBlock);
     }
 
     // case_statement ::= 'on' label block_statement ;
     private CaseStmt caseStatement() {
+        save();
         match(TokenType.ON);
 
-        mark();
+        save();
         Label label = label();
-        release();
 
-        mark();
         BlockStmt block = blockStatement();
-        release();
-
-        return new CaseStmt(metadata(),label,block);
+        return new CaseStmt(release(),label,block);
     }
 
     // label ::= scalar_constant ('..' scalar_constant)? ;
     private Label label() {
+        save();
         Literal LHS = scalarConstant(), RHS = null;
 
         if(nextLA(TokenType.INC)) {
             match(TokenType.INC);
-
-            mark();
+            save();
             RHS = scalarConstant();
-            release();
         }
 
-        return new Label(metadata(),LHS,RHS);
+        return new Label(release(),LHS,RHS);
     }
 
     // list_command_statement ::= 'append' '(' arguments? ')'
@@ -1354,7 +1318,12 @@ args : '(' formal_params? ')' ;
     }
 
     // input_statement ::= 'cin' ('>>' expression)+ ;
-    private InStmt inputStatement() { return null; }
+    private InStmt inputStatement() {
+        match(TokenType.CIN);
+        match(TokenType.SRIGHT);
+        Vector<Expression> expr = new Vector<>(expression());
+        return new InStmt(metadata(),expr);
+    }
 
     // TODO: Back here... :(
     // output_statement ::= 'cout' ('<<' expression)+ ;
@@ -1362,7 +1331,6 @@ args : '(' formal_params? ')' ;
         match(TokenType.COUT);
         match(TokenType.SLEFT);
         Vector<Expression> expr = new Vector<>(expression());
-
         return new OutStmt(metadata(),expr);
     }
 
@@ -1403,6 +1371,7 @@ args : '(' formal_params? ')' ;
                 match(TokenType.LPAREN);
                 Expression expr = expression();
                 match(TokenType.RPAREN);
+                positions.removeLast();
                 return expr;
             case ID:
                 NameExpr ne = new NameExpr(currentLA(),new Name(currentLA()));
@@ -1414,15 +1383,11 @@ args : '(' formal_params? ')' ;
     }
 
     /*
-        postfix_expression::= primary_expression ( '[' expression ']''
-                                                 | (type_params)? '(' arguments? ')'
-                                                 | ('.' | '?.') postfix_expression
-                                                 )* ;
-     */
+        postfix_expression::= primary_expression
+                           ('[' expression ']'' | (type_params)? '(' arguments? ')' | ('.' | '?.') postfix_expression)*;
+    */
     private Expression postfixExpression() {
-        mark();
         Expression primary = primaryExpression();
-        release();
 
         while(!nextLA(TokenType.EOF)) {
             switch(currentLA().getTokenType()) {
@@ -1433,7 +1398,7 @@ args : '(' formal_params? ')' ;
                         indices.add(expression());
                         match(TokenType.RBRACK);
                     }
-                    primary = new ArrayExpr(metadata(),primary,indices);
+                    primary = new ArrayExpr(exprMetadata(),primary,indices);
                     break;
                 case LT:
                 case LPAREN:
@@ -1459,7 +1424,7 @@ args : '(' formal_params? ')' ;
                     match(TokenType.LPAREN);
                     Vector<Expression> args = arguments();
                     match(TokenType.RPAREN);
-                    primary = new Invocation(metadata(),primary,typeArgs,args);
+                    primary = new Invocation(exprMetadata(),primary,typeArgs,args);
                     break;
                 case PERIOD:
                 case ELVIS:
@@ -1471,7 +1436,7 @@ args : '(' formal_params? ')' ;
                     else { match(TokenType.ELVIS); }
 
                     Expression access = postfixExpression();
-                    primary = new FieldExpr(metadata(),primary,access,nullCheck);
+                    primary = new FieldExpr(exprMetadata(),primary,access,nullCheck);
                     break;
                 default:
                     return primary;
@@ -1483,6 +1448,9 @@ args : '(' formal_params? ')' ;
 
     // arguments ::= expression (',' expression)* ;
     private Vector<Expression> arguments() {
+        if(nextLA(TokenType.RPAREN))
+            return new Vector<>();
+
         Vector<Expression> args = new Vector<>(expression());
 
         while(nextLA(TokenType.COMMA)) {
@@ -1519,7 +1487,7 @@ args : '(' formal_params? ')' ;
             catch(CompilationMessage msg) { /* ######### DO NOTHING ######### */ }
 
             match(TokenType.RPAREN);
-            return new Invocation(metadata(),name,new Vector<>(),args);
+            return new Invocation(exprMetadata(),name,new Vector<>(),args);
         }
 
         return postfixExpression();
@@ -1540,7 +1508,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression expr = castExpression();
-            return new UnaryExpr(metadata(),expr,uOp);
+            return new UnaryExpr(exprMetadata(),expr,uOp);
         }
 
         return factorExpression();
@@ -1550,11 +1518,12 @@ args : '(' formal_params? ')' ;
     private Expression castExpression() {
         if(nextLA(TokenType.REAL) || nextLA(TokenType.STRING)
                 || nextLA(TokenType.INT) || nextLA(TokenType.CHAR) || nextLA(TokenType.BOOL)) {
+            save();
             Type castType = scalarType();
             match(TokenType.LPAREN);
             Expression castExpr = castExpression();
             match(TokenType.RPAREN);
-            return new CastExpr(metadata(),castType,castExpr);
+            return new CastExpr(exprMetadata(),castType,castExpr);
         }
 
         return unaryExpression();
@@ -1580,7 +1549,7 @@ args : '(' formal_params? ')' ;
         while(!binOpStack.isEmpty()) {
             Expression RHS = stack.pop();
             Expression LHS = stack.pop(); // Java is weird...
-            stack.add(new BinaryExpr(metadata(),LHS,RHS,binOpStack.pop()));
+            stack.add(new BinaryExpr(exprMetadata(),LHS,RHS,binOpStack.pop()));
         }
 
         return stack.pop();
@@ -1607,7 +1576,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression RHS = powerExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1616,7 +1585,6 @@ args : '(' formal_params? ')' ;
     // additive_expression ::= multiplication_expression ( ('+' | '-') multiplication_expression)* ;
     private Expression additiveExpression() {
         Expression LHS = multiplicationExpression();
-
         while(nextLA(TokenType.PLUS) || nextLA(TokenType.MINUS)) {
             BinaryOp binOp;
             switch(currentLA().getTokenType()) {
@@ -1630,7 +1598,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression RHS = multiplicationExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1653,7 +1621,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression RHS = additiveExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1684,7 +1652,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression RHS = shiftExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1711,7 +1679,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression RHS = relationalExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1734,7 +1702,7 @@ args : '(' formal_params? ')' ;
             }
 
             Expression RHS = instanceofExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binaryOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binaryOp);
         }
 
         return LHS;
@@ -1749,7 +1717,7 @@ args : '(' formal_params? ')' ;
             match(TokenType.BAND);
 
             Expression RHS = equalityExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1764,7 +1732,7 @@ args : '(' formal_params? ')' ;
             match(TokenType.XOR);
 
             Expression RHS = andExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1779,7 +1747,7 @@ args : '(' formal_params? ')' ;
             match(TokenType.BOR);
 
             Expression RHS = exclusiveOrExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1794,7 +1762,7 @@ args : '(' formal_params? ')' ;
             match(TokenType.AND);
 
             Expression RHS = inclusiveOrExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
@@ -1809,27 +1777,27 @@ args : '(' formal_params? ')' ;
             match(TokenType.OR);
 
             Expression RHS = logicalAndExpression();
-            LHS = new BinaryExpr(metadata(),LHS,RHS,binOp);
+            LHS = new BinaryExpr(exprMetadata(),LHS,RHS,binOp);
         }
 
         return LHS;
     }
 
     // expression ::= logical_or_expression
-    private Expression expression() { return logicalOrExpression(); }
+    private Expression expression() {
+        mark(); // TODO: DO NOT REMOVE
+        return logicalOrExpression();
+    }
 
     // constant ::= object_constant | array_constant | list_constant | scalar_constant ;
     private Expression constant() {
         mark();
-        Expression constant = switch(currentLA().getTokenType()) {
+        return switch(currentLA().getTokenType()) {
             case NEW -> objectConstant();
             case ARRAY -> arrayConstant();
             case LIST -> listConstant();
             default -> scalarConstant();
         };
-
-        release();
-        return constant;
     }
 
     // object_constant ::= 'new' Name (type_params)? '(' object_field (',' object_field)* ')' ;
@@ -1843,15 +1811,13 @@ args : '(' formal_params? ')' ;
             typeArgs = typeParams();
 
         match(TokenType.LPAREN);
-        mark();
-        Vector<Var> fields = new Vector<>(objectField());
-        release();
+        Vector<Var> fields = new Vector<>();
+        if(!nextLA(TokenType.RPAREN))
+            fields = new Vector<>(objectField());
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
-            mark();
             fields.add(objectField());
-            release();
         }
 
         match(TokenType.RPAREN);
@@ -1860,11 +1826,12 @@ args : '(' formal_params? ')' ;
 
     // object_field ::= Name '=' expression ;
     private Var objectField() {
+        save();
         Name name = new Name(currentLA());
         match(TokenType.ID);
         match(TokenType.EQ);
         Expression init = expression();
-        return new Var(metadata(),name,init);
+        return new Var(release(),name,init);
     }
 
     // array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')' ;
@@ -1881,7 +1848,7 @@ args : '(' formal_params? ')' ;
         match(TokenType.LPAREN);
         Vector<Expression> args = arguments();
         match(TokenType.RPAREN);
-        return new ArrayLiteral(metadata(),dims,args);
+        return new ArrayLiteral(release(),dims,args);
     }
 
     // list_constant ::= 'List' '(' (expression (',' expression)*)? ')' ;
@@ -1900,18 +1867,18 @@ args : '(' formal_params? ')' ;
         }
 
         match(TokenType.RPAREN);
-        return new ListLiteral(metadata(),inits);
+        return new ListLiteral(release(),inits);
     }
 
     // scalar_constant ::= discrete_constant | String_literal | Real_literal
     private Literal scalarConstant() {
         if(nextLA(TokenType.STR_LIT)) {
             match(TokenType.STR_LIT);
-            return new Literal(metadata(),ConstantType.STR);
+            return new Literal(test(),ConstantType.STR);
         }
         else if(nextLA(TokenType.REAL_LIT)) {
             match(TokenType.REAL_LIT);
-            return new Literal(metadata(),ConstantType.REAL);
+            return new Literal(test(),ConstantType.REAL);
         }
         else
             return discreteConstant();
@@ -1921,15 +1888,15 @@ args : '(' formal_params? ')' ;
     private Literal discreteConstant() {
         if(nextLA(TokenType.INT_LIT)) {
             match(TokenType.INT_LIT);
-            return new Literal(metadata(),ConstantType.INT);
+            return new Literal(test(),ConstantType.INT);
         }
         else if(nextLA(TokenType.BOOL_LIT)) {
             match(TokenType.BOOL_LIT);
-            return new Literal(metadata(),ConstantType.BOOL);
+            return new Literal(test(),ConstantType.BOOL);
         }
         else {
             match(TokenType.CHAR_LIT);
-            return new Literal(metadata(),ConstantType.CHAR);
+            return new Literal(test(),ConstantType.CHAR);
         }
     }
 }
