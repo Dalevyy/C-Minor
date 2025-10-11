@@ -177,6 +177,7 @@ public class PEG {
      * @return {@code Int} representing the starting position for parsing a grammar rule.
      */
     private int mark() {
+        System.out.println("Adding " + pos);
         positions.add(pos);
         return pos;
     }
@@ -228,6 +229,7 @@ public class PEG {
     }
 
     private Token test() {
+        positions.print();
         return input.generateMetaData(getStartToken(),lookaheads.get(pos-1)); }
 
     /**
@@ -1346,6 +1348,7 @@ public class PEG {
                              | Constant
      */
     private Expression primaryExpression() {
+        mark();
         switch(currentLA().getTokenType()) {
             case COUT:
                 return outputStatement();
@@ -1784,10 +1787,7 @@ public class PEG {
     }
 
     // expression ::= logical_or_expression
-    private Expression expression() {
-        mark(); // TODO: DO NOT REMOVE
-        return logicalOrExpression();
-    }
+    private Expression expression() { return logicalOrExpression(); }
 
     // constant ::= object_constant | array_constant | list_constant | scalar_constant ;
     private Expression constant() {
