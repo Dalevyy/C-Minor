@@ -144,6 +144,8 @@ statement
     | for_statement
     | choice_statement
     | list_command_statement
+    | input_statement
+    | output_statement
     ;
 
 return_statement : 'return' expression? ;
@@ -177,19 +179,7 @@ range_iterator : Name 'in' expression range_operator expression ;
 
 array_iterator : Name ( 'in' | 'inrev' ) expression ;
 
-range_operator : inclusive
-               | exclusive_right
-               | exclusive_left
-               | exclusive
-               ;
-
-inclusive : '..' ;
-
-exclusive_right : '..<' ;
-
-exclusive_left : '<..' ;
-
-exclusive : '<..<' ;
+range_operator : '..' | '..<' | <..' | '<..<' ;
 
 choice_statement : 'choice' expression '{' case_statement* 'other' block_statement '}' ;
 
@@ -212,8 +202,6 @@ output_statement : 'cout' ('<<' expression)+ ;
 primary_expression : Identifier
                    | Constant
                    | '(' expression ')'
-                   | input_statement
-                   | output_statement
                    | 'break'
                    | 'continue'
                    | 'endl'
