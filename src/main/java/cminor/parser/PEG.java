@@ -15,11 +15,7 @@ import cminor.ast.operators.LoopOp.LoopType;
 import cminor.ast.operators.UnaryOp.UnaryType;
 import cminor.ast.statements.*;
 import cminor.ast.statements.ListStmt.Commands;
-import cminor.ast.topleveldecls.ClassDecl;
-import cminor.ast.topleveldecls.EnumDecl;
-import cminor.ast.topleveldecls.FuncDecl;
-import cminor.ast.topleveldecls.GlobalDecl;
-import cminor.ast.topleveldecls.MainDecl;
+import cminor.ast.topleveldecls.*;
 import cminor.ast.types.*;
 import cminor.ast.types.ScalarType.Scalars;
 import cminor.lexer.Lexer;
@@ -48,9 +44,10 @@ public class PEG {
      */
     private final Vector<Integer> positions;
 
-    private final Vector<Integer> subPositions;
-
-    private final MessageHandler handler; // TODO: How to make this work...
+    /**
+     * Handler responsible for dealing with error messages.
+     */
+    private final MessageHandler handler;
 
     /**
      * The starting position denoting the token we began the parsing for.
@@ -65,7 +62,6 @@ public class PEG {
         this.input = input;
         this.lookaheads = new Vector<>();
         this.positions = new Vector<>();
-        this.subPositions = new Vector<>();
         this.pos = 0;
         this.handler = new MessageHandler();
     }
@@ -77,55 +73,11 @@ public class PEG {
         pos++; // Update the internal starting position
 
         if(pos == lookaheads.size() && !expects()) {
-            pos = 0; // Reset the starting position back to 0
+            pos = 0;            // Reset the starting position back to 0
             lookaheads.clear(); // Clear out the token array to save on memory... Is this needed?
         }
 
         synchronize(1); // Add the token to the vector if it's not there!
-    }
-
-    /**
-     * Retrieves the current lookahead token the parser is at.
-     * @param index The index we want to access the token from (based on the current start position)
-     * @return {@link Token} representing the current lookahead token.
-     */
-    private Token currentLA(int index) {
-        synchronize(index); // Make sure the token is present in the vector
-        return lookaheads.get(pos+index-1); // Retrieve the lookahead based on starting position
-    }
-
-    /**
-     * Retrieves the current lookahead token.
-     * @return {@link Token} representing the current lookahead token.
-     */
-    private Token currentLA() { return currentLA(1); }
-
-    /**
-     * Returns the next available lookahead based on a passed index.
-     * @param index The index (x) we wish to check for a particular token from the start position.
-     * @return {@link TokenType} that appears some x amount of spaces from the start position.
-     */
-    private TokenType nextLA(int index) { return currentLA(index).getTokenType(); }
-
-    private boolean nextLA(TokenType expectedToken) { return currentLA(1).getTokenType() == expectedToken; }
-
-    /**
-     * Checks if the current lookahead matches the expected token we wish to see.
-     * @param expectedToken The {@link TokenType} that is expected in the input.
-     */
-    private void match(TokenType expectedToken) {
-//        System.out.println(lookaheads.size() + ", position = " + pos);
-//        lookaheads.print();
-//        System.out.println();
-        if(nextLA(1) == expectedToken)
-            consume();
-        else
-            handler.createErrorBuilder(SyntaxError.class)
-                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_101)
-                   .addErrorArgs(expectedToken,currentLA().getTokenType())
-                   .asSyntaxErrorBuilder()
-                   .addLocation(currentLA(),input)
-                   .generateError();
     }
 
     /**
@@ -177,20 +129,14 @@ public class PEG {
      * @return {@code Int} representing the starting position for parsing a grammar rule.
      */
     private int mark() {
-        System.out.println("Adding " + pos);
         positions.add(pos);
         return pos;
     }
 
     /**
-     * Adds a metadata position to {@link #subPositions}.
-     * <p>
-     *     This denotes the starting position in {@link #lookaheads} where we want to get
-     *     metadata from. This will be used by subnodes in the {@link AST} to ensure every
-     *     node has the most specific metadata information.
-     * </p>
+     * Removes the last position inserted into {@link #positions}.
      */
-    private void save() { subPositions.add(pos); }
+    private void remove() { positions.removeLast(); }
 
     /**
      * Resets the {@link #pos} if an error occurs while parsing.
@@ -204,49 +150,75 @@ public class PEG {
     private void reset() {
         pos = positions.removeLast();
         while(!positions.isEmpty() && positions.getLast() >= pos)
-            subPositions.removeLast();
+            positions.removeLast();
     }
 
+    /**
+     * Resets the {@link #pos} based on a passed position value. See {@link #reset()}.
+     * @param pos The position we wish to reset {@link #positions} to.
+     */
     private void reset(int pos) {
         this.pos = pos;
         while(!positions.isEmpty() && positions.getLast() >= pos)
             positions.removeLast();
     }
 
-    private Token getStartToken() { return lookaheads.get(positions.removeLast()); }
-
     /**
-     * Generates the metadata associated for a non-{@link cminor.ast.topleveldecls.TopLevelDecl} node.
-     * @return {@link Token} representing the metadata for an {@link AST} node.
+     * Retrieves the current lookahead token.
+     * @return {@link Token} representing the current lookahead token.
      */
-    private Token release() {
-        if(subPositions.isEmpty())
-            throw new RuntimeException("The parser is not able to generate the correct metadata for a sub rule...");
-
-        Token start = lookaheads.get(subPositions.removeLast()); // Gets the starting token for a given grammar rule
-        input.generateMetaData(start,lookaheads.get(pos-1));              // Saves metadata associated with the grammar rule!
-        return start;
+    private Token currentLA() {
+        synchronize(1);        // Make sure the token is present in the vector
+        return lookaheads.get(pos); // Retrieve the lookahead based on starting position
     }
 
-    private Token test() {
-        positions.print();
-        return input.generateMetaData(getStartToken(),lookaheads.get(pos-1)); }
+    /**
+     * Checks if the next lookahead in {@link #lookaheads} matches the passed {@link TokenType}.
+     * @param expected The {@link TokenType} we are expecting to see next.
+     * @return {@code True} if the next lookahead matches what we are expecting, {@code False} otherwise.
+     */
+    private boolean nextLA(TokenType expected) { return currentLA().getTokenType() == expected; }
+
+    /**
+     * Checks if the current lookahead matches the expected token we wish to see.
+     * @param expectedToken The {@link TokenType} that is expected in the input.
+     */
+    private void match(TokenType expectedToken) {
+        if(!nextLA(expectedToken)) {
+            handler.createErrorBuilder(SyntaxError.class)
+                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_101)
+                   .addErrorArgs(expectedToken,currentLA().getTokenType())
+                   .asSyntaxErrorBuilder()
+                   .addLocation(currentLA(),input)
+                   .generateError();
+        }
+
+        consume();
+    }
+
+    /**
+     * Returns the starting token that denotes an AST node.
+     * @return {@link Token}
+     */
+    private Token getStartToken() { return lookaheads.get(positions.removeLast()); }
 
     /**
      * Generates the metadata associated with a given {@link AST} node.
      * @return {@link Token} representing the metadata for an {@link AST} node.
      */
-    private Token metadata() {
-        Token start = lookaheads.get(positions.removeLast()); // Gets the starting token for a given grammar rule
-        input.generateMetaData(start,lookaheads.get(pos-1));        // Saves metadata associated with the grammar rule!
-        return start;
-    }
+    private Token metadata() {return input.generateMetaData(getStartToken(),lookaheads.get(pos-1)); }
 
-    //TODO: hmm
+    /**
+     * Generates the metadata associated with a given {@link Expression} node.
+     * <p>
+     *     Unlike {@link #metadata()}, this method will not return tokens from {@link #positions}. We do
+     *     this to avoid removing the starting token for long complex expressions since we will need it
+     *     for multiple {@link AST} nodes!
+     * </p>
+     * @return {@link Token} representing the metadata for an {@link Expression} node.
+     */
     private Token exprMetadata() {
-        Token start = lookaheads.get(positions.getLast()); // Gets the starting token for a given grammar rule
-        input.generateMetaData(start,lookaheads.get(pos-1));        // Saves metadata associated with the grammar rule!
-        return start;
+        return input.generateMetaData(lookaheads.get(positions.getLast()),lookaheads.get(pos-1));
     }
 
     /**
@@ -330,7 +302,7 @@ public class PEG {
         }
 
         match(TokenType.RBRACE);
-        return new EnumDecl(test(),name,constants);
+        return new EnumDecl(metadata(),name,constants);
     }
 
     // enum_field ::= Name ('=' constant)? ;
@@ -344,7 +316,7 @@ public class PEG {
             match(TokenType.EQ);
             expr = constant();
         }
-        return new Var(test(),name,expr);
+        return new Var(metadata(),name,expr);
     }
 
     // global_variable ::= 'def' ('const' | 'global') variable_decl ;
@@ -363,7 +335,7 @@ public class PEG {
 
         Vector<Var> vars = variableDecl();
         Vector<AST> globals = new Vector<>();
-        Token metadata = test(); // Use the same metadata for multiple global declarations in a single line!
+        Token metadata = metadata(); // Use the same metadata for multiple global declarations in a single line!
         for(Var var : vars)
             globals.add(new GlobalDecl(metadata,var,constant));
 
@@ -401,7 +373,7 @@ public class PEG {
                 init = expression();
         }
 
-        return new Var(test(),name,init,type);
+        return new Var(metadata(),name,init,type);
     }
 
     // type ::= scalar_type | class_name | 'List' '[' type ']' | 'Array' '[' type ']' ;
@@ -418,10 +390,10 @@ public class PEG {
 
                 if(baseType.isList()) {
                     baseType.asList().dims += 1;
-                    baseType.copyMetaData(test());
+                    baseType.copyMetaData(metadata());
                     return baseType;
                 }
-                return new ListType(test(),baseType,1);
+                return new ListType(metadata(),baseType,1);
             }
             case ARRAY: {
                 match(TokenType.ARRAY);
@@ -431,10 +403,10 @@ public class PEG {
 
                 if(baseType.isArray()) {
                     baseType.asArray().dims += 1;
-                    baseType.copyMetaData(test());
+                    baseType.copyMetaData(metadata());
                     return baseType;
                 }
-                return new ArrayType(test(),baseType,1);
+                return new ArrayType(metadata(),baseType,1);
             }
             default:
                 return scalarType();
@@ -446,10 +418,10 @@ public class PEG {
         switch(currentLA().getTokenType()) {
             case STRING:
                 match(TokenType.STRING);
-                return new ScalarType(test(),Scalars.STR);
+                return new ScalarType(metadata(),Scalars.STR);
             case REAL:
                 match(TokenType.REAL);
-                return new ScalarType(test(),Scalars.REAL);
+                return new ScalarType(metadata(),Scalars.REAL);
             default:
                 return discreteType();
         }
@@ -460,13 +432,13 @@ public class PEG {
         switch(currentLA().getTokenType()) {
             case BOOL:
                 match(TokenType.BOOL);
-                return new DiscreteType(test(),Scalars.BOOL);
+                return new DiscreteType(metadata(),Scalars.BOOL);
             case INT:
                 match(TokenType.INT);
-                return new DiscreteType(test(),Scalars.INT);
+                return new DiscreteType(metadata(),Scalars.INT);
             default:
                 match(TokenType.CHAR);
-                return new DiscreteType(test(),Scalars.CHAR);
+                return new DiscreteType(metadata(),Scalars.CHAR);
         }
     }
 
@@ -487,7 +459,7 @@ public class PEG {
             match(TokenType.GT);
         }
 
-        return new ClassType(test(),name,types);
+        return new ClassType(metadata(),name,types);
     }
 
     // class_type ::= ( 'abstr' | 'final' )? 'class' ID typefier_params? super_class? class_body ;
@@ -519,7 +491,7 @@ public class PEG {
             superClass = superClass();
 
         ClassBody body = classBody();
-        return new ClassDecl(test(),mod,name,typeParams,superClass,body);
+        return new ClassDecl(metadata(),mod,name,typeParams,superClass,body);
     }
 
     // typeifier_params ::= '<' typeifier ( ',' typeifier )* '>' ;
@@ -557,7 +529,7 @@ public class PEG {
 
         Name name = new Name(currentLA());
         match(TokenType.ID);
-        return new TypeParam(test(),annotation,name);
+        return new TypeParam(metadata(),annotation,name);
     }
 
     // super_class ::= 'inherits' ID type_params? ;
@@ -572,7 +544,7 @@ public class PEG {
         if(nextLA(TokenType.LT))
             types = typeParams();
 
-        return new ClassType(test(),name,types);
+        return new ClassType(metadata(),name,types);
     }
 
     // class_body ::= '{' field_decl* method_decl* '}' ;
@@ -594,7 +566,7 @@ public class PEG {
         while(!nextLA(TokenType.RBRACE))
             methods.add(methodDecl());
         match(TokenType.RBRACE);
-        return new ClassBody(test(),fields,methods);
+        return new ClassBody(metadata(),fields,methods);
     }
 
     // field_decl ::= ('property' | 'protected' | 'public') variable_decl ;
@@ -618,7 +590,7 @@ public class PEG {
         Vector<Var> vars = variableDecl();
         Vector<FieldDecl> fields = new Vector<>();
 
-        Token metadata = test(); // Use the same metadata for multiple field declarations in a single line!
+        Token metadata = metadata(); // Use the same metadata for multiple field declarations in a single line!
         for(Var v : vars)
             fields.add(new FieldDecl(metadata,mod,v));
 
@@ -669,7 +641,7 @@ public class PEG {
         Type returnType = returnType();
         BlockStmt block = blockStatement();
 
-        return new MethodDecl(test(),mod,name,null,params,returnType,block,override);
+        return new MethodDecl(metadata(),mod,name,null,params,returnType,block,override);
     }
 
     // method_modifier ::= 'protected' | 'public' ;
@@ -735,7 +707,7 @@ public class PEG {
         Type paramType = type();
 
         Vector<ParamDecl> params = new Vector<>();
-        params.add(new ParamDecl(test(),mod,name,paramType));
+        params.add(new ParamDecl(metadata(),mod,name,paramType));
 
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
@@ -748,7 +720,7 @@ public class PEG {
             match(TokenType.COLON);
             paramType = type();
 
-            params.add(new ParamDecl(test(),mod,name,paramType));
+            params.add(new ParamDecl(metadata(),mod,name,paramType));
         }
 
         return params;
@@ -806,7 +778,7 @@ public class PEG {
         Type rt = returnType();
         BlockStmt block = blockStatement();
 
-        return new MethodDecl(test(),mod,null,op,pd,rt,block,false);
+        return new MethodDecl(metadata(),mod,null,op,pd,rt,block,false);
     }
 
     // operator_header ::= operator_symbol '(' formal-params? ')' ;
@@ -928,7 +900,7 @@ public class PEG {
         Type returnType = returnType();
         BlockStmt block = blockStatement();
 
-        return new FuncDecl(test(),mod,name,typeParams,params,returnType,block);
+        return new FuncDecl(metadata(),mod,name,typeParams,params,returnType,block);
     }
 
     // function_header ::= ID function_type_params? '(' formal_params? ')' ;
@@ -964,7 +936,7 @@ public class PEG {
 
         Type returnType = returnType();
         BlockStmt block = blockStatement();
-        return new MainDecl(test(),params,returnType,block);
+        return new MainDecl(metadata(),params,returnType,block);
     }
 
     // args ::= '(' formal_params? ')' ;
@@ -999,7 +971,7 @@ public class PEG {
         }
 
         match(TokenType.RBRACE);
-        return new BlockStmt(test(),locals,stmts);
+        return new BlockStmt(metadata(),locals,stmts);
     }
 
     // declaration ::= 'def' 'local'? variable_decl ;
@@ -1010,7 +982,7 @@ public class PEG {
             match(TokenType.LOCAL);
         Vector<Var> vars = variableDecl();
         Vector<AST> locals = new Vector<>();
-        Token metadata = test(); // Use the same metadata for multiple local declarations in a single line!
+        Token metadata = metadata(); // Use the same metadata for multiple local declarations in a single line!
 
         for(Var v : vars)
             locals.add(new LocalDecl(metadata,v));
@@ -1018,7 +990,10 @@ public class PEG {
         return locals;
     }
 
-    // statement ::= 'stop' | return_statement
+    // statement ::= 'stop'
+    //             | input_statement
+    //             | output_statement
+    //             | return_statement
     //             | block_statement
     //             | if_statement
     //             | while_statement
@@ -1028,12 +1003,17 @@ public class PEG {
     //             | input_statement
     //             | output_statement
     //             | list_command_statement
-    //             | expression_statement ;
+    //             | expression_statement
+    //             ;
     private Statement statement() {
         switch(currentLA().getTokenType()) {
             case STOP:
                 match(TokenType.STOP);
-                return new StopStmt(test());
+                return new StopStmt(metadata());
+            case CIN:
+                return inputStatement();
+            case COUT:
+                return outputStatement();
             case RETURN: return returnStatement();
             case LBRACE: return blockStatement();
             case IF: return ifStatement();
@@ -1057,7 +1037,7 @@ public class PEG {
         try { expr = expression(); }
         catch(CompilationMessage msg) { reset(); }
 
-        return new ReturnStmt(test(),expr);
+        return new ReturnStmt(metadata(),expr);
     }
 
     // expression_statement ::= 'set' expression assignment_operator expression
@@ -1069,18 +1049,18 @@ public class PEG {
             Expression LHS = expression();
             AssignOp assignOp = assignmentOperator();
             Expression RHS = expression();
-            return new AssignStmt(test(),LHS,RHS,assignOp);
+            return new AssignStmt(metadata(),LHS,RHS,assignOp);
         }
         else if(nextLA(TokenType.RETYPE)) {
             match(TokenType.RETYPE);
             Expression LHS = expression();
             match(TokenType.EQ);
             NewExpr RHS = objectConstant();
-            return new RetypeStmt(test(),LHS,RHS);
+            return new RetypeStmt(metadata(),LHS,RHS);
         }
         else {
             Expression expr = expression();
-            return new ExprStmt(test(),expr);
+            return new ExprStmt(metadata(),expr);
         }
     }
 
@@ -1129,7 +1109,7 @@ public class PEG {
 
         Vector<IfStmt> elifs = new Vector<>();
         BlockStmt elseBlock = null;
-        while(true) { //TODO: this is problemo
+        while(true) { //TODO: this is problemo why?
             try {
                 mark();
                 elifs.add(elifStatement());
@@ -1144,7 +1124,7 @@ public class PEG {
             }
         }
 
-        return new IfStmt(test(),condition,block,elifs,elseBlock);
+        return new IfStmt(metadata(),condition,block,elifs,elseBlock);
     }
 
     // elif_statement ::= 'else' 'if' expression block_statement ;
@@ -1154,7 +1134,7 @@ public class PEG {
 
         Expression condition = expression();
         BlockStmt block = blockStatement();
-        return new IfStmt(test(),condition,block);
+        return new IfStmt(metadata(),condition,block);
     }
 
     // while_statement ::= 'while' expression block_statement ;
@@ -1162,7 +1142,7 @@ public class PEG {
         match(TokenType.WHILE);
         Expression condition = expression();
         BlockStmt block = blockStatement();
-        return new WhileStmt(test(),condition,block);
+        return new WhileStmt(metadata(),condition,block);
     }
 
     // do_while_statement ::= 'do' block_statement 'while' expression ;
@@ -1171,7 +1151,7 @@ public class PEG {
         BlockStmt block = blockStatement();
         match(TokenType.WHILE);
         Expression condition = expression();
-        return new DoStmt(test(),block,condition);
+        return new DoStmt(metadata(),block,condition);
     }
 
     // for_statement ::= 'for' '(' range_iterator | array_iterator ')' block_statement ;
@@ -1179,9 +1159,9 @@ public class PEG {
         match(TokenType.FOR);
         match(TokenType.LPAREN);
 
-        save();
+        mark();
         Vector<AST> forHeader = rangeIterator();
-        LocalDecl controlVar = new LocalDecl(release(),forHeader.getFirst().asSubNode().asVar());
+        LocalDecl controlVar = new LocalDecl(metadata(),forHeader.getFirst().asSubNode().asVar());
         Expression LHS = forHeader.get(1).asExpression();
         LoopOp loopOp = forHeader.get(2).asOperator().asLoopOp();;
         Expression RHS = forHeader.getLast().asExpression();
@@ -1197,12 +1177,12 @@ public class PEG {
 
         match(TokenType.DEF);
         Name name = new Name(currentLA());
-        save();
+        mark();
         match(TokenType.ID);
         match(TokenType.COLON);
 
         Type type = type();
-        forHeader.add(new Var(release(),name,type));
+        forHeader.add(new Var(metadata(),name,type));
 
         match(TokenType.IN);
         forHeader.add(expression());
@@ -1213,47 +1193,29 @@ public class PEG {
 
     //TODO: Implement once done! --> array_iterator ::= Name ( 'in' | 'inrev' ) expression ;
 
-    //TODO: This !
-    // range_operator ::= inclusive | exclusive_right | exclusive_left | exclusive ;
+    // range_operator ::= '..' | '..<' | <..' | '<..<' ;
     private LoopOp rangeOperator() {
-        save();
-        if(nextLA(TokenType.INC))
-            return inclusive();
-//        if(nextLA(TokenType.INC)) {
-//            if(nextLA())
-//            try { return inclusive(); }
-//            catch(CompilationMessage msg) { return exclusiveRight(); }
-//        }
-//            return inclusive();
-        return null;
-    }
+        mark();
+        if(nextLA(TokenType.INC)) {
+            match(TokenType.INC);
+            if(nextLA(TokenType.LT)) {
+                match(TokenType.LT);
+                // Exclusive Right Case
+                return new LoopOp(metadata(),LoopType.EXCL_R);
+            }
+            // Inclusive Case
+            return new LoopOp(metadata(),LoopType.INCL);
+        }
 
-    // inclusive ::= '..' ;
-    private LoopOp inclusive() {
-        match(TokenType.INC);
-        return new LoopOp(release(),LoopType.INCL);
-    }
-
-    // exclusive_right ::= '..<' ;
-    private LoopOp exclusiveRight() {
-        match(TokenType.INC);
-        match(TokenType.LT);
-        return new LoopOp(release(),LoopType.EXCL_R);
-    }
-
-    // exclusive_left ::= '<..' ;
-    private LoopOp exclusiveLeft() {
         match(TokenType.LT);
         match(TokenType.INC);
-        return new LoopOp(release(),LoopType.EXCL_L);
-    }
-
-    // exclusive ::= '<..<' ;
-    private LoopOp exclusive() {
-        match(TokenType.LT);
-        match(TokenType.INC);
-        match(TokenType.LT);
-        return new LoopOp(release(),LoopType.EXCL);
+        if(nextLA(TokenType.LT)) {
+            match(TokenType.LT);
+            // Exclusive Case
+            return new LoopOp(metadata(),LoopType.EXCL);
+        }
+        // Exclusive Left Case
+        return new LoopOp(metadata(),LoopType.EXCL_L);
     }
 
     // choice_statement ::= 'choice' expression '{' case_statement* 'other' block_statement '}' ;
@@ -1274,28 +1236,28 @@ public class PEG {
 
     // case_statement ::= 'on' label block_statement ;
     private CaseStmt caseStatement() {
-        save();
+        mark();
         match(TokenType.ON);
 
-        save();
+        mark();
         Label label = label();
 
         BlockStmt block = blockStatement();
-        return new CaseStmt(release(),label,block);
+        return new CaseStmt(metadata(),label,block);
     }
 
     // label ::= scalar_constant ('..' scalar_constant)? ;
     private Label label() {
-        save();
+        mark();
         Literal LHS = scalarConstant(), RHS = null;
 
         if(nextLA(TokenType.INC)) {
             match(TokenType.INC);
-            save();
+            mark();
             RHS = scalarConstant();
         }
 
-        return new Label(release(),LHS,RHS);
+        return new Label(metadata(),LHS,RHS);
     }
 
     // list_command_statement ::= 'append' '(' arguments? ')'
@@ -1327,7 +1289,6 @@ public class PEG {
         return new InStmt(metadata(),expr);
     }
 
-    // TODO: Back here... :(
     // output_statement ::= 'cout' ('<<' expression)+ ;
     private OutStmt outputStatement() {
         match(TokenType.COUT);
@@ -1336,24 +1297,9 @@ public class PEG {
         return new OutStmt(metadata(),expr);
     }
 
-    /*
-        primary_expression ::= output_statement
-                             | input_statement
-                             | 'break'
-                             | 'continue'
-                             | 'endl'
-                             | 'parent'
-                             | '(' expression ')'
-                             | Identifier
-                             | Constant
-     */
+    // primary_expression ::= 'break' | 'continue' | 'endl' | 'parent' | '(' expression ')' | Identifier | Constant
     private Expression primaryExpression() {
-        mark();
         switch(currentLA().getTokenType()) {
-            case COUT:
-                return outputStatement();
-            case CIN:
-                return inputStatement();
             case BREAK:
                 BreakStmt bs = new BreakStmt(currentLA());
                 match(TokenType.BREAK);
@@ -1374,7 +1320,6 @@ public class PEG {
                 match(TokenType.LPAREN);
                 Expression expr = expression();
                 match(TokenType.RPAREN);
-                positions.removeLast();
                 return expr;
             case ID:
                 NameExpr ne = new NameExpr(currentLA(),new Name(currentLA()));
@@ -1414,10 +1359,7 @@ public class PEG {
                      */
                     if(nextLA(TokenType.LT)) {
                         int pos = mark();
-                        try {
-                            typeArgs = typeParams();
-                            release();
-                        }
+                        try { typeArgs = typeParams(); }
                         catch(CompilationMessage msg) {
                             reset(pos);
                             return primary;
@@ -1455,7 +1397,6 @@ public class PEG {
             return new Vector<>();
 
         Vector<Expression> args = new Vector<>(expression());
-
         while(nextLA(TokenType.COMMA)) {
             match(TokenType.COMMA);
             args.add(expression());
@@ -1519,14 +1460,17 @@ public class PEG {
 
     // cast_expression ::= scalar_type '(' cast_expression ')' | unary_expression ;
     private Expression castExpression() {
-        if(nextLA(TokenType.REAL) || nextLA(TokenType.STRING)
-                || nextLA(TokenType.INT) || nextLA(TokenType.CHAR) || nextLA(TokenType.BOOL)) {
-            save();
+        if(nextLA(TokenType.REAL) || nextLA(TokenType.STRING) || nextLA(TokenType.INT)
+                                  || nextLA(TokenType.CHAR) || nextLA(TokenType.BOOL)) {
+            mark();
             Type castType = scalarType();
             match(TokenType.LPAREN);
+
+            mark();
             Expression castExpr = castExpression();
+
             match(TokenType.RPAREN);
-            return new CastExpr(exprMetadata(),castType,castExpr);
+            return new CastExpr(metadata(),castType,castExpr);
         }
 
         return unaryExpression();
@@ -1787,7 +1731,12 @@ public class PEG {
     }
 
     // expression ::= logical_or_expression
-    private Expression expression() { return logicalOrExpression(); }
+    private Expression expression() {
+        mark();
+        Expression expr = logicalOrExpression();
+        remove();
+        return expr;
+    }
 
     // constant ::= object_constant | array_constant | list_constant | scalar_constant ;
     private Expression constant() {
@@ -1826,12 +1775,12 @@ public class PEG {
 
     // object_field ::= Name '=' expression ;
     private Var objectField() {
-        save();
+        mark();
         Name name = new Name(currentLA());
         match(TokenType.ID);
         match(TokenType.EQ);
         Expression init = expression();
-        return new Var(release(),name,init);
+        return new Var(metadata(),name,init);
     }
 
     // array_constant ::= 'Array' ( '[' expression ']' )* '(' arguments ')' ;
@@ -1848,7 +1797,7 @@ public class PEG {
         match(TokenType.LPAREN);
         Vector<Expression> args = arguments();
         match(TokenType.RPAREN);
-        return new ArrayLiteral(release(),dims,args);
+        return new ArrayLiteral(metadata(),dims,args);
     }
 
     // list_constant ::= 'List' '(' (expression (',' expression)*)? ')' ;
@@ -1867,18 +1816,18 @@ public class PEG {
         }
 
         match(TokenType.RPAREN);
-        return new ListLiteral(release(),inits);
+        return new ListLiteral(metadata(),inits);
     }
 
     // scalar_constant ::= discrete_constant | String_literal | Real_literal
     private Literal scalarConstant() {
         if(nextLA(TokenType.STR_LIT)) {
             match(TokenType.STR_LIT);
-            return new Literal(test(),ConstantType.STR);
+            return new Literal(metadata(),ConstantType.STR);
         }
         else if(nextLA(TokenType.REAL_LIT)) {
             match(TokenType.REAL_LIT);
-            return new Literal(test(),ConstantType.REAL);
+            return new Literal(metadata(),ConstantType.REAL);
         }
         else
             return discreteConstant();
@@ -1888,15 +1837,15 @@ public class PEG {
     private Literal discreteConstant() {
         if(nextLA(TokenType.INT_LIT)) {
             match(TokenType.INT_LIT);
-            return new Literal(test(),ConstantType.INT);
+            return new Literal(metadata(),ConstantType.INT);
         }
         else if(nextLA(TokenType.BOOL_LIT)) {
             match(TokenType.BOOL_LIT);
-            return new Literal(test(),ConstantType.BOOL);
+            return new Literal(metadata(),ConstantType.BOOL);
         }
         else {
             match(TokenType.CHAR_LIT);
-            return new Literal(test(),ConstantType.CHAR);
+            return new Literal(metadata(),ConstantType.CHAR);
         }
     }
 }
