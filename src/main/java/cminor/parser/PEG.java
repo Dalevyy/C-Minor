@@ -54,6 +54,8 @@ public class PEG {
      */
     private int pos;
 
+    private boolean test = false;
+
     /**
      * Default constructor for {@link PEG}.
      * @param input {@link Lexer} object to store into {@link #input}.
@@ -315,8 +317,9 @@ public class PEG {
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
             expr = constant();
+            return new Var(metadata(),name,expr);
         }
-        return new Var(metadata(),name,expr);
+        return new Var(metadata(),name);
     }
 
     // global_variable ::= 'def' ('const' | 'global') variable_decl ;
@@ -371,9 +374,10 @@ public class PEG {
                 match(TokenType.UNINIT);
             else
                 init = expression();
+            return new Var(metadata(),name,init,type);
         }
 
-        return new Var(metadata(),name,init,type);
+        return new Var(metadata(),name,type);
     }
 
     // type ::= scalar_type | class_name | 'List' '[' type ']' | 'Array' '[' type ']' ;
@@ -1055,6 +1059,8 @@ public class PEG {
             match(TokenType.RETYPE);
             Expression LHS = expression();
             match(TokenType.EQ);
+
+            mark();
             NewExpr RHS = objectConstant();
             return new RetypeStmt(metadata(),LHS,RHS);
         }
@@ -1163,7 +1169,7 @@ public class PEG {
         Vector<AST> forHeader = rangeIterator();
         LocalDecl controlVar = new LocalDecl(metadata(),forHeader.getFirst().asSubNode().asVar());
         Expression LHS = forHeader.get(1).asExpression();
-        LoopOp loopOp = forHeader.get(2).asOperator().asLoopOp();;
+        LoopOp loopOp = forHeader.get(2).asOperator().asLoopOp();
         Expression RHS = forHeader.getLast().asExpression();
         match(TokenType.RPAREN);
 
@@ -1285,7 +1291,13 @@ public class PEG {
     private InStmt inputStatement() {
         match(TokenType.CIN);
         match(TokenType.SRIGHT);
+        test = true;
         Vector<Expression> expr = new Vector<>(expression());
+        while(nextLA(TokenType.SRIGHT)) {
+            match(TokenType.SRIGHT);
+            expr.add(expression());
+        }
+        test = false;
         return new InStmt(metadata(),expr);
     }
 
@@ -1293,7 +1305,13 @@ public class PEG {
     private OutStmt outputStatement() {
         match(TokenType.COUT);
         match(TokenType.SLEFT);
+        test = true;
         Vector<Expression> expr = new Vector<>(expression());
+        while(nextLA(TokenType.SLEFT)) {
+            match(TokenType.SLEFT);
+            expr.add(expression());
+        }
+        test = false;
         return new OutStmt(metadata(),expr);
     }
 
@@ -1318,7 +1336,10 @@ public class PEG {
                 return ps;
             case LPAREN:
                 match(TokenType.LPAREN);
+                boolean old = test;
+                test = false;
                 Expression expr = expression();
+                test = old;
                 match(TokenType.RPAREN);
                 return expr;
             case ID:
@@ -1555,7 +1576,7 @@ public class PEG {
     private Expression shiftExpression() {
         Expression LHS = additiveExpression();
 
-        while(nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) {
+        while((nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) && !test) {
             BinaryOp binOp;
             switch(currentLA().getTokenType()) {
                 case SLEFT:
@@ -1821,6 +1842,18 @@ public class PEG {
 
     // scalar_constant ::= discrete_constant | String_literal | Real_literal
     private Literal scalarConstant() {
+        //TODO: This is a test !!!
+        if(nextLA(TokenType.MINUS)) {
+            match(TokenType.MINUS);
+            if(nextLA(TokenType.REAL_LIT)) {
+                match(TokenType.REAL_LIT);
+                return new Literal(metadata(),ConstantType.REAL);
+            }
+            match(TokenType.INT_LIT);
+            return new Literal(metadata(),ConstantType.INT);
+        }
+
+
         if(nextLA(TokenType.STR_LIT)) {
             match(TokenType.STR_LIT);
             return new Literal(metadata(),ConstantType.STR);
