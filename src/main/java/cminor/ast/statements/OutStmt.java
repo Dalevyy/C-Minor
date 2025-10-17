@@ -1,6 +1,7 @@
-package cminor.ast.expressions;
+package cminor.ast.statements;
 
 import cminor.ast.AST;
+import cminor.ast.expressions.Expression;
 import cminor.token.Token;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
@@ -8,18 +9,18 @@ import cminor.utilities.Visitor;
 
 /**
  * An {@link AST} node class representing an output statement.
- * <p><br>
+ * <p>
  *     C Minor will mimic the output statements found in C++. Thus,
  *     a user must write 'cout << ... ' whenever they wish to print
  *     something to the console.
  * </p>
  * @author Daniel Levy
  */
-public class OutStmt extends Expression {
+public class OutStmt extends Statement {
 
     /**
      * Vector containing all expressions that will be printed out.
-     * <p><br>
+     * <p>
      *     An expression in this context is anything in between either
      *     two {@code <<} operators or an expression that follows a
      *     single {@code <<} operator.

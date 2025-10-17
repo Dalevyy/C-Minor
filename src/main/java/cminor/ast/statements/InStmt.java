@@ -1,23 +1,24 @@
-package cminor.ast.expressions;
+package cminor.ast.statements;
 
 import cminor.ast.AST;
+import cminor.ast.expressions.Expression;
 import cminor.token.Token;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
 /**
  * An {@link AST} node class representing an input statement.
- * <p><br>
+ * <p>
  *     C Minor will mimic the input statements found in C++. Thus,
  *     a user must write 'cin >> ... ' whenever they wish to take
  *     in user input from the console. In this case, the user input
- *     can only be stored in variables of {@link ast.types.ScalarType},
+ *     can only be stored in variables of {@link cminor.ast.types.ScalarType},
  *     and we will have additional semantic checks to make sure the
  *     user wrote their input statements correctly.
  * </p>
  * @author Daniel Levy
  */
-public class InStmt extends Expression {
+public class InStmt extends Statement {
 
     /**
      * Vector that *should* contain all name expressions representing input variables.

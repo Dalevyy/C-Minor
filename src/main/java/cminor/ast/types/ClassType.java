@@ -45,7 +45,7 @@ public class ClassType extends Type {
      * @param className {@link Name} to store into {@link #className}.
      * @param typeArgs {@link Vector} of {@link Type} to store into {@link #typeArgs}.
      */
-    public ClassType(Name className, Vector<Type> typeArgs) { this(null,className,new Vector<>()); }
+    public ClassType(Name className, Vector<Type> typeArgs) { this(null,className,typeArgs); }
 
     /**
      * Main constructor for {@link ClassType}.
