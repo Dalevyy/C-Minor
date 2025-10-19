@@ -95,7 +95,7 @@ public abstract class Message {
         if(suggest == null)
             return "";
 
-        String suggestion = "\nSuggestion:\n" + PrettyPrint.RED + suggest.getMessage() + PrettyPrint.RESET;
+        String suggestion = "\nSuggestion:\n" + PrettyPrint.RED + suggest.getMessage() + PrettyPrint.RESET + "\n";
 
         // Replace every "<argN>" with the actual argument (where N <= len(args))
         if(suggestionArgs != null) {
