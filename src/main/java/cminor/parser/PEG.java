@@ -54,7 +54,10 @@ public class PEG {
      */
     private int pos;
 
-    private boolean test = false;
+    /**
+     * A state flag denoting if the parser is parsing an input or output statement.
+     */
+    private boolean insideIO = false;
 
     /**
      * Default constructor for {@link PEG}.
@@ -229,7 +232,6 @@ public class PEG {
      */
     public Vector<? extends AST> parse() {
         Vector<AST> nodes = new Vector<>();
-        int start = 0;
 
         while(true) {
             switch(currentLA().getTokenType()) {
@@ -241,6 +243,8 @@ public class PEG {
                     break;  //TODO: Add support for imports
                 // Case 3) If a construct begins with the 'def' keyword, there are 4 possible paths the parser can take.
                 case DEF:
+                    int start = 0; // Starting position for a rule!
+
                     // 2.1) Parse an enumeration
                     try {
                         start = mark();
@@ -273,18 +277,13 @@ public class PEG {
                 case CLASS:
                 case ABSTR:
                 case FINAL:
-                    try {
-                        mark();
-                        nodes.add(classType());
-                        break;
-                    }
-                    catch(CompilationMessage msg) { msg.printMessage(); pos += 1; break; }
+                    mark();
+                    nodes.add(classType());
+                    break;
                 // Case 5) Everything else should represent some type of statement!
                 default:
-                    try {
-                        mark();
-                        nodes.add(statement());
-                    }  catch(CompilationMessage msg) { msg.printMessage(); pos += 1; }
+                    mark();
+                    nodes.add(statement());
             }
         }
     }
@@ -318,10 +317,9 @@ public class PEG {
         Name name = new Name(currentLA());
         match(TokenType.ID);
 
-        Expression expr = null;
         if(nextLA(TokenType.EQ)) {
             match(TokenType.EQ);
-            expr = constant();
+            Expression expr = constant();
             return new Var(metadata(),name,expr);
         }
         return new Var(metadata(),name);
@@ -572,9 +570,12 @@ public class PEG {
 
         Vector<MethodDecl> methods = new Vector<>();
         // Try to parse methods until the end of the class is reached!
-        while(!nextLA(TokenType.RBRACE))
-            methods.add(methodDecl());
+        while(!nextLA(TokenType.RBRACE)) {
+            try { methods.add(methodDecl()); }
+            catch(CompilationMessage msg) { break; }
+        }
         match(TokenType.RBRACE);
+
         return new ClassBody(metadata(),fields,methods);
     }
 
@@ -617,13 +618,8 @@ public class PEG {
 
         // Then, try to parse an operator overload. If this fails, then there
         // is for sure an error, so we will print out an error.
-        try {
-            mark();
-            return operatorClass();
-        }
-        catch(CompilationMessage msg) { msg.printMessage(); }
-
-        return null; // Here to stop Java compiler complaining... \(-_-)/
+        mark();
+        return operatorClass();
     }
 
     // method_class ::= method_modifier attribute 'override'? 'method' method_header '=>' return_type block_statement ;
@@ -1120,7 +1116,7 @@ public class PEG {
 
         Vector<IfStmt> elifs = new Vector<>();
         BlockStmt elseBlock = null;
-        while(true) { //TODO: this is problemo why?
+        while(true) {
             try {
                 mark();
                 elifs.add(elifStatement());
@@ -1296,13 +1292,15 @@ public class PEG {
     private InStmt inputStatement() {
         match(TokenType.CIN);
         match(TokenType.SRIGHT);
-        test = true;
+
+        insideIO = true;
         Vector<Expression> expr = new Vector<>(expression());
         while(nextLA(TokenType.SRIGHT)) {
             match(TokenType.SRIGHT);
             expr.add(expression());
         }
-        test = false;
+        insideIO = false;
+
         return new InStmt(metadata(),expr);
     }
 
@@ -1310,13 +1308,15 @@ public class PEG {
     private OutStmt outputStatement() {
         match(TokenType.COUT);
         match(TokenType.SLEFT);
-        test = true;
+
+        insideIO = true;
         Vector<Expression> expr = new Vector<>(expression());
         while(nextLA(TokenType.SLEFT)) {
             match(TokenType.SLEFT);
             expr.add(expression());
         }
-        test = false;
+        insideIO = false;
+
         return new OutStmt(metadata(),expr);
     }
 
@@ -1341,10 +1341,13 @@ public class PEG {
                 return ps;
             case LPAREN:
                 match(TokenType.LPAREN);
-                boolean old = test;
-                test = false;
+
+                // Cleanest way to do this...
+                boolean prevInsideIO = insideIO;
+                insideIO = false;
                 Expression expr = expression();
-                test = old;
+                insideIO = prevInsideIO;
+
                 match(TokenType.RPAREN);
                 return expr;
             case ID:
@@ -1581,7 +1584,7 @@ public class PEG {
     private Expression shiftExpression() {
         Expression LHS = additiveExpression();
 
-        while((nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) && !test) {
+        while((nextLA(TokenType.SLEFT) || nextLA(TokenType.SRIGHT)) && !insideIO) {
             BinaryOp binOp;
             switch(currentLA().getTokenType()) {
                 case SLEFT:
