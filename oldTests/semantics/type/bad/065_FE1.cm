@@ -1,7 +1,0 @@
-
-class A {
-    public x:Real 
-}
-
-def a:Int = 3
-a.x

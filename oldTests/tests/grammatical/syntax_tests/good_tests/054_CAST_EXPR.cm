@@ -1,8 +1,0 @@
-
-def main() => Void {
-    Real(5)
-    Int(a)
-    String('c')
-    Boolean(a)
-    Char(23)
-}

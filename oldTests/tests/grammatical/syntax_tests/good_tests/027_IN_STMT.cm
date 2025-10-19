@@ -1,6 +1,0 @@
-
-def main() => Void {
-    def local num = uninit Init 
-
-    cin >> num 
-}

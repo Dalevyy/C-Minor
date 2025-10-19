@@ -1,4 +1,0 @@
-
-final class templateClass<Int,Int> {}
-
-def main() => Void {}

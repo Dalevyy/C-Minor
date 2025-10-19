@@ -1,5 +1,0 @@
-
-def main() => Void {
-    cin >> a >> b >> c >> d >> e >> f
-    cin >> hi >> hello >> test >> test123
-}

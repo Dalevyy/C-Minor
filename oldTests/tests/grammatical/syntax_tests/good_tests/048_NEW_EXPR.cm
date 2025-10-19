@@ -1,9 +1,0 @@
-
-class MyClass {
-
-}
-
-def main() => Void {
-    def myObj = new MyClass() MyClass 
-    def myObj = new MyClass(firstName='ben',lastName='franklin') MyClass 
-}

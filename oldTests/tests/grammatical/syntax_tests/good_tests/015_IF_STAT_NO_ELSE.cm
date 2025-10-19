@@ -1,8 +1,0 @@
-def main() => Void {
-    def local a = 5 Int 
-    def local b = 10 Int 
-
-    if(a < b) {
-        cout << 'This is a true statement.'
-    }
-}

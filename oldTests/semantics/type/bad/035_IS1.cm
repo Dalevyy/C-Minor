@@ -1,5 +1,0 @@
-
-def a:Int = 5
-def b:Int = 6
-
-if(a + b) { }

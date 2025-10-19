@@ -1,6 +1,0 @@
-
-def main() => Void {
-    def lst = Array[2][2](Array(1, 2), Array(3, 4)) Array[Int]
-    lst[0][2]
-    lst[3+2/32][0]
-}
