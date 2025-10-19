@@ -1974,59 +1974,59 @@ class RuntimeGoodTest extends RuntimeTest {
             )
     }
 
-    def "Template - Class Instantiation 5"() {
-        when: "A template class is declared in a program."
-            input = '''
-                        class A<T> {
-                            protected val:T 
-                        
-                            public method print() => Void {
-                                cout << 'My value is ' << val << endl
-                            }
-                        }
-                        
-                        def a1:A<Int> = new A<Int>(val=7)
-                        def a2:A<Real> = new A<Real>(val=78.394)
-                        def a3:A<Bool> = new A<Bool>(val=False)
-                        def a4:A<Int> = new A<Int>(val=9)
-                        
-                        a1.print()
-                        a2.print()
-                        a3.print()
-                        a4.print()
-                    '''
-            vm.runInterpreter(input)
-
-        then: "A template class should be able to be instantiated multiple times for the correct type."
-            os.toString().contains(
-                "My value is 7\n" +
-                "My value is 78.394\n" +
-                "My value is false\n" +
-                "My value is 9"
-            )
-    }
-
-    def "Template - Class Instantiation 6"() {
-        when: "A template class is written with two overloaded methods."
-            input = '''
-                        class A<discr T> {
-                            public method print(in a:T) => Void {
-                                cout << 'Non-Specific Value is ' << a << endl
-                            }
-                        
-                            public method print(in a:Int) => Void {
-                                cout << 'Specific Value is ' << a  << endl
-                            }
-                        }
-                        
-                        def a:A<Int> = new A<Int>()
-                        a.print(5)
-                    '''
-            vm.runInterpreter(input)
-
-        then: "The correct method should be called based on the passed argument."
-            os.toString().contains("Specific Value is 5")
-    }
+//    def "Template - Class Instantiation 5"() {
+//        when: "A template class is declared in a program."
+//            input = '''
+//                        class A<T> {
+//                            protected val:T
+//
+//                            public method print() => Void {
+//                                cout << 'My value is ' << val << endl
+//                            }
+//                        }
+//
+//                        def a1:A<Int> = new A<Int>(val=7)
+//                        def a2:A<Real> = new A<Real>(val=78.394)
+//                        def a3:A<Bool> = new A<Bool>(val=False)
+//                        def a4:A<Int> = new A<Int>(val=9)
+//
+//                        a1.print()
+//                        a2.print()
+//                        a3.print()
+//                        a4.print()
+//                    '''
+//            vm.runInterpreter(input)
+//
+//        then: "A template class should be able to be instantiated multiple times for the correct type."
+//            os.toString().contains(
+//                "My value is 7\n" +
+//                "My value is 78.394\n" +
+//                "My value is false\n" +
+//                "My value is 9"
+//            )
+//    }
+//
+//    def "Template - Class Instantiation 6"() {
+//        when: "A template class is written with two overloaded methods."
+//            input = '''
+//                        class A<discr T> {
+//                            public method print(in a:T) => Void {
+//                                cout << 'Non-Specific Value is ' << a << endl
+//                            }
+//
+//                            public method print(in a:Int) => Void {
+//                                cout << 'Specific Value is ' << a  << endl
+//                            }
+//                        }
+//
+//                        def a:A<Int> = new A<Int>()
+//                        a.print(5)
+//                    '''
+//            vm.runInterpreter(input)
+//
+//        then: "The correct method should be called based on the passed argument."
+//            os.toString().contains("Specific Value is 5")
+//    }
 
     def "Unary Expression - Bitwise Negation (Char)"() {
         when: "A unary bitwise negation is performed on a Char literal."

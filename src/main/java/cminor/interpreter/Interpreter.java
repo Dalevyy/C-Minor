@@ -1003,17 +1003,15 @@ public class Interpreter extends Visitor {
         // Special Case: If we are evaluating a complex field expression, execute this branch
         if(currentValue != null && currentValue.isObject() && ne.inComplexFieldExpr()) {
             // ERROR CHECK #1: This checks if the field exists for the current object.
-//            if(!currentValue.asObject().hasField(ne)) {
-//                handler.createErrorBuilder(RuntimeError.class)
-//                    .addLocation(ne.getFullLocation())
-//                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
-//                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
-//                    .generateError();
-//            }
+            if(!currentValue.asObject().hasField(ne)) { // TODO: BROKEN
+                handler.createErrorBuilder(RuntimeError.class)
+                    .addLocation(ne.getFullLocation())
+                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_606)
+                    .addErrorArgs(ne, currentValue.asObject().getCurrentType())
+                    .generateError();
+            }
             currentValue = currentValue.asObject().getField(ne);
         }
-//        else if(currentValue != null && currentValue.isObject() && ne.inFieldExpr())
-//            currentValue = currentValue.asObject().getField(ne);
         else {
             currentValue = stack.getValue(ne);
             // ERROR CHECK #2: This makes sure any uninitialized objects are not accessed by the user.

@@ -273,13 +273,18 @@ public class PEG {
                 case CLASS:
                 case ABSTR:
                 case FINAL:
-                    mark();
-                    nodes.add(classType());
-                    break;
+                    try {
+                        mark();
+                        nodes.add(classType());
+                        break;
+                    }
+                    catch(CompilationMessage msg) { msg.printMessage(); pos += 1; break; }
                 // Case 5) Everything else should represent some type of statement!
                 default:
-                    mark();
-                    nodes.add(statement());
+                    try {
+                        mark();
+                        nodes.add(statement());
+                    }  catch(CompilationMessage msg) { msg.printMessage(); pos += 1; }
             }
         }
     }

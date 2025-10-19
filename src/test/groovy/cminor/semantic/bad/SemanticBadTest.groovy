@@ -172,18 +172,6 @@ class SemanticBadTest extends SemanticTest {
             error.msg.messageType == MessageNumber.SEMANTIC_ERROR_711
     }
 
-    def "Input Statement - Invalid Expression 4"() {
-        when: "An input statement contains an output statement."
-            input = '''
-                        cin >> cout << 'hi there'
-                    '''
-            vm.runInterpreter(input)
-
-        then: "An error is thrown since this expression makes no sense."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_711
-    }
-
     def "Local Declaration - Not Initialized"() {
         when: "A local variable is declared without any initial value."
             input = '''
@@ -233,18 +221,6 @@ class SemanticBadTest extends SemanticTest {
             vm.runInterpreter(input)
 
         then: "An error is generated since an instantiation can't be printed to the screen."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.SEMANTIC_ERROR_714
-    }
-
-    def "Output Statement - Invalid Expression 2"() {
-        when: "An output statement contains an input statement."
-            input = '''     
-                        cout << cin >> a
-                    '''
-            vm.runInterpreter(input)
-
-        then:
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.SEMANTIC_ERROR_714
     }

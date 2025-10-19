@@ -25,7 +25,6 @@ import cminor.messages.MessageNumber;
 import cminor.messages.errors.ErrorBuilder;
 import cminor.messages.errors.scope.ScopeError;
 import cminor.messages.errors.type.TypeError;
-import cminor.namechecker.NameChecker;
 import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
@@ -960,7 +959,6 @@ public class TypeChecker extends Visitor {
                        .generateError();
             }
         }
-        in.type = new VoidType();
     }
 
     /**
@@ -1348,10 +1346,7 @@ public class TypeChecker extends Visitor {
      * </p>
      * @param os {@link OutStmt}
      */
-    public void visitOutStmt(OutStmt os) {
-        super.visitOutStmt(os);
-        os.type = new VoidType();
-    }
+    public void visitOutStmt(OutStmt os) { super.visitOutStmt(os); }
 
     /**
      * Evaluates the parent keyword's type.

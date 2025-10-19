@@ -98,22 +98,20 @@ public class Lexer {
         String currentLine;
         StringBuilder text = new StringBuilder();
 
-        // Add each line associated with the AST node.
-        for(int i = startLine; i < endLine; i++) {
-            currentLine = lines.get(i); // Get the current line
-            text.append(currentLine);   // Store that line into the text field
-        }
+        currentLine = lines.get(startLine);
+        if(startLine == endLine)
+            text.append(currentLine,startCol,endCol);
+        else {
+            text.append(currentLine,startCol,currentLine.length());
+            // Add each line associated with the AST node.
+            for(int i = startLine+1; i < endLine; i++) {
+                currentLine = lines.get(i); // Get the current line
+                text.append(currentLine);   // Store that line into the text field
+            }
 
-        // For the final line, there is a problem if a user writes two separate statements
-            // Ex. This is legal syntax:
-                //     class A {
-                //         ...
-                //     } class B inherits A {}
-        currentLine = lines.get(endLine);
-        // So first check if we can get the end line based on the given start/end columns
-        try { text.append(currentLine, startCol, endCol+1); }
-        // If the above fails, then we will extract the info based on the ending token's columns.
-        catch(IndexOutOfBoundsException _) { text.append(currentLine, end.getStartPos().column-1, endCol+1); }
+            currentLine = lines.get(endLine);
+            text.append(currentLine,0,endCol);
+        }
 
         metadata.setText(text.toString());
         return metadata;

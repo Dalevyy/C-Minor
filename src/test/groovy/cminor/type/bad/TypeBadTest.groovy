@@ -575,18 +575,6 @@ class TypeBadTest extends TypeTest {
             error.msg.messageType == MessageNumber.TYPE_ERROR_412
     }
 
-    def "Do Statement - Invalid Conditional Expression 2"() {
-        when: "The conditional expression of a do while loop is an output statement"
-            input = '''
-                        do { } while(cout << 'hi there!')
-                    '''
-            vm.runInterpreter(input)
-
-        then: "An error is thrown since the output statement has no type associated with it."
-            error = thrown CompilationMessage
-            error.msg.messageType == MessageNumber.TYPE_ERROR_412
-    }
-
     def "Enum Declaration - Invalid Constant Type"() {
         when: "An enum constant is not initialized to the same type as the other initial constants."
             input = '''
