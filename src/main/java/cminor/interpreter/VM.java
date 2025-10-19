@@ -144,17 +144,15 @@ public class VM {
      * @param program String representation of the user program that will be parsed and analyzed by the compiler.
      */
     private void runInterpreter(String program) {
-        PEG parser = new PEG(new Lexer(program));
-        Vector<? extends AST> nodes = parser.parse();
-
-        for(AST node : nodes) {
-            try { phaseHandler.execute(node); }
-            catch(CompilationMessage msg) {
-                msg.updateGlobalScope(globalUnit.getScope());
-                msg.printMessage();
-            }
+        try {
+            PEG parser = new PEG(new Lexer(program));
+            Vector<? extends AST> nodes = parser.parse();
+            for(AST node : nodes)
+                phaseHandler.execute(node);
+            Interpreter.printLine();
+        } catch(CompilationMessage msg) {
+            msg.updateGlobalScope(globalUnit.getScope());
+            msg.printMessage();
         }
-
-        Interpreter.printLine();
     }
 }
