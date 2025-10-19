@@ -1,4 +1,0 @@
-
-def a:String = 'hey'
-def b:String = 'hi'
-a | b

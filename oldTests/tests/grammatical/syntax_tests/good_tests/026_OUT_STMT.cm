@@ -1,5 +1,0 @@
-
-def main() => Void {
-    cout << 'Hi!\n' 
-         << 'Checking if this works or not :)' << endl
-}

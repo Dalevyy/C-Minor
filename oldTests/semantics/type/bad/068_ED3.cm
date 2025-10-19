@@ -1,2 +1,0 @@
-
-def WEEKS type = {MON=1,TUES=2,WEDS=3,THURS='d',FRI=5}

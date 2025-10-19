@@ -11,7 +11,7 @@ package cminor.utilities;
  */
 public enum PhaseNumber {
 
-   // SYNTAX_ANALYZER,
+    SYNTAX_ANALYZER,
     SEMANTIC_ANALYZER,
     PROPERTY_GENERATOR,
     NAME_CHECKER,

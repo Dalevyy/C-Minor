@@ -19,6 +19,8 @@ import cminor.utilities.SymbolTable;
 import cminor.utilities.Vector;
 import cminor.utilities.Visitor;
 
+// TODO: Multitypes can not be ignored... :(
+
 /**
  * Modifier Checking Pass.
  * <p>
@@ -207,6 +209,13 @@ public class ModifierChecker extends Visitor {
     public void visitFieldExpr(FieldExpr fe) {
         // 1. We first need to get the class where the field/method belongs to.
         ClassDecl cd;
+        /*
+            if(fe.getTargetType().isClass())
+            cd = currentScope.findName(fe.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
+        else // Maybe... the last type we found would technically contain all the fields we could possibly access?
+            cd = currentScope.findName(fe.getTargetType().asMulti().getAllTypes().getLast().getTypeName()).asTopLevelDecl().asClassDecl();
+
+         */
         if(fe.getTargetType().isClass())
             cd = currentScope.findName(fe.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
         else {
@@ -311,7 +320,14 @@ public class ModifierChecker extends Visitor {
             // Skip multi-types for now!
             if(in.getTargetType().isMulti())
                 return;
+/*
+       ClassDecl cd;
+        if(fe.getTargetType().isClass())
+            cd = currentScope.findName(fe.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
+        else // Maybe... the last type we found would technically contain all the fields we could possibly access?
+            cd = currentScope.findName(fe.getTargetType().asMulti().getAllTypes().getLast().getTypeName()).asTopLevelDecl().asClassDecl();
 
+ */
             ClassDecl cd = currentScope.findName(in.getTargetType().getTypeName()).asTopLevelDecl().asClassDecl();
             MethodDecl md = cd.getScope().findMethod(in).asClassNode().asMethodDecl();
             if(in.insideMethod()) {

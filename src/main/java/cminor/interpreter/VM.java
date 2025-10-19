@@ -15,7 +15,6 @@ import cminor.utilities.PhaseNumber;
 import cminor.utilities.Vector;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -145,27 +144,15 @@ public class VM {
      * @param program String representation of the user program that will be parsed and analyzed by the compiler.
      */
     private void runInterpreter(String program) {
-        Parser parser = new Parser(new Lexer(program));
-        Vector<? extends AST> nodes;
-
-        // Ugly!!!!! This isn't Python so you can technically write multiple statements on a single line!!!!!!!!!!!!
-        try { nodes = parser.nextNode();
-//            for(AST node : nodes)
-//                System.out.println(node.getLocation());
-        }
-        catch(CompilationMessage msg) {
+        try {
+            PEG parser = new PEG(new Lexer(program));
+            Vector<? extends AST> nodes = parser.parse();
+            for(AST node : nodes)
+                phaseHandler.execute(node);
+            Interpreter.printLine();
+        } catch(CompilationMessage msg) {
+            msg.updateGlobalScope(globalUnit.getScope());
             msg.printMessage();
-            return;
         }
-
-        for(AST node : nodes) {
-            try { phaseHandler.execute(node); }
-            catch(CompilationMessage msg) {
-                msg.updateGlobalScope(globalUnit.getScope());
-                msg.printMessage();
-            }
-        }
-
-        Interpreter.printLine();
     }
 }

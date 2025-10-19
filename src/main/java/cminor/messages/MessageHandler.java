@@ -17,7 +17,7 @@ import cminor.utilities.Vector;
  * <p>
  *     This class primarily serves as a way for us to easily generate and store messages
  *     during the compilation process. There are a series of helper methods that will generate
- *     an appropriate {@link ErrorBuilder} when we are inside of a {@link utilities.Visitor}, and
+ *     an appropriate {@link ErrorBuilder} when we are inside a {@link cminor.utilities.Visitor}, and
  *     every message that is generated will be stored within this class. This allows us to print
  *     multiple messages to the user if there are multiple issues found with their program.
  * </p>
@@ -36,7 +36,7 @@ public class MessageHandler {
     private final Vector<Message> messages;
 
     /**
-     * Flag that will be set by {@link interpreter.VM} when executing the interpreter.
+     * Flag that will be set by {@link cminor.interpreter.VM} when executing the interpreter.
      */
     private static boolean inInterpretationMode = false;
 
@@ -99,7 +99,7 @@ public class MessageHandler {
      *     type of error we need to generate. I'm not sure if it's the most ideal solution, but it seems to
      *     be getting the job done.
      * </p>
-     * @param errorType The {@link messages.errors.Error} class we wish to create a builder for.
+     * @param errorType The {@link cminor.messages.errors.Error} class we wish to create a builder for.
      * @return {@link ErrorBuilder}
      */
     public ErrorBuilder createErrorBuilder(Class<?> errorType) {

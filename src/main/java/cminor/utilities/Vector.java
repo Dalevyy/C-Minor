@@ -74,6 +74,11 @@ public class Vector<T> extends AbstractList<T> implements Iterable<T> {
     @Override
     public int size() { return lst.size(); }
 
+    public void print() {
+        for(T item : lst)
+            System.out.println(item);
+    }
+
     /**
      * An iterator that iterates through a {@link Vector} object.
      * @param <T> The type of the elements stored in a {@link Vector} object.

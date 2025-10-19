@@ -1,8 +1,0 @@
-
-def main() => Void {
-    not True
-    not False 
-
-    ~324
-    ~32.203
-}

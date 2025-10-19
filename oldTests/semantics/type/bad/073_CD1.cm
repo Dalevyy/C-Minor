@@ -1,4 +1,0 @@
-
-class A {}
-
-def a:A<Int> = new A()

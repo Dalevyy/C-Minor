@@ -1,4 +1,0 @@
-
-def a:Bool = True 
-def b:Bool = True 
-a + b

@@ -1,8 +1,0 @@
-/*
-    Type Error 456
-
-    1| def arr:Array[Int] = Array['c'](1,2,3,4)
-    The value 'c' is not a valid dimension size for the array.
-*/
-
-def arr:Array[Int] = Array['c'](1,2,3,4)

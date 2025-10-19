@@ -84,7 +84,7 @@ public class PhaseHandler {
      * @param node The {@link AST} we would like to execute each {@link Visitor} with.
      */
     private void executeUntilFinalPhase(AST node) {
-        for(int i = 0; i <= finalPhase.ordinal(); i++)
+        for(int i = 0; i < finalPhase.ordinal(); i++)
             node.visit(phases.get(i));
     }
 

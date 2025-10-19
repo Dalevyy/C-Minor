@@ -1,6 +1,0 @@
-
-class A {
-    public method print() => Real {
-        return 'hello world'
-    }
-}

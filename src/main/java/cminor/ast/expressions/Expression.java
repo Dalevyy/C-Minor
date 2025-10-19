@@ -1,6 +1,8 @@
 package cminor.ast.expressions;
 
 import cminor.ast.AST;
+import cminor.ast.statements.InStmt;
+import cminor.ast.statements.OutStmt;
 import cminor.ast.types.ClassType;
 import cminor.ast.types.Type;
 import cminor.token.Token;

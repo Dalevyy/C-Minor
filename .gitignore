@@ -17,6 +17,7 @@ out/
 !**/src/test/**/out/
 workspace.xml
 
+
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -40,4 +41,6 @@ bin/
 .vscode/
 
 ### Mac OS ###
-.DS_Store
+.DS_Store!/.idea/dictionaries/dalev.xml
+!/.idea/inspectionProfiles/Project_Default.xml
+!/.idea/inspectionProfiles/Project_Default.xml

@@ -18,21 +18,7 @@ import cminor.ast.operators.LoopOp.LoopType;
 import cminor.ast.operators.Operator;
 import cminor.ast.operators.UnaryOp;
 import cminor.ast.operators.UnaryOp.UnaryType;
-import cminor.ast.statements.AssignStmt;
-import cminor.ast.statements.BlockStmt;
-import cminor.ast.statements.CaseStmt;
-import cminor.ast.statements.ChoiceStmt;
-import cminor.ast.statements.DoStmt;
-import cminor.ast.statements.ExprStmt;
-import cminor.ast.statements.ForStmt;
-import cminor.ast.statements.IfStmt;
-import cminor.ast.statements.ListStmt;
-import cminor.ast.statements.LocalDecl;
-import cminor.ast.statements.ReturnStmt;
-import cminor.ast.statements.RetypeStmt;
-import cminor.ast.statements.Statement;
-import cminor.ast.statements.StopStmt;
-import cminor.ast.statements.WhileStmt;
+import cminor.ast.statements.*;
 import cminor.ast.topleveldecls.ClassDecl;
 import cminor.ast.topleveldecls.EnumDecl;
 import cminor.ast.topleveldecls.FuncDecl;
@@ -51,7 +37,6 @@ import cminor.lexer.Lexer;
 import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
-import cminor.messages.errors.scope.ScopeError;
 import cminor.messages.errors.syntax.SyntaxError;
 import cminor.micropasses.ImportHandler;
 import cminor.token.Token;
@@ -1700,8 +1685,8 @@ public class Parser {
 
             return e;
         }
-        else if(nextLA(TokenType.CIN)) { return inputStatement(); }
-        else if(nextLA(TokenType.COUT)) { return outputStatement(); }
+       // else if(nextLA(TokenType.CIN)) { return inputStatement(); }
+      //  else if(nextLA(TokenType.COUT)) { return outputStatement(); }
         else if(inConstantFIRST()) { return constant(); }
 
         tokenStack.add(currentLA());

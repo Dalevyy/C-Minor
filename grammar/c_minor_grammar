@@ -5,12 +5,12 @@
 // Program
 // -------
 
-compilation : import_stmt* enum_type* global_variable* class_type* function* main ;
+compilation : import_stmt* enum_type* global_variable* class_type* function* main_function ;
 
 // Imports
 // -------
 
-import_stmt : '#include' String_literal
+import_stmt : '#include' String_literal ;
 
 // Enumeration
 // -----------
@@ -65,7 +65,7 @@ class_body : '{' data_decl* method_decl* '}' ;
 // Field declaration
 // -----------------
 
-data_decl : ('property' | 'protected' | 'public') variable_decl ;
+field_decl : ('property' | 'protected' | 'public') variable_decl ;
 
 // Method declaration
 // ------------------
@@ -86,9 +86,7 @@ param_modifier : 'in' | 'out' | 'inout' | 'ref' ;
 
 return_type : 'Void' | type ;
 
-operator_class : operator_modifier 'final'? 'operator' operator_header '=>' return_type block_statement ;
-
-operator_modifier : 'protected' | 'public' ;
+operator_class : method_modifier 'final'? 'operator' operator_header '=>' return_type block_statement ;
 
 operator_header : operator_symbol '(' formal_params? ')' ;
 
@@ -124,7 +122,7 @@ function_header : Name typefier_params? '(' formal_params? ')' ;
 // Main function
 // -------------
 
-main : 'def' 'main' args? '=>' return_type block_statement ;
+main_function : 'def' 'main' args '=>' return_type block_statement ;
 
 args : '(' formal_params? ')' ;
 
@@ -146,6 +144,8 @@ statement
     | for_statement
     | choice_statement
     | list_command_statement
+    | input_statement
+    | output_statement
     ;
 
 return_statement : 'return' expression? ;
@@ -153,7 +153,7 @@ return_statement : 'return' expression? ;
 expression_statement
     : 'set' expression assignment_operator '=' expression
     | 'retype' expression '=' object_constant
-    |  logical_or_expression
+    |  expression
     ;
 
 assignment_operator : '='
@@ -179,19 +179,7 @@ range_iterator : Name 'in' expression range_operator expression ;
 
 array_iterator : Name ( 'in' | 'inrev' ) expression ;
 
-range_operator : inclusive
-               | exclusive_right
-               | exclusive_left
-               | exclusive
-               ;
-
-inclusive : '..' ;
-
-exclusive_right : '..<' ;
-
-exclusive_left : '<..' ;
-
-exclusive : '<..<' ;
+range_operator : '..' | '..<' | <..' | '<..<' ;
 
 choice_statement : 'choice' expression '{' case_statement* 'other' block_statement '}' ;
 
@@ -214,8 +202,6 @@ output_statement : 'cout' ('<<' expression)+ ;
 primary_expression : Identifier
                    | Constant
                    | '(' expression ')'
-                   | input_statement
-                   | output_statement
                    | 'break'
                    | 'continue'
                    | 'endl'
@@ -224,12 +210,12 @@ primary_expression : Identifier
 
 postfix_expression: primary_expression ( '[' expression ']'
                                        | (type_params)? '(' arguments? ')'
-                                       | ('.' | '?.') expression
+                                       | ('.' | '?.') postfix_expression
                                        )* ;
 
 arguments : expression (',' expression)* ;
 
-type_params : '@' type ( ',' type )* '@'
+type_params : '<' type ( ',' type )* '>'
 
 factor_expression : postfix_expression
                   | 'length' '(' arguments? ')'
@@ -301,9 +287,9 @@ logical_or_expression
 
 constant : object_constant | array_constant | list_constant | scalar_constant ;
 
-object_constant : 'new' Name (type_params)? '(' object_field (',' object_field)* ')' ;
+object_constant : 'new' Name (type_params)? '(' object_field? ')' ;
 
-object_field : Name '=' expression ;
+object_field : Name '=' expression (',' Name '=' expression)* ;
 
 array_constant : 'Array' ( '[' expression ']' )* '(' arguments ')' ; // for 2d Array[2][2](Array(1, 2), Array(3, 4))
 
