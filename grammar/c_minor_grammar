@@ -296,13 +296,13 @@ array_constant : 'Array' ( '[' expression ']' )* '(' arguments ')' ; // for 2d A
 list_constant : 'List' '(' (expression (',' expression)*)? ')' ;
 
 scalar_constant : discrete_constant 
-                | String_literal 
+                | STR_LITERAL
                 | Real_literal 
                 ;
 
-discrete_constant : Int_literal 
+discrete_constant : INT_LITERAL
                   | Bool_literal 
-                  | Char_literal    
+                  | CHAR_LITERAL
                   ;
 
 // REGEX
@@ -319,14 +319,16 @@ Identifier_part : Identifier_start
                 | '0'..'9' 
                 ;
 
-Int_literal : ('0'..'9')+ ;
+INT_LITERAL : ('0'..'9')+ ;
 
 Real_literal : Int_literal+ '.' Int_literal* 
              | '.' Int_literal+ ;
 
-String_literal : '\'' .*? '\'' 
-               | '\'\'\'' .*? '\'\'\'' 
-               ;
+CHAR_LITERAL ::= '\' . \'' ;
+
+STR_LITERAL ::= '\" .*? \"'
+              | '\"\"\" .*? \"\"\"'
+              ;
 
 Bool_literal : 'True' 
              | 'False' 
