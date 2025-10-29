@@ -80,12 +80,22 @@ public class Lexer {
 
     public String getText() { return lines.getLast(); }
 
+    /**
+     * Generates the metadata for an {@link cminor.ast.AST} node.
+     * <p>
+     *     This method is called by the {@link cminor.parser.Parser} whenever a new
+     *     {@link cminor.ast.AST} node is created.
+     * </p>
+     * @param start The {@link Token} that contains the metadata starting location.
+     * @param end The {@link Token} that contains the metadata ending location.
+     * @return A {@link Token} that contains the metadata info for an {@link cminor.ast.AST} node.
+     */
     public Token generateMetaData(Token start, Token end) {
         // If the tokens are the exact same, then we already have the metadata, so let's reuse one of them! :)
         if(start.equals(end))
             return start;
 
-        // Copy the starting/ending positions for the program construct.
+        // Copy the positions where the metadata starts and ends.
         Token metadata = new Token();
         metadata.setStartLocation(start.getStartPos().copy());
         metadata.setEndLocation(end.getEndPos().copy());
@@ -152,13 +162,21 @@ public class Lexer {
 
     /** Updates the lookahead character and program text every time there is a valid match.*/
     private void consume() {
-        currText += file.charAt(currPos);
+        try { currText += file.charAt(currPos); }
+        // ERROR CHECK #1: If we are not able to get anymore text, then we have a general tokenizer error!
+        catch(Exception _) {
+            handler.createErrorBuilder(SyntaxError.class)
+                    .addErrorNumber(MessageNumber.SYNTAX_ERROR_106)
+                    .asSyntaxErrorBuilder()
+                    .addLocation(currLoc.start.line + "| " + currText)
+                    .generateError();
+        }
 
         try {
             lines.get(currLoc.end.line-1);
             lines.set(currLoc.end.line-1,currText);
         }
-        catch(Exception e) { lines.add(currLoc.end.line-1,currText); }
+        catch(Exception _) { lines.add(currLoc.end.line-1,currText); }
 
         currPos += 1;
         currLoc.addCol();
@@ -182,6 +200,8 @@ public class Lexer {
         consume();
         return true;
     }
+
+    private boolean nextLA(char expected) { return lookChar == expected; }
 
     /** Consumes all whitespace characters before continuing to tokenize program.*/
     private void consumeWhitespace() {
@@ -277,55 +297,106 @@ public class Lexer {
                 currText += '\0';
                 break;
             default:
-                System.out.println(PrettyPrint.RED + "Error! Invalid escape sequence written at positions "
-                                                   + currLoc.toString() + ".");
-                System.exit(1);
+                handler.createErrorBuilder(SyntaxError.class)
+                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_103)
+                       .asSyntaxErrorBuilder()
+                       .addLocation("<insert>") //TODO: FIX
+                       .generateError();
         }
+
         update();
         currLoc.removeCol();
     }
 
     /**
      * Tokenizes a character literal.
-     * @return Character token.
+     * @return {@link Token} representing a character literal.
      */
     private Token charLit() {
-        StringBuilder newChar = new StringBuilder();
-        newChar.append('\'');
+        StringBuilder sb = new StringBuilder();
+        match('\'');
+        sb.append('\'');
 
-        if(lookChar == '\\')
-            escapeSequence(newChar);
+        // Case 1: Checks if we have an empty string or a text literal
+        if(nextLA('\'')) {
+            match('\'');
+            sb.append('\'');
+
+            if(nextLA('\'')) {
+                match('\'');
+                sb.append('\'');
+                return strLit(sb);
+            }
+
+            // SPECIAL CASE: A '' denotes an empty string, NOT an empty character!
+            return new Token(TokenType.STR_LIT,sb.toString(),currLoc.copy());
+        }
+        // Case 2: Checks for escape sequences
+        else if(nextLA('\\'))
+            escapeSequence(sb);
+        // Case 3: Appends anything else to the character
         else {
-            newChar.append(lookChar);
+            sb.append(lookChar);
             consume();
         }
 
-        if(!match('\'')) { return strLit(newChar); }
+        // If we don't have an ending quote, the character should now be treated as a string!
+        if(!match('\''))
+            return strLit(sb);
 
-        newChar.append('\'');
-        return new Token(TokenType.CHAR_LIT, newChar.toString(), currLoc.copy());
+        sb.append('\'');
+        return new Token(TokenType.CHAR_LIT, sb.toString(), currLoc.copy());
     }
 
     /**
      * Tokenizes a string literal.
-     * @param newStr Current String literal we are tokenizing
-     * @return String or Text token.
+     * <p>
+     *     A string literal is a string inside {@code ".*?"} or {@code """.*?"""}
+     * </p>
+     * @param str {@link StringBuilder} responsible for creating the string literal.
+     * @return {@link Token} representing a string literal.
      */
-    private Token strLit(StringBuilder newStr) {
-        while(!match('\'') && !isEOF()) {
-            if(lookChar == '\\')
-                escapeSequence(newStr);
+    private Token strLit(StringBuilder str) {
+        boolean endFound = false;
+        // Loop continues until a quote is found or EOF is hit!
+        while(!isEOF()) {
+            if(nextLA('\\'))
+                escapeSequence(str);
+            else if(match('\'')) {
+                str.append('\'');
+                endFound = true;
+                break;
+            }
             else {
-                newStr.append(lookChar);
+                str.append(lookChar);
                 consume();
             }
         }
 
-        if(match('\'') && match('\''))
-            return new Token(TokenType.TEXT_LIT, newStr.toString(), currLoc.copy());
+        if(!endFound) {
+            handler.createErrorBuilder(SyntaxError.class)
+                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_105)
+                   .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1000)
+                   .asSyntaxErrorBuilder()
+                   .addLocation(currLoc.start.line + "| " + currText)
+                   .generateError();
+        }
 
-        newStr.append('\'');
-        return new Token(TokenType.STR_LIT, newStr.toString(), currLoc.copy());
+        // By default, all text literals will be treated as strings!
+        if(match('\'')) {
+            str.append('\"');
+            if(!match('\'')) {
+                handler.createErrorBuilder(SyntaxError.class)
+                        .addErrorNumber(MessageNumber.SYNTAX_ERROR_106)
+                        .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1000)
+                        .asSyntaxErrorBuilder()
+                        .addLocation(currLoc.start.line + "| " + currText)
+                        .generateError();
+            }
+            str.append('\'');
+        }
+
+        return new Token(TokenType.STR_LIT, str.toString(), currLoc.copy());
     }
 
     /**
@@ -612,10 +683,7 @@ public class Lexer {
                 case '@':
                     consume();
                     return new Token(TokenType.AT, "@", currLoc.copy());
-                case '\'':
-                    consume();
-                    if(match('\'') && match('\'')) { return strLit(new StringBuilder()); }
-                    return charLit();
+                case '\'': return charLit();
                 case '?':
                     consume();
                     if(match('.')) { return new Token(TokenType.ELVIS, "?.", currLoc.copy()); }
