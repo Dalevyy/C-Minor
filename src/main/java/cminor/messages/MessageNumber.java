@@ -24,6 +24,14 @@ public enum MessageNumber {
     SYNTAX_ERROR_100,
     SYNTAX_ERROR_101,
     SYNTAX_ERROR_102,
+    SYNTAX_ERROR_103,
+    SYNTAX_ERROR_104,
+    SYNTAX_ERROR_105,
+    SYNTAX_ERROR_106,
+    SYNTAX_ERROR_107,
+    SYNTAX_ERROR_108,
+    SYNTAX_ERROR_109,
+    SYNTAX_ERROR_110,
 
     /* ######################################## SCOPE ERRORS ######################################## */
     SCOPE_ERROR_300,
@@ -197,6 +205,12 @@ public enum MessageNumber {
     SEMANTIC_ERROR_719,
     SEMANTIC_ERROR_720,
 
+    /* ######################################## SYNTAX SUGGESTIONS ####################################### */
+    SYNTAX_SUGGEST_1000,
+    SYNTAX_SUGGEST_1001,
+    SYNTAX_SUGGEST_1002,
+    SYNTAX_SUGGEST_1003,
+    SYNTAX_SUGGEST_1004,
 
     /* ######################################## SCOPE SUGGESTIONS ######################################## */
     SCOPE_SUGGEST_1300,

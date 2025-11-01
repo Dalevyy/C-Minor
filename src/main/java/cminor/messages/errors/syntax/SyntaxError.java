@@ -26,8 +26,14 @@ public class SyntaxError extends Error {
 
     @Override
     public void createMessage(String fileName) {
-        msg = buildMessageHeader(fileName) + buildMainMessage() + PrettyPrint.RESET + location + "\n";
+        msg = buildMessageHeader(fileName) + buildMainMessage()
+                                           + PrettyPrint.RESET + location + "\n" + buildSupplementalMessage();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isSyntaxError() { return true; }
 
     /**
      * {@inheritDoc}
