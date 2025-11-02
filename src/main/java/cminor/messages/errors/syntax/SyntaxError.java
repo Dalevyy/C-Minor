@@ -12,6 +12,8 @@ public class SyntaxError extends Error {
 
     protected String location;
 
+    protected boolean parser = true;
+
     /**
      * {@inheritDoc}
      */
@@ -27,8 +29,12 @@ public class SyntaxError extends Error {
     @Override
     public void createMessage(String fileName) {
         msg = buildMessageHeader(fileName) + buildMainMessage()
-                                           + PrettyPrint.RESET + location + "\n" + buildSupplementalMessage();
+                                           + PrettyPrint.RESET + location + buildSupplementalMessage();
     }
+
+    public boolean isLexerError() { return !parser; }
+
+    public void setLexerMode() { parser = false; }
 
     /**
      * {@inheritDoc}
