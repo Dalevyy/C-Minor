@@ -37,7 +37,6 @@ public class SyntaxErrorBuilder extends ErrorBuilder {
      * @return {@link SyntaxErrorBuilder}
      */
     public SyntaxErrorBuilder addLocation(Location loc, String text) {
-        System.out.println(text);
         error.asSyntaxError().location = loc.start.line + "| ";
 
         // We are going to ignore any new lines when a token spans multiple lines.
