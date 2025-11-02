@@ -328,7 +328,7 @@ public class Lexer {
      * @param str {@link StringBuilder} responsible for creating the string literal.
      * @return {@link Token} representing a string literal.
      */
-    private Token strLit(StringBuilder str,boolean textLit) {
+    private Token strLit(StringBuilder str, boolean textLit) {
         // We will infinitely consume until we see the next non-escape sequenced quote!
         while(!match('\'')) {
             // ERROR #1: If we found EOF in this method, then a user forgot an ending quote...

@@ -6,7 +6,6 @@ import cminor.messages.errors.ErrorBuilder;
 import cminor.token.Location;
 import cminor.token.Token;
 import cminor.utilities.PrettyPrint;
-import cminor.utilities.Vector;
 
 /**
  * An {@link ErrorBuilder} that will create a {@link SyntaxError}.
@@ -21,7 +20,7 @@ public class SyntaxErrorBuilder extends ErrorBuilder {
     public SyntaxErrorBuilder(MessageHandler handler) { super(new SyntaxError(),handler); }
 
     public SyntaxErrorBuilder addLocation(Token error, Lexer input) {
-        this.error.asSyntaxError().location = error.getStartPos().line + "| " + input.getText();
+        this.error.asSyntaxError().location = error.getStartPos().line + "| " + input.getLastLine();
         return this;
     }
 
@@ -71,5 +70,3 @@ public class SyntaxErrorBuilder extends ErrorBuilder {
      */
     public SyntaxErrorBuilder asSyntaxErrorBuilder() { return this; }
 }
-
-
