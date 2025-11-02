@@ -4,18 +4,18 @@ import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.syntax.SyntaxError;
 import cminor.token.Location;
-import cminor.token.Position;
 import cminor.token.Token;
 import cminor.token.TokenType;
 import cminor.utilities.Vector;
 
-//TODO: There seems to be an error with '<>' and '<=>' at least in the parser! \(O-o)/
-
 /**
- * This is the {@code Lexer} which is responsible for tokenizing a C
- * Minor program. An instance of the lexer will be contained in the parser,
- * and it will be continually called to generate tokens for the parser until
- * either an error occurs or we have tokenized the EOF symbol.
+ * The first part of the C Minor syntax analysis pass.
+ * <p>
+ *     The {@link Lexer} tokenizes a C Minor program while the parser is running.
+ *     An instance of the lexer will be contained in the parser, and it will be continually
+ *     called to generate tokens for the parser until either an error occurs, or the EOF
+ *     token was generated.
+ * </p>
  * @author Daniel Levy
  */
 public class Lexer {
@@ -35,8 +35,7 @@ public class Lexer {
     /** Current lookahead character we are checking.*/
     private char lookahead;
 
-    /** Current location we are at in {@link Lexer#file}.
-     *  This keeps track of both row and column position.*/
+    /** Current location we are at in {@link Lexer#file}. This keeps track of both row and column position.*/
     private final Location location;
 
     /** Current text that will be stored when a {@code token} is generated.*/
@@ -75,14 +74,13 @@ public class Lexer {
         this.handler = this.fileName.isEmpty() ? new MessageHandler() : new MessageHandler(this.fileName);
     }
 
-    public String getFileName() { return fileName; }
-
-    public String getText() { return lines.getLast(); }
+    /** Retrieves the last line that was saved into the metadata stored in {@link #lines}. */
+    public String getLastLine() { return lines.getLast(); }
 
     /**
      * Generates the metadata for an {@link cminor.ast.AST} node.
      * <p>
-     *     This method is called by the {@link cminor.parser.Parser} whenever a new
+     *     This method is called by the {@link cminor.parser.PEG} whenever a new
      *     {@link cminor.ast.AST} node is created.
      * </p>
      * @param start The {@link Token} that contains the metadata starting location.
@@ -126,86 +124,59 @@ public class Lexer {
         return metadata;
     }
 
-    /**
-     * Sets a token text to be between its starting and ending {@code positions}.
-     * @param tokenForAST This represents the token we are saving into an AST node.
-     */
-    public void setText(Token tokenForAST) {
-        Position start = tokenForAST.getStartPos();
-        Position end = tokenForAST.getEndPos();
-        StringBuilder sb = new StringBuilder();
-
-        start.line--;
-        end.line--;
-        start.column--;
-        end.column--;
-
-        int strSize;
-        int startCol = start.column;
-
-        for(int i = start.line; i <= end.line; i++) {
-            String curr = lines.get(i);
-
-            if(i != end.line) { strSize = curr.length(); }
-            else { strSize = end.column; }
-
-            for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
-            startCol = 0;
-        }
-
-        tokenForAST.setText(sb.toString());
-    }
-
-    /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
-    public String syntaxError(Position start) { return start.line + "| " + lines.get(start.line-1); }
-
     /** Updates the lookahead character and program text every time there is a valid match.*/
     private void consume() {
         try { text += file.charAt(pos); }
         // ERROR CHECK #1: If we are not able to get anymore text, then we have a general tokenizer error!
-        catch(Exception _) {
+        catch(Exception _) { //TODO: There is a reason for this... but I do not know when this error is triggered!
             handler.createErrorBuilder(SyntaxError.class)
-                    .addErrorNumber(MessageNumber.SYNTAX_ERROR_106)
+                    .addErrorNumber(MessageNumber.TEST_100)
                     .asSyntaxErrorBuilder()
-                    .addLocation(location.start.line + "| " + text)
+                    .addLocation(location,getLastLine())
                     .generateError();
         }
 
+        // Updates the metadata buffer... it just works, so I'm not touching it.
         try {
             lines.get(location.end.line-1);
             lines.set(location.end.line-1, text);
-        }
-        catch(Exception _) { lines.add(location.end.line-1, text); }
+        } catch(Exception _) { lines.add(location.end.line-1, text); }
 
-        pos += 1;
-        location.addCol();
-
-        if(pos < file.length()) { lookahead = file.charAt(pos); }
-        else { lookahead = EOF; }
+        update();
     }
 
     /** Updates the lookahead character without updating the program buffer. */
     private void update() {
         pos += 1;
         location.addCol();
-        if(pos < file.length()) { lookahead = file.charAt(pos); }
-        else { lookahead = EOF; }
+        lookahead = (pos < file.length()) ? file.charAt(pos) : EOF;
     }
 
-    /** Checks if the lookahead character matches the expected character we need to see.*/
-    private boolean match(char expectedChar) {
-        if(lookahead != expectedChar)
+    /**
+     * Checks if the next lookahead character matches the expected character and consumes it.
+     * @param expected The character we expect to see next in the {@link #file}.
+     * @return {@code True} if the expected character was consumed, {@code False} otherwise.
+     */
+    private boolean match(char expected) {
+        if(lookahead != expected)
             return false;
+
         consume();
         return true;
     }
 
+    /**
+     * Checks if the next lookahead character matches the expected character.
+     * @param expected The character we expect to see next in the {@link #file}.
+     * @return {@code True} if the expected character is next, {@code False} otherwise.
+     */
     private boolean nextLA(char expected) { return lookahead == expected; }
 
-    /** Consumes all whitespace characters before continuing to tokenize program.*/
+    /** Consumes all whitespace characters before continuing to tokenize program. */
     private void consumeWhitespace() {
-        while(lookahead == ' ' || lookahead == '\t' || lookahead == '\r' || lookahead == '\n') {
-            if(lookahead == ' ' || lookahead == '\t') { consume(); }
+        while(nextLA(' ') || nextLA('\t')  || nextLA('\r')  || nextLA('\n')) {
+            if(nextLA(' ') || nextLA('\t'))
+                consume();
             else {
                 consume();
                 text = "";
@@ -215,14 +186,14 @@ public class Lexer {
         location.resetStart();
     }
 
-    /** Consumes a single line comment that starts with {@code //}.*/
+    /** Consumes a single line comment ({@code //}). */
     private void consumeComment() {
         while(lookahead != '\n' && lookahead != EOF)
             consume();
         consumeWhitespace();
     }
 
-    /** Consumes a multi-line comment that starts with {@code /*}.*/
+    /** Consumes a multi-line comment ({@code /*}). */
     private void consumeMultiLineComment() {
         while(lookahead != EOF) {
             consume();
@@ -233,18 +204,19 @@ public class Lexer {
 
         }
 
+        // ERROR #1: If no ending '*/' was encountered, then no more tokens can be generated!
         handler.createErrorBuilder(SyntaxError.class)
-                .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
-                .generateError();
+               .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
+               .asSyntaxErrorBuilder()
+               .addLocation(location, getLastLine())
+               .generateError();
     }
 
     /** Checks if EOF was reached.*/
     private boolean isEOF() { return pos == file.length(); }
 
     /** Checks if current lookahead character is a letter.*/
-    private boolean isLetter() {
-        return (lookahead >= 'A' && lookahead <= 'Z') || (lookahead >= 'a' && lookahead <= 'z');
-    }
+    private boolean isLetter() { return (lookahead>= 'A' && lookahead <= 'Z') || (lookahead>= 'a' && lookahead<= 'z'); }
 
     /** Checks if current lookahead character is a number.*/
     private boolean isDigit() { return lookahead >= '0' && lookahead <= '9'; }
@@ -325,7 +297,7 @@ public class Lexer {
             if(nextLA('\'')) {
                 match('\'');
                 sb.append('\'');
-                return strLit(sb);
+                return strLit(sb,true);
             }
 
             // SPECIAL CASE: A '' denotes an empty string, NOT an empty character!
@@ -342,7 +314,7 @@ public class Lexer {
 
         // If we don't have an ending quote, the character should now be treated as a string!
         if(!match('\''))
-            return strLit(sb);
+            return strLit(sb,false);
 
         sb.append('\'');
         return new Token(TokenType.CHAR_LIT, sb.toString(), location.copy());
@@ -356,16 +328,16 @@ public class Lexer {
      * @param str {@link StringBuilder} responsible for creating the string literal.
      * @return {@link Token} representing a string literal.
      */
-    private Token strLit(StringBuilder str) {
+    private Token strLit(StringBuilder str,boolean textLit) {
         // We will infinitely consume until we see the next non-escape sequenced quote!
         while(!match('\'')) {
             // ERROR #1: If we found EOF in this method, then a user forgot an ending quote...
             if(isEOF()) {
                 handler.createErrorBuilder(SyntaxError.class)
-                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
+                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_101)
                        .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1000)
                        .asSyntaxErrorBuilder()
-                       .addLocation(location,getText())
+                       .addLocation(location, getLastLine())
                        .setLexerMode()
                        .generateError();
             }
@@ -378,17 +350,17 @@ public class Lexer {
         }
 
         // By default, all text literals will be treated as strings!
-        if(match('\'')) {
-            str.append('\"');
-            if(!match('\'')) {
+        if(textLit) {
+            if(!(match('\'') && match('\''))) {
                 handler.createErrorBuilder(SyntaxError.class)
-                        .addErrorNumber(MessageNumber.SYNTAX_ERROR_106)
-                        .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1000)
-                        .asSyntaxErrorBuilder()
-                        .addLocation(location.start.line + "| " + text)
-                        .generateError();
+                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_102)
+                       .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1001)
+                       .asSyntaxErrorBuilder()
+                       .addLocation(location, getLastLine())
+                       .setLexerMode()
+                       .generateError();
             }
-            str.append('\'');
+            str.append("''");
         }
 
         return new Token(TokenType.STR_LIT, str.toString(), location.copy());
@@ -396,55 +368,51 @@ public class Lexer {
 
     /**
      * Tokenizes a real number literal.
-     * @param newReal The real number we are trying to build
-     * @return Real number token.
+     * @param real The real number we are trying to build
+     * @return {@link Token} representing a real number.
      */
-    private Token realLit(StringBuilder newReal) {
+    private Token realLit(StringBuilder real) {
         while(isDigit()) {
-            newReal.append(lookahead);
+            real.append(lookahead);
             consume();
         }
-        return new Token(TokenType.REAL_LIT, newReal.toString(), location.copy());
+        return new Token(TokenType.REAL_LIT, real.toString(), location.copy());
     }
 
     /**
      * Creates an identifier token.
-     * @param newID The identifier we are trying to create.
-     * @return Identifier token.
+     * @param id The identifier we are trying to create.
+     * @return {@link Token} representing an identifier.
      */
-    private Token createID(StringBuilder newID) {
-        while(isDigit() || isLetter() || lookahead == '_') {
-            newID.append(lookahead);
+    private Token createID(StringBuilder id) {
+        while(isDigit() || isLetter() || nextLA('_')) {
+            id.append(lookahead);
             consume();
         }
-        return new Token(TokenType.ID, newID.toString(), location.copy());
+        return new Token(TokenType.ID, id.toString(), location.copy());
     }
 
     /**
      * Tokenizes a name.
-     * @return Identifier or keyword token.
+     * @return {@link Token} representing an identifier or a keyword.
      */
     private Token name() {
-        StringBuilder createStr = new StringBuilder();
+        StringBuilder str = new StringBuilder();
 
-        while(isLetter() || lookahead == '_' || match('#')) {
-            createStr.append(lookahead);
+        while(isLetter() || nextLA('_')) {
+            str.append(lookahead);
             consume();
         }
 
-        if(isDigit()) { return createID(createStr); }
+        if(isDigit())
+            return createID(str);
 
-        String nextStr = createStr.toString();
-
-        if(nextStr.equals("as") && match('?')) {
+        String next = str.toString();
+        if(next.equals("as") && match('?'))
             return new Token(TokenType.AS, "as?", location.copy());
-        }
 
-        return switch(nextStr) {
-            // -----------------------------------------------------------------------------------------------
-            //                                            KEYWORDS
-            // -----------------------------------------------------------------------------------------------
-
+        // Keywords
+        return switch(next) {
             case "abstr" -> new Token(TokenType.ABSTR, "abstr", location.copy());
             case "and" -> new Token(TokenType.AND, "and", location.copy());
             case "Array" -> new Token(TokenType.ARRAY, "Array", location.copy());
@@ -464,6 +432,7 @@ public class Lexer {
             case "else" -> new Token(TokenType.ELSE, "else", location.copy());
             case "endl" -> new Token(TokenType.ENDL, "endl", location.copy());
             case "except" -> new Token(TokenType.EXCEPT, "except", location.copy());
+            case "False" -> new Token(TokenType.BOOL_LIT, "False", location.copy());
             case "final" -> new Token(TokenType.FINAL, "final", location.copy());
             case "for" -> new Token(TokenType.FOR, "for", location.copy());
             case "global" -> new Token(TokenType.GLOBAL, "global", location.copy());
@@ -476,7 +445,6 @@ public class Lexer {
             case "instanceof" -> new Token(TokenType.INSTANCEOF, "instanceof", location.copy());
             case "List" -> new Token(TokenType.LIST, "List", location.copy());
             case "local" -> new Token(TokenType.LOCAL, "local", location.copy());
-            case "loop" -> new Token(TokenType.LOOP, "loop", location.copy());
             case "main" -> new Token(TokenType.MAIN, "main", location.copy());
             case "method" -> new Token(TokenType.METHOD, "method", location.copy());
             case "new" -> new Token(TokenType.NEW, "new", location.copy());
@@ -487,7 +455,6 @@ public class Lexer {
             case "or" -> new Token(TokenType.OR, "or", location.copy());
             case "other" -> new Token(TokenType.OTHER, "other", location.copy());
             case "out" -> new Token(TokenType.OUT, "out", location.copy());
-            case "overload" -> new Token(TokenType.OVERLOAD, "overload", location.copy());
             case "override" -> new Token(TokenType.OVERRIDE, "override", location.copy());
             case "parent" -> new Token(TokenType.PARENT, "parent", location.copy());
             case "property" -> new Token(TokenType.PROPERTY, "property", location.copy());
@@ -502,46 +469,38 @@ public class Lexer {
             case "retype" -> new Token(TokenType.RETYPE, "retype", location.copy());
             case "scalar" -> new Token(TokenType.SCALAR, "scalar", location.copy());
             case "set" -> new Token(TokenType.SET, "set", location.copy());
-            case "slice" -> new Token(TokenType.SLICE, "slice", location.copy());
             case "stop" -> new Token(TokenType.STOP, "stop", location.copy());
             case "String" -> new Token(TokenType.STRING, "String", location.copy());
-            case "then" -> new Token(TokenType.THEN, "then", location.copy());
+            case "True" -> new Token(TokenType.BOOL_LIT, "True", location.copy());
             case "Tuple" -> new Token(TokenType.TUPLE, "Tuple", location.copy());
             case "type" -> new Token(TokenType.TYPE, "type", location.copy());
             case "uninit" -> new Token(TokenType.UNINIT, "uninit", location.copy());
-            case "until" -> new Token(TokenType.UNTIL, "until", location.copy());
             case "Void" -> new Token(TokenType.VOID, "Void", location.copy());
             case "while" -> new Token(TokenType.WHILE, "while", location.copy());
-
-            // -----------------------------------------------------------------------------------------------
-            //                                      BOOLEAN LITERALS
-            // -----------------------------------------------------------------------------------------------
-
-            case "True" -> new Token(TokenType.BOOL_LIT, "True", location.copy());
-            case "False" -> new Token(TokenType.BOOL_LIT, "False", location.copy());
-            default -> createID(createStr);
+            default -> createID(str);
         };
     }
 
     /**
      * Tokenizes a number.
-     * @param newNum The number we are trying to build
-     * @return Integer or real token.
+     * @param num The number we are trying to build
+     * @return {@link Token} representing either an integer or a real number.
      */
-    private Token number(StringBuilder newNum) {
+    private Token number(StringBuilder num) {
         while(isDigit()) {
-            newNum.append(lookahead);
+            num.append(lookahead);
             consume();
         }
 
-        // Only tokenize a real number when we don't have a loop operator
-        // Sorta a hack, but it is what it is... :')
-        if(lookahead == '.' && pos +1 < file.length() && file.charAt(pos +1) != '.') {
-                match('.');
-                newNum.append('.');
-                return realLit(newNum);
+        // Here we are checking if we have a single '.' or the loop operator '..', so we can have the lexer
+        // properly generate real literals. Somewhat of a hack, but it's the most elegant way of resolving IMO.
+        if(nextLA('.') && (pos+1) < file.length() && file.charAt(pos+1) != '.') {
+            match('.');
+            num.append('.');
+            return realLit(num);
         }
-        return new Token(TokenType.INT_LIT, newNum.toString(), location.copy());
+
+        return new Token(TokenType.INT_LIT, num.toString(), location.copy());
     }
 
     /**
@@ -554,7 +513,7 @@ public class Lexer {
      * </p>
      * @return Any token.
      */
-    public Token nextToken() {
+    public Token token() {
         while(lookahead != EOF) {
             switch(lookahead) {
                 case ' ', '\t', '\r', '\n':
@@ -622,12 +581,10 @@ public class Lexer {
                             sb.append(lookahead);
                             consume();
                         }
-                        if(sb.toString().equals("include")) {
+                        if(sb.toString().equals("include"))
                             return new Token(TokenType.INCLUDE, "#include", location.copy());
-                        }
-                        if(sb.toString().equals("exclude")) {
+                        if(sb.toString().equals("exclude"))
                             return new Token(TokenType.EXCLUDE, "#exclude", location.copy());
-                        }
                     }
                     return new Token(TokenType.ERROR, "ERROR", location.copy());
                 case '<':
@@ -636,7 +593,6 @@ public class Lexer {
                         if(match('>')) { return new Token(TokenType.UFO, "<=>", location.copy()); }
                         return new Token(TokenType.LTEQ, "<=", location.copy());
                     }
-                    if(match('>')) { return new Token(TokenType.LTGT, "<>", location.copy()); }
                     if(match(':')) { return new Token(TokenType.MIN, "<:", location.copy()); }
                     if(match('<')) { return new Token(TokenType.SLEFT, "<<", location.copy()); }
                     return new Token(TokenType.LT, "<", location.copy());
@@ -693,10 +649,14 @@ public class Lexer {
                     consume();
                     return new Token(TokenType.XOR, "^", location.copy());
                 default:
-                    if(isLetter() || lookahead == '_') { return name(); }
-                    if(isDigit()) { return number(new StringBuilder()); }
-                    consume();
-                    return new Token(TokenType.ERROR, "ERROR", location.copy());
+                    if(isLetter() || nextLA('_'))
+                        return name();
+                    else if(isDigit())
+                        return number(new StringBuilder());
+                    else {
+                        consume();
+                        return new Token(TokenType.ERROR, "ERROR", location.copy());
+                    }
             }
         }
         return new Token(TokenType.EOF, "EOF", location.copy());

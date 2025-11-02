@@ -39,10 +39,49 @@ import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.syntax.SyntaxError;
 import cminor.micropasses.ImportHandler;
+import cminor.token.Position;
 import cminor.token.Token;
 import cminor.token.TokenType;
 import cminor.utilities.PrettyPrint;
 import cminor.utilities.Vector;
+
+// Lexer Methods
+
+/**
+ * Sets a token text to be between its starting and ending {@code positions}.
+ * @param tokenForAST This represents the token we are saving into an AST node.
+ */
+/*public void setText(Token tokenForAST) {
+    Position start = tokenForAST.getStartPos();
+    Position end = tokenForAST.getEndPos();
+    StringBuilder sb = new StringBuilder();
+
+    start.line--;
+    end.line--;
+    start.column--;
+    end.column--;
+
+    int strSize;
+    int startCol = start.column;
+
+    for(int i = start.line; i <= end.line; i++) {
+        String curr = lines.get(i);
+
+        if(i != end.line) { strSize = curr.length(); }
+        else { strSize = end.column; }
+
+        for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
+        startCol = 0;
+    }
+
+    tokenForAST.setText(sb.toString());
+}*/
+
+/** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
+/*
+public String syntaxError(Position start) { return start.line + "| " + lines.get(start.line-1); }
+*/
+
 
 /**
  * A parser class responsible for checking if a C Minor program is syntactically valid.
@@ -54,46 +93,63 @@ import cminor.utilities.Vector;
  * </p>
  * @author Daniel Levy
  */
+/*
 public class Parser {
 
-    /**
+    */
+/**
      * Instance of the {@link Lexer} that the parser requests tokens from.
-     */
+     *//*
+
     private final Lexer input;
 
-    /**
+    */
+/**
      * Number of lookaheads the parser uses, currently set to 3.
-     */
+     *//*
+
     private final int k = 3;
 
-    /**
+    */
+/**
      * {@link Vector} of tokens containing the current lookaheads we are using.
-     */
+     *//*
+
     private final Vector<Token> lookaheads;
 
-    /**
+    */
+/**
      * Current lookahead position in the {@link #lookaheads} vector.
-     */
+     *//*
+
     private int lookPos;
 
-    /**
+    */
+/**
      * Stack that keeps track of all tokens we are currently parsing.
-     */
+     *//*
+
     private final Vector<Token> tokenStack;
 
-    /**
+    */
+/**
      * {@link MessageHandler} to generate syntax errors.
-     */
+     *//*
+
     private final MessageHandler handler;
 
-    /**
+    */
+/**
      * Flag set when a user wants to see every token that is parsed.
-     */
+     *//*
+
     private static boolean printTokens = false;
 
-    /**
+    */
+/**
      * Flag set when the parser begins to parse an imported file.
-     */
+     *//*
+
     private boolean importMode;
 
     // Hacks to get IO statements to be parsed correctly... :(
@@ -173,11 +229,13 @@ public class Parser {
         return t;
     }
 
-    /*
+    */
+/*
     _________________________________________
                     FIRST SETS
     _________________________________________
-    */
+    *//*
+
     private boolean inScalarTypeFIRST() {
         return nextLA(TokenType.STRING)
                 || nextLA(TokenType.REAL)
@@ -250,11 +308,13 @@ public class Parser {
                 || nextLA(TokenType.NEW);
     }
 
-    /*
+    */
+/*
     _________________________________________
                     FOLLOW SETS
     _________________________________________
-    */
+    *//*
+
 
     private boolean inTypeFOLLOW() {
         return nextLA(TokenType.INT,1)
@@ -341,12 +401,14 @@ public class Parser {
         return nodes;
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
 
                           COMPILATION UNIT
     ____________________________________________________________
-    */
+    *//*
+
 
     // 1. compilation ::= import_stmt* enum_type* global_variable* class_type* function* main
     public CompilationUnit compilation() {
@@ -395,11 +457,13 @@ public class Parser {
         return new CompilationUnit(nodeToken(),input.getFileName(),imports,enums,globals,classes,funcs,md);
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                         COMPILER DIRECTIVES
     ____________________________________________________________
-    */
+    *//*
+
 
     // 2. file-merge ::= '#include' STRING_LITERAL
     private ImportDecl importStmt() {
@@ -412,11 +476,13 @@ public class Parser {
         return new ImportDecl(nodeToken(),fileName);
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                           ENUM DECLARATION
     ____________________________________________________________
-    */
+    *//*
+
 
     // 3. enum_type ::= 'def' ID 'type' '=' '{' enum_field ( ',' , enum_field)* '}'
     private EnumDecl enumType() {
@@ -458,11 +524,13 @@ public class Parser {
         return new Var(nodeToken(),n);
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
               GLOBAL VARIABLES AND VARIABLE DECLARATIONS
     ____________________________________________________________
-    */
+    *//*
+
 
     // 5. global_variable ::= 'def' ( 'const' | 'global' ) variable_decl
     private Vector<AST> globalVariable() {
@@ -527,11 +595,13 @@ public class Parser {
         return new Var(nodeToken(),n,t);
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                                 TYPES
     ____________________________________________________________
-    */
+    *//*
+
 
     // 9. type ::= scalar_type
     //           | class_name
@@ -722,11 +792,13 @@ public class Parser {
         return types;
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                           CLASS DECLARATION
     ____________________________________________________________
-    */
+    *//*
+
 
     // 13. class_type ::= ( 'abstr' | 'final' )? 'class' ID type_params? super_class? class_body
     private ClassDecl classType() {
@@ -824,11 +896,13 @@ public class Parser {
         return new ClassBody(nodeToken(),dataDecls,methodDecls);
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                           FIELD DECLARATION
     ____________________________________________________________
-    */
+    *//*
+
 
     // 18. data_decl ::= ( 'property' | 'protected' | 'public' ) variable_decl
     private Vector<FieldDecl> dataDecl() {
@@ -861,11 +935,13 @@ public class Parser {
         return fields;
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                           METHOD DECLARATION
     ____________________________________________________________
-    */
+    *//*
+
 
     // 19. method_decl ::= method_class | operator_class
     private MethodDecl methodDecl() {
@@ -1153,11 +1229,13 @@ public class Parser {
         }
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                         FUNCTION DECLARATION
     ____________________________________________________________
-    */
+    *//*
+
 
     // 32. function ::= 'def' ( 'pure' | 'recurs' )? function_header '=>' return_type block_statement
     private FuncDecl function() {
@@ -1211,11 +1289,13 @@ public class Parser {
         return header;
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                           MAIN FUNCTION
     ____________________________________________________________
-    */
+    *//*
+
 
     // 34. main ::= 'def' 'main' args? '=>' return_type block_statement
     private MainDecl mainFunc() {
@@ -1284,13 +1364,16 @@ public class Parser {
         return locals;
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                              STATEMENTS
     ____________________________________________________________
-    */
+    *//*
 
-    /*
+
+    */
+/*
        38. statement ::= 'stop'
                        | return_statement
                        | assignment_statement
@@ -1301,7 +1384,8 @@ public class Parser {
                        | for_statement
                        | choice_statement
                        | list_command_statement
-     */
+     *//*
+
     private Statement statement() {
         if(nextLA(TokenType.STOP)) {
             tokenStack.add(currentLA());
@@ -1657,11 +1741,13 @@ public class Parser {
         return new OutStmt(nodeToken(),outputExprs);
     }
 
-    /*
+    */
+/*
     ____________________________________________________________
                             EXPRESSIONS
     ____________________________________________________________
-    */
+    *//*
+
 
     // 58. primary_expression ::= ID
     //                          | constant
@@ -2153,11 +2239,13 @@ public class Parser {
     // 76. expression ::= logical_or_expression
     private Expression expression() { return logicalOrExpression(); }
 
-    /*
+    */
+/*
     ____________________________________________________________
                                 LITERALS
     ____________________________________________________________
-    */
+    *//*
+
 
     // 77. constant ::= object_constant | array_constant | list_constant | scalar_constant
     private Expression constant() {
@@ -2287,3 +2375,4 @@ public class Parser {
         return new Literal(nodeToken(), ConstantType.BOOL);
     }
 }
+*/
