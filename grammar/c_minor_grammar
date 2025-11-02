@@ -15,9 +15,9 @@ import_stmt : '#include' String_literal ;
 // Enumeration
 // -----------
 
-enum_type : 'def' Name 'type' '=' '{' enum_field (',' enum_field)* '}' ;
+enum_type : 'def' ID 'type' '=' '{' enum_field (',' enum_field)* '}' ;
 
-enum_field : Name ('=' constant)? ;
+enum_field : ID ('=' constant)? ;
 
 // Globals, constants, and variables
 // ---------------------------------
@@ -28,7 +28,7 @@ variable_decl : variable_decl_list;
 
 variable_decl_list : variable_decl_init (',' variable_decl_init)* ;
 
-variable_decl_init : Name ':' type ('=' (expression | 'uninit'))? ;
+variable_decl_init : ID ':' type ('=' (expression | 'uninit'))? ;
 
 // Types
 // -----
@@ -47,18 +47,18 @@ discrete_type
     | 'Char'
     ;
 
-class_name : Name ('<' type (',' type)* '>')? ;
+class_name : ID ('<' type (',' type)* '>')? ;
 
 // Class declaration
 // -----------------
 
-class_type : ('abstr' | 'final')? 'class' name typefier_params? super_class? class_body ;
+class_type : ('abstr' | 'final')? 'class' ID typefier_params? super_class? class_body ;
 
 typefier_params : '<' typefier (',' typefier)* '>' ;
 
-typefier : ('discr' | 'scalar' | 'class')? Name ;
+typefier : ('discr' | 'scalar' | 'class')? ID ;
 
-super_class : 'inherits' name type_params? ;
+super_class : 'inherits' ID type_params? ;
 
 class_body : '{' data_decl* method_decl* '}' ;
 
@@ -78,9 +78,9 @@ method_modifier : 'protected' | 'public' ;
 
 attribute : 'final' | 'pure' | 'recurs' | 'static' ;
 
-method_header : Name '(' formal_params? ')' ;
+method_header : ID '(' formal_params? ')' ;
 
-formal_params : param_modifier Name:type (',' param_modifier Name:type)*
+formal_params : param_modifier ID:type (',' param_modifier ID:type)*
 
 param_modifier : 'in' | 'out' | 'inout' | 'ref' ;
 
@@ -117,7 +117,7 @@ unary_operator : '~'
 
 function : 'def' ('pure' | 'recurs')? function_header '=>' return_type block_statement ;
 
-function_header : Name typefier_params? '(' formal_params? ')' ;
+function_header : ID typefier_params? '(' formal_params? ')' ;
 
 // Main function
 // -------------
@@ -175,9 +175,9 @@ do_while_statement : 'do' block_statement 'while' expression ;
 
 for_statement : 'for' '(' range_iterator | array_iterator')' block_statement ;
 
-range_iterator : Name 'in' expression range_operator expression ;
+range_iterator : ID 'in' expression range_operator expression ;
 
-array_iterator : Name ( 'in' | 'inrev' ) expression ;
+array_iterator : ID ( 'in' | 'inrev' ) expression ;
 
 range_operator : '..' | '..<' | <..' | '<..<' ;
 
@@ -287,42 +287,42 @@ logical_or_expression
 
 constant : object_constant | array_constant | list_constant | scalar_constant ;
 
-object_constant : 'new' Name (type_params)? '(' object_field? ')' ;
+object_constant : 'new' ID (type_params)? '(' object_field? ')' ;
 
-object_field : Name '=' expression (',' Name '=' expression)* ;
+object_field : ID '=' expression (',' ID '=' expression)* ;
 
-array_constant : 'Array' ( '[' expression ']' )* '(' arguments ')' ; // for 2d Array[2][2](Array(1, 2), Array(3, 4))
+array_constant : 'Array' ( '[' expression ']' )* '(' arguments ')' ;
 
 list_constant : 'List' '(' (expression (',' expression)*)? ')' ;
 
-scalar_constant : discrete_constant 
+scalar_constant : discrete_constant
                 | STR_LITERAL
-                | Real_literal 
+                | REAL_LITERAL
                 ;
 
 discrete_constant : INT_LITERAL
-                  | Bool_literal 
+                  | BOOL_LITERAL
                   | CHAR_LITERAL
                   ;
 
 // REGEX
 // -----
 
-Name : Identifier_start Identifier_part* ;
+ID : ID_START ID_PART* ;
 
-Identifier_start : 'a'..'z' 
-                 | 'A'..'Z' 
-                 | '_' 
-                 ;        
+ID_START : 'a'..'z'
+         | 'A'..'Z'
+         | '_'
+         ;
 
-Identifier_part : Identifier_start 
-                | '0'..'9' 
-                ;
+ID_PART : ID_START
+        | '0'..'9'
+        ;
 
 INT_LITERAL : ('0'..'9')+ ;
 
-Real_literal : Int_literal+ '.' Int_literal* 
-             | '.' Int_literal+ ;
+REAL_LITERAL : INT_LITERAL+ '.' INT_LITERAL*
+             | '.' INT_LITERAL+ ;
 
 CHAR_LITERAL ::= '\' . \'' ;
 
@@ -330,6 +330,6 @@ STR_LITERAL ::= '\" .*? \"'
               | '\"\"\" .*? \"\"\"'
               ;
 
-Bool_literal : 'True' 
+BOOL_LITERAL : 'True'
              | 'False' 
              ;
