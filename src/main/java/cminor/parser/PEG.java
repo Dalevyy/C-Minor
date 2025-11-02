@@ -27,6 +27,9 @@ import cminor.token.Token;
 import cminor.token.TokenType;
 import cminor.utilities.Vector;
 
+//TODO: There seems to be an error with '<>' and '<=>' at least in the parser! \(O-o)/
+//TODO: You can concatenate primitives on the RHS of strings (NOT STRUCTURED TYPES)
+
 public class PEG {
 
     /**
@@ -121,7 +124,7 @@ public class PEG {
     private void fill(int tokenCount) {
         // Add 'tokenCount' amount of tokens to vector
         for(int i = 0; i <= tokenCount; i++)
-            lookaheads.add(input.nextToken());
+            lookaheads.add(input.token());
     }
 
     /**
@@ -186,13 +189,13 @@ public class PEG {
 
     /**
      * Checks if the current lookahead matches the expected token we wish to see.
-     * @param expectedToken The {@link TokenType} that is expected in the input.
+     * @param expected The {@link TokenType} that is expected in the input.
      */
-    private void match(TokenType expectedToken) {
-        if(!nextLA(expectedToken)) {
+    private void match(TokenType expected) {
+        if(!nextLA(expected)) {
             handler.createErrorBuilder(SyntaxError.class)
-                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_101)
-                   .addErrorArgs(expectedToken,currentLA().getTokenType())
+                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_103)
+                   .addErrorArgs(expected,currentLA().getTokenType())
                    .asSyntaxErrorBuilder()
                    .addLocation(currentLA(),input)
                    .generateError();
@@ -273,6 +276,7 @@ public class PEG {
                         nodes.add(function());
                         break;
                     } catch(ParseError msg) { msg.printMessage(); }
+                    break;
                 // Case 4) Case to handle classes
                 case CLASS:
                 case ABSTR:
@@ -832,10 +836,6 @@ public class PEG {
                 match(TokenType.EQEQ);
                 yield new BinaryOp(currentLA(), BinaryType.EQEQ);
             }
-            case TokenType.LTGT -> {
-                match(TokenType.LTGT);
-                yield new BinaryOp(currentLA(), BinaryType.LTGT);
-            }
             case TokenType.UFO -> {
                 match(TokenType.UFO);
                 yield new BinaryOp(currentLA(), BinaryType.UFO);
@@ -1350,6 +1350,12 @@ public class PEG {
 
                 match(TokenType.RPAREN);
                 return expr;
+            // Special ID Case!
+            case OPERATOR:
+                match(TokenType.OPERATOR);
+                String op = currentLA().getText();
+                operatorSymbol();
+                return new NameExpr(exprMetadata(),new Name("operator"+op));
             case ID:
                 NameExpr ne = new NameExpr(currentLA(),new Name(currentLA()));
                 match(TokenType.ID);
@@ -1603,11 +1609,12 @@ public class PEG {
         return LHS;
     }
 
-    // relational_expression ::= shift_expression ( ('<' | '>' | '<=' | '>=') shift_expression)* ;
+    // relational_expression ::= shift_expression ( ('<' | '>' | '<=' | '>=' | '<=>' ) shift_expression)* ;
     private Expression relationalExpression() {
         Expression LHS = shiftExpression();
 
-        while(nextLA(TokenType.LT) || nextLA(TokenType.GT) || nextLA(TokenType.LTEQ) || nextLA(TokenType.GTEQ)) {
+        while(nextLA(TokenType.LT) || nextLA(TokenType.GT) || nextLA(TokenType.LTEQ)
+                || nextLA(TokenType.GTEQ) || nextLA(TokenType.UFO)) {
             BinaryOp binOp;
             switch(currentLA().getTokenType()) {
                 case LT:
@@ -1622,9 +1629,13 @@ public class PEG {
                     binOp = new BinaryOp(currentLA(),BinaryType.LTEQ);
                     match(TokenType.LTEQ);
                     break;
-                default:
+                case GTEQ:
                     binOp = new BinaryOp(currentLA(),BinaryType.GTEQ);
                     match(TokenType.GTEQ);
+                    break;
+                default:
+                    binOp = new BinaryOp(currentLA(),BinaryType.UFO);
+                    match(TokenType.UFO);
             }
 
             Expression RHS = shiftExpression();
@@ -1848,7 +1859,7 @@ public class PEG {
         return new ListLiteral(metadata(),inits);
     }
 
-    // scalar_constant ::= discrete_constant | String_literal | Real_literal
+    // scalar_constant ::= DISCRETE_LITERAL | STRING_LITERAL | REAL_LITERAL
     private Literal scalarConstant() {
         //TODO: This is a test !!!
         if(nextLA(TokenType.MINUS)) {
@@ -1874,7 +1885,7 @@ public class PEG {
             return discreteConstant();
     }
 
-    // discrete_constant ::= Int_literal | Bool_literal | Char_literal
+    // discrete_constant ::= INT_LITERAL | BOOL_LITERAL | CHAR_LITERAL
     private Literal discreteConstant() {
         if(nextLA(TokenType.INT_LIT)) {
             match(TokenType.INT_LIT);
