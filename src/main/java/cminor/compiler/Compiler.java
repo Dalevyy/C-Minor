@@ -1,5 +1,5 @@
 package cminor.compiler;
-
+//TODO: FIX COMPILATION MODE SINCE ITS BROKEN!
 import cminor.ast.misc.CompilationUnit;
 import cminor.interpreter.Interpreter;
 import cminor.interpreter.VM;
@@ -10,7 +10,7 @@ import cminor.lexer.Lexer;
 import cminor.micropasses.*;
 import cminor.modifierchecker.ModifierChecker;
 import cminor.namechecker.NameChecker;
-import cminor.parser.Parser;
+import cminor.parser.PEG;
 import cminor.typechecker.TypeChecker;
 import cminor.utilities.PhaseHandler;
 import cminor.utilities.PrettyPrint;
@@ -65,8 +65,8 @@ public class Compiler {
      * @return An AST node representing the {@code Compilation} unit for the program.
      */
     public CompilationUnit syntaxAnalysis(String program) {
-        Parser parser = new Parser(new Lexer(program,fileName));
-        CompilationUnit root = parser.compilation();
+        PEG parser = new PEG(new Lexer(program,fileName));
+        CompilationUnit root = new CompilationUnit(); // parser.compilation();
 
         if(printParseTree)
             root.visit(new Printer());
@@ -164,7 +164,6 @@ public class Compiler {
                 case "--start-vm":
                     new VM().readUserInput();
                 case "--print-tokens":
-                    Parser.setPrintTokens();
                     break;
                 case "--print-tree":
                     printParseTree = true;

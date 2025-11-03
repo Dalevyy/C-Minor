@@ -29,6 +29,12 @@ public abstract class Error extends Message {
     public boolean isScopeError() { return false; }
 
     /**
+     * Checks if the current {@link Error} object is a {@link SyntaxError}.
+     * @return {@code True} if the object is a {@link SyntaxError}, {@code False} otherwise.
+     */
+    public boolean isSyntaxError() { return false; }
+
+    /**
      * {@inheritDoc}
      */
     public Error asError() { return this; }

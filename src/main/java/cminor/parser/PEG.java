@@ -19,9 +19,9 @@ import cminor.ast.topleveldecls.*;
 import cminor.ast.types.*;
 import cminor.ast.types.ScalarType.Scalars;
 import cminor.lexer.Lexer;
-import cminor.messages.CompilationMessage;
 import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
+import cminor.messages.errors.syntax.ParseError;
 import cminor.messages.errors.syntax.SyntaxError;
 import cminor.token.Token;
 import cminor.token.TokenType;
@@ -121,7 +121,7 @@ public class PEG {
     private void fill(int tokenCount) {
         // Add 'tokenCount' amount of tokens to vector
         for(int i = 0; i <= tokenCount; i++)
-            lookaheads.add(input.nextToken());
+            lookaheads.add(input.token());
     }
 
     /**
@@ -186,13 +186,13 @@ public class PEG {
 
     /**
      * Checks if the current lookahead matches the expected token we wish to see.
-     * @param expectedToken The {@link TokenType} that is expected in the input.
+     * @param expected The {@link TokenType} that is expected in the input.
      */
-    private void match(TokenType expectedToken) {
-        if(!nextLA(expectedToken)) {
+    private void match(TokenType expected) {
+        if(!nextLA(expected)) {
             handler.createErrorBuilder(SyntaxError.class)
-                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_101)
-                   .addErrorArgs(expectedToken,currentLA().getTokenType())
+                   .addErrorNumber(MessageNumber.SYNTAX_ERROR_103)
+                   .addErrorArgs(expected,currentLA().getTokenType())
                    .asSyntaxErrorBuilder()
                    .addLocation(currentLA(),input)
                    .generateError();
@@ -250,21 +250,21 @@ public class PEG {
                         start = mark();
                         nodes.add(enumType());
                         break;
-                    } catch(CompilationMessage msg) { reset(start); }
+                    } catch(ParseError msg) { reset(start); }
 
                     // 2.2) Parse a global variable
                     try {
                         start = mark();
                         nodes.merge(globalVariable());
                         break;
-                    } catch(CompilationMessage msg) { reset(start); }
+                    } catch(ParseError msg) { reset(start); }
 
                     // 2.3) Parse a local variable
                     try {
                         start = mark();
                         nodes.merge(declaration());
                         break;
-                    } catch(CompilationMessage msg) { reset(start); }
+                    } catch(ParseError msg) { reset(start); }
 
                     // 2.4) Parse a function
                     // If all of the above fails, then output the error message!
@@ -272,7 +272,8 @@ public class PEG {
                         mark();
                         nodes.add(function());
                         break;
-                    } catch(CompilationMessage msg) { msg.printMessage(); }
+                    } catch(ParseError msg) { msg.printMessage(); }
+                    break;
                 // Case 4) Case to handle classes
                 case CLASS:
                 case ABSTR:
@@ -566,13 +567,13 @@ public class PEG {
                 start = mark();
                 fields.merge(fieldDecl());
             }
-        } catch(CompilationMessage msg) { reset(start); }
+        } catch(ParseError msg) { reset(start); }
 
         Vector<MethodDecl> methods = new Vector<>();
         // Try to parse methods until the end of the class is reached!
         while(!nextLA(TokenType.RBRACE)) {
             try { methods.add(methodDecl()); }
-            catch(CompilationMessage msg) { break; }
+            catch(ParseError msg) { break; }
         }
         match(TokenType.RBRACE);
 
@@ -614,7 +615,7 @@ public class PEG {
             mark();
             return methodClass();
         }
-        catch(CompilationMessage msg) { reset(); }
+        catch(ParseError msg) { reset(); }
 
         // Then, try to parse an operator overload. If this fails, then there
         // is for sure an error, so we will print out an error.
@@ -832,10 +833,6 @@ public class PEG {
                 match(TokenType.EQEQ);
                 yield new BinaryOp(currentLA(), BinaryType.EQEQ);
             }
-            case TokenType.LTGT -> {
-                match(TokenType.LTGT);
-                yield new BinaryOp(currentLA(), BinaryType.LTGT);
-            }
             case TokenType.UFO -> {
                 match(TokenType.UFO);
                 yield new BinaryOp(currentLA(), BinaryType.UFO);
@@ -1040,7 +1037,7 @@ public class PEG {
         Expression expr = null;
 
         try { expr = expression(); }
-        catch(CompilationMessage msg) { reset(); }
+        catch(ParseError msg) { reset(); }
 
         return new ReturnStmt(metadata(),expr);
     }
@@ -1121,7 +1118,7 @@ public class PEG {
                 mark();
                 elifs.add(elifStatement());
             }
-            catch(CompilationMessage msg) {
+            catch(ParseError msg) {
                 reset();
                 if(nextLA(TokenType.ELSE)) {
                     match(TokenType.ELSE);
@@ -1350,6 +1347,12 @@ public class PEG {
 
                 match(TokenType.RPAREN);
                 return expr;
+            // Special ID Case!
+            case OPERATOR:
+                match(TokenType.OPERATOR);
+                String op = currentLA().getText();
+                operatorSymbol();
+                return new NameExpr(exprMetadata(),new Name("operator"+op));
             case ID:
                 NameExpr ne = new NameExpr(currentLA(),new Name(currentLA()));
                 match(TokenType.ID);
@@ -1389,7 +1392,7 @@ public class PEG {
                     if(nextLA(TokenType.LT)) {
                         int pos = mark();
                         try { typeArgs = typeParams(); }
-                        catch(CompilationMessage msg) {
+                        catch(ParseError msg) {
                             reset(pos);
                             return primary;
                         }
@@ -1457,7 +1460,7 @@ public class PEG {
             Vector<Expression> args = new Vector<>();
 
             try{ args = arguments(); }
-            catch(CompilationMessage msg) { /* ######### DO NOTHING ######### */ }
+            catch(ParseError msg) { /* ######### DO NOTHING ######### */ }
 
             match(TokenType.RPAREN);
             return new Invocation(exprMetadata(),name,new Vector<>(),args);
@@ -1603,11 +1606,12 @@ public class PEG {
         return LHS;
     }
 
-    // relational_expression ::= shift_expression ( ('<' | '>' | '<=' | '>=') shift_expression)* ;
+    // relational_expression ::= shift_expression ( ('<' | '>' | '<=' | '>=' | '<=>' ) shift_expression)* ;
     private Expression relationalExpression() {
         Expression LHS = shiftExpression();
 
-        while(nextLA(TokenType.LT) || nextLA(TokenType.GT) || nextLA(TokenType.LTEQ) || nextLA(TokenType.GTEQ)) {
+        while(nextLA(TokenType.LT) || nextLA(TokenType.GT) || nextLA(TokenType.LTEQ)
+                || nextLA(TokenType.GTEQ) || nextLA(TokenType.UFO)) {
             BinaryOp binOp;
             switch(currentLA().getTokenType()) {
                 case LT:
@@ -1622,9 +1626,13 @@ public class PEG {
                     binOp = new BinaryOp(currentLA(),BinaryType.LTEQ);
                     match(TokenType.LTEQ);
                     break;
-                default:
+                case GTEQ:
                     binOp = new BinaryOp(currentLA(),BinaryType.GTEQ);
                     match(TokenType.GTEQ);
+                    break;
+                default:
+                    binOp = new BinaryOp(currentLA(),BinaryType.UFO);
+                    match(TokenType.UFO);
             }
 
             Expression RHS = shiftExpression();
@@ -1848,7 +1856,7 @@ public class PEG {
         return new ListLiteral(metadata(),inits);
     }
 
-    // scalar_constant ::= discrete_constant | String_literal | Real_literal
+    // scalar_constant ::= DISCRETE_LITERAL | STRING_LITERAL | REAL_LITERAL
     private Literal scalarConstant() {
         //TODO: This is a test !!!
         if(nextLA(TokenType.MINUS)) {
@@ -1874,7 +1882,7 @@ public class PEG {
             return discreteConstant();
     }
 
-    // discrete_constant ::= Int_literal | Bool_literal | Char_literal
+    // discrete_constant ::= INT_LITERAL | BOOL_LITERAL | CHAR_LITERAL
     private Literal discreteConstant() {
         if(nextLA(TokenType.INT_LIT)) {
             match(TokenType.INT_LIT);

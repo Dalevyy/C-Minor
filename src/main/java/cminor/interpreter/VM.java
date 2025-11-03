@@ -8,7 +8,6 @@ import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.setting.SettingError;
 import cminor.micropasses.*;
-import cminor.parser.Parser;
 import cminor.parser.PEG;
 import cminor.utilities.PhaseHandler;
 import cminor.utilities.PhaseNumber;
@@ -91,7 +90,6 @@ public class VM {
                     globalUnit.reset();
                     continue;
                 case "#print-tokens":
-                    Parser.setPrintTokens();
                     continue;
                 case "#print-tree":
                     phaseHandler.addPrinterPhase();

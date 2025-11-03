@@ -339,8 +339,16 @@ public class TypeChecker extends Visitor {
 
         // It is okay for 'instanceof', '!instanceof', and 'as?' to have different types for the LHS and RHS.
         if(!binType.equals(BinaryType.INSTOF) && !binType.equals(BinaryType.NINSTOF) && !binType.equals(BinaryType.AS)){
+            if(binType.equals(BinaryType.PLUS) && LHS.isString()) {
+                if(RHS.isStructured()) {
+                    handler.createErrorBuilder(TypeError.class)
+                            .addLocation(be)
+                            .addErrorNumber(MessageNumber.TYPE_ERROR_472)
+                            .generateError();
+                }
+            }
             // ERROR CHECK #1: The LHS and RHS types have to be the same in order to perform the binary operation.
-            if(!Type.assignmentCompatible(LHS,RHS)) {
+            else if(!Type.assignmentCompatible(LHS,RHS)) {
                 handler.createErrorBuilder(TypeError.class)
                        .addLocation(be)
                        .addErrorNumber(MessageNumber.TYPE_ERROR_405)

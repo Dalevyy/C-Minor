@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 /**
  * A type that represents a value during the runtime execution of the {@link Interpreter}.
  * <p><br>
- *     This class is designed to create values that will be stored on the {@link utilities.RuntimeStack}
+ *     This class is designed to create values that will be stored on the {@link cminor.utilities.RuntimeStack}
  *     during the execution of the {@link Interpreter}. It is mainly designed to help reduce
  *     the amount of type casting and extra variables needed for the interpreter to properly execute.
  * </p>
@@ -66,8 +66,12 @@ public class Value {
                 val = new BigDecimal(li.text);
                 break;
             case STR:
-                if(!li.text.isEmpty())
-                    val = li.text.substring(1,li.text.length()-1);
+                if(!li.text.isEmpty()) {
+                    if(li.text.startsWith("'''"))
+                        val = li.text.substring(3,li.text.length()-3);
+                    else
+                        val = li.text.substring(1,li.text.length()-1);
+                }
                 break;
             case ENUM:
                 if(li.type.isInt())

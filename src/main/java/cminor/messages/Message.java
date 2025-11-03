@@ -2,7 +2,6 @@ package cminor.messages;
 
 import cminor.ast.AST;
 import cminor.messages.errors.Error;
-import cminor.messages.errors.scope.ScopeError;
 import cminor.utilities.PrettyPrint;
 
 /**
@@ -91,7 +90,7 @@ public abstract class Message {
      * Builds an optional supplemental message to give the user more context about the main message.
      * @return String representing a suggestion from the compiler to the user.
      */
-    private String buildSupplementalMessage() {
+    protected String buildSupplementalMessage() {
         if(suggest == null)
             return "";
 

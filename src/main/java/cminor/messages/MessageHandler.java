@@ -7,6 +7,7 @@ import cminor.messages.errors.scope.RedeclarationError;
 import cminor.messages.errors.scope.ScopeErrorBuilder;
 import cminor.messages.errors.semantic.SemanticErrorBuilder;
 import cminor.messages.errors.setting.SettingErrorBuilder;
+import cminor.messages.errors.syntax.ParseError;
 import cminor.messages.errors.syntax.SyntaxErrorBuilder;
 import cminor.messages.errors.type.TypeErrorBuilder;
 import cminor.messages.warnings.WarningBuilder;
@@ -66,8 +67,10 @@ public class MessageHandler {
         msg.createMessage(fileName);
 
         if(inInterpretationMode && msg.isError()) {
+            if(msg.asError().isSyntaxError() && !msg.asError().asSyntaxError().isLexerError())
+                throw new ParseError(msg);
             // Throw special exception if we are redeclaring a node.
-            if(msg.asError().isScopeError() && msg.asError().asScopeError().isRedeclarationError())
+            else if(msg.asError().isScopeError() && msg.asError().asScopeError().isRedeclarationError())
                 throw new RedeclarationError(msg.asError().asScopeError());
 
             throw new CompilationMessage(msg);

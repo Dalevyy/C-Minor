@@ -1,5 +1,7 @@
 package cminor.interpreter;
 
+//TODO: REMOVE ELEMENTS FROM A LIST BY A HASHCODE!!!!
+
 import cminor.ast.classbody.InitDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.expressions.*;
@@ -282,7 +284,7 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(be.type.isString()) {
-                    currentValue = new Value(LHS.asString() + RHS.asString(),be.type);
+                    currentValue = new Value(LHS.asString() + RHS,be.type);
                     break;
                 }
             case "==":
@@ -296,12 +298,16 @@ public class Interpreter extends Visitor {
             case "<=":
             case ">":
             case ">=":
+            case "<=>":
                 if(be.getRHS().type.isInt()) {
                     switch (binOp) {
                         case "<" -> currentValue = new Value(LHS.asInt() < RHS.asInt(),be.type);
                         case "<=" -> currentValue = new Value(LHS.asInt() <= RHS.asInt(),be.type);
                         case ">" -> currentValue = new Value(LHS.asInt() > RHS.asInt(),be.type);
                         case ">=" -> currentValue = new Value(LHS.asInt() >= RHS.asInt(),be.type);
+                        case "<=>" -> currentValue = new Value(LHS.asInt() < RHS.asInt()
+                                                            || LHS.asInt() == RHS.asInt()
+                                                            || LHS.asInt() > RHS.asInt() ,be.type);
                     }
                     break;
                 }
@@ -311,6 +317,9 @@ public class Interpreter extends Visitor {
                         case "<=" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) <= 0, be.type);
                         case ">" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) > 0, be.type);
                         case ">=" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) >= 0, be.type);
+                        case "<=>" -> currentValue = new Value(LHS.asReal().compareTo(RHS.asReal()) < 0
+                                                            || LHS.asReal().compareTo(RHS.asReal()) == 0
+                                                            || LHS.asReal().compareTo(RHS.asReal()) > 0, be.type);
                     }
                     break;
                 }
@@ -429,8 +438,8 @@ public class Interpreter extends Visitor {
                 currentValue = new Value(new BigDecimal(currentValue.asInt()),cs.type);
         }
         else if(cs.getCastType().isString()) {
-            if(cs.getCastType().isChar())
-                currentValue = new Value(currentValue.asChar(),cs.type);
+            if(cs.getCastExpr().type.isChar())
+                currentValue = new Value(String.valueOf(currentValue.asChar()),cs.type);
         }
     }
 

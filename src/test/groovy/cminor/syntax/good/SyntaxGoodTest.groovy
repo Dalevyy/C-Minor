@@ -133,6 +133,20 @@ class SyntaxGoodTest extends SyntaxTest {
             notThrown CompilationMessage
     }
 
+    def "Character Literals"() {
+        when:
+            input = '''
+                        'a'
+                        '\''                         
+                        '\"'
+                        '"'
+                        '\\'
+                    '''
+
+        then:
+            notThrown CompilationMessage
+    }
+
     def "Choice Statement"() {
         when:
             input = '''

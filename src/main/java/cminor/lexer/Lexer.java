@@ -4,25 +4,24 @@ import cminor.messages.MessageHandler;
 import cminor.messages.MessageNumber;
 import cminor.messages.errors.syntax.SyntaxError;
 import cminor.token.Location;
-import cminor.token.Position;
 import cminor.token.Token;
 import cminor.token.TokenType;
-import cminor.utilities.PrettyPrint;
 import cminor.utilities.Vector;
 
-//TODO: There seems to be an error with '<>' and '<=>' at least in the parser! \(O-o)/
-
 /**
- * This is the {@code Lexer} which is responsible for tokenizing a C
- * Minor program. An instance of the lexer will be contained in the parser,
- * and it will be continually called to generate tokens for the parser until
- * either an error occurs or we have tokenized the EOF symbol.
+ * The first part of the C Minor syntax analysis pass.
+ * <p>
+ *     The {@link Lexer} tokenizes a C Minor program while the parser is running.
+ *     An instance of the lexer will be contained in the parser, and it will be continually
+ *     called to generate tokens for the parser until either an error occurs, or the EOF
+ *     token was generated.
+ * </p>
  * @author Daniel Levy
  */
 public class Lexer {
 
     /** Custom end-of-file character. */
-    public static final char EOF = '\0'; // EOF
+    public static final char EOF = '\0';
 
     /** Current C Minor program we are tokenizing. */
     private final String file;
@@ -31,17 +30,16 @@ public class Lexer {
     private final String fileName;
 
     /** Current position we are at in {@link Lexer#file}. */
-    private int currPos;
+    private int pos;
 
     /** Current lookahead character we are checking.*/
-    private char lookChar;
+    private char lookahead;
 
-    /** Current location we are at in {@link Lexer#file}.
-     *  This keeps track of both row and column position.*/
-    private final Location currLoc;
+    /** Current location we are at in {@link Lexer#file}. This keeps track of both row and column position.*/
+    private final Location location;
 
     /** Current text that will be stored when a {@code token} is generated.*/
-    private String currText;
+    private String text;
 
     /** A {@code Vector} that stores a C Minor program. This will be used by
      *  the parser in order to generate syntax error messages.*/
@@ -68,24 +66,33 @@ public class Lexer {
         else
             this.fileName = fileName;
 
-        this.currPos = 0;
-        this.lookChar = file.charAt(currPos);
-        this.currLoc = new Location();
-        this.currText = "";
+        this.pos = 0;
+        this.lookahead = file.charAt(pos);
+        this.location = new Location();
+        this.text = "";
         this.lines = new Vector<>();
         this.handler = this.fileName.isEmpty() ? new MessageHandler() : new MessageHandler(this.fileName);
     }
 
-    public String getFileName() { return fileName; }
+    /** Retrieves the last line that was saved into the metadata stored in {@link #lines}. */
+    public String getLastLine() { return lines.getLast(); }
 
-    public String getText() { return lines.getLast(); }
-
+    /**
+     * Generates the metadata for an {@link cminor.ast.AST} node.
+     * <p>
+     *     This method is called by the {@link cminor.parser.PEG} whenever a new
+     *     {@link cminor.ast.AST} node is created.
+     * </p>
+     * @param start The {@link Token} that contains the metadata starting location.
+     * @param end The {@link Token} that contains the metadata ending location.
+     * @return A {@link Token} that contains the metadata info for an {@link cminor.ast.AST} node.
+     */
     public Token generateMetaData(Token start, Token end) {
         // If the tokens are the exact same, then we already have the metadata, so let's reuse one of them! :)
         if(start.equals(end))
             return start;
 
-        // Copy the starting/ending positions for the program construct.
+        // Copy the positions where the metadata starts and ends.
         Token metadata = new Token();
         metadata.setStartLocation(start.getStartPos().copy());
         metadata.setEndLocation(end.getEndPos().copy());
@@ -117,95 +124,78 @@ public class Lexer {
         return metadata;
     }
 
-    /**
-     * Sets a token text to be between its starting and ending {@code positions}.
-     * @param tokenForAST This represents the token we are saving into an AST node.
-     */
-    public void setText(Token tokenForAST) {
-        Position start = tokenForAST.getStartPos();
-        Position end = tokenForAST.getEndPos();
-        StringBuilder sb = new StringBuilder();
-
-        start.line--;
-        end.line--;
-        start.column--;
-        end.column--;
-
-        int strSize;
-        int startCol = start.column;
-
-        for(int i = start.line; i <= end.line; i++) {
-            String curr = lines.get(i);
-
-            if(i != end.line) { strSize = curr.length(); }
-            else { strSize = end.column; }
-
-            for(int j = startCol; j < strSize; j++) { sb.append(curr.charAt(j)); }
-            startCol = 0;
-        }
-
-        tokenForAST.setText(sb.toString());
-    }
-
-    /** Prints out the line an error occurs at. This will be called by the {@code parser}.*/
-    public String syntaxError(Position start) { return start.line + "| " + lines.get(start.line-1); }
-
     /** Updates the lookahead character and program text every time there is a valid match.*/
     private void consume() {
-        currText += file.charAt(currPos);
-
-        try {
-            lines.get(currLoc.end.line-1);
-            lines.set(currLoc.end.line-1,currText);
+        try { text += file.charAt(pos); }
+        // ERROR CHECK #1: If we are not able to get anymore text, then we have a general tokenizer error!
+        catch(Exception _) { //TODO: There is a reason for this... but I do not know when this error is triggered!
+            handler.createErrorBuilder(SyntaxError.class)
+                    .addErrorNumber(MessageNumber.TEST_100)
+                    .asSyntaxErrorBuilder()
+                    .addLocation(location,getLastLine())
+                    .generateError();
         }
-        catch(Exception e) { lines.add(currLoc.end.line-1,currText); }
 
-        currPos += 1;
-        currLoc.addCol();
+        // Updates the metadata buffer... it just works, so I'm not touching it.
+        try {
+            lines.get(location.end.line-1);
+            lines.set(location.end.line-1, text);
+        } catch(Exception _) { lines.add(location.end.line-1, text); }
 
-        if(currPos < file.length()) { lookChar = file.charAt(currPos); }
-        else { lookChar = EOF; }
+        update();
     }
 
     /** Updates the lookahead character without updating the program buffer. */
     private void update() {
-        currPos += 1;
-        currLoc.addCol();
-        if(currPos < file.length()) { lookChar = file.charAt(currPos); }
-        else { lookChar = EOF; }
+        pos += 1;
+        location.addCol();
+        lookahead = (pos < file.length()) ? file.charAt(pos) : EOF;
     }
 
-    /** Checks if the lookahead character matches the expected character we need to see.*/
-    private boolean match(char expectedChar) {
-        if(lookChar != expectedChar)
+    /**
+     * Checks if the next lookahead character matches the expected character and consumes it.
+     * @param expected The character we expect to see next in the {@link #file}.
+     * @return {@code True} if the expected character was consumed, {@code False} otherwise.
+     */
+    private boolean match(char expected) {
+        if(lookahead != expected)
             return false;
+
         consume();
         return true;
     }
 
-    /** Consumes all whitespace characters before continuing to tokenize program.*/
+    /**
+     * Checks if the next lookahead character matches the expected character.
+     * @param expected The character we expect to see next in the {@link #file}.
+     * @return {@code True} if the expected character is next, {@code False} otherwise.
+     */
+    private boolean nextLA(char expected) { return lookahead == expected; }
+
+    /** Consumes all whitespace characters before continuing to tokenize program. */
     private void consumeWhitespace() {
-        while(lookChar == ' ' || lookChar == '\t' || lookChar == '\r' || lookChar == '\n') {
-            if(lookChar == ' ' || lookChar == '\t') { consume(); }
+        while(nextLA(' ') || nextLA('\t')  || nextLA('\r')  || nextLA('\n')) {
+            if(nextLA(' ') || nextLA('\t'))
+                consume();
             else {
                 consume();
-                currText = "";
-                currLoc.addLine();
+                text = "";
+                location.addLine();
             }
         }
-        currLoc.resetStart();
+        location.resetStart();
     }
 
-    /** Consumes a single line comment that starts with {@code //}.*/
+    /** Consumes a single line comment ({@code //}). */
     private void consumeComment() {
-        while(lookChar != '\n' && lookChar != EOF)
+        while(lookahead != '\n' && lookahead != EOF)
             consume();
         consumeWhitespace();
     }
 
-    /** Consumes a multi-line comment that starts with {@code /*}.*/
+    /** Consumes a multi-line comment ({@code /*}). */
     private void consumeMultiLineComment() {
-        while(lookChar != EOF) {
+        while(lookahead != EOF) {
             consume();
             if(match('*') && match('/')) {
                 consumeWhitespace();
@@ -214,21 +204,22 @@ public class Lexer {
 
         }
 
+        // ERROR #1: If no ending '*/' was encountered, then no more tokens can be generated!
         handler.createErrorBuilder(SyntaxError.class)
-                .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
-                .generateError();
+               .addErrorNumber(MessageNumber.SYNTAX_ERROR_100)
+               .asSyntaxErrorBuilder()
+               .addLocation(location, getLastLine())
+               .generateError();
     }
 
     /** Checks if EOF was reached.*/
-    private boolean isEOF() { return currPos == file.length(); }
+    private boolean isEOF() { return pos == file.length(); }
 
     /** Checks if current lookahead character is a letter.*/
-    private boolean isLetter() {
-        return (lookChar >= 'A' && lookChar <= 'Z') || (lookChar >= 'a' && lookChar <= 'z');
-    }
+    private boolean isLetter() { return (lookahead>= 'A' && lookahead <= 'Z') || (lookahead>= 'a' && lookahead<= 'z'); }
 
     /** Checks if current lookahead character is a number.*/
-    private boolean isDigit() { return lookChar >= '0' && lookChar <= '9'; }
+    private boolean isDigit() { return lookahead >= '0' && lookahead <= '9'; }
 
     /**
      *    Any time a '\' appears in a Char or String literal, we have to check
@@ -239,243 +230,278 @@ public class Lexer {
      */
     private void escapeSequence(StringBuilder sb) {
         update();
-        switch(lookChar) {
+        text += "\\";
+        switch(lookahead) {
             case '\'':
                 sb.append('\'');
-                currText += '\'';
+                text += '\'';
                 break;
             case '\"':
                 sb.append('\"');
-                currText += '\"';
+                text += '"';
                 break;
             case '\\':
                 sb.append('\\');
-                currText += '\\';
+                text += '\\';
                 break;
             case 'b':
                 sb.append('\b');
-                currText += '\b';
+                text += 'b';
                 break;
             case 'f':
                 sb.append('\f');
-                currText += '\f';
+                text += 'f';
                 break;
             case 'n':
                 sb.append('\n');
-                currText += '\n';
+                text += 'n';
                 break;
             case 'r':
                 sb.append('\r');
-                currText += '\r';
+                text += 'r';
                 break;
             case 't':
                 sb.append('\t');
-                currText += '\t';
+                text += 't';
                 break;
             case '0':
                 sb.append('\0');
-                currText += '\0';
+                text += '0';
                 break;
             default:
-                System.out.println(PrettyPrint.RED + "Error! Invalid escape sequence written at positions "
-                                                   + currLoc.toString() + ".");
-                System.exit(1);
+                handler.createErrorBuilder(SyntaxError.class)
+                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_103)
+                       .asSyntaxErrorBuilder()
+                       .addLocation("<insert>") //TODO: FIX
+                       .generateError();
         }
+
         update();
-        currLoc.removeCol();
+        location.removeCol();
     }
 
     /**
      * Tokenizes a character literal.
-     * @return Character token.
+     * @return {@link Token} representing a character literal.
      */
     private Token charLit() {
-        StringBuilder newChar = new StringBuilder();
-        newChar.append('\'');
+        StringBuilder sb = new StringBuilder();
+        match('\'');
+        sb.append('\'');
 
-        if(lookChar == '\\')
-            escapeSequence(newChar);
+        // Case 1: Checks if we have an empty string or a text literal
+        if(nextLA('\'')) {
+            match('\'');
+            sb.append('\'');
+
+            if(nextLA('\'')) {
+                match('\'');
+                sb.append('\'');
+                return strLit(sb,true);
+            }
+
+            // SPECIAL CASE: A '' denotes an empty string, NOT an empty character!
+            return new Token(TokenType.STR_LIT,sb.toString(), location.copy());
+        }
+        // Case 2: Checks for escape sequences
+        else if(nextLA('\\'))
+            escapeSequence(sb);
+        // Case 3: Appends anything else to the character
         else {
-            newChar.append(lookChar);
+            sb.append(lookahead);
             consume();
         }
 
-        if(!match('\'')) { return strLit(newChar); }
+        // If we don't have an ending quote, the character should now be treated as a string!
+        if(!match('\''))
+            return strLit(sb,false);
 
-        newChar.append('\'');
-        return new Token(TokenType.CHAR_LIT, newChar.toString(), currLoc.copy());
+        sb.append('\'');
+        return new Token(TokenType.CHAR_LIT, sb.toString(), location.copy());
     }
 
     /**
      * Tokenizes a string literal.
-     * @param newStr Current String literal we are tokenizing
-     * @return String or Text token.
+     * <p>
+     *     A string literal is a string inside {@code ".*?"} or {@code """.*?"""}
+     * </p>
+     * @param str {@link StringBuilder} responsible for creating the string literal.
+     * @return {@link Token} representing a string literal.
      */
-    private Token strLit(StringBuilder newStr) {
-        while(!match('\'') && !isEOF()) {
-            if(lookChar == '\\')
-                escapeSequence(newStr);
+    private Token strLit(StringBuilder str, boolean textLit) {
+        // We will infinitely consume until we see the next non-escape sequenced quote!
+        while(!match('\'')) {
+            // ERROR #1: If we found EOF in this method, then a user forgot an ending quote...
+            if(isEOF()) {
+                handler.createErrorBuilder(SyntaxError.class)
+                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_101)
+                       .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1000)
+                       .asSyntaxErrorBuilder()
+                       .addLocation(location, getLastLine())
+                       .setLexerMode()
+                       .generateError();
+            }
+            else if(nextLA('\\'))
+                escapeSequence(str);
             else {
-                newStr.append(lookChar);
+                str.append(lookahead);
                 consume();
             }
         }
+        str.append("'");
 
-        if(match('\'') && match('\''))
-            return new Token(TokenType.TEXT_LIT, newStr.toString(), currLoc.copy());
+        // By default, all text literals will be treated as strings!
+        if(textLit) {
+            if(!(match('\'') && match('\''))) {
+                handler.createErrorBuilder(SyntaxError.class)
+                       .addErrorNumber(MessageNumber.SYNTAX_ERROR_102)
+                       .addSuggestionNumber(MessageNumber.SYNTAX_SUGGEST_1001)
+                       .asSyntaxErrorBuilder()
+                       .addLocation(location, getLastLine())
+                       .setLexerMode()
+                       .generateError();
+            }
+            str.append("''");
+        }
 
-        newStr.append('\'');
-        return new Token(TokenType.STR_LIT, newStr.toString(), currLoc.copy());
+        return new Token(TokenType.STR_LIT, str.toString(), location.copy());
     }
 
     /**
      * Tokenizes a real number literal.
-     * @param newReal The real number we are trying to build
-     * @return Real number token.
+     * @param real The real number we are trying to build
+     * @return {@link Token} representing a real number.
      */
-    private Token realLit(StringBuilder newReal) {
+    private Token realLit(StringBuilder real) {
         while(isDigit()) {
-            newReal.append(lookChar);
+            real.append(lookahead);
             consume();
         }
-        return new Token(TokenType.REAL_LIT, newReal.toString(), currLoc.copy());
+        return new Token(TokenType.REAL_LIT, real.toString(), location.copy());
     }
 
     /**
      * Creates an identifier token.
-     * @param newID The identifier we are trying to create.
-     * @return Identifier token.
+     * @param id The identifier we are trying to create.
+     * @return {@link Token} representing an identifier.
      */
-    private Token createID(StringBuilder newID) {
-        while(isDigit() || isLetter() || lookChar == '_') {
-            newID.append(lookChar);
+    private Token createID(StringBuilder id) {
+        while(isDigit() || isLetter() || nextLA('_')) {
+            id.append(lookahead);
             consume();
         }
-        return new Token(TokenType.ID, newID.toString(), currLoc.copy());
+        return new Token(TokenType.ID, id.toString(), location.copy());
     }
 
     /**
      * Tokenizes a name.
-     * @return Identifier or keyword token.
+     * @return {@link Token} representing an identifier or a keyword.
      */
     private Token name() {
-        StringBuilder createStr = new StringBuilder();
+        StringBuilder str = new StringBuilder();
 
-        while(isLetter() || lookChar == '_' || match('#')) {
-            createStr.append(lookChar);
+        while(isLetter() || nextLA('_')) {
+            str.append(lookahead);
             consume();
         }
 
-        if(isDigit()) { return createID(createStr); }
+        if(isDigit())
+            return createID(str);
 
-        String nextStr = createStr.toString();
+        String next = str.toString();
+        if(next.equals("as") && match('?'))
+            return new Token(TokenType.AS, "as?", location.copy());
 
-        if(nextStr.equals("as") && match('?')) {
-            return new Token(TokenType.AS, "as?", currLoc.copy());
-        }
-
-        return switch(nextStr) {
-            // -----------------------------------------------------------------------------------------------
-            //                                            KEYWORDS
-            // -----------------------------------------------------------------------------------------------
-
-            case "abstr" -> new Token(TokenType.ABSTR, "abstr", currLoc.copy());
-            case "and" -> new Token(TokenType.AND, "and", currLoc.copy());
-            case "Array" -> new Token(TokenType.ARRAY, "Array", currLoc.copy());
-            case "Bool" -> new Token(TokenType.BOOL, "Bool", currLoc.copy());
-            case "break" -> new Token(TokenType.BREAK, "break", currLoc.copy());
-            case "cast" -> new Token(TokenType.CAST, "cast", currLoc.copy());
-            case "Char" -> new Token(TokenType.CHAR, "Char", currLoc.copy());
-            case "choice" -> new Token(TokenType.CHOICE, "choice", currLoc.copy());
-            case "cin" -> new Token(TokenType.CIN, "cin", currLoc.copy());
-            case "class" -> new Token(TokenType.CLASS, "class", currLoc.copy());
-            case "const" -> new Token(TokenType.CONST, "const", currLoc.copy());
-            case "continue" -> new Token(TokenType.CONTINUE, "continue", currLoc.copy());
-            case "cout" -> new Token(TokenType.COUT, "cout", currLoc.copy());
-            case "def" -> new Token(TokenType.DEF, "def", currLoc.copy());
-            case "discr" -> new Token(TokenType.DISCR, "discr", currLoc.copy());
-            case "do" -> new Token(TokenType.DO, "do", currLoc.copy());
-            case "else" -> new Token(TokenType.ELSE, "else", currLoc.copy());
-            case "endl" -> new Token(TokenType.ENDL, "endl", currLoc.copy());
-            case "except" -> new Token(TokenType.EXCEPT, "except", currLoc.copy());
-            case "final" -> new Token(TokenType.FINAL, "final", currLoc.copy());
-            case "for" -> new Token(TokenType.FOR, "for", currLoc.copy());
-            case "global" -> new Token(TokenType.GLOBAL, "global", currLoc.copy());
-            case "if" -> new Token(TokenType.IF, "if", currLoc.copy());
-            case "in" -> new Token(TokenType.IN, "in", currLoc.copy());
-            case "Int" -> new Token(TokenType.INT, "Int", currLoc.copy());
-            case "inherits" -> new Token(TokenType.INHERITS, "inherits", currLoc.copy());
-            case "inout" -> new Token(TokenType.INOUT, "inout", currLoc.copy());
-            case "inrev" -> new Token(TokenType.INREV, "inrev", currLoc.copy());
-            case "instanceof" -> new Token(TokenType.INSTANCEOF, "instanceof", currLoc.copy());
-            case "List" -> new Token(TokenType.LIST, "List", currLoc.copy());
-            case "local" -> new Token(TokenType.LOCAL, "local", currLoc.copy());
-            case "loop" -> new Token(TokenType.LOOP, "loop", currLoc.copy());
-            case "main" -> new Token(TokenType.MAIN, "main", currLoc.copy());
-            case "method" -> new Token(TokenType.METHOD, "method", currLoc.copy());
-            case "new" -> new Token(TokenType.NEW, "new", currLoc.copy());
-            case "not" -> new Token(TokenType.NOT, "not", currLoc.copy());
-            case "on" -> new Token(TokenType.ON, "on", currLoc.copy());
-            case "only" -> new Token(TokenType.ONLY, "only", currLoc.copy());
-            case "operator" -> new Token(TokenType.OPERATOR, "operator", currLoc.copy());
-            case "or" -> new Token(TokenType.OR, "or", currLoc.copy());
-            case "other" -> new Token(TokenType.OTHER, "other", currLoc.copy());
-            case "out" -> new Token(TokenType.OUT, "out", currLoc.copy());
-            case "overload" -> new Token(TokenType.OVERLOAD, "overload", currLoc.copy());
-            case "override" -> new Token(TokenType.OVERRIDE, "override", currLoc.copy());
-            case "parent" -> new Token(TokenType.PARENT, "parent", currLoc.copy());
-            case "property" -> new Token(TokenType.PROPERTY, "property", currLoc.copy());
-            case "protected" -> new Token(TokenType.PROTECTED, "protected", currLoc.copy());
-            case "public" -> new Token(TokenType.PUBLIC, "public", currLoc.copy());
-            case "pure" -> new Token(TokenType.PURE, "pure", currLoc.copy());
-            case "Real" -> new Token(TokenType.REAL, "Real", currLoc.copy());
-            case "recurs" -> new Token(TokenType.RECURS, "recurs", currLoc.copy());
-            case "ref" -> new Token(TokenType.REF, "ref", currLoc.copy());
-            case "rename" -> new Token(TokenType.RENAME, "rename", currLoc.copy());
-            case "return" -> new Token(TokenType.RETURN, "return", currLoc.copy());
-            case "retype" -> new Token(TokenType.RETYPE, "retype", currLoc.copy());
-            case "scalar" -> new Token(TokenType.SCALAR, "scalar", currLoc.copy());
-            case "set" -> new Token(TokenType.SET, "set", currLoc.copy());
-            case "slice" -> new Token(TokenType.SLICE, "slice", currLoc.copy());
-            case "stop" -> new Token(TokenType.STOP, "stop", currLoc.copy());
-            case "String" -> new Token(TokenType.STRING, "String", currLoc.copy());
-            case "then" -> new Token(TokenType.THEN, "then", currLoc.copy());
-            case "Tuple" -> new Token(TokenType.TUPLE, "Tuple", currLoc.copy());
-            case "type" -> new Token(TokenType.TYPE, "type", currLoc.copy());
-            case "uninit" -> new Token(TokenType.UNINIT, "uninit", currLoc.copy());
-            case "until" -> new Token(TokenType.UNTIL, "until", currLoc.copy());
-            case "Void" -> new Token(TokenType.VOID, "Void", currLoc.copy());
-            case "while" -> new Token(TokenType.WHILE, "while", currLoc.copy());
-
-            // -----------------------------------------------------------------------------------------------
-            //                                      BOOLEAN LITERALS
-            // -----------------------------------------------------------------------------------------------
-
-            case "True" -> new Token(TokenType.BOOL_LIT, "True", currLoc.copy());
-            case "False" -> new Token(TokenType.BOOL_LIT, "False", currLoc.copy());
-            default -> createID(createStr);
+        // Keywords
+        return switch(next) {
+            case "abstr" -> new Token(TokenType.ABSTR, "abstr", location.copy());
+            case "and" -> new Token(TokenType.AND, "and", location.copy());
+            case "Array" -> new Token(TokenType.ARRAY, "Array", location.copy());
+            case "Bool" -> new Token(TokenType.BOOL, "Bool", location.copy());
+            case "break" -> new Token(TokenType.BREAK, "break", location.copy());
+            case "cast" -> new Token(TokenType.CAST, "cast", location.copy());
+            case "Char" -> new Token(TokenType.CHAR, "Char", location.copy());
+            case "choice" -> new Token(TokenType.CHOICE, "choice", location.copy());
+            case "cin" -> new Token(TokenType.CIN, "cin", location.copy());
+            case "class" -> new Token(TokenType.CLASS, "class", location.copy());
+            case "const" -> new Token(TokenType.CONST, "const", location.copy());
+            case "continue" -> new Token(TokenType.CONTINUE, "continue", location.copy());
+            case "cout" -> new Token(TokenType.COUT, "cout", location.copy());
+            case "def" -> new Token(TokenType.DEF, "def", location.copy());
+            case "discr" -> new Token(TokenType.DISCR, "discr", location.copy());
+            case "do" -> new Token(TokenType.DO, "do", location.copy());
+            case "else" -> new Token(TokenType.ELSE, "else", location.copy());
+            case "endl" -> new Token(TokenType.ENDL, "endl", location.copy());
+            case "except" -> new Token(TokenType.EXCEPT, "except", location.copy());
+            case "False" -> new Token(TokenType.BOOL_LIT, "False", location.copy());
+            case "final" -> new Token(TokenType.FINAL, "final", location.copy());
+            case "for" -> new Token(TokenType.FOR, "for", location.copy());
+            case "global" -> new Token(TokenType.GLOBAL, "global", location.copy());
+            case "if" -> new Token(TokenType.IF, "if", location.copy());
+            case "in" -> new Token(TokenType.IN, "in", location.copy());
+            case "Int" -> new Token(TokenType.INT, "Int", location.copy());
+            case "inherits" -> new Token(TokenType.INHERITS, "inherits", location.copy());
+            case "inout" -> new Token(TokenType.INOUT, "inout", location.copy());
+            case "inrev" -> new Token(TokenType.INREV, "inrev", location.copy());
+            case "instanceof" -> new Token(TokenType.INSTANCEOF, "instanceof", location.copy());
+            case "List" -> new Token(TokenType.LIST, "List", location.copy());
+            case "local" -> new Token(TokenType.LOCAL, "local", location.copy());
+            case "main" -> new Token(TokenType.MAIN, "main", location.copy());
+            case "method" -> new Token(TokenType.METHOD, "method", location.copy());
+            case "new" -> new Token(TokenType.NEW, "new", location.copy());
+            case "not" -> new Token(TokenType.NOT, "not", location.copy());
+            case "on" -> new Token(TokenType.ON, "on", location.copy());
+            case "only" -> new Token(TokenType.ONLY, "only", location.copy());
+            case "operator" -> new Token(TokenType.OPERATOR, "operator", location.copy());
+            case "or" -> new Token(TokenType.OR, "or", location.copy());
+            case "other" -> new Token(TokenType.OTHER, "other", location.copy());
+            case "out" -> new Token(TokenType.OUT, "out", location.copy());
+            case "override" -> new Token(TokenType.OVERRIDE, "override", location.copy());
+            case "parent" -> new Token(TokenType.PARENT, "parent", location.copy());
+            case "property" -> new Token(TokenType.PROPERTY, "property", location.copy());
+            case "protected" -> new Token(TokenType.PROTECTED, "protected", location.copy());
+            case "public" -> new Token(TokenType.PUBLIC, "public", location.copy());
+            case "pure" -> new Token(TokenType.PURE, "pure", location.copy());
+            case "Real" -> new Token(TokenType.REAL, "Real", location.copy());
+            case "recurs" -> new Token(TokenType.RECURS, "recurs", location.copy());
+            case "ref" -> new Token(TokenType.REF, "ref", location.copy());
+            case "rename" -> new Token(TokenType.RENAME, "rename", location.copy());
+            case "return" -> new Token(TokenType.RETURN, "return", location.copy());
+            case "retype" -> new Token(TokenType.RETYPE, "retype", location.copy());
+            case "scalar" -> new Token(TokenType.SCALAR, "scalar", location.copy());
+            case "set" -> new Token(TokenType.SET, "set", location.copy());
+            case "stop" -> new Token(TokenType.STOP, "stop", location.copy());
+            case "String" -> new Token(TokenType.STRING, "String", location.copy());
+            case "True" -> new Token(TokenType.BOOL_LIT, "True", location.copy());
+            case "Tuple" -> new Token(TokenType.TUPLE, "Tuple", location.copy());
+            case "type" -> new Token(TokenType.TYPE, "type", location.copy());
+            case "uninit" -> new Token(TokenType.UNINIT, "uninit", location.copy());
+            case "Void" -> new Token(TokenType.VOID, "Void", location.copy());
+            case "while" -> new Token(TokenType.WHILE, "while", location.copy());
+            default -> createID(str);
         };
     }
 
     /**
      * Tokenizes a number.
-     * @param newNum The number we are trying to build
-     * @return Integer or real token.
+     * @param num The number we are trying to build
+     * @return {@link Token} representing either an integer or a real number.
      */
-    private Token number(StringBuilder newNum) {
+    private Token number(StringBuilder num) {
         while(isDigit()) {
-            newNum.append(lookChar);
+            num.append(lookahead);
             consume();
         }
 
-        // Only tokenize a real number when we don't have a loop operator
-        // Sorta a hack, but it is what it is... :')
-        if(lookChar == '.' && currPos+1 < file.length() && file.charAt(currPos+1) != '.') {
-                match('.');
-                newNum.append('.');
-                return realLit(newNum);
+        // Here we are checking if we have a single '.' or the loop operator '..', so we can have the lexer
+        // properly generate real literals. Somewhat of a hack, but it's the most elegant way of resolving IMO.
+        if(nextLA('.') && (pos+1) < file.length() && file.charAt(pos+1) != '.') {
+            match('.');
+            num.append('.');
+            return realLit(num);
         }
-        return new Token(TokenType.INT_LIT, newNum.toString(), currLoc.copy());
+
+        return new Token(TokenType.INT_LIT, num.toString(), location.copy());
     }
 
     /**
@@ -488,33 +514,33 @@ public class Lexer {
      * </p>
      * @return Any token.
      */
-    public Token nextToken() {
-        while(lookChar != EOF) {
-            switch(lookChar) {
+    public Token token() {
+        while(lookahead != EOF) {
+            switch(lookahead) {
                 case ' ', '\t', '\r', '\n':
                     consumeWhitespace();
                     break;
                 case '=':
                     consume();
-                    if(match('=')) { return new Token(TokenType.EQEQ, "==", currLoc.copy()); }
-                    if(match('>')) { return new Token(TokenType.ARROW, "=>", currLoc.copy()); }
-                    return new Token(TokenType.EQ, "=", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.EQEQ, "==", location.copy()); }
+                    if(match('>')) { return new Token(TokenType.ARROW, "=>", location.copy()); }
+                    return new Token(TokenType.EQ, "=", location.copy());
                 case '+':
                     consume();
-                    if(match('=')) { return new Token(TokenType.PLUSEQ, "+=", currLoc.copy()); }
-                    return new Token(TokenType.PLUS, "+", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.PLUSEQ, "+=", location.copy()); }
+                    return new Token(TokenType.PLUS, "+", location.copy());
                 case '-':
                     consume();
-                    if(match('=')) { return new Token(TokenType.MINUSEQ, "-=", currLoc.copy()); }
-                    return new Token(TokenType.MINUS, "-", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.MINUSEQ, "-=", location.copy()); }
+                    return new Token(TokenType.MINUS, "-", location.copy());
                 case '*':
                     consume();
                     if(match('*')) {
-                        if(match('=')) { return new Token(TokenType.EXPEQ, "**=", currLoc.copy()); }
-                        return new Token(TokenType.EXP, "**", currLoc.copy());
+                        if(match('=')) { return new Token(TokenType.EXPEQ, "**=", location.copy()); }
+                        return new Token(TokenType.EXP, "**", location.copy());
                     }
-                    if(match('=')) { return new Token(TokenType.MULTEQ, "*=", currLoc.copy()); }
-                    return new Token(TokenType.MULT, "*", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.MULTEQ, "*=", location.copy()); }
+                    return new Token(TokenType.MULT, "*", location.copy());
                 case '/':
                     consume();
                     if(match('/')) {
@@ -525,117 +551,115 @@ public class Lexer {
                         consumeMultiLineComment();
                         break;
                     }
-                    if(match('=')) { return new Token(TokenType.DIVEQ, "/=", currLoc.copy()); }
-                    return new Token(TokenType.DIV, "/", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.DIVEQ, "/=", location.copy()); }
+                    return new Token(TokenType.DIV, "/", location.copy());
                 case '~':
                     consume();
-                    return new Token(TokenType.BNOT, "~", currLoc.copy());
+                    return new Token(TokenType.BNOT, "~", location.copy());
                 case '%':
                     consume();
-                    if(match('=')) { return new Token(TokenType.MODEQ, "%=", currLoc.copy()); }
-                    return new Token(TokenType.MOD, "%", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.MODEQ, "%=", location.copy()); }
+                    return new Token(TokenType.MOD, "%", location.copy());
                 case '!':
                     consume();
-                    if(match('=')) { return new Token(TokenType.NEQ, "!=", currLoc.copy()); }
+                    if(match('=')) { return new Token(TokenType.NEQ, "!=", location.copy()); }
                     if(isLetter()) {
                         StringBuilder sb = new StringBuilder();
                         while(isLetter()) {
-                            sb.append(lookChar);
+                            sb.append(lookahead);
                             consume();
                         }
                         if(sb.toString().equals("instanceof")) {
-                            return new Token(TokenType.NINSTANCEOF, "!instanceof", currLoc.copy());
+                            return new Token(TokenType.NINSTANCEOF, "!instanceof", location.copy());
                         }
                     }
-                    return new Token(TokenType.ERROR, "ERROR", currLoc.copy());
+                    return new Token(TokenType.ERROR, "ERROR", location.copy());
                 case '#':
                     consume();
                     if(isLetter()) {
                         StringBuilder sb = new StringBuilder();
                         while(isLetter()) {
-                            sb.append(lookChar);
+                            sb.append(lookahead);
                             consume();
                         }
-                        if(sb.toString().equals("include")) {
-                            return new Token(TokenType.INCLUDE, "#include", currLoc.copy());
-                        }
-                        if(sb.toString().equals("exclude")) {
-                            return new Token(TokenType.EXCLUDE, "#exclude", currLoc.copy());
-                        }
+                        if(sb.toString().equals("include"))
+                            return new Token(TokenType.INCLUDE, "#include", location.copy());
+                        if(sb.toString().equals("exclude"))
+                            return new Token(TokenType.EXCLUDE, "#exclude", location.copy());
                     }
-                    return new Token(TokenType.ERROR, "ERROR", currLoc.copy());
+                    return new Token(TokenType.ERROR, "ERROR", location.copy());
                 case '<':
                     consume();
                     if(match('=')) {
-                        if(match('>')) { return new Token(TokenType.UFO, "<=>", currLoc.copy()); }
-                        return new Token(TokenType.LTEQ, "<=", currLoc.copy());
+                        if(match('>')) { return new Token(TokenType.UFO, "<=>", location.copy()); }
+                        return new Token(TokenType.LTEQ, "<=", location.copy());
                     }
-                    if(match('>')) { return new Token(TokenType.LTGT, "<>", currLoc.copy()); }
-                    if(match(':')) { return new Token(TokenType.MIN, "<:", currLoc.copy()); }
-                    if(match('<')) { return new Token(TokenType.SLEFT, "<<", currLoc.copy()); }
-                    return new Token(TokenType.LT, "<", currLoc.copy());
+                    if(match(':')) { return new Token(TokenType.MIN, "<:", location.copy()); }
+                    if(match('<')) { return new Token(TokenType.SLEFT, "<<", location.copy()); }
+                    return new Token(TokenType.LT, "<", location.copy());
                 case '>':
                     consume();
-                    if(match('=')) { return new Token(TokenType.GTEQ, ">=", currLoc.copy()); }
-                    if(match('>')) { return new Token(TokenType.SRIGHT, ">>", currLoc.copy()); }
-                    return new Token(TokenType.GT, ">", currLoc.copy());
+                    if(match('=')) { return new Token(TokenType.GTEQ, ">=", location.copy()); }
+                    if(match('>')) { return new Token(TokenType.SRIGHT, ">>", location.copy()); }
+                    return new Token(TokenType.GT, ">", location.copy());
                 case ':':
                     consume();
-                    if(match('>')) { return new Token(TokenType.MAX, ":>", currLoc.copy()); }
-                    return new Token(TokenType.COLON, ":", currLoc.copy());
+                    if(match('>')) { return new Token(TokenType.MAX, ":>", location.copy()); }
+                    return new Token(TokenType.COLON, ":", location.copy());
                 case '.':
                     consume();
                     if(isDigit()) { return realLit(new StringBuilder(".")); }
-                    if(match('.')) { return new Token(TokenType.INC, "..", currLoc.copy()); }
-                    return new Token(TokenType.PERIOD, ".", currLoc.copy());
+                    if(match('.')) { return new Token(TokenType.INC, "..", location.copy()); }
+                    return new Token(TokenType.PERIOD, ".", location.copy());
                 case ',':
                     consume();
-                    return new Token(TokenType.COMMA, ",", currLoc.copy());
+                    return new Token(TokenType.COMMA, ",", location.copy());
                 case '(':
                     consume();
-                    return new Token(TokenType.LPAREN, "(", currLoc.copy());
+                    return new Token(TokenType.LPAREN, "(", location.copy());
                 case ')':
                     consume();
-                    return new Token(TokenType.RPAREN, ")", currLoc.copy());
+                    return new Token(TokenType.RPAREN, ")", location.copy());
                 case '{':
                     consume();
-                    return new Token(TokenType.LBRACE, "{", currLoc.copy());
+                    return new Token(TokenType.LBRACE, "{", location.copy());
                 case '}':
                     consume();
-                    return new Token(TokenType.RBRACE, "}", currLoc.copy());
+                    return new Token(TokenType.RBRACE, "}", location.copy());
                 case '[':
                     consume();
-                    return new Token(TokenType.LBRACK, "[", currLoc.copy());
+                    return new Token(TokenType.LBRACK, "[", location.copy());
                 case ']':
                     consume();
-                    return new Token(TokenType.RBRACK, "]", currLoc.copy());
+                    return new Token(TokenType.RBRACK, "]", location.copy());
                 case '@':
                     consume();
-                    return new Token(TokenType.AT, "@", currLoc.copy());
-                case '\'':
-                    consume();
-                    if(match('\'') && match('\'')) { return strLit(new StringBuilder()); }
-                    return charLit();
+                    return new Token(TokenType.AT, "@", location.copy());
+                case '\'': return charLit();
                 case '?':
                     consume();
-                    if(match('.')) { return new Token(TokenType.ELVIS, "?.", currLoc.copy()); }
-                    else return new Token(TokenType.ERROR, "ERROR", currLoc.copy());
+                    if(match('.')) { return new Token(TokenType.ELVIS, "?.", location.copy()); }
+                    else return new Token(TokenType.ERROR, "ERROR", location.copy());
                 case '|':
                     consume();
-                    return new Token(TokenType.BOR, "|", currLoc.copy());
+                    return new Token(TokenType.BOR, "|", location.copy());
                 case '&':
                     consume();
-                    return new Token(TokenType.BAND, "&", currLoc.copy());
+                    return new Token(TokenType.BAND, "&", location.copy());
                 case '^':
                     consume();
-                    return new Token(TokenType.XOR, "^", currLoc.copy());
+                    return new Token(TokenType.XOR, "^", location.copy());
                 default:
-                    if(isLetter() || lookChar == '_') { return name(); }
-                    if(isDigit()) { return number(new StringBuilder()); }
-                    consume();
-                    return new Token(TokenType.ERROR, "ERROR", currLoc.copy());
+                    if(isLetter() || nextLA('_'))
+                        return name();
+                    else if(isDigit())
+                        return number(new StringBuilder());
+                    else {
+                        consume();
+                        return new Token(TokenType.ERROR, "ERROR", location.copy());
+                    }
             }
         }
-        return new Token(TokenType.EOF, "EOF", currLoc.copy());
+        return new Token(TokenType.EOF, "EOF", location.copy());
     }
 }

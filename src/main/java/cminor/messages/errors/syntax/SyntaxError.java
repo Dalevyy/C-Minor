@@ -12,6 +12,9 @@ public class SyntaxError extends Error {
 
     protected String location;
 
+    /** Indicates whether the {@link cminor.lexer.Lexer} or the {@link cminor.parser.Parser} generated the error. */
+    protected boolean parser = true;
+
     /**
      * {@inheritDoc}
      */
@@ -26,8 +29,19 @@ public class SyntaxError extends Error {
 
     @Override
     public void createMessage(String fileName) {
-        msg = buildMessageHeader(fileName) + buildMainMessage() + PrettyPrint.RESET + location + "\n";
+        msg = buildMessageHeader(fileName) + buildMainMessage() + PrettyPrint.RESET + location;
+        String sub = buildSupplementalMessage();
+        msg += (sub.isEmpty()) ? "\n" : sub;
     }
+
+    public boolean isLexerError() { return !parser; }
+
+    public void setLexerMode() { parser = false; }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isSyntaxError() { return true; }
 
     /**
      * {@inheritDoc}
