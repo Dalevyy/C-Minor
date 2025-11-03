@@ -5,6 +5,7 @@ package cminor.interpreter;
 import cminor.ast.classbody.InitDecl;
 import cminor.ast.classbody.MethodDecl;
 import cminor.ast.expressions.*;
+import cminor.ast.expressions.Literal.ConstantType;
 import cminor.ast.misc.CompilationUnit;
 import cminor.ast.misc.ParamDecl;
 import cminor.ast.misc.Var;
@@ -751,28 +752,27 @@ public class Interpreter extends Visitor {
                     .addErrorNumber(MessageNumber.RUNTIME_ERROR_600)
                     .generateError();
         }
-
         for(int i = 0; i < vals.size(); i++) {
-            String currVal = vals.get(i);
-            Expression currExpr = in.getInExprs().get(i);
+            String curr = vals.get(i);
+            Expression expr = in.getInExprs().get(i);
             try {
-                if(currExpr.type.isInt())
-                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(ScalarType.Scalars.INT)));
-                else if(currExpr.type.isReal())
-                    stack.setValue(currExpr,new Value(new BigDecimal(currVal),new ScalarType(ScalarType.Scalars.REAL)));
-                else if(currExpr.type.isChar())
-                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(ScalarType.Scalars.CHAR)));
-                else if(currExpr.type.isString())
-                    stack.setValue(currExpr,new Value(currVal,new ScalarType(ScalarType.Scalars.STR)));
+                if(expr.type.isInt())
+                    stack.setValue(expr,new Value(new Literal(ConstantType.INT,curr)));
+                else if(expr.type.isReal())
+                    stack.setValue(expr,new Value(new Literal(ConstantType.REAL,curr)));
+                else if(expr.type.isChar())
+                    stack.setValue(expr,new Value(new Literal(ConstantType.CHAR,curr)));
+                else if(expr.type.isString())
+                    stack.setValue(expr,new Value(new Literal(ConstantType.STR,curr)));
                 else
-                    stack.setValue(currExpr,new Value(currVal,new DiscreteType(ScalarType.Scalars.BOOL)));
+                    stack.setValue(expr,new Value(new Literal(ConstantType.BOOL,curr)));
             } catch(Exception e) {
                 // ERROR CHECK #2: Make sure user input matches the type of the input variable
                 handler.createErrorBuilder(RuntimeError.class)
-                    .addLocation(in)
-                    .addErrorNumber(MessageNumber.RUNTIME_ERROR_601)
-                    .addErrorArgs(currExpr.type)
-                    .generateError();
+                       .addLocation(in)
+                       .addErrorNumber(MessageNumber.RUNTIME_ERROR_601)
+                       .addErrorArgs(expr.type)
+                       .generateError();
             }
         }
     }
