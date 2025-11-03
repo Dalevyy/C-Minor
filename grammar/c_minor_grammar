@@ -247,7 +247,7 @@ shift_expression
     ;
 
 relational_expression
-    : shift_expression (('<' | '>' | '<=' | '>=') shift_expression)*
+    : shift_expression (('<' | '>' | '<=' | '>=' | '<=>') shift_expression)*
     ;
 
 instanceof_expression
@@ -255,7 +255,7 @@ instanceof_expression
     ;
 
 equality_expression
-    : instanceof_expression (('==' | '<>') instanceof_expression)*
+    : instanceof_expression (('==' | '!=') instanceof_expression)*
     ;
 
 and_expression

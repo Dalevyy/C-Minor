@@ -20,6 +20,7 @@ import javax.swing.*;
  */
 public enum MessageNumber {
 
+    TEST_100,
     /* ######################################## SYNTAX ERRORS ######################################## */
     SYNTAX_ERROR_100,
     SYNTAX_ERROR_101,

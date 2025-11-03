@@ -27,9 +27,6 @@ import cminor.token.Token;
 import cminor.token.TokenType;
 import cminor.utilities.Vector;
 
-//TODO: There seems to be an error with '<>' and '<=>' at least in the parser! \(O-o)/
-//TODO: You can concatenate primitives on the RHS of strings (NOT STRUCTURED TYPES)
-
 public class PEG {
 
     /**
