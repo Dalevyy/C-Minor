@@ -3,6 +3,7 @@ package cminor.modifierchecker;
 import cminor.ast.AST;
 import cminor.ast.classbody.ClassNode;
 import cminor.ast.classbody.MethodDecl;
+import cminor.ast.expressions.Expression;
 import cminor.ast.expressions.FieldExpr;
 import cminor.ast.expressions.Invocation;
 import cminor.ast.expressions.NewExpr;
@@ -288,6 +289,36 @@ public class ModifierChecker extends Visitor {
             currentScope = is.getElseScope();
             is.getElseBody().visit(this);
             currentScope = currentScope.closeScope();
+        }
+    }
+
+    public void visitInStmt(InStmt in) {
+        for(Expression e : in.getInExprs()) {
+            if(!e.isFieldExpr()) {
+                AST var;
+                if(e.isArrayExpr())
+                    var = currentScope.findName(e.asArrayExpr().getArrayTarget());
+                else
+                    var = currentScope.findName(e);
+                if(var.isTopLevelDecl()) {
+                    // ERROR CHECK #1: If we have a global constant, then its value can not be reassigned.
+                    if(var.asTopLevelDecl().isGlobalDecl() && var.asTopLevelDecl().asGlobalDecl().isConstant()) {
+                        handler.createErrorBuilder(ModError.class)
+                               .addLocation(in)
+                               .addErrorNumber(MessageNumber.MOD_ERROR_505)
+                               .addErrorArgs(var)
+                               .addSuggestionNumber(MessageNumber.MOD_SUGGEST_1505)
+                               .generateError();
+                    }
+                    else if(var.asTopLevelDecl().isEnumDecl()) {
+                        handler.createErrorBuilder(ModError.class)
+                                .addLocation(var)
+                                .addErrorNumber(MessageNumber.MOD_ERROR_508)
+                                .addErrorArgs(var)
+                                .generateError();
+                    }
+                }
+            }
         }
     }
 

@@ -237,4 +237,31 @@ class ModifierBadTest extends ModifierTest {
             error = thrown CompilationMessage
             error.msg.messageType == MessageNumber.MOD_ERROR_506
     }
+
+    def "Input Statement - Enum Constant Can Not Be Reassigned"() {
+        when: "An enum constant is reassigned its value."
+            input = '''
+                        def WEEKS type = { MON = 1 }
+                        cin >> MON
+                    '''
+            vm.runInterpreter(input)
+
+        then: "An error is thrown since enum constants can not change their initial values."
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.MOD_ERROR_508
+    }
+
+
+    def "Input Statement - Global Constant Can Not Be Reassigned"() {
+        when:
+            input = '''
+                        def const a:Int = 5
+                        cin >> a
+                    '''
+            vm.runInterpreter(input)
+
+        then:
+            error = thrown CompilationMessage
+            error.msg.messageType == MessageNumber.MOD_ERROR_505
+    }
 }
