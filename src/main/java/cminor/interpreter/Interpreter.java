@@ -284,7 +284,7 @@ public class Interpreter extends Visitor {
                     break;
                 }
                 else if(be.type.isString()) {
-                    currentValue = new Value(LHS.asString() + RHS.asString(),be.type);
+                    currentValue = new Value(LHS.asString() + RHS,be.type);
                     break;
                 }
             case "==":
