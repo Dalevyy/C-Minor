@@ -348,6 +348,7 @@ public class Lexer {
                 consume();
             }
         }
+        str.append("'");
 
         // By default, all text literals will be treated as strings!
         if(textLit) {
